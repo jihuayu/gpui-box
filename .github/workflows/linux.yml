@@ -1,0 +1,92 @@
+name: Linux checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shared-and-cli:
+    name: Linux shared code, CLI and components
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CARGO_TERM_COLOR: never
+      CARGO_INCREMENTAL: "0"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Install Linux build dependencies
+        timeout-minutes: 10
+        run: |
+          mkdir -p target/ci
+          for host in archive.ubuntu.com security.ubuntu.com mirrors.edge.kernel.org github.com; do
+            getent ahostsv4 "$host" || true
+          done | tee target/ci/dns.log
+          printf '%s\n' \
+            'deb https://archive.ubuntu.com/ubuntu noble main universe' \
+            'deb https://archive.ubuntu.com/ubuntu noble-updates main universe' \
+            'deb https://security.ubuntu.com/ubuntu noble-security main universe' \
+            > "$RUNNER_TEMP/gpui-box-ubuntu.list"
+          apt_options=(
+            -o "Dir::Etc::sourcelist=$RUNNER_TEMP/gpui-box-ubuntu.list"
+            -o 'Dir::Etc::sourceparts=-'
+            -o 'Acquire::Retries=2'
+            -o 'Acquire::https::Timeout=20'
+            -o 'APT::Update::Error-Mode=any'
+          )
+          if ! sudo apt-get "${apt_options[@]}" update 2>&1 | tee target/ci/apt-update.log; then
+            sed -i \
+              -e 's|https://archive.ubuntu.com/ubuntu|https://mirrors.edge.kernel.org/ubuntu|g' \
+              -e 's|https://security.ubuntu.com/ubuntu|https://mirrors.edge.kernel.org/ubuntu|g' \
+              "$RUNNER_TEMP/gpui-box-ubuntu.list"
+            sudo apt-get "${apt_options[@]}" update 2>&1 | tee target/ci/apt-update-fallback.log
+          fi
+          sudo apt-get "${apt_options[@]}" install --no-install-recommends -y \
+            clang cmake pkg-config libclang-dev libssl-dev libudev-dev \
+            libfontconfig1-dev libxkbcommon-x11-dev libwayland-dev \
+            libx11-xcb-dev libxcb1-dev libvulkan-dev libegl1-mesa-dev \
+            libx11-dev libxi-dev libxrandr-dev libxcursor-dev libxinerama-dev \
+            libasound2-dev libglib2.0-dev libdbus-1-dev \
+            2>&1 | tee target/ci/apt-install.log
+      - name: Set up pinned mise and Rust
+        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: 2026.7.5
+          sha256: 5f7ab76afdf0780d12edeaa67e908094e9ccf7924cfe203e415c1cfb87bbf778
+          cache: true
+      - name: Install Rust checks
+        run: |
+          mise run setup:rust
+          mkdir -p target/ci
+          mise exec -- rustc --version --verbose | tee target/ci/rust.txt
+          mise exec -- cargo --version | tee target/ci/cargo.txt
+      - name: Check shared packages and CLI
+        run: mise run check 2>&1 | tee target/ci/check.log
+      - name: Check shared components
+        run: mise run check:components 2>&1 | tee target/ci/components.log
+      - name: Test shared gallery workflows
+        run: mise exec -- cargo test --locked -p gpui-box-example-hello 2>&1 | tee target/ci/gallery.log
+      - name: Check desktop application
+        run: mise run check:desktop 2>&1 | tee target/ci/desktop.log
+      - name: Upload validation logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: linux-checks-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/ci/
+          if-no-files-found: warn
+          retention-days: 14
