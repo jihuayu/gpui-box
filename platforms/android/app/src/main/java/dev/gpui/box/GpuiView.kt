@@ -99,10 +99,16 @@ class GpuiView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
         contacts.clear()
     }
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (!attached) return false
+        NativeBridge.checkMain()
+        if (!attached || !resumed) return false
         val action = event.actionMasked
         if (action == MotionEvent.ACTION_CANCEL) { cancelContacts(); return true }
-        if (action == MotionEvent.ACTION_DOWN) requestFocus()
+        if (action == MotionEvent.ACTION_DOWN) {
+            // A replacement stream must release every old GPUI contact even if
+            // Android or a parent omitted its previous UP/CANCEL callback.
+            cancelContacts()
+            requestFocus()
+        }
         val indices = if (action == MotionEvent.ACTION_MOVE) (0 until event.pointerCount).toList() else listOf(event.actionIndex)
         for (index in indices) {
             val pointer = event.getPointerId(index)
@@ -112,7 +118,11 @@ class GpuiView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> 2
                 else -> continue
             }
-            if (phase == 0) contacts.put(pointer, NativeBridge.nextContact())
+            if (phase == 0) {
+                val previous = contacts.get(pointer, 0L)
+                if (previous != 0L) NativeBridge.touch(generation, previous, 3, 0f, 0f)
+                contacts.put(pointer, NativeBridge.nextContact())
+            }
             val id = contacts.get(pointer, 0L)
             if (id != 0L) NativeBridge.touch(generation, id, phase, event.getX(index), event.getY(index))
             if (phase == 2) contacts.delete(pointer)

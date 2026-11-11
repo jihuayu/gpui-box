@@ -302,3 +302,43 @@ prompt-during-recreation/cancellation stress and revocation/process reconstructi
 retain separate runtime gates. Provider capabilities conservatively use Compiled.
 The generic five-platform contract manifest retains its original scope. Full M1,
 M2 and system-service acceptance remain open in their issues.
+
+## Touch contact lifecycle continuation
+
+GpuiView now accepts touch input only on its main thread while attached and
+resumed. A new ACTION_DOWN cancels the previous contact stream, including an
+interrupted stream that never received UP/CANCEL. A repeated pointer-down also
+cancels that pointer's old native contact before allocating a fresh identity.
+The native bridge rejects background Started/Moved/Ended events while permitting
+Cancelled events to release the recognizer. Android pointer IDs remain separate
+from array indices and process-monotonic GPUI contact IDs.
+
+TouchLifecycleTest drives real Kotlin MotionEvent objects into the host and the
+existing upstream recognizer. Three cases exercise 20 cancellation cycles plus
+late UP, cancelled pans versus taps, replacement DOWN, repeated pointer IDs,
+reordered pointer indices, secondary-pointer release before/after the primary,
+pause/late-event rejection and ten successful taps after resuming. Assertions
+observe application counter callbacks through their corresponding committed-back
+handlers. They preserve the existing example page and component ownership.
+
+Initial test attempts incorrectly expected the unlabelled platform counter in
+the accessibility tree. The assertions now use the existing application behavior.
+A completed pan can start upstream inertia, whose first subsequent touch stops
+the fling. The cancellation case explicitly sends ACTION_CANCEL and verifies a
+fresh tap afterward. Inertial-scroll stop behavior retains its upstream policy.
+The focused three-test suite passes on Android 15 / API 35 x86_64, 4096-byte pages,
+with the same Vulkan emulator configuration as earlier qualification.
+
+Both Android native ABIs build at platform 35, and both pass strict Clippy.
+Integrated `mise run check` passes 180 host tests plus six compile-fail doctests
+and two nested child-process reports. With collaborator PR #81 integrated,
+Windows passes 16 component tests and six shared-gallery/workflow tests.
+`mise run check:components` passes strict gallery/component lint. Android lint
+reports zero errors and eight existing warnings.
+The full API 35 emulator instrumentation suite passes 17/17 after app-data reset,
+including all previous 14 cases and the three new touch lifecycle regressions.
+
+This slice adds contact-stream stress. Long-press claims, full scrolling physics,
+GPU device loss, combined IME/predictive animation, TalkBack speech, ARM64 hardware
+and real Chinese keyboard candidate UI retain their independent acceptance gates.
+Physical-device testing remains deferred.

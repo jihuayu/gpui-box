@@ -561,6 +561,9 @@ pub fn touch(generation: u64, id: u64, phase: i32, x: f32, y: f32) {
     let Some(window) = window(generation) else {
         return;
     };
+    if !window.visible.get() && phase != 3 {
+        return;
+    }
     if window.visible.get() && phase == 0 {
         super::host::input();
     }
