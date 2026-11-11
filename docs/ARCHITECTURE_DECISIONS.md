@@ -446,3 +446,37 @@ state, signer lineage, store channels and platform runtime evidence retain
 explicit follow-up acceptance. Local settings and wall-clock checks have their
 documented trust boundary. Provider manifests retain ContractOnly until adapters
 supply compiled/runtime evidence.
+
+## ADR-017 — Recover synced update tails and publish verified artifacts atomically
+
+### Context
+
+Signed update metadata supplies trusted byte length and digest. Downloads can
+stop between a file write, a checkpoint commit and a publication rename. Native
+installers may retain files while ordinary application cache cleanup runs.
+
+### Decision
+
+Keep one bounded transfer slot in AppData's private Data root with explicit
+cleanup and an exclusive OS writer lock. Reuse bounded atomic SettingsStore for
+offer/digest/size/offset/prefix-hash/phase checkpoints. Sync each bounded chunk
+before committing its offset. Rehash committed prefixes on resume and adopt
+bounded uncommitted tails after syncing them. Preserve inconsistent state until
+explicit recovery. Require exact append offsets and fresh session/generation
+tickets. Recheck full signed digest and current trust before atomic publication.
+
+Recover a renamed file by re-verifying it before checkpointing Published. Return
+a read-only file handle and stream receipt to native providers. Persist a deletion
+intent before explicit discard so interrupted cleanup can resume. Preserve unknown
+files. Track directory-sync uncertainty separately from logical completion.
+
+### Consequences
+
+Ordinary cache cleanup cannot remove active update artifacts. Explicit discard
+reclaims this single slot before a different signed offer starts. Resume hashes
+the saved prefix once, while each append extends an in-memory digest. Appends are
+bounded to 1 MiB, artifacts to the authenticated application limit up to 2 GiB.
+Crash recovery may retain bytes beyond the last reported offset, and the final
+digest remains authoritative. Private roots and filesystem atomic rename remain
+storage prerequisites. Native transport negotiation, APK identity/signature/URI
+binding and durable installer reconciliation require platform adapters.

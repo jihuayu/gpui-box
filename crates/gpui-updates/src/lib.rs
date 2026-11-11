@@ -1,9 +1,11 @@
 //! Background update trust verification and generation-correlated orchestration.
 //! Native downloads, package inspection, installer UI and installed-version probes
 //! belong to platform providers. Contract evidence remains explicit.
+mod cache;
 mod metadata;
 mod state;
 
+pub use cache::*;
 pub use metadata::*;
 pub use state::*;
 
