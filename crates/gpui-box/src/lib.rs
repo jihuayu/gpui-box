@@ -98,6 +98,10 @@ pub use gpui_power as power;
 #[cfg(feature = "tray")]
 pub use gpui_tray as tray;
 
+/// Taskbar, Dock, badge, attention and notification task presentation.
+#[cfg(feature = "task-presentation")]
+pub use gpui_task_presentation as task_presentation;
+
 #[cfg(test)]
 mod tests {
     #[cfg(feature = "power")]
@@ -124,6 +128,28 @@ mod tests {
         assert_eq!(crate::tray::TrayOperation::ALL.len(), 5);
         assert_eq!(crate::tray::platform_support_matrix().len(), 30);
         assert_eq!(crate::tray::DEFAULT_TRAY_EVENT_CAPACITY, 64);
+    }
+
+    #[cfg(feature = "task-presentation")]
+    #[test]
+    fn task_presentation_facade_reexports_the_coordinated_contracts() {
+        assert_eq!(
+            crate::task_presentation::UPSTREAM_GPUI_REVISION,
+            crate::UPSTREAM_REVISION
+        );
+        assert_eq!(crate::task_presentation::PACKAGE_VERSION, crate::VERSION);
+        assert_eq!(
+            crate::task_presentation::TaskPresentationOperation::ALL.len(),
+            5
+        );
+        assert_eq!(
+            crate::task_presentation::platform_support_matrix().len(),
+            30
+        );
+        assert_eq!(
+            crate::task_presentation::DEFAULT_TASK_PRESENTATION_EVENT_CAPACITY,
+            64
+        );
     }
 
     #[cfg(feature = "diagnostics")]
