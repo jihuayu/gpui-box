@@ -1,0 +1,2095 @@
+{
+  "repository": "https://github.com/zed-industries/zed",
+  "revision": "f8cfc7ed9e57503def9479138894f3139f5400cc",
+  "archive_sha256": "14469458492d39717af8a7ff4f64d4c2d49b2c1843fe7f168b6b14046dd9c180",
+  "directories": [
+    "crates/bench_metrics",
+    "crates/collections",
+    "crates/gpui",
+    "crates/gpui_apple",
+    "crates/gpui_ios",
+    "crates/gpui_linux",
+    "crates/gpui_macos",
+    "crates/gpui_macros",
+    "crates/gpui_platform",
+    "crates/gpui_shared_string",
+    "crates/gpui_tokio",
+    "crates/gpui_util",
+    "crates/gpui_web",
+    "crates/gpui_wgpu",
+    "crates/gpui_windows",
+    "crates/http_client",
+    "crates/http_client_tls",
+    "crates/refineable",
+    "crates/refineable/derive_refineable",
+    "crates/reqwest_client",
+    "crates/scheduler",
+    "crates/sum_tree",
+    "crates/util_macros",
+    "crates/zlog",
+    "crates/ztracing",
+    "crates/ztracing_macro",
+    "tooling/perf"
+  ],
+  "adaptations": [
+    "Cargo.toml reduced to GPUI workspace dependency closure",
+    "License symlinks materialized as files for Windows portability"
+  ],
+  "files": [
+    {
+      "path": ".cargo/config.toml",
+      "sha256": "477b8a9cdf3640e6135a3fe2020622dd0d98878812a96398d8378104d28fcd0c",
+      "materialized_symlink": false
+    },
+    {
+      "path": "LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": false
+    },
+    {
+      "path": "README.md",
+      "sha256": "0a1b8417d31d53dfd6b4f1c5cc1a1a6f7ae6d3ac044bdb1938bd49cbd09d8198",
+      "materialized_symlink": false
+    },
+    {
+      "path": "assets/fonts/ibm-plex-sans/IBMPlexSans-Italic.ttf",
+      "sha256": "a9c6ef9942c49e49d11e11a6dacc0b3a087978757e9b22a06b8ac22a6400fb15",
+      "materialized_symlink": false
+    },
+    {
+      "path": "assets/fonts/ibm-plex-sans/IBMPlexSans-Regular.ttf",
+      "sha256": "975dcda37d80f038dcd143c22e33ca2d97a0cc5a929aace1c749153b0fe1afa5",
+      "materialized_symlink": false
+    },
+    {
+      "path": "assets/fonts/ibm-plex-sans/IBMPlexSans-SemiBold.ttf",
+      "sha256": "a20caf8286023a6a7a85e40b1d2a4ae9fc3e3b1f9eda8f4c542dd4986af67bb1",
+      "materialized_symlink": false
+    },
+    {
+      "path": "assets/fonts/ibm-plex-sans/IBMPlexSans-SemiBoldItalic.ttf",
+      "sha256": "147106b619423a82b40f6d64bace074ad5b786e59f48023bda69d63b1755fb82",
+      "materialized_symlink": false
+    },
+    {
+      "path": "assets/fonts/ibm-plex-sans/license.txt",
+      "sha256": "91c25c350d3cac39da2736d74f7ba37ef648f5237a4e330a240615bc8d8c4360",
+      "materialized_symlink": false
+    },
+    {
+      "path": "assets/fonts/lilex/Lilex-Bold.ttf",
+      "sha256": "3369214e2ecddb45ae5024b11d45dd637e99e9d2127ab729817d41d72b8a9c68",
+      "materialized_symlink": false
+    },
+    {
+      "path": "assets/fonts/lilex/Lilex-BoldItalic.ttf",
+      "sha256": "9629bd65ee7376879414560e37281653ca82dcf33e143d7473341b2f88206985",
+      "materialized_symlink": false
+    },
+    {
+      "path": "assets/fonts/lilex/Lilex-Italic.ttf",
+      "sha256": "a6e52046b91ed12a6af50bb74e70e27dea4a54eab2bed8947db4c1128ba83d45",
+      "materialized_symlink": false
+    },
+    {
+      "path": "assets/fonts/lilex/Lilex-Regular.ttf",
+      "sha256": "8a467ad5a1941dc7c9cebaee34e3ed9364a73b48393034e363e4b528bd711d04",
+      "materialized_symlink": false
+    },
+    {
+      "path": "assets/fonts/lilex/OFL.txt",
+      "sha256": "a356708a399e3f54b937ec7d9b722c26dabba21365b60f95c56eb7ebca0dee40",
+      "materialized_symlink": false
+    },
+    {
+      "path": "clippy.toml",
+      "sha256": "cee9df1405ce11545475b84f25ce48b904159160d72fc9b82a9363ab8d1f39e8",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/bench_metrics/Cargo.toml",
+      "sha256": "48f197fef4a4247dac19678add74a00a0e3e46364f139effd99c474ca0fa618c",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/bench_metrics/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/bench_metrics/src/bench_metrics.rs",
+      "sha256": "4c7de67c7a24d3a1a634a3d20266148e0b5744ba6cb249c4f5df2a44d1efbed4",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/collections/Cargo.toml",
+      "sha256": "78ad646689787c49b45719f87021558284e8dabc300a8bc136edfec8e622e164",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/collections/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/collections/src/collections.rs",
+      "sha256": "49d25d361182a7cdc5d95591d4f2c9a43dd3ae2217dee123b4133120d17494cd",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/collections/src/vecmap.rs",
+      "sha256": "5d5d4a459dc7fea27a2d0370577ba5c98bc19caf52dac533f90dc4e01fedc5ec",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/collections/src/vecmap_tests.rs",
+      "sha256": "a64bac649c2730e590878a37fdc79b1c40b5d9b96630bfc3404408b40b5da364",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/Cargo.toml",
+      "sha256": "78a605fed2b1606ed59ef9ca63379335da05802b62c51c940600872cf4742666",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/gpui/README.md",
+      "sha256": "989b10e5914dcc8a1f2568303849aeab2d6aa26f2c5dfead96de0491330ada79",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/benches/focus_cleanup.rs",
+      "sha256": "e6b98a08fe04314d6d0c1a0068c8d8a7cef095588d8d79ffe788723b2d140ab4",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/build.rs",
+      "sha256": "46e0767714a6601546a6ad74094db61495057abdc7d61e2d1b19d86d29ac500b",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/docs/contexts.md",
+      "sha256": "2688efb86472685cf2ea1af254c7c4bc70d53dd369c3d30118bf5e356fe86574",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/docs/key_dispatch.md",
+      "sha256": "56189467c43ca57c7cfa507f6ed7cdc31516144cbe648ef1f5fd97696862fe1a",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/README.md",
+      "sha256": "7fa416c24854b64f0e0bd5bfed7b39caffba2cf0cdefae01850c0ef805c1c32c",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/a11y.rs",
+      "sha256": "136308b44a36f7a0dbee5269b2434d8476cec42beb7f8b46e4e38e864d4cc805",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/active_state_bug.rs",
+      "sha256": "94230a37b899e1c56fe34ac249c081113a0a1446f568c6cf0372905a3816b9ae",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/anchor.rs",
+      "sha256": "5be423ce91b36db94857a8f7758f7f5967d0103b77941fa7bc7c5a64e3c4fe72",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/animation.rs",
+      "sha256": "0c36449cf96c897e0520cef592933e86759471108c77f53a00cda4e21969df4b",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/data_table.rs",
+      "sha256": "da44c6782a63d7d5e6ef349612cb263a32e930ec1247aad9eff6bf712ec4e341",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/drag_drop.rs",
+      "sha256": "4011afde7c64fac2559b78918e6fdabdc563fe9f7591c74425d72da906dcc47a",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/example_support/fonts.rs",
+      "sha256": "150804a20e31ecf9d82c9ae7d47fdc9cb5b7bc4ea306ff1ab4199dd597a23051",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/focus_visible.rs",
+      "sha256": "533c5101ae1727d33b3b7c339efdb2e5dd4c1e1343d6b0ffaa8babc92a8f908b",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/gif_viewer.rs",
+      "sha256": "8051774dbf4cab1503ac5938a25932409c0701c66ba36d00b5e0ee11838b2a4c",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/gradient.rs",
+      "sha256": "620dbeccd4daa80f71cb1c67f1628508cb397e9aeb4b5a5d0abe0a2a45aad193",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/grid_layout.rs",
+      "sha256": "c82663a8c48340464f70f96dfa60135f4cd3b48670882b7bc23a9ca787fb261e",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/hello_world.rs",
+      "sha256": "7e9d145d93470b02ce5641290ed7b444776813de580fe1d613b45443cc890aa0",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/image/app-icon.png",
+      "sha256": "77453d98d46494b3b34b94aa863b686ea299e0190030a5c7ca5377b238332522",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/image/arrow_circle.svg",
+      "sha256": "1dc122d8c7f8f346e6e7b838594f9718e5670fc32a5d5024aaa5e7f28a3aa8c8",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/image/black-cat-typing.gif",
+      "sha256": "b50a33262f84725f9c922fcbf0bb616270a2cb611a5ea4e280c2dca46cea9622",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/image/color.svg",
+      "sha256": "d0949465578c8223c7124ff1f66ce308e07e6eb303fdf26c2814715332d88f3b",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/image/exif-orientation-rotate-180.jpg",
+      "sha256": "cb6c28e3e6065d62790ba38662d14f3f1510180375cacba18547720e8b48d9d5",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/image/image.rs",
+      "sha256": "6c7ff2a1af12586cf754406b5879ced9cd93a179974e950f898dfe24e308275a",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/image_gallery.rs",
+      "sha256": "661ecbf91d9d20d147274a82bfe66e63f0f90f9c980b05881df79011820ff0f4",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/image_loading.rs",
+      "sha256": "1bbb69d71fcfc20f76cc677fc44b8ae611ec6e2bba1b769f5ad16a6bcd0818e4",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/input.rs",
+      "sha256": "0c2f9c60620f83896e78b24e46e0e3fadb5dcdcd712d470437e402406d178547",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/layer_shell.rs",
+      "sha256": "c6d78b271eb00c26869e4e54f705c9dc3a9ab84636840e6b3413b6130d85cb33",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/list_example.rs",
+      "sha256": "536e2527e4469ffe3203778e24c3af875ec3b57f88708fc096094077b5e72203",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/mouse_pressure.rs",
+      "sha256": "c7edbfecdccafbcaf338bf1c0ec3d23282138a84445bac3008cb96f1cb9c6aba",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/move_entity_between_windows.rs",
+      "sha256": "1b633fa89cf9382197b855cfb133319268b6c86f5bbcfc98fc2140773dee0a2f",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/on_window_close_quit.rs",
+      "sha256": "b67e9242e1eca361e572cf8057e3cc2a2f7b9e790ecaae92f1e2ff0de305e8f6",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/opacity.rs",
+      "sha256": "dffb0dbb32ca28e113def0502688483ee91f04bd373420602f6c14ec444824f7",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/ownership_post.rs",
+      "sha256": "9f7fca12bd9109634722139e72640af5338f9358246870cac1242f1b49e89644",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/painting.rs",
+      "sha256": "fa856d8218217acfc6fc48a1c4c92883faca2f0b0cbf0b9e842d3d59bab558c2",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/paths_bench.rs",
+      "sha256": "936a02d1e82c1612abfcedbdd6c39596481d72e0179c79b021a182400afe28bd",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/pattern.rs",
+      "sha256": "5aff341ee70f8cd2ae08d69d70690b88a7256cd68097fe665725e764cb4b294d",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/popover.rs",
+      "sha256": "ee87c93b159cddaa1ae913c39ccac39cd89653e3ca2a3b9b42263b970ecc56c7",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/scrollable.rs",
+      "sha256": "20074e207ce78efec9e7c11a6d2532227ce57a8d3c6b18055b0504e1457fdcb1",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/set_menus.rs",
+      "sha256": "4f2e8034e9eb3b9871f9330cd95c3fb82858c0b7cbe60ef89723be5e75a4644e",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/shadow.rs",
+      "sha256": "ef3b84f66ae520ba2b44e590d7284d7dbe4746ade50a4a6d1f300e4662546fd0",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/svg/dragon.svg",
+      "sha256": "a66278ec0c72d70152ab05fc9dd122ad094a262d96fa6f61fba6b12e128e0e47",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/svg/svg.rs",
+      "sha256": "5ee96bdb68e3a076bbb5b1d0d2729b19317772289ed3121f8d620585af0d48c2",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/system_notifications.rs",
+      "sha256": "692166db2266fb434f565efe2bc2f8da8f2baa8b6ab75ebc027f1e3d4722d474",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/tab_stop.rs",
+      "sha256": "be187a56c091ee0b609fa396cae4a13b49dcf98ff9e602d8caed3126de3f6a8e",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/testing.rs",
+      "sha256": "2b151a8c454bcd594005b94caeb6a929017595aefd17af2e0fbf0c9d2cfd5393",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/text.rs",
+      "sha256": "3883e127027adf7b99a8c909eaba3cac4b31f1afd1f6591ab520918b3f9fa25e",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/text_layout.rs",
+      "sha256": "07e4ab7a1286374a21b5bc541ef327c3473cecf361d172f3d62401b473e6cbdd",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/text_wrapper.rs",
+      "sha256": "db28861bc1f606d125ab696d67f26b4bf69de8c7a4b3de42bc103dba1edc9481",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/toggle_headless.rs",
+      "sha256": "941a6571ad1a35311bc4ed3db5ef24b98baae6f69ca13b520c137b2278f22ab0",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/tree.rs",
+      "sha256": "217e1e750cdeb736c68ee5c7d45fa6a0f8e44fc222fbf78f1f24d39dcda6a278",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/uniform_list.rs",
+      "sha256": "939b065c2db96ce38400c0ea79a0dd74803aa27793698bb5d00f6652a58f4e3a",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/view_example/example_editor.rs",
+      "sha256": "9b593ee725767f08618a62d50a6556f1e73bf113bc436eb8e0c14f525ea7bd4c",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/view_example/example_input.rs",
+      "sha256": "18751cd2746a1c25e6b8af052b67dd4d382e70f97baebcad8eba34e6e55b2803",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/view_example/example_tests.rs",
+      "sha256": "799582680b19888a0258a865d2649bc9076ee18cad3b40568e2301be98c90492",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/view_example/example_text_area.rs",
+      "sha256": "c852878e5b4c6c9006059ba2b4b88fbfe9cd737945a9a5234e0421b9f003b2a8",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/view_example/view_example_main.rs",
+      "sha256": "032a61e146623470cbf19a5aa565b623b075a7430e5ac87e69e10de447423bc9",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/window.rs",
+      "sha256": "791ec50ee1e824c224da8609ff72241518ddeb4a38b80fb50bc46498283dd1da",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/window_movable.rs",
+      "sha256": "b67243c58182b84f07fe531033d5cd140d1111d433e57a2c37de0dc1c34ae27c",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/window_positioning.rs",
+      "sha256": "7acb79916da3d0ae8fb3ecd8251ebd8896fb3a841be9a887e683fa3d61abf47c",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/examples/window_shadow.rs",
+      "sha256": "2dd7cd7076b31bbdf2f83d11bc70b8a283e51902021df12bc879267b3d76eb41",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/resources/windows/gpui.manifest.xml",
+      "sha256": "00bce21693c57d15d1a15f1d8814206d9dd80389bbf63ce5a8f3b364891232b6",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/resources/windows/gpui.rc",
+      "sha256": "eb3efc3b6af498552a0dd67f69d58e1a53e49155dfe90e4649478ec64dbd6af6",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/_accessibility.rs",
+      "sha256": "bcdeb209fa6309f5c507d9e8918235e75c18751c1985d0ebed632de643d7ea2e",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/_ownership_and_data_flow.rs",
+      "sha256": "4edbde237dc322ceac8969028811fd30d87a8bd108475a642c4fb961b2770258",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/action.rs",
+      "sha256": "d2f7236ab0d2085021391b3826f401865218a0e7790f759a7099d22f2ce7a4fa",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/app.rs",
+      "sha256": "c8373021181270662bf02713235d01edb5dae4220a30f702a7630f3c6a9cbed3",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/app/async_context.rs",
+      "sha256": "ecf9c43fe3e0fc018694dbef1abc9b8a3d5de72d52529068e83da60e02dd0d74",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/app/bench_context.rs",
+      "sha256": "2fe59222d05a2dead8cf3e12ed00f61e90362f7a04cadc468e1ef9b08f7c8e47",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/app/context.rs",
+      "sha256": "66f967fb132e67ab415ee2d05f09a9a953533d185dd6e13cfef5ce1015d1d090",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/app/entity_map.rs",
+      "sha256": "1d715e3bade069c1b0df15c4ffb73f9272e411cd268b540311c23c3bd93d7fe9",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/app/headless_app_context.rs",
+      "sha256": "11f273fc2aeda076cb40b49b5a658d7ea2be50f72d3fe56524b2e78f7a04bc15",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/app/test_app.rs",
+      "sha256": "b911a8e2568554588ddad12ee890a40eb992494826d12a28f2e55ea7e5f264cf",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/app/test_context.rs",
+      "sha256": "c80518d26716c66724d4f91d2d6b2b7a539d757d07eef1469c27074f8fbcf228",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/app/visual_test_context.rs",
+      "sha256": "726059d7f5f963210d97ab874f36a3fb273f0b8a05622389bbbc31a65cd64ea2",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/arena.rs",
+      "sha256": "262e6403f8fa505592dddb674028f43c0e41beb1f51aa97e37c917215052580b",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/asset_cache.rs",
+      "sha256": "cc1eb306523094d2d9a0e15538ce9a4fe29408288bd73e27781ea9a92c1b059e",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/assets.rs",
+      "sha256": "44e116678b8b351ecb7fb45a3163b58288d551fbc72049ddc7a8d255d589bcff",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/bench.rs",
+      "sha256": "5a4f4a9a2a6f2102fabd175c11eb2b9d6ebaa7062f92102c4f97016274a05b2d",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/bounds_tree.rs",
+      "sha256": "c3da5abcd110191eea8b7b73a88bb8d1fd89251549e889c9cd42d1a7857a1b4c",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/color.rs",
+      "sha256": "4292aa1a2bbc56b653aaef0702726325f8efb93f16226320519e257c3ba8a839",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/colors.rs",
+      "sha256": "94b3e7a49d181ad1a2d4cd750ec06de6c773da0cd7ca7ad5e5681798846bafaf",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/debug_overlay.rs",
+      "sha256": "c5bdef757b2ce28d4b1e584ba2dbaf988df106057bedab23c185b61451425cf4",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/element.rs",
+      "sha256": "4318bbb9ffd65044b5187bfce2ca07a8ecf2f60461bd63f569dc305caf177d47",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/elements/anchored.rs",
+      "sha256": "8c9ad44d7d34292d75789df672c83545e7ea7bf35eff14f658c4e0402daa686e",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/elements/animation.rs",
+      "sha256": "f23b16feaa20ec891c729423d86debbf8192f69413bc40c7793018807cab4ef2",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/elements/canvas.rs",
+      "sha256": "df0a482dd80561cfed49e81dd2fdc833f713c04460ce126851bf53d937779e3a",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/elements/container_query.rs",
+      "sha256": "1be5939e214a94496ace448ee1dc0a0e115eb48f1051ff94b2272d2bc74b1676",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/elements/deferred.rs",
+      "sha256": "5c8f45f0d119c44b4475b23ad59db8b82a7a44c61556b79b988d6dc928257b97",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/elements/div.rs",
+      "sha256": "85f4d0ab9cf607e3ace1fe84d24dfcf7a629de148249465de4dfcbbf568aae6b",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/elements/image_cache.rs",
+      "sha256": "cace59dd20431df327c4029f7e59d53cd234f4d3f7d75fa3d2654f08795f6609",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/elements/img.rs",
+      "sha256": "0a35ee1fcfb5524c52641b38379f17e471e29b1da7e01b23e3aa81466c7fa5b1",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/elements/list.rs",
+      "sha256": "86eab775ace0e02a43fa4acfcfc2846ee3ab6c6d8453ed4808494b6dc08526a2",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/elements/mod.rs",
+      "sha256": "447ab5d960591744b9f193bbf9af562b5fbf9d8fd156e179584031e6f464d632",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/elements/surface.rs",
+      "sha256": "f84325c9122b9ddb286fc1640b3d9419efbddcdcfd5d91d1eb215c5bda65ffe3",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/elements/svg.rs",
+      "sha256": "9fcabac2d034b41763a3a124b112dc8b3e01da8153593e2dc306cf95d20dc67c",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/elements/text.rs",
+      "sha256": "53f6eec09ee71846b8e516b9b42de469efc36e57144d7db49575c8e89e6deb2d",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/elements/uniform_list.rs",
+      "sha256": "8c17496d2f8bdff01cc64bc53a44dd69dcb1af8cb8f28d956cefc70b79790430",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/executor.rs",
+      "sha256": "b13aff39d4731ef657f9f91b4870f2bcf0bccc8433499ae6370ef1875ff00e12",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/geometry.rs",
+      "sha256": "965ae8f6c1d4bd2e7dcb43e253a99dd4363252b1ef6dc19c3031ea50c5192408",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/gestures.rs",
+      "sha256": "7bd16e63297ddbf193660d0867846a11780acf7fdcb4168d95cba6806ac5e0a8",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/global.rs",
+      "sha256": "c52ddc647f712282a3a1f3629f864d0868966169fee7aff5f1f8d27e67f3f077",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/gpui.rs",
+      "sha256": "e1c5f74225bd7bd80e19997c83d5283abd3c54c38dda1ba1158867faf25dc978",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/hot_reload.rs",
+      "sha256": "9f756bb1bc5c6e5dc9fd5000ea5812cc5440006166d54c8982c3bdea70062de9",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/input.rs",
+      "sha256": "0cec4099126edf35806ede65a80c73ead8bf3db464c5a5cc02bae1f64f20130c",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/inspector.rs",
+      "sha256": "39a2790b992b2c354eccb4d60a7070e41628a86c5463d339f9c7b8fa250c1ede",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/interactive.rs",
+      "sha256": "1f6eda4a1113e968c42cd19e6927f490c34b27c4e74e17a3fdb383e9dbb2bb34",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/key_dispatch.rs",
+      "sha256": "c1a77729ef0e7172fc526a7985623b651c2e39ea32626ee91ec200e3da724296",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/keymap.rs",
+      "sha256": "a3dde9fafbbafe6b7488408401a4108f7dde5403b08d613eb05b438335efec00",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/keymap/binding.rs",
+      "sha256": "537b9ef263b344e1a421d4fa5a8a1fdfdf49e31b0c7ab96d0bf0abaf669e6306",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/keymap/context.rs",
+      "sha256": "6a5ff896e384a712ab0b62916e18d7ac41f34e0a2a204aaa532f5e8a1d339d8e",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/path_builder.rs",
+      "sha256": "07fa0b21e5493cf46ce54976d77ffea3a430ddbbc369c4d4e247a3bc68854e35",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/platform.rs",
+      "sha256": "1e3c27bc3d5204796a3148c718955f8ba1e77c3fae118f7789f0f02f22edca42",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/platform/app_menu.rs",
+      "sha256": "c751e70bf50cf2366dad9d6b2a66fc3a8e9cd1547128173dbfc59520feb454cc",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/platform/keyboard.rs",
+      "sha256": "8de8d585f4238204fd14113abded703afa6bb0a532dacabdf400df8249390376",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/platform/keystroke.rs",
+      "sha256": "a322d71bb2b3ae6c388b7c53a34ff490b146780030361e9cdc9d5cf482148cac",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/platform/layer_shell.rs",
+      "sha256": "cdb4822c6589461045f09829640da3961e957d782c8e4763050b65701c90d305",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/platform/platform_info.rs",
+      "sha256": "a01680ee1653b499c36ce5a49ce2a1d4377a380aa15d571ff8b36ec2181a96f0",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/platform/popup.rs",
+      "sha256": "18a8aa2aaf3739c71d34233e7b2dabb4e902e5e27f9e1dcb362acd110478bb1a",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/platform/scap_screen_capture.rs",
+      "sha256": "b6492678395e5a9a3335fd6babaa60192dc5b971efd32f896e33fb8fbbd7e484",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/platform/test.rs",
+      "sha256": "52861874bfdd1433728d61bd7be3a40b1f8c27aae4e4cc9d31b311ef13bda994",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/platform/test/dispatcher.rs",
+      "sha256": "dea03a78a0c64d486f2c5b7bc669ba281638a0f8ee53316a52993a0e5b5cabd0",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/platform/test/display.rs",
+      "sha256": "f026713ec76569ea1402b6d1d4996636530d4f592245a0c97ac795d112f8debf",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/platform/test/platform.rs",
+      "sha256": "9094f074fdba411f68ba136a65dadfaa208a0f4cf889a95edf8670c6b6ee010c",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/platform/test/window.rs",
+      "sha256": "0a9e1c0a0ce8885e64439bfda766a5c39fed5f2fffae3781e56104031ee4012e",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/platform/threaded_dispatcher.rs",
+      "sha256": "aff57da6e74ddb0dbdb57f2c58b08236c1b78a4971e0c6d2f095f0746096f09c",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/platform/visual_test.rs",
+      "sha256": "93d2a650c42546b469916ac8f5c6727da04522de58f5da1c44e6c3dd1506227f",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/platform_scheduler.rs",
+      "sha256": "db193099a1b790d8658e1f056b393bb03df5b97f2c89f60c0ebca7186bdc0a51",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/prelude.rs",
+      "sha256": "cbbef2e02b205044bb46dbe0e5353af35dfa466bcecb45078947994958ef133d",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/profiler.rs",
+      "sha256": "46450da2077a4dce7a624c3a6047a1151b35dc04cb8ba896f0623e9501d30c97",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/profiler/actions.rs",
+      "sha256": "1907458a07d8370f19652fb60bb0bf1ef8ee8baf3e5fe4d04fc54f380e586d8f",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/profiler/hang.rs",
+      "sha256": "1d32f5e43c0b61ddbd8083662ad3a129f67f66c9c607dd555c98c9cefa041c7e",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/profiler/hang/monitor.rs",
+      "sha256": "4000e36cea97480ee811dcf4c1839b0d8ca78fc61d885a38dd02f8c84030fa53",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/profiler/journal.rs",
+      "sha256": "66b07a3d29c2585d56886c5a6984022fed70cbc6e11f1ceb4ac331315042132a",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/queue.rs",
+      "sha256": "222046376a0d51aea828546db4974b1ee58083e2230c8e6df2861ade5c99edeb",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/randomized_element_tree.rs",
+      "sha256": "dc4d37e52c7311c5f7def5acb7441b34d1beb0be78a6ceab1adcb8102266a06c",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/scene.rs",
+      "sha256": "b615c926356b9180c81706d84e1033501ff9f4cd70895374b0ce63fcf4bc153e",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/seeds.rs",
+      "sha256": "5ee929b48bf3f5b0fa6ba0dd99cb87371ba4dfcf0c09814494b3af3b4fd5971c",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/shared_uri.rs",
+      "sha256": "7a0a4feb3e290bb3f2c15fd4c8ee4c8ca3a9a5974e04ec084c4f8f0f3fc89248",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/spring.rs",
+      "sha256": "1cdc32dc3fd2d2b8cbdc7809e51c276ced938592dd08083fe7cc063a02086663",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/style.rs",
+      "sha256": "27753a378e4b3a30f535f796a592d1f2191c0f77580c99436ed1bfcd7b6a8da9",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/styled.rs",
+      "sha256": "94ecc23fb711e38ba674772cec54beee820d5cdafdc14de3bcfe101bf7ab984a",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/subscription.rs",
+      "sha256": "5c5ed44c12bd0ed777ae5f22a583602258c3455882c222a68f03d53deb2ffb40",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/svg_renderer.rs",
+      "sha256": "4f002bcfa1be479e77665c6144629ab95a932e55e52d29142e46f31949e958ca",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/tab_stop.rs",
+      "sha256": "7f6b1a95a1781dfdd72998491d7f35911a804ba46270a4b1b853b10fe0f50cbe",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/taffy.rs",
+      "sha256": "48a3e432b8a28aaacca2ade807e3f69a80dec8eed9bc1e0e36be04edcfeb4f24",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/test.rs",
+      "sha256": "205f9f481fe843470dca43972853f4d64b23ddd03ee9b26eebbf2a2508a9c65f",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/text_system.rs",
+      "sha256": "da9646a80df5b016ef39acc90c757b47f641a021bcc04aae1f608dbe35c62fc8",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/text_system/font_fallbacks.rs",
+      "sha256": "8451a6f069fe78c76da11377ee17b01aabd3c35aaa494fb329f2ae5a5bf9736f",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/text_system/font_features.rs",
+      "sha256": "cfd2af26dc7e269393858f2d7ce272380f7253a7f5eaa3a9a1f3fab4338623fc",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/text_system/line.rs",
+      "sha256": "f7c1a408230b277ff9adaca531042217de2b74c59c1b85bc0c465e5a3afc8045",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/text_system/line_layout.rs",
+      "sha256": "79bc9f4779861ea7c0ff63f016dba0a7866623076b729f1b539d9bd92c2e6379",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/text_system/line_wrapper.rs",
+      "sha256": "8912c5d16dc00bbcc1f19f56c2f2f4e3b826aa244b4f7c04c62a3934b22f7c4f",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/util.rs",
+      "sha256": "04397f667bf5d890cce690b96441cd5b8f5eb0a5dd2942ce27b0314be38fa636",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/view.rs",
+      "sha256": "0992f511a5b78384a130eb7671672256bd2d9601040e115d524d29933283fe5a",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/window.rs",
+      "sha256": "65d9626dbaf1d18cc5f5ae6379991460e45acba04f9736b59b6b89eb82444663",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/window/a11y.rs",
+      "sha256": "1579b5772038313635feda4ad5c32a46f5bd843396268c8b573d68e7c57488b5",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/window/a11y/debug.rs",
+      "sha256": "2055ed9e63900a601a973191ff82ebbd91557178036826a4d2c04b09f5cf4dc2",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/src/window/prompts.rs",
+      "sha256": "0d58ec14e8139af53b50f4ad67690f01959ed59ffafc4adb2cf522f3f6197164",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui/tests/action_macros.rs",
+      "sha256": "47b69024f403feb6cb63c9990a6993b8582856146f5a6ae16984714321956a84",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_apple/Cargo.toml",
+      "sha256": "b5fe01e8209efa73076db5fb11065d540aabc6d767e4e7d286c08ff4d88a426f",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_apple/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/gpui_apple/build.rs",
+      "sha256": "9108ee2c1a7ce6e21e715ecccd1e1e161ad4c64232bdb9afb8a25c423f4e6506",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_apple/src/dispatcher.rs",
+      "sha256": "21ec54613d48cd3c419f2f694f75460d1019491c2406a7ed4dfa3374c84824cf",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_apple/src/display_link.rs",
+      "sha256": "1a1776d9a8d5a0083ec07faced6ba16a9a0fa833c256ae2888d4cc784f7e356f",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_apple/src/gpui_apple.rs",
+      "sha256": "699d1bb1676ad55b8edca5020896b00c31c3de901a677227a102cdfcb5960563",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_apple/src/keychain.rs",
+      "sha256": "636ce5b08fe6e939dfef73fafc3be719b21b35da356a7d7053afe4dbf4d6f71c",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_apple/src/metal_atlas.rs",
+      "sha256": "0889f2ff0ec3091bc0749ea629b4c87eab2c6253f84cb459693895a48dcb1e73",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_apple/src/metal_renderer.rs",
+      "sha256": "a1b4fa7dcdfe636b0cd311bf7e0d20b3e05399756be8021fb0a2872dda042c99",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_apple/src/open_type.rs",
+      "sha256": "bc827c157fdce50125b158adb595b665d82f38b62fc6b3a9693c65abae640453",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_apple/src/process_info.rs",
+      "sha256": "533288f7707bfeaeea53f753d25c7af676235ebff57910bb79331f68492be139",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_apple/src/shaders.metal",
+      "sha256": "436647169d914d26092fcf3bfd4020a6638a97d1ea3b39466fd2d4641d1c219e",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_apple/src/text_system.rs",
+      "sha256": "5f59742a4396eeec97b06ed8515967713c67f37b74996c8631495015515c0732",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_ios/Cargo.toml",
+      "sha256": "eb80d31b0a7db67a99b14eef94f2ac5bba2304f258d8e1708563741992792b3a",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_ios/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/gpui_ios/examples/ios.rs",
+      "sha256": "97b3eb2ed2b9773f6941191f47e17258d3fa02f8a27701952f839c9d7824b986",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_ios/examples/ios/app/Info.plist",
+      "sha256": "a8eb5cfebc52915435f57d2cf77af7c40213220feafb44958ecba7b109db2d69",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_ios/examples/ios/build-simulator.sh",
+      "sha256": "08ca7551e7d21dce979374a106ffcd64216e545d87eee1c4ac88622b40eeb7e9",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_ios/src/gpui_ios.rs",
+      "sha256": "1efca74c16865c50ad6e1c186d1fbdd319d4fba01a65698c3829d920bf56d4b2",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_ios/src/ios.rs",
+      "sha256": "1cdd6670a417528fe25755ecc9a0f48c0c0b93c04bef1f035aa31d6d25f8105f",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_ios/src/ios/application.rs",
+      "sha256": "5e8617de22fafb05f6302122c5368ac919557d4b379392f25739d1df23cc2b1c",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_ios/src/ios/display.rs",
+      "sha256": "44095ae87cbe005dec3ee1ea89caf8bcaae07b1faff8cea3226cccbd1af0aa7a",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_ios/src/ios/events.rs",
+      "sha256": "df8a02b663d3f48be4c1a12bd55168577d4a9974fc64047173614f9f33050507",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_ios/src/ios/platform.rs",
+      "sha256": "135249715462507ce1d3190759017821a5e0c719eed92ea96ddad80b47d08f85",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_ios/src/ios/text_input.rs",
+      "sha256": "2467725a8f81d93d4e472cb6dcf9b4c7c3c0e4f54e3f65644fa0d237a66aa890",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_ios/src/ios/window.rs",
+      "sha256": "1067dfeecaa94961c05f78219bb6b53f9848db589c5b202d98dbd993e5e9d1ae",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_ios/tests/text_input.rs",
+      "sha256": "4fe86a20ead4bec0fcb0deca82c4ad458573d42c29e7879f6bd66692cc515fc2",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/Cargo.toml",
+      "sha256": "d419e8b98de3a9f42a1b20e2e09c4e0cbf4f4a97f9d77c07a430c90cc0ba58f8",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/gpui_linux/src/gpui_linux.rs",
+      "sha256": "f250608a03f8465a0479c5a78800ed28c43c5354f909d5e25f427f588fe14507",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux.rs",
+      "sha256": "3c4b0d62f5252bea02ea070cb71b81cc6dd790902b59d9f57850231dd2d5a88c",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/dispatcher.rs",
+      "sha256": "ad54b0169239a2e8fef273a2eff73b50fe565b954fc423b8a1b430b302822363",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/display_connection.rs",
+      "sha256": "f42775d55eb9410f9e9d8ba0285fca4e7c4ea6669c7949910fb768b1d19ad189",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/headless.rs",
+      "sha256": "eff630b013ffbf984f050970dc3c6c686bb2d85680bc364934be750a46b15666",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/headless/window.rs",
+      "sha256": "b2c15ac54c42a8943a20be86df26e508411f2690aeb3a36f4a88506163dd1503",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/keyboard.rs",
+      "sha256": "9d25b21ec5530c3e66e40196a924f12aa89cfe6075b5a769feff65dfcfde0a88",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/platform.rs",
+      "sha256": "ed51476a3dbf0842a27f6a0f3a0aac3d28d646b7e887cc201c0ee66b603bac13",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/power.rs",
+      "sha256": "47259f7055c348b44267c8d3912759b6ff85bb3f256b17ec95f806f2cd6bb062",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/system_notifications.rs",
+      "sha256": "49030ee41edb842c996d32870c4d9846f12bd8a50f4a6db0bea9dc658329f1b5",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/text_system.rs",
+      "sha256": "afc6712696eed6749cc277b800cfb62690af9cbfe275961ad1df1c8d190d4028",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/wayland.rs",
+      "sha256": "d8b52fcd37912d441ad1c9be3687422ccda2765e41ddc942b25400c89fd3cfe7",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/wayland/client.rs",
+      "sha256": "8f8467b709a316fade5071204864af540598cbb226a1fc7d24ff6261c756366b",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/wayland/clipboard.rs",
+      "sha256": "7dab6bf97638ed62a6f6ebb7d6f435c6663631ee759a48b69ca4037cbda54df1",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/wayland/cursor.rs",
+      "sha256": "1645dc1e70fe9bb766ee65ab78fa6590538a7a52125de4d86dde18a26004c821",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/wayland/display.rs",
+      "sha256": "79253d4d1860ea5e36e733e35f820600e51a288c7504c2e731d4b86866dc1113",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/wayland/layer_shell.rs",
+      "sha256": "d3b341e348e5f871e6ec0bdb03ea69601f9755a1843cadf46bc07426aee0f9cc",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/wayland/popup.rs",
+      "sha256": "d8afee747e08fb9166923d996597627a1d1fe3b502656f7dbd4453d7572f1011",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/wayland/serial.rs",
+      "sha256": "fc066f931a7dd7ce91acedbed0756161f7a9917b9c67c2f4e722fb9f9551331c",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/wayland/window.rs",
+      "sha256": "ca85aacd35b79e4d390711d6b770c426f1fd821ab12ed57bbe4bfe42217f6b02",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/x11.rs",
+      "sha256": "df1e4f889ecaccf9ea9d7cc9f539fa4cdaac463998bbbd8367ff919f49e4ddf3",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/x11/client.rs",
+      "sha256": "9312432f6a5cea2e816dea192395faf92fe8e88bc52d35e0eb13d090283fc6b4",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/x11/clipboard.rs",
+      "sha256": "580eb2519d8c38422b3e5baba24a11e6fa5e942392c9a9e74abedfa3fa84c0f3",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/x11/display.rs",
+      "sha256": "d625c6aa288b8d302cd86f704a507c947d4b09d3d746d3004ea917fd6dbaaa35",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/x11/event.rs",
+      "sha256": "6303b0fd823f7fd7bcdab70ec085b31705f1e82fc254c385a523df309462e5b5",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/x11/window.rs",
+      "sha256": "87b737ecda518123196c3f60369120c6a8fb8021b43a4830cc21bf7834eda438",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/x11/xim_handler.rs",
+      "sha256": "5a1f5b1a6a436a82c6bbbf9222a7470d537c5fac6b06da4e898aca497ee2adf2",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_linux/src/linux/xdg_desktop_portal.rs",
+      "sha256": "2e3a8eb44718dbd31b21fc368ad2f5c2105b340ef04f7e002ee0029adb9f3cc1",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macos/Cargo.toml",
+      "sha256": "497653382da3cb1491108b01f633534ddcea262b344e4bcbc18c6c604995412f",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macos/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/gpui_macos/src/display.rs",
+      "sha256": "eb232a1ab75d8199741e2cc800b21acc725eeddcf8883ff05baf2fcc5ce2d260",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macos/src/display_link.rs",
+      "sha256": "b74ca5ae9b60a0a585d1105a24ce2c238efc41ca14310a7509b51e93bcc57a5b",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macos/src/events.rs",
+      "sha256": "dce8446c49d37f61ac2c23ceb0c5b5817a8fd1f3a71f2dba53e6d8efcbbe5c94",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macos/src/gpui_macos.rs",
+      "sha256": "a0f917b3e28b087b8ce80ccc78a2eb316b2f571c191ab03dc4ca12e305dfb8db",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macos/src/keyboard.rs",
+      "sha256": "6a017f020ba10396e1ef827a036a6181644f2fe62d3ac4a7721781e2f08feeaa",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macos/src/pasteboard.rs",
+      "sha256": "cb5079ced3a2a69e130c127a5c723228894d1b232c8d9c5ac4d35359b63c5292",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macos/src/platform.rs",
+      "sha256": "46842cd5eade91c3a423308cf86de72e590fe83cbad5bbf64998ec86b3ddd5df",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macos/src/screen_capture.rs",
+      "sha256": "996c4308d93aea1c809e27baa2ac42b18d038a677cfdd599e481abf5ad200d4b",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macos/src/system_notifications.rs",
+      "sha256": "df8374f075932996d58b99c043d97a82e1cefebab79e5b0f4648c8a3776ea5fe",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macos/src/window.rs",
+      "sha256": "73fce4ce13ef5f28d1424eabbbccd96e044e7cf81513a3e70993f5c92c32ad70",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macos/src/window_appearance.rs",
+      "sha256": "c1ea31769bfd6b324339525b8ffec3be0f59a24495a7e491c1df66bd43db5b75",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macros/Cargo.toml",
+      "sha256": "fb73bb04fdad4689afab4d1d8ed8f193109d90d4b18556e6493c1bc3db3109f3",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macros/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/gpui_macros/src/bench.rs",
+      "sha256": "5580e8d1318f89d808f035eead7b840766b6286c425fe37f38d275e76a674405",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macros/src/derive_action.rs",
+      "sha256": "8f6457d55dca41367f6e31f0dafc29aacbad82d77f748a6aaa76a541aa212e46",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macros/src/derive_app_context.rs",
+      "sha256": "f2beef11817c789ccbe019c13d11c89670f4d9f975ee4800cb009eafb8cd950d",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macros/src/derive_inspector_reflection.rs",
+      "sha256": "b5e83bad5bab1046dcf9d072c7626b78fdcbf621c5e3addd472bcc7535e18a55",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macros/src/derive_into_element.rs",
+      "sha256": "50a2fe2c858e9f5fc9f9694d91485ed60fc4dc6fc1ca0e44f4f3011a5c8d7c66",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macros/src/derive_render.rs",
+      "sha256": "30d5987bdc0033a18789666004a123fb1674bde317a61ba283c9c9b4cc8504b3",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macros/src/derive_visual_context.rs",
+      "sha256": "3649dedd89ea8e329ddbc91c8db8b2a42167b4e9835f519d8387f30b63319365",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macros/src/gpui_macros.rs",
+      "sha256": "3fa61f05bb72dfac77efcbbb079923acb3ac9440fe6e42057bf94954f6ac8d3b",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macros/src/property_test.rs",
+      "sha256": "e95231ea0c2f890f0edfbd51bbc82fd275a7289e95db22fb541842be9ac01fda",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macros/src/register_action.rs",
+      "sha256": "a68705da162f2944994396800f5b88e5046edc24fa525d3c5cffb723b43171b8",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macros/src/styles.rs",
+      "sha256": "5fbd5dac9b7cdc954860a018f6b6925e49c82b4dcfe29424ecea828d47a3ff40",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macros/src/test.rs",
+      "sha256": "ae926426be2f9fabb29fd4cc1496f9541f3d3f0278ed58bd2e52ca33ccb5dcbb",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macros/tests/derive_context.rs",
+      "sha256": "5ab297be108b4df4c27f3d7e3face8a9be1eecd2567d366f0608714d4b9a7013",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macros/tests/derive_inspector_reflection.rs",
+      "sha256": "acea844c426da87a57ace4780bc03cfbb61fc879d3d0c402649a3fcd9316ab51",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_macros/tests/render_test.rs",
+      "sha256": "d2460de4cfa37fd171c92ae18c9005e02a8ae394f5a612628cdba3c3b30c35ac",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_platform/Cargo.toml",
+      "sha256": "179b1a8d0ad25b989fdbc526fa0f936136671b96ca1923f9a783beb8e8be82b8",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_platform/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/gpui_platform/benches/atlas_upload.rs",
+      "sha256": "1863bce6031605561447a73a145148a27b37556fe03c870e503f20da0968a3fc",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_platform/benches/inspector_render.rs",
+      "sha256": "fe2978276f855beec657e9eb5c39796d41387dac64a816049789d4d29c07f414",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_platform/benches/primitives.rs",
+      "sha256": "85c434697e35c6c5b61b9f9f327c581a1a0d92962709254e069e778031cc1802",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_platform/benches/randomized_element_tree.rs",
+      "sha256": "597c1f055609d8d39ad09f2e9fe8839c7c2b9430aec73c60af5a6e2575d920c0",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_platform/src/gpui_platform.rs",
+      "sha256": "d9f9f29a11ed22efdd8cd260ff9582f53f9466064994340ff919be9ef706f075",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_shared_string/Cargo.toml",
+      "sha256": "677a2e83c41ca465c7ddddade3a11283f30177097883613d993a7ed5db64b79b",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_shared_string/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/gpui_shared_string/gpui_shared_string.rs",
+      "sha256": "6074fdfb10fd31305efcb5514ac29e12adb417090041dcdec88b89ec789ba339",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_tokio/Cargo.toml",
+      "sha256": "5523bee2f04ebc4c3eb997ec9aa34a992e8fd00e38a526965bbf4b8c0896b6a5",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_tokio/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/gpui_tokio/src/gpui_tokio.rs",
+      "sha256": "a2208f1fc88124855d66375f0d4b7def4a6c43e9d89b4cce0a5e0d93d4b188fa",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_util/Cargo.toml",
+      "sha256": "4ae66dce10ed178f040e0f0732201ee6ada0d6d53fb14994d756372b02718d36",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_util/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/gpui_util/src/arc_cow.rs",
+      "sha256": "d10dea6ce77e8374a8cbe8b24eae50b6c571d9173b9278c7971a5d52143ac5bf",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_util/src/lib.rs",
+      "sha256": "3436506bfc725c861cf1bbffc9ef89c200db34add9dabfd8ebf77a8e7a12983f",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/Cargo.toml",
+      "sha256": "b045d2318309f07466700beebda8b503ec09539f6c7f47483a80867d853ca497",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/gpui_web/examples/hello_web/.cargo/config.toml",
+      "sha256": "8abd9e4b0c01c1e4b28f97791d912c41098bb0a71128b31984593723baa5c6bf",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/examples/hello_web/.gitignore",
+      "sha256": "45e90340cb87bc9251a4c295ba768ed20100b9eb5ddf4d0d252044f9b0fc29be",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/examples/hello_web/Cargo.toml",
+      "sha256": "bf7033c08010fc7b2f63e03c681abf5eb4a25df46d36a2f2c35f1173cc695612",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/examples/hello_web/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/gpui_web/examples/hello_web/dynamic_fonts.rs",
+      "sha256": "e69c63f9a0d6218bd9eeb15e4c48437015c096f01dd2934d2400bad0e4463466",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/examples/hello_web/font_fallback_test.rs",
+      "sha256": "94f01025b26d17966930e4e1563f169e072d80e18a2fd78e61aff59b1cb3016f",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/examples/hello_web/gallery.js",
+      "sha256": "c415f4740490ecdff76beb5964e3fccecf8c309150d44a59325f656fc2da988e",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/examples/hello_web/http_client_test.rs",
+      "sha256": "f83a7f6e55112d0d7a13aac16dabc0119f152779c782401372fa912666c9ca44",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/examples/hello_web/index.html",
+      "sha256": "f66c82eb5b0dff48621855c913372ae2869f3312076f81161884ed011501947f",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/examples/hello_web/main.rs",
+      "sha256": "f92b0ade326df06c343fe671ff014815ebee47c8e14d1113ccdebf7d1f25c67a",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/examples/hello_web/queue_test.rs",
+      "sha256": "b254340a94f1fc0c0f25eec977a4a7ecad419c377b246f902f51ac0753a336f3",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/examples/hello_web/rust-toolchain.toml",
+      "sha256": "51b07c8d9f798d0cc170b1040149afaf2612fcb9862981c02372c324c12b61de",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/examples/hello_web/test_canvas_fallback.mjs",
+      "sha256": "72779b118fbf15bb800c6dead09eb1630cdcfed3b983591631a9669f0248f805",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/examples/hello_web/test_http_client.mjs",
+      "sha256": "fa9da7ed599a0658d9d06bfe72baad29d06203a5f31352b364b6f0b6c3ac2a62",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/examples/hello_web/test_queue.mjs",
+      "sha256": "eae8067a080a914a78fc7cb48aa615186b64030fb1938a92dcd3b3e67782685b",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/examples/hello_web/trunk.toml",
+      "sha256": "ab5f7e01791ef60fd4c0f3c8071ee0464c71409a4d47a971c1a7d0da388aa7aa",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/src/canvas_fallback.rs",
+      "sha256": "f23fef0d3b68fabe50dea4e32a63fa5b0bc0506f4e9e7e04ece8b563e05e20c4",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/src/canvas_text.rs",
+      "sha256": "da73053a7f087e78aefb873f23502189224e8572fc0de49d52689f049f0cbfb3",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/src/dispatcher.rs",
+      "sha256": "a39e66001519eecfca060b1ef721113cac34ad5c07bbecbe46cbb6da97998278",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/src/display.rs",
+      "sha256": "4ca631603993dba5125088911193d380908b4f5ac7cc89b21ef4c9136b9ad433",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/src/events.rs",
+      "sha256": "250ba40e44975b282cd74797e76c96de6ef5bdcc537a8009f7e876c8a47ff239",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/src/glyph_cache.rs",
+      "sha256": "d9beafc7c2a8029171151249a4ecd13bf7419d1a22809abbf86d3e823b665793",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/src/gpui_web.rs",
+      "sha256": "51360d028a5f0e495557732e7e257ccfd5de960a17a9a57487aeaa8562b10979",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/src/http_client.rs",
+      "sha256": "5d9e1594c1843b635acf9ae06f06fd4c17c1a08c6aea21193d6bc37cb1a28c2b",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/src/ime_mirror.rs",
+      "sha256": "4061ebd319b5928c2a25f659c4f1db9adb193d5873bbbfeba36468ca2706895d",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/src/keyboard.rs",
+      "sha256": "f13f68ea0aed387146d2ff95892bdd4f14b2e0a46231a2b06ea6c7e674e11a5d",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/src/logging.rs",
+      "sha256": "2d464ead162a6eb83b8d22b435c83a557a8ad7c6776966ff92f3e2a82fdae1fb",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/src/platform.rs",
+      "sha256": "b273d4b58c61902deb41c9e4193450a95627d1746bdb28d4e2f78403ad4a5a02",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/src/run_replacements.rs",
+      "sha256": "c00a0f957f156b3744a90d3687f773de0a0e259c6c8beb1c86bd3f17614c3f43",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/src/text_system.rs",
+      "sha256": "50d2d9da4a628d4363264dee69ae7eb271655007ccd5ef1bfbdb88954315808f",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/src/viewport.rs",
+      "sha256": "2f64241c990f6de9a874e7680baafa61feba6db96228c48fab26ac7faaf623f5",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_web/src/window.rs",
+      "sha256": "eda543e585912fcb012e2a3559d8fb2e9ad7570ba58746747af380d044085cb8",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_wgpu/Cargo.toml",
+      "sha256": "d37123cc827188c50e474875cdf794021ace3128adb4067c2d6faac3d4b874a1",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_wgpu/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/gpui_wgpu/benches/layout_line.rs",
+      "sha256": "635fda3c820ce35cdd7ac2e9c72f9aae3eba4cc9fd7c9e6325cc08fd2065f8ae",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_wgpu/src/cosmic_text_system.rs",
+      "sha256": "d2aa5ba630e17613676715ea8c24ccce1a27bfa10a2c78bb68f91e1e120b9566",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_wgpu/src/gpui_wgpu.rs",
+      "sha256": "b51033ac07d187c89c4079f208d3a557c6fff309b1cd403927ce8974e795afa0",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_wgpu/src/shaders.wgsl",
+      "sha256": "bf22f0bd45bdc2da6fc88e5c678e03549941d270d6d85f5a2d1044f875f75729",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_wgpu/src/shaders_storage.wgsl",
+      "sha256": "5e7935445569ec610b2f7ab520c6d2b3ad8613248fc4465072e8dfae941017ca",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_wgpu/src/shaders_subpixel.wgsl",
+      "sha256": "d48e5dbb6dd3b278bf34e748c01d6c60bf30e400cacc074c576e0e6b0869d59b",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_wgpu/src/shaders_webgl.wgsl",
+      "sha256": "d0e1f65206d720604371f2936fb1c64d9e58def4f7ec39a70b9edc3640f27b3d",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_wgpu/src/wgpu_atlas.rs",
+      "sha256": "d5906ecffcbb3db5a9e235094965960399f4dadf5db4c0a5dc76233d40f50d0f",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_wgpu/src/wgpu_context.rs",
+      "sha256": "a8a9a85509c17168b6d53b919d8d06a0cbe782ffc8ad72f830cb6a14b067cbe5",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_wgpu/src/wgpu_renderer.rs",
+      "sha256": "757d9f2a4d270d4787b192937183c51bf286caf33cd0f4f2bd459338fd8cfcd7",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/Cargo.toml",
+      "sha256": "e85aaccd29acfb146a18b34ae2e57dc66050859d5663178eb80d29bea2a693e1",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/gpui_windows/build.rs",
+      "sha256": "11d433546230b6b4dbb98b0532c3428a6157f480b160e18e52ac18b8f6a5702c",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/src/alpha_correction.hlsl",
+      "sha256": "d37b106f1266b40a0e17478455dfaac1205214f597e23fbd0a26455c49806bf4",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/src/clipboard.rs",
+      "sha256": "eb68368598663c85916328d03582435d923e2b6eeae87a7a365a386848b87bf9",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/src/destination_list.rs",
+      "sha256": "2f9bfdb5e7fdfdb2f72e4e150683677538b38dc4087390e916df765fab46a6e4",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/src/dialog.rs",
+      "sha256": "94f35e514b4f42ef96aa0a66934193a33534bd1536cc526e2be3547c745adb41",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/src/direct_manipulation.rs",
+      "sha256": "df30e9866c51ed03643fbe9c422837298e8fd5741b2f1b005f575505ae4e4acd",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/src/direct_write.rs",
+      "sha256": "ecac3afb76ab93fef713464cca43ef4326e4674f717cf0c2fb50427075e175e9",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/src/directx_atlas.rs",
+      "sha256": "eff897707e3b8b4e549cd247725a6cee9c14b6a8188e32d32ad6360d693ce455",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/src/directx_devices.rs",
+      "sha256": "83372170f6225db45033473d118fc43708942ec9687467de09e2b5215c835cf1",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/src/directx_renderer.rs",
+      "sha256": "d38ea8338ba50d36f0f362204e25fb52c52baf15b3d8c12ce08ba37378534690",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/src/dispatcher.rs",
+      "sha256": "a24daa0105ceadc2a4d50f0d1afab5a4af441a6a1254412d9811a04095f8cdd4",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/src/display.rs",
+      "sha256": "466c0c2a4e3e9b001f26681f9f992d7dcc4a930954749942b980f228c5c0b83f",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/src/events.rs",
+      "sha256": "110f57879a626d2f09db307824b6cb47ad37765d873ca9203154eceb60190dfd",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/src/gpui_windows.rs",
+      "sha256": "75343c98433a942fa1f4a700592e11361edb9a236a5523fd9a6327523b0c9b6a",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/src/keyboard.rs",
+      "sha256": "4e373ce1a3f23b6527b1abb3051b59c96d5cc2b0f777d4d4097dd27dd1673516",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/src/platform.rs",
+      "sha256": "2249e81cbdd101f26cafa43aa03fdaaa5d52dbf819d100f1592c472e5c2f39d0",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/src/shaders.hlsl",
+      "sha256": "16045fea900725fcd9cc349266207078c7fe774507d38ed0b5832a320c7c55c5",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/src/system_notifications.rs",
+      "sha256": "d0159dbf6fd10622a5b106806ea2f57b3fe983eb6e2fc8635ab38bdf6529879d",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/src/system_settings.rs",
+      "sha256": "a9d22571c2405f610d44b85d86fbcf0356f7cc6aeeffad269a534b42eeffbdd9",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/src/util.rs",
+      "sha256": "e9bdd79c80149f7d60d2a35f4e86398343762a6c2549fd67de1de4de9ab65147",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/src/vsync.rs",
+      "sha256": "01dd8a23fdf57877b34ca674e7d17b2a98bf2e578d2250b9c04efd23f3163cde",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/src/window.rs",
+      "sha256": "f57b35718272a6feb67a49fd7a044eea3785605ceb6bcefbd7fc5fa54c649ca9",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/gpui_windows/src/wrapper.rs",
+      "sha256": "a17bfb94697904d650a0db4007880262256d06bf96cb00af387e73fde7536c8b",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/http_client/Cargo.toml",
+      "sha256": "fff2ce0bf105b29878b7249b128c8e7ea5c3bf3dd186749793200864d28decb6",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/http_client/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/http_client/src/async_body.rs",
+      "sha256": "d23ca96c4c3510d1b12dd63fa5d2cf2fe6123ac1a6b41f2524bced076b6e0e3d",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/http_client/src/http_client.rs",
+      "sha256": "6fd98dfe250ffc6cb00e51face18d75a3c15bd2ddf2aedacc9bef4bc81301f57",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/http_client_tls/Cargo.toml",
+      "sha256": "0adc61a49deae300f8f8ee95d6550026e58942eaa91e2d22b509755d7254bcb3",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/http_client_tls/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/http_client_tls/src/http_client_tls.rs",
+      "sha256": "86ffb6dfb0c9e7527326f01f935ad6c3e6361f73ad3181999665e41acb76ce96",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/refineable/Cargo.toml",
+      "sha256": "923a1042d03b9bb36ae27f9060af37f86412f2d31a7e85db525bfc04992fd744",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/refineable/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/refineable/derive_refineable/Cargo.toml",
+      "sha256": "f104bac2f211b751033f292fb8e1ea39406fca1134594d46c44dcae05a0aa5d9",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/refineable/derive_refineable/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/refineable/derive_refineable/src/derive_refineable.rs",
+      "sha256": "6cb36a5c1f83c3f6fb3e9019f8c1716ddb66ff4ba1c9285ebc3b2610bfd44aa3",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/refineable/src/refineable.rs",
+      "sha256": "a09bd2dbf305208fdf698d24789764eb0154b17ded853fa5a29aff5ff02ee184",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/reqwest_client/Cargo.toml",
+      "sha256": "b2d099d09bf059b8f5a638b98cda4ecd4eb5ec5b3856d277382b2a9747c30d53",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/reqwest_client/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/reqwest_client/src/reqwest_client.rs",
+      "sha256": "50b3cd4deb02b5b9841658951d9dfa44aacaeac8dbd702cb6c7ae4ae0897005a",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/scheduler/Cargo.toml",
+      "sha256": "2aa728ae4018b40ca619d62958e9838c0496538af8e2572a996374cff55b7800",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/scheduler/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/scheduler/src/clock.rs",
+      "sha256": "80d2df56e160af015e4ac4e855996e16290627afb2b7dbd87f7eb934172f36fc",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/scheduler/src/executor.rs",
+      "sha256": "6cfd3b66b0f6cdb1436457c80b42fb3c42e1a534a1e4cfee8566329d71c4eb1e",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/scheduler/src/scheduler.rs",
+      "sha256": "31a820dbb11e2b0371a83a080a934bd150a29ff4db5c0c21a1e05401aa64a691",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/scheduler/src/test_scheduler.rs",
+      "sha256": "2c07373f6651ed486b28bdcd4f1bce8e6eb653d78a7588bc37c838b2da7585c2",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/scheduler/src/tests.rs",
+      "sha256": "34e0b5c78b88a8237644a7a0ca2f1f51463d39f3676fb35a02b253d538a5ea00",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/sum_tree/Cargo.toml",
+      "sha256": "65ba3983a2e4b9b0ecb9fb3bb49e58672c6081e3d30ab616addc550b4ec6f3ed",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/sum_tree/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/sum_tree/src/cursor.rs",
+      "sha256": "9fddbd1236f3547d15d72360f9ab33ba36e0eda6410bc6b9bd7c019683e54df1",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/sum_tree/src/property_test.rs",
+      "sha256": "1781da188d48d78f9d212f491a93ddf4881d35c27a6c4b9f3d9b0b9db0de85ce",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/sum_tree/src/sum_tree.rs",
+      "sha256": "3db2a92a6910773bdbd2bff316ff3de1f487109e737f833e7543d47e5ab8a240",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/sum_tree/src/tree_map.rs",
+      "sha256": "6846e0d1b9080bad1ce83bb66248a637c52ff465f1cb0d0afeadb29bd4e302e3",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/util_macros/Cargo.toml",
+      "sha256": "bece094d5a629c5a9705c9be1cb111ac5eaf24a0795d1723c6ed3c983925967a",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/util_macros/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/util_macros/src/util_macros.rs",
+      "sha256": "05eb38806327fafab5bd5b53f4c82b295d6842b97f1f3011e8317c6ada41b01d",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/zlog/Cargo.toml",
+      "sha256": "684af9cbe88e3f3a39203c4e4e33aaad0adb478cb0bbfa3d72881ea491f150af",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/zlog/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/zlog/README.md",
+      "sha256": "f0e2bfed4f2aaa1cec2f130102f9184f7b542d5178ca2809c79c13e24ee70591",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/zlog/src/env_config.rs",
+      "sha256": "63561cfb81f511fc6328a207b9a756de5b65fcdb106076e941820f9162f2ed76",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/zlog/src/filter.rs",
+      "sha256": "c2c64466ff526cdccd87051e96b649093314efa2b2ce9887ef799608f55e7f39",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/zlog/src/sink.rs",
+      "sha256": "2ef9a8b6ca5efc2f8ef5621e80b9d142f849bec6fde6ea872f3ebc3237bdc397",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/zlog/src/zlog.rs",
+      "sha256": "5e52f2b64b4a53facafd8cfd62302631a999b640549b7d5f8881497721bc9eac",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/ztracing/Cargo.toml",
+      "sha256": "462b05b9216ddaa525072f0703c4fc88385afb18b79b6c4bd2b1d15b7fc01afc",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/ztracing/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/ztracing/build.rs",
+      "sha256": "a98e71800311237cfd568957ec402662848566325af1e6c837840cd28aceb3bd",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/ztracing/src/lib.rs",
+      "sha256": "e6c66a24b93df539ec02a2a1b1794b6fde23306340d59bb84cdf35ede839ed3d",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/ztracing/src/web.rs",
+      "sha256": "118e7ea02872b79721386fdfc98be02b70352e1890028516992c2d95c074aa39",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/ztracing_macro/Cargo.toml",
+      "sha256": "c5417b7b5fcdf20ce622bf68a1f9b8400d4174781beb410ef0495373afcae707",
+      "materialized_symlink": false
+    },
+    {
+      "path": "crates/ztracing_macro/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "crates/ztracing_macro/src/lib.rs",
+      "sha256": "b42eb20f84e45949bb78b121606b2ee02695ba7e1123bf206b635ce71bb122eb",
+      "materialized_symlink": false
+    },
+    {
+      "path": "tooling/perf/Cargo.toml",
+      "sha256": "0c9bc1e39ad8933ff3fd7b24d15c7f0338ecdb1eb1d75a6b7ef5fd3c14100e3d",
+      "materialized_symlink": false
+    },
+    {
+      "path": "tooling/perf/LICENSE-APACHE",
+      "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+      "materialized_symlink": true
+    },
+    {
+      "path": "tooling/perf/src/implementation.rs",
+      "sha256": "f96fd7b56d90f09bf29094ef0e996ac68bd608f229ad30433f0d099eedd4e9bd",
+      "materialized_symlink": false
+    },
+    {
+      "path": "tooling/perf/src/lib.rs",
+      "sha256": "99642ba124e5126214ac17f77d99e8897bc1468df4e48e489ea486761c41774b",
+      "materialized_symlink": false
+    },
+    {
+      "path": "tooling/perf/src/main.rs",
+      "sha256": "191346195037c3939d9e74db75e77da8168806ae0bba944d0d4bfdc09934f515",
+      "materialized_symlink": false
+    }
+  ]
+}

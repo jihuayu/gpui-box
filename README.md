@@ -1,74 +1,96 @@
 # gpui-box
 
-A developer-focused GPUI distribution with Android support, reusable components,
-application tooling, packaging, and platform-aware updates.
+A coordinated GPUI distribution for desktop and mobile applications, with shared
+components, application services, developer tools, packaging, and platform-aware
+updates.
 
 [Project repository](https://github.com/jihuayu/gpui-box)
 
-## Project status
+## Platform scope
 
-The repository currently contains the project design and development-tool
-configuration. The first implementation milestone is an Android feasibility
-prototype. Runtime crates, Android projects, and distributable applications are
-planned deliverables.
+Windows, macOS, Linux, Android, and iOS are managed in this repository. Desktop
+and mobile share the same official GPUI baseline and distribution APIs. Android
+is the first new mobile backend. Existing desktop and iOS backend source is
+included in the vendored upstream snapshot.
 
-The first release targets Android, with Windows as the initial desktop development
-and regression platform. Additional desktop platforms and iOS follow later.
+## Repository structure
 
-## Direction
+| Directory | Responsibility |
+| --- | --- |
+| `vendor/gpui` | Copied official engine, platform backends, local dependency closure, assets, and provenance |
+| `crates` | Distribution facade, CLI, and future application/update services |
+| `components` | Future reusable controls, themes, and adaptive UI packages |
+| `examples` | Executable applications and acceptance galleries |
+| `platforms` | Native host projects, OS resources, signing, and packaging |
+| `docs` | Architecture, implementation plans, research, and repository guidance |
 
-- Preserve GPUI's Rust-native programming model and GPU-rendered interface.
-- Provide a coordinated dependency set through a small application-facing facade.
-- Build platform support on official Zed GPUI and reuse compatible GPUI Kit layers.
-- Add touch-friendly application patterns with a thin native Android host.
-- Support the complete Android workflow from project creation to signed packages.
-- Provide explicit update strategies for desktop, Google Play, and direct APK delivery.
-- Keep platform capabilities and compatibility limits visible to application authors.
+See [repository layout and ownership rules](docs/REPOSITORY_LAYOUT.md).
 
-## Development environment
+## Development
 
-Install [mise](https://mise.jdx.dev/getting-started.html), then run these commands
-from the repository root.
+Install [mise](https://mise.jdx.dev/getting-started.html), then run from the root.
 
 ```sh
 mise install
 mise run setup:rust
 mise run doctor
 mise run check
+mise run cli
 ```
 
-The project pins Rust 1.98.1, Temurin JDK 17.0.21+9, and cargo-ndk 4.1.2 in
-`mise.toml`. Rust follows the GPUI upstream toolchain inspected during planning.
-Android cross-compilation targets are installed by `setup:rust`. The first Rust
-implementation will also use that task to install rustfmt and Clippy.
+Rust 1.98.1 is pinned in `mise.toml`. The root Cargo workspace contains the
+`gpui-box` facade, the `gpui-box` CLI, and the desktop example. `Cargo.lock` records
+the coordinated dependency resolution. Project-owned Rust uses Apache-2.0,
+English identifiers, and shared package metadata.
 
-Rustup, mise, Git, and the host platform's native compiler prerequisites must be
-available. The cargo backend may compile cargo-ndk from source. Windows builds
-will require Visual Studio C++ Build Tools and a Windows SDK.
+### Desktop
 
-Android Studio or Google's command-line tools will manage the Android SDK, NDK,
-emulator, and SDK license acceptance. Set `ANDROID_HOME` to the SDK directory.
-The Android prototype will pin SDK/NDK versions and a compatible Gradle, Android
-Gradle Plugin, and Kotlin tuple. Its checked-in Gradle Wrapper will own Gradle.
-See the plan for the proposed baseline and its validation gate.
+```sh
+mise run check:desktop
+mise run build:desktop
+mise run dev:desktop
+```
 
-`mise run doctor` currently reports tool versions and installed Rust targets.
-`mise run check` validates mise task definitions and Git whitespace. Both tasks
-will grow as implementation milestones introduce buildable packages.
+Enable the facade's `desktop` feature to use `gpui_box::gpui` and
+`gpui_box::application`. Desktop builds use path dependencies on the checked-in
+GPUI source. Windows requires MSVC C++ Build Tools and a Windows SDK. macOS
+requires Xcode and the Metal toolchain. Linux requires the selected X11/Wayland,
+font, graphics, and system development libraries described by upstream GPUI.
+The facade currently enables both X11 and Wayland for desktop builds.
+
+### Android
+
+```sh
+mise -E android install
+mise -E android run setup:android
+mise -E android run doctor:android
+```
+
+The optional Android environment pins Temurin JDK 17.0.21+9 and cargo-ndk 4.1.2.
+Android Studio or Google's command-line tools manage SDK/NDK installation and
+license acceptance. Set `ANDROID_HOME` to the SDK directory. The Android host and
+full Gradle/SDK/NDK tuple are implementation milestones in the project plan.
+
+## Current initialization
+
+The facade exposes distribution version/source information and opt-in desktop
+GPUI exports. The initial CLI implements help, version, and `info`. The desktop
+example opens a GPUI window through the facade. Component packages, application
+services, mobile hosts, packaging, and update providers are tracked by the roadmap
+and will be added in their owning directories as implementation progresses.
 
 ## Documentation
 
-- [Project plan and milestone acceptance criteria](docs/PROJECT_PLAN.md)
+- [Repository layout](docs/REPOSITORY_LAYOUT.md)
+- [Project plan](docs/PROJECT_PLAN.md)
 - [Architecture decisions](docs/ARCHITECTURE_DECISIONS.md)
-- [Reference implementation research](docs/REFERENCES.md)
-- [Later Android native composition technical plan](docs/ANDROID_COMPOSITION_PLAN.md)
-
-Project documentation, code, configuration, and public API names use English.
-Planned Cargo packages and the CLI use the `gpui-box` prefix. Rust imports use
-`gpui_box` for the facade, following Cargo's hyphen-to-underscore convention.
+- [Reference research](docs/REFERENCES.md)
+- [Later Android native composition](docs/ANDROID_COMPOSITION_PLAN.md)
+- [GitHub roadmap](https://github.com/jihuayu/gpui-box/issues/17)
 
 ## License
 
 Original gpui-box contributions are licensed under Apache License, Version 2.0.
-Dependencies and any future vendored source retain their respective licenses and
-required notices. See [LICENSE](LICENSE).
+See [LICENSE](LICENSE). Imported source, fonts, and dependencies retain their
+licenses and attribution. [Upstream provenance](vendor/gpui/README.gpui-box.md)
+records the copied source revision and workspace adaptation.

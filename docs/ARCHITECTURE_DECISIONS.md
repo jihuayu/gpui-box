@@ -18,9 +18,9 @@ Anchor platform work to official Zed GPUI, preserving its workspace and coordina
 crate set at one pinned revision. Add `gpui_android` inside that workspace and keep
 necessary upstream changes in a documented patch queue. Use optional compatible
 Kit layers once the official baseline works. Select the exact package graph
-during M0 and make graph inspection a release check. A maintained pinned checkout
-under `upstream/zed` is proposed, with extraction deferred until the mobile path
-is stable.
+during M0 and make graph inspection a release check. Official source is copied directly under `vendor/gpui`, including its local
+build/test dependency closure. The original workspace manifest and file hashes
+are retained. The root distribution workspace uses local path dependencies.
 
 ### Alternatives considered
 
@@ -75,7 +75,8 @@ consistent setup across Windows and CI.
 
 ### Decision
 
-Pin Rust, Temurin Java, and cargo-ndk in `mise.toml`. Keep repository tasks there.
+Pin shared Rust tools and tasks in `mise.toml`. Pin Temurin Java and cargo-ndk
+in the opt-in `mise.android.toml` environment for Android development.
 Let Android SDK tooling manage SDK packages and license acceptance, with explicit
 SDK/NDK pins added by M0. Let the Gradle Wrapper own Gradle. Avoid duplicate Rust
 version declarations unless a documented consumer requires one.
@@ -97,7 +98,7 @@ packages use different installation and trust mechanisms.
 
 Expose a shared update state machine with explicit provider capabilities. Android
 uses Play delivery or verified APK handoff to the system installer. Desktop update
-installation is implemented in the later desktop distribution track. Signed
+installation is implemented in the parallel desktop distribution track. Signed
 metadata and application identity checks are part of the direct-download protocol.
 
 ### Consequences
@@ -209,3 +210,27 @@ The base Android delivery has an independent release gate. System composition
 needs device capability negotiation, failure recovery, and resource stress tests.
 Shared composition types are extracted after Android and iOS demonstrate matching
 needs. Renderer and host changes remain narrowly scoped and separately reviewed.
+
+## ADR-010 — Manage desktop, mobile, and components in one distribution repository
+
+### Context
+
+The user clarified that gpui-box manages desktop and mobile together, including
+future reusable component libraries. The user requires upstream source to be
+copied directly into this repository.
+
+### Decision
+
+Keep imported engine/backend code under `vendor/gpui`, distribution APIs/services
+and CLI under `crates`, reusable UI under `components`, runnable consumers under
+`examples`, and native hosts/packaging under `platforms`. Preserve desktop platform
+source and expose desktop application startup through the common facade. Android
+is the first new backend. Desktop packaging can progress independently after its
+shared tooling prerequisites exist.
+
+### Consequences
+
+Desktop development uses the base Rust mise environment. Android tools are opt-in.
+Each platform has separate build/device validation while sharing source, APIs,
+components, and release management. Imported source is versioned directly with
+provenance and retained license material.

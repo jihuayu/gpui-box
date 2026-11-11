@@ -5,16 +5,19 @@ Draft for implementation review, prepared on November 11, 2026.
 ## 1. Product intent
 
 gpui-box is a coordinated GPUI distribution for developers building native Rust
-applications. It brings together a tested GPUI baseline, Android integration,
+applications across Windows, macOS, Linux, Android, and iOS. It brings together
+a coordinated GPUI baseline, desktop and mobile platform integration,
 common UI components, application services, project tooling, packaging, and update
-delivery. A developer should be able to create a project, run it on Windows and
-Android, package it, and deliver a subsequent version using documented commands.
+delivery. A developer should be able to create, run, package, and update an
+application for each supported platform using documented commands.
 
 This is a multi-milestone framework project. Android platform integration carries
-the largest early uncertainty and determines the implementation sequence.
+the largest early platform uncertainty. Desktop development and distribution
+remain first-class parallel tracks in the same repository.
 
 ### Confirmed requirements
 
+- The repository manages desktop and mobile together, including common components.
 - Android is the mobile target for the first phase.
 - The distribution includes common components, packaging, updates, and extensions
   that simplify application development.
@@ -28,7 +31,7 @@ These are planning decisions made by the author and can be adjusted during revie
 
 | Area | Proposed baseline | Reason |
 | --- | --- | --- |
-| First desktop host | Windows x86_64 | Matches the current development environment and provides a desktop regression target |
+| Desktop targets | Windows, macOS, Linux, starting local validation on Windows x86_64 | First-class distribution targets with per-platform evidence |
 | Android minimum | Evaluate API 26 as a starting candidate | M0 determines the actual floor from dependencies, APIs, and device evidence |
 | Android SDK | compileSdk 36 and targetSdk 36 | Initial candidate, subject to current Android tooling and distribution requirements at M0 |
 | Android NDK | r30, revision 30.0.16248370 | Current LTS listed by Android during research, subject to dependency verification |
@@ -47,13 +50,16 @@ the planning environment and remain subject to that compatibility check.
 
 ### Release scope
 
-The `0.1.0` release candidate covers an Android application with Windows developer
-preview, a small component catalog, basic application services, a project CLI,
-signed APK/AAB output, and Android update flows for Play and direct distribution.
-Windows gets a portable developer bundle in this phase. Native desktop installers
-and desktop self-update are the next release track.
+The distribution manages desktop and mobile releases together. The initial
+workspace includes a desktop application path, shared facade, and CLI. M0–M6
+track Android feasibility and release readiness alongside shared components and
+services. M7 tracks desktop installers and desktop updates, beginning with Windows
+and extending to macOS/Linux as their platform evidence is established. M7 can
+progress alongside Android once shared workflow and packaging contracts exist.
+The Android `0.1.0` candidate covers signed APK/AAB output and channel-aware
+updates. Each desktop platform has its own release gate.
 
-iOS, macOS/Linux distribution certification, web delivery, advanced editors,
+iOS device certification, web delivery, advanced editors,
 plugin runtimes, hot code replacement, and additional GPU backends are later work.
 The iOS track reuses official `gpui_ios` and `gpui_apple`, with device validation,
 fixes, and host packaging as its focus. It retains Apple's existing Metal path.
@@ -109,16 +115,15 @@ flowchart TB
 
 ### Dependency and upstream strategy
 
-Use official Zed GPUI as the platform baseline. Keep the coordinated GPUI crates
-and their workspace dependency closure at one official revision. The inspected
-SHA `f8cfc7ed9e57503def9479138894f3139f5400cc` is the starting candidate. During M0,
-preserve the upstream workspace in a pinned checkout under `upstream/zed` while
-developing the backend additions. Treat the checkout as an explicit implementation
-deliverable and record all modifications in version control. Evaluate a Git
-submodule backed by a maintained fork before importing it. Its remote location
-is an implementation choice once an owned repository is available. Preserve
-upstream history and required license files. Extracting a smaller standalone
-workspace is a later milestone after the platform path works.
+Use official Zed GPUI as the platform baseline. The source is copied directly into
+`vendor/gpui` at SHA `f8cfc7ed9e57503def9479138894f3139f5400cc`. Preserve the
+coordinated engine/platform crates and their local build/test dependency closure.
+Keep the original workspace manifest as `Cargo.upstream.toml`, with a reduced
+`Cargo.toml` for the selected source workspace. `UPSTREAM.json` records copied
+files, hashes, source revision, and adaptations. The root distribution workspace
+uses path dependencies on this source. Generic engine/backend patches stay here,
+with explicit downstream change records. Component and product layers live in
+their own directories. See [repository layout](REPOSITORY_LAYOUT.md).
 
 Maintain a release manifest that records this official baseline, any downstream
 patches, optional Kit revision, Rust toolchain, Android tool tuple, and supported
@@ -136,7 +141,7 @@ duplicate-package inspection before exposing public types.
 
 The distribution repository is `https://github.com/jihuayu/gpui-box`. Cargo package
 names and the CLI use `gpui-box`, with `gpui_box` as the Rust facade import.
-The upstream fork or patch repository is a separate implementation choice.
+Source updates and downstream modifications are versioned directly in this repository.
 
 Keep Android-specific platform code in a separate crate. Use upstream extension
 points where they suffice. If core changes are required, maintain a small,
@@ -146,37 +151,11 @@ the compatibility matrix passes.
 
 ### Proposed repository layout
 
-Create these directories when the corresponding implementation begins. GPUI
-platform additions initially live inside the preserved upstream workspace.
-
-```text
-crates/
-  gpui-box/                 Application-facing facade and initialization
-  gpui-box-components/      Coordinated component exports and mobile additions
-  gpui-box-app/             Navigation, configuration, storage, and lifecycle
-  gpui-box-update/          Update state machine and channel providers
-  gpui-box-cli/             Project creation, diagnostics, dev, build, and package
-examples/
-  hello/                 Smallest shared-view desktop and Android application
-  gallery/               Component, accessibility, and adaptive-layout checks
-templates/
-  app/                   Generated Rust project and Gradle Android host
-platforms/
-  android/               Shared Kotlin/JNI host support and build integration
-upstream/
-  zed/                   Pinned official baseline, preserved workspace
-    crates/
-      gpui/              Existing core
-      gpui_platform/     Existing selector with Android integration
-      gpui_wgpu/         Existing renderer and text implementation
-      gpui_apple/        Existing Apple backend
-      gpui_ios/          Existing iOS implementation
-      gpui_android/      New Android backend
-docs/
-  PROJECT_PLAN.md
-  ARCHITECTURE_DECISIONS.md
-  REFERENCES.md
-```
+The initialized structure is documented in [repository layout](REPOSITORY_LAYOUT.md).
+The facade and CLI live in `crates`, reusable UI packages belong in `components`,
+consumer applications live in `examples`, native hosts and package resources live
+in `platforms`, and copied GPUI engine/backends live in `vendor/gpui`. Add future
+packages with their real implementation, using the shared root workspace.
 
 ### Android ownership and threading
 
@@ -336,7 +315,7 @@ tooling work can expand once M0 confirms the dependency graph and Android host.
 | M4, packaging | Debug APK, release-signed APK/AAB, Windows portable developer bundle, metadata and license inventory | Clean-checkout builds, signature inspection, APK installation, AAB validation and bundletool-generated APK install, ABI and 16 KB page-size checks |
 | M5, Android updates | Play provider, direct APK provider, signed update metadata, interruption handling | Actual Play test-track verification and APK upgrade from v1 to v2, data retention, rejected tampering/wrong signer/downgrade, cancellation and retry |
 | M6, 0.1.0 candidate | Versioned docs, migration policy, CI matrix, release checklist, sample app | Another developer completes the documented setup/build/install/update journey, with recorded platform limitations and all required gates passing |
-| M7, desktop distribution | Native Windows installer and updater, then macOS/Linux packaging adapters | Per-platform signing, install/uninstall, update, restart, and recovery checks on declared supported systems |
+| M7, desktop distribution, parallel track | Desktop examples and platform qualification, native Windows installer/updater, macOS/Linux packaging adapters | Per-platform signing, install/uninstall, update, restart, and recovery checks on declared supported systems |
 | M8, iOS validation | Official iOS/Apple backend audit, shared gallery and packaging on macOS | Initial official iOS sample baseline, shared-view iOS device tests, lifecycle/IME/VoiceOver checks |
 
 The first iOS activity when that track starts is to run and audit the official
@@ -386,9 +365,9 @@ the basic gallery. Publish measured results and exclusions with each candidate.
 
 ### Dependency and licensing policy
 
-Preserve the upstream Cargo workspace for backend work. Add the distribution's
-facade/tooling workspace when the first packages are implemented and document
-their pinned path/patch integration. Commit applicable Cargo.lock files for
+Keep the reduced vendored workspace for backend development and the root
+distribution workspace for facade, components, examples, and tooling. Use path
+dependencies and coordinated patches. Commit applicable Cargo.lock files for
 examples, CLI, and release reproducibility. Centralize dependency
 versions, deny divergent GPUI identities, and record tool revisions in release
 metadata. CI consumes mise pins and the checked-in Gradle Wrapper.
@@ -415,9 +394,9 @@ compatibility before choosing an implementation dependency.
 
 ## 7. Immediate implementation backlog
 
-1. Preserve the official GPUI workspace at one SHA and record license obligations.
+1. Verify the imported GPUI source closure and its recorded provenance.
 2. Pin the Android build tuple and provision SDK/NDK through documented tooling.
-3. Create the first Rust workspace and shared `hello` view.
+3. Extend the initialized Rust workspace and desktop example into the shared gallery.
 4. Implement the main-thread Kotlin host and independent Runtime/View/Surface
    state machines, then render a real GPUI frame.
 5. Demonstrate CJK input, touch, back navigation, rotation, and background recovery.
@@ -426,4 +405,6 @@ compatibility before choosing an implementation dependency.
 
 The current repository initialization delivers this plan, architecture decisions,
 research references, mise configuration, Git attributes/ignore rules, and the
-Apache-2.0 license. Implementation begins with M0 after design review.
+Apache-2.0 license. The initialization now also includes copied GPUI source,
+a root Rust workspace, public facade, CLI, and desktop example. M0 continues
+with Android host and device feasibility checks.

@@ -1,0 +1,32 @@
+[workspace]
+resolver = "3"
+members = ["crates/gpui-box", "crates/gpui-box-cli", "examples/desktop"]
+default-members = ["crates/gpui-box", "crates/gpui-box-cli"]
+exclude = ["vendor/gpui"]
+
+[workspace.package]
+version = "0.1.0-dev"
+edition = "2024"
+rust-version = "1.98.1"
+license = "Apache-2.0"
+repository = "https://github.com/jihuayu/gpui-box"
+publish = false
+
+[workspace.dependencies]
+gpui-box = { path = "crates/gpui-box", default-features = false }
+gpui = { path = "vendor/gpui/crates/gpui", default-features = false }
+gpui_platform = { path = "vendor/gpui/crates/gpui_platform", default-features = false }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+
+# Preserve the upstream async scheduler behavior in downstream builds.
+[patch.crates-io]
+async-task = { git = "https://github.com/zed-industries/async-task.git", rev = "015845a19fc31752c02367567d3b8900a406f9da" }
+
+[profile.dev]
+debug = "limited"

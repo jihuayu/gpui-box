@@ -1,6 +1,7 @@
 # Rust and distribution output
 /target/
 /dist/
+/vendor/gpui/target/
 
 # Android and Gradle local state
 .gradle/

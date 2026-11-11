@@ -1,0 +1,15 @@
+[package]
+name = "gpui-box-example-desktop"
+description = "A desktop application using the gpui-box facade"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+gpui-box = { workspace = true, features = ["desktop"] }
+
+[lints]
+workspace = true

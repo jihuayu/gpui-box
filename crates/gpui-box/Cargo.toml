@@ -1,0 +1,20 @@
+[package]
+name = "gpui-box"
+description = "A coordinated GPUI distribution for desktop and mobile applications"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+desktop = ["dep:gpui", "dep:gpui_platform", "gpui_platform/font-kit", "gpui_platform/wayland", "gpui_platform/x11"]
+
+[target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
+gpui = { workspace = true, optional = true }
+gpui_platform = { workspace = true, optional = true }
+
+[lints]
+workspace = true

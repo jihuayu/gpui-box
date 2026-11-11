@@ -1,0 +1,19 @@
+[package]
+name = "gpui-box-cli"
+description = "Development tools for the gpui-box desktop and mobile distribution"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "gpui-box"
+path = "src/main.rs"
+
+[dependencies]
+gpui-box.workspace = true
+
+[lints]
+workspace = true
