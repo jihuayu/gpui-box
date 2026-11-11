@@ -2196,6 +2196,7 @@ dependencies = [
  "gpui-diagnostics",
  "gpui-dnd",
  "gpui-files",
+ "gpui-jobs",
  "gpui-lifecycle",
  "gpui-local-auth",
  "gpui-menus",
@@ -2315,6 +2316,23 @@ dependencies = [
  "gpui",
  "gpui-app-data",
  "gpui-system",
+ "tempfile",
+]
+
+[[package]]
+name = "gpui-jobs"
+version = "0.1.0-dev"
+dependencies = [
+ "gpui",
+ "gpui-app-data",
+ "gpui-lifecycle",
+ "gpui-network",
+ "gpui-permissions",
+ "gpui-power",
+ "gpui-system",
+ "serde",
+ "serde_json",
+ "sha2",
  "tempfile",
 ]
 
