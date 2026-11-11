@@ -541,8 +541,8 @@ existing preservation contract. Adding a target that the starter never created
 requires its source entry point and mise/native customization setup. Automated
 platform-add provisioning retains #73's gate.
 Existing Cargo workspaces require explicit application integration when their
-Cargo.toml conflicts. Adaptive/workbench/component templates, SDK closure and
-canonical schema migrations retain #63/#62/#61 acceptance gates.
+Cargo.toml conflicts. Workbench/component templates, authenticated SDK
+distribution and canonical schema migrations retain #63/#62/#61 acceptance gates.
 
 Windows CLI qualification passes 48 tests and strict Clippy. Added regressions
 cover single-target output/provenance, no-op generation, init with existing
@@ -554,6 +554,50 @@ executes all 36 Gradle tasks. AGP's default Windows non-ASCII path rejection was
 encountered before compilation. The managed host now sets
 `android.overridePathCheck=true`, and that complete build qualifies the tested
 JDK17/AGP8.10.1/NDK30/mise tuple. Other tool versions retain their own validation.
+
+## Adaptive application template
+
+```sh
+gpui-box new "Adaptive Application" --distribution /path/to/sdk --template adaptive
+gpui-box init /path/to/existing/app --distribution /path/to/sdk --template adaptive --targets android
+```
+
+`new` and `init` accept `--template starter|adaptive`. Starter remains the default
+with both desktop and Android targets. The adaptive template reuses the same
+workspace/native generation, SDK verification, target selection, font assets and
+init ownership protections. Its JSON result and `.gpui-box/template.json` record
+the selected template ID and version1. Unknown, missing or repeated template
+options fail before initialization. Regeneration preserves the application-owned
+template source and provenance. Choosing another template is a new/init decision.
+
+The shared example uses the delivered application bar and master-detail
+components with a 720 logical-pixel breakpoint. Compact layout opens a detail
+page. Wide layout presents both panes. A retained selection, text-input entity
+and explicitly committed draft survive layout changes and navigation. The draft
+is shared across items. Back to items, Escape and Android system back return from
+compact detail and restore the selected master focus. Tab/Shift+Tab follow the
+shared focus traversal. Keyboard insets, safe areas and vertical overflow are
+handled by the composed view. Custom URL activation keeps the starter callback.
+Business persistence and process-death restoration use the documented application
+service/snapshot hooks and remain application-owned.
+
+Qualification uses a fresh external spaces/Chinese app path and the committed
+SDK from the export evidence above. Windows desktop build/link and strict app
+Clippy pass with cached dependencies. Android ARM64/x86_64 builds and normal
+CLI install/cold launch pass on API35 Android15 x86_64. Final launch completion
+is2975ms. Real taps select Shared components, enter and commit FinalDraft42.
+Portrait-to-landscape-to-portrait recreates native surfaces and preserves the
+selection, draft and committed text. Native UI hierarchy assertions confirm Wide
+and Compact layouts plus retained EditText value. System back restores the
+selected master. Emulator rotation policy is restored to its original free mode.
+
+CLI60Windows unit/integration cases pass, including all target combinations,
+template provenance, source preservation, existing-directory init and repeated
+template option rejection. Full `mise run check` passes after integrating the
+collaborator's #98 menu contracts. Desktop interaction remains pending while
+Windows is locked. Workbench/component templates, broader assistive-reader and
+host qualification remain #63/#3 acceptance gates. Physical-device testing
+remains deferred.
 
 ## Read-only build plans
 

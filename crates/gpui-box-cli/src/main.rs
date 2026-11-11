@@ -69,6 +69,7 @@ fn execute(arguments: &[String]) -> Result<Value, CliError> {
         [command, destination, options @ ..] if matches!(command.as_str(), "new" | "init") => {
             let mut distribution = None;
             let mut targets = None;
+            let mut template = None;
             for pair in options.chunks(2) {
                 let [option, value] = pair else {
                     return Err(CliError::new(
@@ -80,6 +81,12 @@ fn execute(arguments: &[String]) -> Result<Value, CliError> {
                     "--distribution" if distribution.is_none() => distribution = Some(value),
                     "--targets" if targets.is_none() => {
                         targets = Some(value.split(',').map(str::to_owned).collect())
+                    }
+                    "--template" if template.is_none() => {
+                        template = Some(
+                            generate::Template::parse(value)
+                                .map_err(|error| CliError::new("INVALID_ARGUMENTS", error))?,
+                        );
                     }
                     _ => {
                         return Err(CliError::new(
@@ -96,14 +103,17 @@ fn execute(arguments: &[String]) -> Result<Value, CliError> {
             })?;
             let destination = root.join(destination);
             let targets = targets.unwrap_or_else(|| vec!["desktop".into(), "android".into()]);
+            let template = template.unwrap_or(generate::Template::Starter);
             if command == "init" {
-                generate::initialize(&destination, distribution, targets)
+                generate::initialize(&destination, distribution, targets, template)
                     .map_err(|error| CliError::new("PROJECT_INITIALIZATION_FAILED", error))?;
-            } else if targets == ["desktop", "android"] {
+            } else if targets == ["desktop", "android"]
+                && matches!(template, generate::Template::Starter)
+            {
                 generate::create(&destination, distribution)
                     .map_err(|error| CliError::new("PROJECT_CREATION_FAILED", error))?;
             } else {
-                generate::create_with_targets(&destination, distribution, targets)
+                generate::create_with_targets(&destination, distribution, targets, template)
                     .map_err(|error| CliError::new("PROJECT_CREATION_FAILED", error))?;
             }
             outputln!(
@@ -111,7 +121,7 @@ fn execute(arguments: &[String]) -> Result<Value, CliError> {
                 destination.display()
             );
             return Ok(
-                json!({"destination": destination, "template": {"id": "starter", "version": 1}}),
+                json!({"destination": destination, "template": {"id": template.id(), "version": 1}}),
             );
         }
         [command] if command == "generate" => {
@@ -258,7 +268,7 @@ fn main() -> ExitCode {
 fn help() -> Value {
     const HELP: &str = "gpui-box - desktop and mobile developer tools\n\nUsage gpui-box COMMAND\n\n  new PATH --distribution PATH  Generate a desktop/Android app\n  generate                      Update unmodified managed files\n  doctor                        Inspect config and prerequisites\n  dev desktop|android           Run the application\n  build desktop|android         Build a development artifact\n  install android               Install on the selected device\n  package android               Assemble a debug APK\n  package android --release     Sign and inspect release APK/AAB\n  package desktop --portable    Bundle Windows development output\n  devices                       List Android devices\n  logs [--device SERIAL]        Follow application logs\n  info | --version | --help\n\nAndroid development workflows accept --device SERIAL. Release requires explicit signing environment variables and checksum-pinned GPUI_BOX_BUNDLETOOL. See docs/M4_ANDROID_PACKAGING.md in the distribution. Update channels follow M5.";
     let help = format!(
-        "{HELP}\n\nUse sdk export PATH --source CHECKOUT to export committed sources, then sdk verify PATH to check their manifest. Use new PATH --distribution PATH [--targets desktop,android] for starter template v1. The distribution may be a source checkout or exported SDK. Use init PATH --distribution PATH [--targets desktop,android] in an existing directory. Both targets are the default. Existing README.md, LICENSE and .gitignore are preserved by init. Other template conflicts are rejected. Use generate --dry-run to inspect managed changes without writing files. Replay the saved result object with generate --plan PATH. Use build desktop|android --dry-run to preview generation and build commands. Add --json once for a schema-v1 response from finite commands. Diagnostics and child output go to stderr. dev/logs use human output."
+        "{HELP}\n\nUse sdk export PATH --source CHECKOUT to export committed sources, then sdk verify PATH to check their manifest. Use new PATH --distribution PATH [--targets desktop,android] [--template starter|adaptive] for version-1 templates. Starter is the default. The distribution may be a source checkout or exported SDK. Use init PATH --distribution PATH [--targets desktop,android] [--template starter|adaptive] in an existing directory. Both targets are the default. Existing README.md, LICENSE and .gitignore are preserved by init. Other template conflicts are rejected. Use generate --dry-run to inspect managed changes without writing files. Replay the saved result object with generate --plan PATH. Use build desktop|android --dry-run to preview generation and build commands. Add --json once for a schema-v1 response from finite commands. Diagnostics and child output go to stderr. dev/logs use human output."
     );
     outputln!("{help}");
     json!({"help": help, "response_schema_version": 1, "json_streaming_commands": false})
