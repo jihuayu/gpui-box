@@ -469,6 +469,17 @@ Existing Cargo workspaces require explicit application integration when their
 Cargo.toml conflicts. Adaptive/workbench/component templates, SDK closure and
 canonical schema migrations retain #63/#62/#61 acceptance gates.
 
+Windows CLI qualification passes 47 tests and strict Clippy. Added regressions
+cover single-target output/provenance, no-op generation, init with existing
+documents, repeated init, ownership conflicts, active locks and invalid options.
+Linux CI also runs linked-output rejection. External applications in paths with
+spaces and Chinese characters complete a Windows desktop compile/link and an
+Android ARM64/x86_64 debug APK build through the normal CLI. The Android build
+executes all 36 Gradle tasks. AGP's default Windows non-ASCII path rejection was
+encountered before compilation. The managed host now sets
+`android.overridePathCheck=true`, and that complete build qualifies the tested
+JDK17/AGP8.10.1/NDK30/mise tuple. Other tool versions retain their own validation.
+
 ## Read-only build plans
 
 Use `gpui-box build desktop --dry-run --json` or `gpui-box build android

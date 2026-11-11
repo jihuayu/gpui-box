@@ -571,7 +571,7 @@ include(":app")
 "#
             ),
         );
-        add("android-host/gradle.properties", "org.gradle.jvmargs=-Xmx3g -Dfile.encoding=UTF-8\norg.gradle.parallel=false\nandroid.useAndroidX=true\n".into());
+        add("android-host/gradle.properties", "org.gradle.jvmargs=-Xmx3g -Dfile.encoding=UTF-8\norg.gradle.parallel=false\nandroid.useAndroidX=true\n# Rust/Java builds are qualified with Unicode project paths on Windows.\nandroid.overridePathCheck=true\n".into());
         for path in [
             "gradlew",
             "gradlew.bat",

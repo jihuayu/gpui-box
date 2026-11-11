@@ -133,6 +133,13 @@ fn selected_targets_generate_only_the_requested_starter_platform() {
         assert_eq!(app.join("android").exists(), target == "android");
         assert_eq!(app.join("android-host").exists(), target == "android");
         assert_eq!(app.join("mise.android.toml").exists(), target == "android");
+        if target == "android" {
+            assert!(
+                fs::read_to_string(app.join("android-host/gradle.properties"))
+                    .unwrap()
+                    .contains("android.overridePathCheck=true")
+            );
+        }
         let provenance: serde_json::Value =
             serde_json::from_slice(&fs::read(app.join(".gpui-box/template.json")).unwrap())
                 .unwrap();

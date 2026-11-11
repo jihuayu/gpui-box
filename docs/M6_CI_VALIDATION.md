@@ -45,7 +45,7 @@ Their steps completed successfully in this run.
 [Validation log artifact](https://github.com/jihuayu/gpui-box/actions/runs/43033815129/artifacts/13862158447)
 
 This first job covers shared code, CLI, components and desktop compilation.
-Desktop interactive/screen-reader sessions, Linux/macOS build coverage, Android
+Desktop interactive/screen-reader sessions, macOS build coverage, Android
 cross-build/emulator CI, feature/dependency audit matrices, release signing,
 16 KB runtime pages, GPU/performance and hardware qualification retain separate
 M6 gates. Physical-device testing remains deferred under the current project
@@ -83,9 +83,19 @@ indexes and normal APT verification remain enabled for that fallback.
 
 [Initial provisioning failure](https://github.com/jihuayu/gpui-box/actions/runs/43036937740)
 
-Hosted qualification for the current revision is tracked in PR #91. Linux
-interactive rendering, desktop service-provider behavior, assistive technology
+The final PR #91 head passed every Linux step in 7 minutes 21 seconds and every
+Windows step in 8 minutes 27 seconds. Linux ran the Unix managed-output/metadata
+symlink regression, shared tests/lints, component checks, six gallery tests and
+native desktop compilation. A surfaced existing storage regression also exposed
+Windows-root path spellings being accepted as relative names on Unix.
+`AppDirectory::child` now rejects drive-qualified and backslash-rooted inputs
+consistently on every host. Its expanded tests retain accepted nested paths.
+PR #91 merged as `40c52f3`. Linux interactive rendering, desktop service-provider behavior, assistive technology
 and packaging/update support retain their operation-specific acceptance gates.
 Android cross-build/emulator CI and macOS qualification remain separate work.
+
+[Passing Linux qualification](https://github.com/jihuayu/gpui-box/actions/runs/43047699099)
+
+[Passing Windows qualification](https://github.com/jihuayu/gpui-box/actions/runs/43047699123)
 
 [Linux CI implementation and evidence](https://github.com/jihuayu/gpui-box/pull/91)
