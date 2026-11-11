@@ -36,11 +36,11 @@ run = "cargo fmt --all -- --check"
 
 [tasks.test]
 description = "Test distribution-owned library and CLI packages"
-run = "cargo test --locked -p gpui-box -p gpui-box-cli -p gpui-accessibility -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-activation -p gpui-secrets -p gpui-notifications -p gpui-lifecycle -p gpui-sharing -p gpui-clipboard -p gpui-files -p gpui-local-auth -p gpui-updates -p gpui-diagnostics -p gpui-menus"
+run = "cargo test --locked -p gpui-box -p gpui-box-cli -p gpui-accessibility -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-activation -p gpui-secrets -p gpui-notifications -p gpui-lifecycle -p gpui-sharing -p gpui-clipboard -p gpui-files -p gpui-local-auth -p gpui-updates -p gpui-diagnostics -p gpui-menus -p gpui-power"
 
 [tasks.lint]
 description = "Lint distribution-owned library and CLI packages"
-run = "cargo clippy --locked -p gpui-box -p gpui-box-cli -p gpui-accessibility -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-activation -p gpui-secrets -p gpui-notifications -p gpui-lifecycle -p gpui-sharing -p gpui-clipboard -p gpui-files -p gpui-local-auth -p gpui-updates -p gpui-diagnostics -p gpui-menus --all-targets -- -D warnings"
+run = "cargo clippy --locked -p gpui-box -p gpui-box-cli -p gpui-accessibility -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-activation -p gpui-secrets -p gpui-notifications -p gpui-lifecycle -p gpui-sharing -p gpui-clipboard -p gpui-files -p gpui-local-auth -p gpui-updates -p gpui-diagnostics -p gpui-menus -p gpui-power --all-targets -- -D warnings"
 
 [tasks.build]
 description = "Build the shared facade and CLI"
@@ -74,8 +74,8 @@ description = "Validate configuration, Rust formatting, tests, and lints"
 run = [
   "mise tasks validate",
   "cargo fmt --all -- --check",
-  "cargo test --locked -p gpui-box -p gpui-box-cli -p gpui-accessibility -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-activation -p gpui-secrets -p gpui-notifications -p gpui-lifecycle -p gpui-sharing -p gpui-clipboard -p gpui-files -p gpui-local-auth -p gpui-updates -p gpui-diagnostics -p gpui-menus",
-  "cargo clippy --locked -p gpui-box -p gpui-box-cli -p gpui-accessibility -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-activation -p gpui-secrets -p gpui-notifications -p gpui-lifecycle -p gpui-sharing -p gpui-clipboard -p gpui-files -p gpui-local-auth -p gpui-updates -p gpui-diagnostics -p gpui-menus --all-targets -- -D warnings",
+  "cargo test --locked -p gpui-box -p gpui-box-cli -p gpui-accessibility -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-activation -p gpui-secrets -p gpui-notifications -p gpui-lifecycle -p gpui-sharing -p gpui-clipboard -p gpui-files -p gpui-local-auth -p gpui-updates -p gpui-diagnostics -p gpui-menus -p gpui-power",
+  "cargo clippy --locked -p gpui-box -p gpui-box-cli -p gpui-accessibility -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-activation -p gpui-secrets -p gpui-notifications -p gpui-lifecycle -p gpui-sharing -p gpui-clipboard -p gpui-files -p gpui-local-auth -p gpui-updates -p gpui-diagnostics -p gpui-menus -p gpui-power --all-targets -- -D warnings",
   "git diff --check",
   "git diff --cached --check",
 ]

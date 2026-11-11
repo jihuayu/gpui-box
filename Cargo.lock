@@ -2186,6 +2186,7 @@ dependencies = [
  "gpui-menus",
  "gpui-notifications",
  "gpui-permissions",
+ "gpui-power",
  "gpui-secrets",
  "gpui-sharing",
  "gpui-system",
@@ -2336,6 +2337,18 @@ version = "0.1.0-dev"
 dependencies = [
  "gpui",
  "gpui-system",
+]
+
+[[package]]
+name = "gpui-power"
+version = "0.1.0-dev"
+dependencies = [
+ "gpui",
+ "gpui-lifecycle",
+ "gpui-permissions",
+ "gpui-system",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

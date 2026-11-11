@@ -190,6 +190,11 @@ impl LifecycleService {
         self.inner.state.borrow().lifecycle.phase()
     }
 
+    /// A coherent snapshot of the accepted lifecycle state.
+    pub fn lifecycle_state(&self) -> LifecycleState {
+        self.inner.state.borrow().lifecycle.clone()
+    }
+
     /// The current device lock state.
     pub fn session_lock(&self) -> SessionLockState {
         self.inner.state.borrow().lifecycle.session_lock()
