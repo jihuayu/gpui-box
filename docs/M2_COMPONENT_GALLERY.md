@@ -247,3 +247,40 @@ exploration, a coordinated GPUI Kit port/build matrix, and full Windows
 screen-reader acceptance. The fake providers are deterministic test doubles and
 are not evidence of native provider behavior. See the issue-linked system
 documents for those gates.
+
+## Android adaptive-shell integration qualification
+
+The #81 shared components and gallery run in the API 35 Android host. Three
+instrumentation cases cover the 500-item catalog's bounded AccessKit row slice,
+jump-to-end, exact filtering, row selection/detail, high-contrast/reduced-motion
+controls, bottom-sheet background isolation, Enter/Space/Escape dismissal and
+trigger-focus restoration. Section navigation retains the filter draft and
+committed query. The actual Android AccessibilityNodeInfo reports selected tabs
+before and after navigation through UiAutomation.
+
+AccessKit selected state is now transported in the Android snapshot, applied to
+AccessibilityNodeInfo.isSelected and emits TYPE_VIEW_SELECTED on a newly selected
+node. This supplies the state already declared by the shared tabs/list rows.
+The provider retains its separate text-selection transport. TalkBack speech and
+exploration require their own acceptance.
+
+A real portrait-to-landscape-to-portrait Activity/surface recreation retains the
+catalog filter draft, committed one-item result and selected item. Wide layout
+shows the retained selected detail, while compact layout returns to the list.
+The test awaits a newer eligible surface and actual viewport orientation. Test
+cleanup finds the resumed Activity after recreation and releases UiAutomation's
+accessibility connection without destroying it.
+
+The focused suite passes 3/3 on Android 15 / API 35 x86_64, density 2.625,
+4096-byte pages and host Vulkan. Both Android ABIs build and pass strict Clippy.
+The preceding integrated Windows qualification passes 16 component tests and
+six gallery/workflow tests. Native file/share/notification/auth workflows retain
+their operation-specific providers. The new cases exercise the shared shell
+and Android semantics, while provider test doubles retain their own evidence.
+Physical-device testing remains deferred.
+
+The complete emulator suite passes 20/20 after app-data reset, including the
+existing accessibility, permission, lifecycle, editor, responsive-model and touch
+tests. Integrated `mise run check` passes 180 host tests plus six compile-fail
+doctests and two nested child-process reports. Selected-node runtime evidence
+comes from Android UiAutomation. TalkBack speech remains pending.
