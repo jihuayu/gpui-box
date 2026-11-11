@@ -50,6 +50,10 @@ pub use gpui_app_data as app_data;
 #[cfg(feature = "activation")]
 pub use gpui_activation as activation;
 
+/// Immediate local notifications with replacement, withdrawal and activation routing.
+#[cfg(feature = "notifications")]
+pub use gpui_notifications as notifications;
+
 /// Account-scoped secure credentials, with explicit native provider policies.
 #[cfg(feature = "secrets")]
 pub use gpui_secrets as secrets;

@@ -20,6 +20,7 @@ crates/
   gpui-sharing/             Explicit native text/link sharing and leased resources
   gpui-files/               Authorized file picking, opaque resources, safe save/export
   gpui-activation/          Validated URL opening and durable activation routing
+  gpui-notifications/       Immediate local notifications, receipts and activation routing
   gpui-secrets/             Account-scoped secure credential storage
   gpui-clipboard/           Foreground text clipboard with native error reporting
 components/
