@@ -17,23 +17,32 @@ try {
         'crates/gpui-box/src/retained/frame_queue.rs',
         'crates/gpui-box/src/retained/image.rs',
         'crates/gpui-box/src/retained/paragraph.rs',
+        'crates/gpui-box/src/retained/text.rs',
         'vendor/gpui/crates/gpui/src/text_system.rs',
         'vendor/gpui/crates/gpui/src/text_system/line.rs',
         'vendor/gpui/crates/gpui/src/text_system/line_layout.rs',
         'examples/hello/Cargo.toml',
+        'examples/hello/src/retained_paragraph_tests.rs',
+        'examples/hello/assets/NotoSansSC-Regular.otf',
+        'tooling/rendering-perf/Cargo.toml',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained.rs',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer.rs',
+        'vendor/gpui/crates/gpui_wgpu/src/cosmic_text_system.rs',
         'crates/gpui-box/src/retained/wgpu/composition.rs',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/layers.rs',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/layers.wgsl',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/images.rs',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/images.wgsl',
+        'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/glyphs.rs',
+        'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/glyphs.wgsl',
         'tooling/rendering-perf/src/retained_gpu.rs', 'tooling/rendering-perf/src/retained_bench.rs',
         'tooling/rendering-perf/src/retained_layers.rs', 'tooling/rendering-perf/src/retained_reactive.rs',
         'tooling/rendering-perf/src/retained_logical.rs', 'tooling/rendering-perf/src/retained_measure.rs',
         'tooling/rendering-perf/src/retained_responsive.rs','tooling/rendering-perf/src/retained_primitive.rs',
         'tooling/rendering-perf/src/retained_queue.rs',
-        'tooling/rendering-perf/src/retained_image.rs')
+        'tooling/rendering-perf/src/retained_image.rs',
+        'tooling/rendering-perf/src/retained_text.rs',
+        'tooling/rendering-perf/run-retained-gpu.ps1')
     $hashes = foreach ($source in $sources) {
         [ordered]@{path = $source; sha256 = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash}
     }

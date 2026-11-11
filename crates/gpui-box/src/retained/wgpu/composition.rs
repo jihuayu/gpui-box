@@ -63,6 +63,10 @@ pub(super) fn plan(
         if item.image.is_some() {
             draws.push(QuadDraw::Image(key(item.node)));
         }
+        #[cfg(feature = "retained-text")]
+        if item.text.is_some() {
+            draws.push(QuadDraw::Glyphs(key(item.node)));
+        }
     }
     while let Some((id, draws)) = stack.pop() {
         layers.push(QuadLayer {

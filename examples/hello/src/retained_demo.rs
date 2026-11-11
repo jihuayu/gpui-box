@@ -19,6 +19,8 @@ pub struct RetainedDemo {
     decoration: Signal<QuadDecoration>,
     image: Signal<Option<ImageResource>>,
     paragraph_measure: Signal<Option<MeasureSnapshot>>,
+    text: Signal<Option<gpui_box::retained::text::TextPaint>>,
+    rasterizer: Rc<RefCell<gpui_box::retained::text::GlyphRasterizer>>,
     paragraph_long: bool,
     image_options: [ImageResource; 2],
     image_cache: Rc<RefCell<std::collections::BTreeMap<u64, std::sync::Arc<RenderImage>>>>,
@@ -37,7 +39,7 @@ pub struct RetainedDemo {
 }
 
 impl RetainedDemo {
-    pub fn new(_: &mut Context<Self>) -> Self {
+    pub fn new(cx: &mut Context<Self>) -> Self {
         let mut tree = UiTree::new(Style::default(), 0x202b3aff).expect("create retained root");
         let tile = tree
             .append(tree.root(), Style::default(), 0x245fc7ff)
@@ -282,6 +284,35 @@ impl RetainedDemo {
             .unwrap();
         tree.bind(paragraph_measure, Property::measure(paragraph_node))
             .unwrap();
+        let text = tree
+            .state(
+                root_scope,
+                8,
+                || None::<gpui_box::retained::text::TextPaint>,
+            )
+            .unwrap();
+        let text_node = tree
+            .append_render(
+                root_scope,
+                tree.root_render(),
+                Style {
+                    position: taffy::Position::Absolute,
+                    inset: taffy::Rect {
+                        left: length(384.0),
+                        top: length(0.0),
+                        right: taffy::LengthPercentageAuto::auto(),
+                        bottom: taffy::LengthPercentageAuto::auto(),
+                    },
+                    size: taffy::Size {
+                        width: length(220.0),
+                        height: taffy::Dimension::auto(),
+                    },
+                    ..Default::default()
+                },
+                0,
+            )
+            .unwrap();
+        tree.bind(text, Property::text(text_node)).unwrap();
         Self {
             tree: Rc::new(RefCell::new(tree)),
             responsive: Rc::new(RefCell::new(responsive)),
@@ -291,6 +322,10 @@ impl RetainedDemo {
             decoration,
             image,
             paragraph_measure,
+            text,
+            rasterizer: Rc::new(RefCell::new(
+                gpui_box::retained::text::GlyphRasterizer::new(cx.text_system().clone()),
+            )),
             paragraph_long: false,
             image_options,
             image_cache: Rc::new(RefCell::new(std::collections::BTreeMap::new())),
@@ -332,6 +367,8 @@ impl Render for RetainedDemo {
         }
         let tree = self.tree.clone();
         let image_cache = self.image_cache.clone();
+        let rasterizer = self.rasterizer.clone();
+        let text_signal = self.text;
         let responsive = self.responsive.clone();
         #[cfg(feature = "retained-wgpu")]
         let gpu = self.gpu.clone();
@@ -455,6 +492,23 @@ impl Render for RetainedDemo {
                     })),
             )
             .children(effect_button)
+            .child(div().id("retained-text").debug_selector(||"retained-text".into()).cursor_pointer().child("Draw retained shaped text")
+                .on_click(cx.listener(|this,_,window,cx| {
+                    let snapshot=gpui_box::retained::paragraph::ParagraphSnapshot::shape(window.text_system(),"Retained glyphs · 中文",font("Noto Sans CJK SC"),16.0,32.0).expect("shape retained text");
+                    let resource=this.rasterizer.borrow_mut().prepare(snapshot,window.scale_factor()).expect("rasterize retained glyphs");
+                    let signal=this.text;
+                    let commit=this.tree.borrow_mut().transaction(|tx| {tx.set(signal,Some(gpui_box::retained::text::TextPaint {resource,color:0xffdd88ff}))?;Ok(())}).expect("attach retained text");
+                    if commit.commit.request_frame {cx.notify();}
+                })))
+            .child(div().id("retained-text-color").debug_selector(||"retained-text-color".into()).cursor_pointer().child("Change retained text color")
+                .on_click(cx.listener(|this,_,_,cx| {
+                    let signal=this.text;
+                    let commit=this.tree.borrow_mut().transaction(|tx| {
+                        if let Some(mut text)=tx.read(signal)?.clone() {text.color=if text.color==0xffdd88ff {0x88ddffff} else {0xffdd88ff};tx.set(signal,Some(text))?;}
+                        Ok(())
+                    }).expect("patch text color");
+                    if commit.commit.request_frame {cx.notify();}
+                })))
             .child(div()
                 .id("retained-image")
                 .debug_selector(|| "retained-image".into())
@@ -542,6 +596,11 @@ impl Render for RetainedDemo {
             .child(
                 canvas(
                     move |bounds, _window, _| {
+                        let current=tree.borrow().read(text_signal).expect("text signal").clone();
+                        if let Some(mut text)=current && text.resource.scale()!=_window.scale_factor() {
+                            text.resource=rasterizer.borrow_mut().prepare(text.resource.paragraph().clone(),_window.scale_factor()).expect("refresh text scale");
+                            tree.borrow_mut().transaction(|tx| {tx.set(text_signal,Some(text))?;Ok(())}).expect("publish scaled glyph resources");
+                        }
                         let mut environment = LayoutEnvironment::new([f32::from(bounds.size.width), f32::from(bounds.size.height)]);
                         environment.device_scale = _window.scale_factor();
                         let frame = responsive.borrow_mut().frame(&mut tree.borrow_mut(), &environment)
@@ -565,7 +624,7 @@ impl Render for RetainedDemo {
                         #[cfg(feature = "retained-wgpu")]
                         let raster = gpu
                             .as_ref()
-                            .filter(|_| !frame.properties.effects.is_empty() || frame.items.iter().any(|item| item.image.is_some()))
+                            .filter(|_| !frame.properties.effects.is_empty() || frame.items.iter().any(|item| item.image.is_some() || item.text.is_some()))
                             .map(|gpu| {
                                 gpu.borrow_mut()
                                     .window_image()
@@ -638,6 +697,12 @@ impl Render for RetainedDemo {
                                     let r = item.content_bounds;
                                     let image_bounds = Bounds {origin:bounds.origin+point(px(r.x),px(r.y)),size:size(px(r.width),px(r.height))};
                                     window.paint_image(image_bounds,image_bounds,Corners::default(),images[&resource.id()].clone(),0,false).expect("paint retained decoded image");
+                                }
+                                if let (Some(text),Some(chunk))=(&item.text,&item.glyphs) {
+                                    for glyph in chunk.glyphs.iter() {
+                                        let origin=point(px(item.content_bounds.x+glyph.origin[0]),px(item.content_bounds.y+glyph.origin[1]));
+                                        window.paint_glyph(bounds.origin+origin,glyph.font,glyph.glyph,glyph.font_size,rgba(text.color).into()).expect("paint owned retained glyph");
+                                    }
                                 }
                             });
                         }
@@ -1062,5 +1127,43 @@ mod tests {
             reference.as_raw(),
             "normal paragraph measurement updates GPU geometry"
         );
+        let button = cx.debug_bounds("retained-text").unwrap();
+        cx.simulate_click(button.center(), Modifiers::default());
+        cx.run_until_parked();
+        let frame = view.read_with(cx, |view, _| {
+            view.tree.borrow().published_frame().unwrap().clone()
+        });
+        assert!(frame.items.iter().any(|item| {
+            item.glyphs
+                .as_ref()
+                .is_some_and(|chunk| !chunk.glyphs.is_empty())
+        }));
+        let text_pixels = gpu.borrow_mut().image().unwrap();
+        assert_ne!(
+            text_pixels.as_raw(),
+            measured.as_raw(),
+            "real glyph drawing changes pixels"
+        );
+        let reference = gpu
+            .borrow_mut()
+            .reference_image(&frame, [text_pixels.width(), text_pixels.height()], scale)
+            .unwrap();
+        assert_eq!(text_pixels.as_raw(), reference.as_raw());
+        let rasterized = view.read_with(cx, |view, _| view.rasterizer.borrow().rasterized_glyphs());
+        let button = cx.debug_bounds("retained-text-color").unwrap();
+        cx.simulate_click(button.center(), Modifiers::default());
+        cx.run_until_parked();
+        let frame = view.read_with(cx, |view, _| {
+            assert_eq!(view.rasterizer.borrow().rasterized_glyphs(), rasterized);
+            view.tree.borrow().published_frame().unwrap().clone()
+        });
+        assert_eq!((frame.layout_runs, frame.recorded_chunks), (0, 0));
+        let changed = gpu.borrow_mut().image().unwrap();
+        assert_ne!(changed.as_raw(), text_pixels.as_raw());
+        let reference = gpu
+            .borrow_mut()
+            .reference_image(&frame, [changed.width(), changed.height()], scale)
+            .unwrap();
+        assert_eq!(changed.as_raw(), reference.as_raw());
     }
 }

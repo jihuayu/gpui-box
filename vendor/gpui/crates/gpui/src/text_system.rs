@@ -229,6 +229,7 @@ impl Drop for MissingGlyphReceiver {
 
 /// The GPUI text rendering sub system.
 pub struct TextSystem {
+    identity: u64,
     platform_text_system: Arc<dyn PlatformTextSystem>,
     font_ids_by_font: RwLock<FxHashMap<Font, CachedFont>>,
     font_metrics: RwLock<FxHashMap<FontId, FontMetrics>>,
@@ -248,6 +249,25 @@ enum CachedFont {
 }
 
 impl TextSystem {
+    /// Namespace for font IDs and owned glyph resources from this font system.
+    pub fn identity(&self) -> u64 {
+        self.identity
+    }
+    /// Rasterize a glyph into owned bytes without a window or sprite atlas.
+    /// The format follows PlatformTextSystem: gray mask for ordinary grayscale
+    /// glyphs, BGRA for emoji/subpixel requests. Callers must check the format.
+    pub fn rasterize_glyph_owned(
+        &self,
+        params: &RenderGlyphParams,
+    ) -> Result<(Bounds<DevicePixels>, Vec<u8>)> {
+        let bounds = self.raster_bounds(params)?;
+        if bounds.size.width.0 == 0 || bounds.size.height.0 == 0 {
+            return Ok((bounds, Vec::new()));
+        }
+        let (size, bytes) = self.rasterize_glyph(params)?;
+        anyhow::ensure!(size == bounds.size, "glyph raster size differs from bounds");
+        Ok((bounds, bytes))
+    }
     /// Epoch of the currently registered font database. Owned shaping snapshots
     /// can retain this value and request reshaping after fonts are installed.
     pub fn font_epoch(&self) -> usize {
@@ -255,9 +275,14 @@ impl TextSystem {
     }
     /// Create a new TextSystem with the given platform text system.
     pub fn new(platform_text_system: Arc<dyn PlatformTextSystem>) -> Self {
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+        let identity = NEXT
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| n.checked_add(1))
+            .expect("text system identities exhausted");
         let (sender, receiver) = async_channel::bounded(MAX_REPORTED_MISSING_GLYPHS);
         let missing_glyph_generation = Arc::<AtomicUsize>::default();
         TextSystem {
+            identity,
             platform_text_system,
             font_metrics: RwLock::default(),
             raster_bounds: RwLock::default(),

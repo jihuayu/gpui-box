@@ -151,6 +151,7 @@ pub struct WgpuFrameRenderer {
     policy: CompositorPolicy,
     had_effects: bool,
     had_images: bool,
+    had_text: bool,
     cache_layers: bool,
     window_image: Option<(u64, Arc<gpui::RenderImage>)>,
 }
@@ -173,6 +174,7 @@ impl WgpuFrameRenderer {
             policy: CompositorPolicy::Full,
             had_effects: false,
             had_images: false,
+            had_text: false,
             cache_layers: true,
             window_image: None,
         })
@@ -301,6 +303,8 @@ impl WgpuFrameRenderer {
             || command_count_changed
             || self.had_effects
             || self.had_images
+            || self.had_text
+            || has_text(frame)
             || frame.items.iter().any(|item| item.image.is_some())
             || !frame.properties.effects.is_empty();
         let (order, layers) = if rebuild_order {
@@ -343,6 +347,7 @@ impl WgpuFrameRenderer {
                     })
                     .collect(),
                 cache_layers: self.cache_layers,
+                glyphs: glyph_batches(frame, scale)?,
                 size: size(
                     DevicePixels(surface[0] as i32),
                     DevicePixels(surface[1] as i32),
@@ -366,6 +371,7 @@ impl WgpuFrameRenderer {
         self.surface = surface;
         self.had_effects = !frame.properties.effects.is_empty();
         self.had_images = frame.items.iter().any(|item| item.image.is_some());
+        self.had_text = has_text(frame);
         self.leases.push_back((gpu.serial, frame.clone()));
         self.collect()?;
         self.failed = false;
@@ -412,6 +418,7 @@ impl WgpuFrameRenderer {
     ) -> Result<RetainedImage, Error> {
         validate(frame, surface, scale)?;
         if !frame.properties.effects.is_empty()
+            || has_text(frame)
             || frame.items.iter().any(|item| item.image.is_some())
         {
             // Legacy GPUI flattens element opacity. Group isolation instead uses
@@ -455,6 +462,66 @@ impl WgpuFrameRenderer {
     }
 }
 
+fn has_text(frame: &FramePacket) -> bool {
+    #[cfg(feature = "retained-text")]
+    {
+        frame.items.iter().any(|item| item.text.is_some())
+    }
+    #[cfg(not(feature = "retained-text"))]
+    {
+        let _ = frame;
+        false
+    }
+}
+fn glyph_batches(frame: &FramePacket, scale: f32) -> Result<Vec<gpui_wgpu::GlyphBatch>, Error> {
+    let batches = vec![];
+    #[cfg(feature = "retained-text")]
+    {
+        let mut batches = batches;
+        for item in frame.items.iter() {
+            let Some(text) = &item.text else {
+                continue;
+            };
+            let chunk = item.glyphs.as_ref().ok_or(Error::InvalidFrame)?;
+            let clip = item.clip.unwrap_or(Rect {
+                x: 0.0,
+                y: 0.0,
+                width: i32::MAX as f32 / scale,
+                height: i32::MAX as f32 / scale,
+            });
+            batches.push(gpui_wgpu::GlyphBatch {
+                id: [item.node.tree, item.node.slot as u64, item.node.generation],
+                clip: [
+                    clip.x * scale,
+                    clip.y * scale,
+                    clip.width * scale,
+                    clip.height * scale,
+                ],
+                color: text.color,
+                glyphs: chunk
+                    .glyphs
+                    .iter()
+                    .map(|glyph| {
+                        let bounds = item.glyph_bounds(glyph, scale);
+                        gpui_wgpu::RetainedGlyph {
+                            resource: glyph.bitmap.id(),
+                            size: glyph.bitmap.size,
+                            mask: glyph.bitmap.mask().clone(),
+                            bounds: [bounds.x, bounds.y, bounds.width, bounds.height],
+                        }
+                    })
+                    .collect(),
+            });
+        }
+        Ok(batches)
+    }
+    #[cfg(not(feature = "retained-text"))]
+    {
+        let _ = (frame, scale);
+        Ok(batches)
+    }
+}
+
 fn validate(frame: &FramePacket, surface: [u32; 2], scale: f32) -> Result<(), Error> {
     if !scale.is_finite()
         || scale <= 0.0
@@ -466,6 +533,15 @@ fn validate(frame: &FramePacket, surface: [u32; 2], scale: f32) -> Result<(), Er
     }
     let mut nodes = BTreeSet::new();
     for item in frame.items.iter().chain(frame.updates.iter()) {
+        #[cfg(feature = "retained-text")]
+        if item.text.is_some() != item.glyphs.is_some()
+            || item
+                .text
+                .as_ref()
+                .is_some_and(|text| text.resource.scale() != scale)
+        {
+            return Err(Error::InvalidFrame);
+        }
         for command in item.commands.iter() {
             let (_, decoration) = command.quad();
             if decoration.validate().is_err()
@@ -539,6 +615,7 @@ fn validate(frame: &FramePacket, surface: [u32; 2], scale: f32) -> Result<(), Er
                     || value.commands != item.commands
                     || value.fill_color != item.fill_color
                     || value.image != item.image
+                    || !value.same_text(item)
                     || value.content_bounds != item.content_bounds
                     || value.clip != item.clip
             })

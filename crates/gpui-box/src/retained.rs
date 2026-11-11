@@ -20,6 +20,8 @@ pub use image::ImageResource;
 mod measure;
 #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
 pub mod paragraph;
+#[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+pub mod text;
 pub use measure::{CustomMeasureSnapshot, ImageIntrinsicSize, LayoutStats, MeasureSnapshot};
 mod primitive;
 mod properties;
@@ -65,6 +67,10 @@ pub struct PaintItem {
     pub fill_color: u32,
     /// Optional decoded image stretched into the content box above the quad.
     pub image: Option<ImageResource>,
+    #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+    pub text: Option<text::TextPaint>,
+    #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+    pub glyphs: Option<Arc<text::GlyphChunk>>,
     pub content_bounds: Rect,
     pub clip: Option<Rect>,
     pub properties: PropertyState,
@@ -161,10 +167,16 @@ pub enum Patch {
     Measure(NodeId, Option<MeasureSnapshot>),
     Decoration(NodeId, QuadDecoration),
     Image(NodeId, Option<ImageResource>),
+    #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+    Text(NodeId, Option<text::TextPaint>),
 }
 
 impl Patch {
     fn node(&self) -> NodeId {
+        #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+        if let Self::Text(id, _) = self {
+            return *id;
+        }
         match self {
             Self::Color(id, _)
             | Self::Style(id, _)
@@ -176,6 +188,8 @@ impl Patch {
             | Self::Measure(id, _)
             | Self::Decoration(id, _)
             | Self::Image(id, _) => *id,
+            #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+            Self::Text(_, _) => unreachable!(),
         }
     }
 }
@@ -219,6 +233,10 @@ impl Transaction {
     pub fn image(&mut self, node: NodeId, image: Option<ImageResource>) {
         self.patches.push(Patch::Image(node, image));
     }
+    #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+    pub fn text(&mut self, node: NodeId, text: Option<text::TextPaint>) {
+        self.patches.push(Patch::Text(node, text));
+    }
     /// Reorder the existing children of one parent, preserving their identity.
     pub fn reorder(&mut self, parent: NodeId, children: Vec<NodeId>) {
         self.patches.push(Patch::Reorder(parent, children));
@@ -258,6 +276,7 @@ pub enum Error {
     InvalidImage,
     UnsupportedText,
     ParagraphCachePoisoned,
+    InvalidTextResource,
 }
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -285,6 +304,8 @@ struct Node {
     measure: Option<MeasureSnapshot>,
     decoration: QuadDecoration,
     image: Option<ImageResource>,
+    #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+    text: Option<text::TextPaint>,
 }
 struct Slot {
     generation: u64,
@@ -317,6 +338,8 @@ struct Pending {
     measure: Option<Option<MeasureSnapshot>>,
     decoration: Option<QuadDecoration>,
     image: Option<Option<ImageResource>>,
+    #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+    text: Option<Option<text::TextPaint>>,
 }
 
 impl UiTree {
@@ -351,6 +374,8 @@ impl UiTree {
                     measure: None,
                     decoration: QuadDecoration::default(),
                     image: None,
+                    #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+                    text: None,
                 }),
             }],
             free: vec![],
@@ -434,6 +459,8 @@ impl UiTree {
             measure: None,
             decoration: QuadDecoration::default(),
             image: None,
+            #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+            text: None,
         });
         self.node_mut(parent).children.push(id);
         self.revision = next;
@@ -533,6 +560,13 @@ impl UiTree {
                     }
                     entry.image = Some(image);
                 }
+                #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+                Patch::Text(_, text) => {
+                    if text.is_some() && !self.node(id)?.children.is_empty() {
+                        return Err(Error::MeasuredNodeHasChildren);
+                    }
+                    entry.text = Some(text);
+                }
                 Patch::Reorder(_, children) => {
                     let mut previous = self.node(id)?.children.clone();
                     let mut proposed = children.clone();
@@ -549,15 +583,39 @@ impl UiTree {
         for (id, mut entry) in pending {
             let node = self.node(id)?;
             let final_image = entry.image.as_ref().unwrap_or(&node.image);
-            if final_image.is_some() && entry.measure.is_some() {
+            let explicit_measure = entry.measure.is_some();
+            #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+            let text_changed = {
+                let final_text = entry.text.as_ref().unwrap_or(&node.text);
+                if final_text.is_some() && (final_image.is_some() || explicit_measure) {
+                    return Err(Error::InvalidMeasure);
+                }
+                let changed = entry.text.as_ref().is_some_and(|text| *text != node.text);
+                if changed && entry.measure.is_none() && final_image.is_none() {
+                    entry.measure =
+                        Some(final_text.as_ref().map(|text| {
+                            MeasureSnapshot::Paragraph(text.resource.paragraph().clone())
+                        }));
+                }
+                changed
+            };
+            #[cfg(not(all(feature = "retained-text", not(target_family = "wasm"))))]
+            let text_changed = false;
+            if final_image.is_some() && explicit_measure {
                 return Err(Error::InvalidMeasure);
             }
             let image_changed = entry
                 .image
                 .as_ref()
                 .is_some_and(|image| *image != node.image);
-            if image_changed && entry.measure.is_none() {
+            if image_changed && !explicit_measure {
                 entry.measure = Some(final_image.as_ref().map(ImageResource::measure));
+                #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+                if let Some(text) = entry.text.as_ref().unwrap_or(&node.text) {
+                    entry.measure = Some(Some(MeasureSnapshot::Paragraph(
+                        text.resource.paragraph().clone(),
+                    )));
+                }
             }
             let style_changed = entry
                 .style
@@ -588,6 +646,7 @@ impl UiTree {
                 || measure_changed
                 || decoration_changed
                 || image_changed
+                || text_changed
             {
                 changed.push((
                     id,
@@ -599,6 +658,7 @@ impl UiTree {
                     measure_changed,
                     decoration_changed,
                     image_changed,
+                    text_changed,
                 ));
             }
         }
@@ -626,6 +686,7 @@ impl UiTree {
             measure_changed,
             decoration_changed,
             image_changed,
+            text_changed,
         ) in changed
         {
             if structure_changed {
@@ -685,6 +746,17 @@ impl UiTree {
             }
             if image_changed {
                 self.node_mut(id).image = entry.image.expect("changed image");
+                result.route(
+                    id,
+                    UpdatePath::ResourcePatch,
+                    RouteReason::ResourcePixelsChanged,
+                );
+            }
+            if text_changed {
+                #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+                {
+                    self.node_mut(id).text = entry.text.expect("changed text");
+                }
                 result.route(
                     id,
                     UpdatePath::ResourcePatch,
@@ -846,6 +918,21 @@ impl UiTree {
                     }])
                 })
                 .clone();
+            #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+            let glyphs = node
+                .text
+                .as_ref()
+                .map(|text| {
+                    text.resource.chunk(
+                        (layout.size.width
+                            - layout.border.left
+                            - layout.border.right
+                            - layout.padding.left
+                            - layout.padding.right)
+                            .max(0.0),
+                    )
+                })
+                .transpose()?;
             items.push(PaintItem {
                 node: id,
                 bounds: Rect {
@@ -857,6 +944,10 @@ impl UiTree {
                 commands,
                 fill_color: node.color,
                 image: node.image.clone(),
+                #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+                text: node.text.clone(),
+                #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+                glyphs,
                 content_bounds: Rect {
                     x: x + layout.border.left + layout.padding.left,
                     y: y + layout.border.top + layout.padding.top,
@@ -891,6 +982,7 @@ impl UiTree {
                         || old.commands != item.commands
                         || old.fill_color != item.fill_color
                         || old.image != item.image
+                        || !old.same_text(item)
                         || old.content_bounds != item.content_bounds
                         || old.clip != item.clip
                 })

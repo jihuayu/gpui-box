@@ -39,6 +39,8 @@ enum Field {
     Measure,
     Decoration,
     Image,
+    #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+    Text,
 }
 
 /// Typed property endpoint. A render property has at most one signal writer.
@@ -123,6 +125,16 @@ impl Property<Option<ImageResource>> {
             node,
             field: Field::Image,
             write: |node, value, tx| tx.image(node, value.clone()),
+        }
+    }
+}
+#[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+impl Property<Option<text::TextPaint>> {
+    pub fn text(node: NodeId) -> Self {
+        Self {
+            node,
+            field: Field::Text,
+            write: |node, value, tx| tx.text(node, value.clone()),
         }
     }
 }

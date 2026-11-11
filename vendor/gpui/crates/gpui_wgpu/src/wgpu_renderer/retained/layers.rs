@@ -9,6 +9,7 @@ pub enum QuadDraw {
     Instances(Range<u32>),
     Layer(QuadLayerId),
     Image(QuadImageId),
+    Glyphs(GlyphDrawId),
 }
 
 pub struct QuadLayer {
@@ -122,6 +123,7 @@ impl LayerCache {
         capacity: u32,
         size: Size<DevicePixels>,
         images: &BTreeSet<QuadImageId>,
+        glyphs: &BTreeSet<GlyphDrawId>,
     ) -> Result<()> {
         let mut seen = BTreeSet::new();
         for layer in layers {
@@ -129,10 +131,10 @@ impl LayerCache {
                 layer.opacity.is_finite() && (0.0..=1.0).contains(&layer.opacity),
                 "invalid group opacity"
             );
-            Self::validate_draws(&layer.draws, &seen, capacity, images)?;
+            Self::validate_draws(&layer.draws, &seen, capacity, images, glyphs)?;
             anyhow::ensure!(seen.insert(layer.id), "duplicate or cyclic layer");
         }
-        Self::validate_draws(order, &seen, capacity, images)?;
+        Self::validate_draws(order, &seen, capacity, images, glyphs)?;
         let bytes = u64::from(size.width.0 as u32) * u64::from(size.height.0 as u32) * 4;
         anyhow::ensure!(
             bytes.saturating_mul(layers.len() as u64) <= 256 * 1024 * 1024,
@@ -146,6 +148,7 @@ impl LayerCache {
         seen: &BTreeSet<QuadLayerId>,
         capacity: u32,
         images: &BTreeSet<QuadImageId>,
+        glyphs: &BTreeSet<GlyphDrawId>,
     ) -> Result<()> {
         for draw in draws {
             match draw {
@@ -159,6 +162,7 @@ impl LayerCache {
                 QuadDraw::Image(id) => {
                     anyhow::ensure!(images.contains(id), "missing decoded image")
                 }
+                QuadDraw::Glyphs(id) => anyhow::ensure!(glyphs.contains(id), "missing glyph batch"),
             }
         }
         Ok(())
@@ -223,6 +227,8 @@ impl LayerCache {
         cache: bool,
         images: &images::ImageCache,
         changed_images: &BTreeSet<QuadImageId>,
+        glyphs: &glyphs::GlyphCache,
+        changed_glyphs: &BTreeSet<GlyphDrawId>,
     ) -> Result<LayerStats> {
         let mut stats = LayerStats::default();
         let mut changed = BTreeSet::new();
@@ -243,6 +249,7 @@ impl LayerCache {
                         .any(|write| range.start < write.end && write.start < range.end),
                     QuadDraw::Layer(id) => changed.contains(id),
                     QuadDraw::Image(id) => changed_images.contains(id),
+                    QuadDraw::Glyphs(id) => changed_glyphs.contains(id),
                 });
             if opacity_changed {
                 let mut bytes = [0; 16];
@@ -267,8 +274,14 @@ impl LayerCache {
                     })],
                     ..Default::default()
                 });
-                self.draw(&renderer.core, binding, &layer.draws, &mut pass, images)?;
-                stats.draws += layer.draws.len();
+                stats.draws += self.draw(
+                    &renderer.core,
+                    binding,
+                    &layer.draws,
+                    &mut pass,
+                    images,
+                    glyphs,
+                )?;
                 stats.rasterized += 1;
             } else {
                 stats.reused += 1;
@@ -291,8 +304,14 @@ impl LayerCache {
         draws: &[QuadDraw],
         pass: &mut wgpu::RenderPass<'_>,
         images: &images::ImageCache,
-    ) -> Result<()> {
+        glyphs: &glyphs::GlyphCache,
+    ) -> Result<usize> {
+        let mut count = 0;
         for draw in draws {
+            count += match draw {
+                QuadDraw::Glyphs(id) => glyphs.draw_calls(*id),
+                _ => 1,
+            };
             match draw {
                 QuadDraw::Instances(range) => core.draw_instances(
                     binding,
@@ -307,9 +326,12 @@ impl LayerCache {
                     pass.draw(0..3, 0..1);
                 }
                 QuadDraw::Image(id) => images.draw(*id, pass)?,
+                QuadDraw::Glyphs(id) => {
+                    glyphs.draw(*id, pass)?;
+                }
             }
         }
-        Ok(())
+        Ok(count)
     }
 
     pub fn leases(&self) -> Vec<LayerLease> {

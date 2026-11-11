@@ -7,6 +7,7 @@ type WrapCache = VecDeque<(Option<u32>, Arc<ParagraphLayout>)>;
 
 #[derive(Debug)]
 struct Paragraph {
+    system: u64,
     id: u64,
     font_epoch: usize,
     line_height: f32,
@@ -128,6 +129,7 @@ impl ParagraphSnapshot {
             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| n.checked_add(1))
             .map_err(|_| Error::RevisionExhausted)?;
         Ok(Self(Arc::new(Paragraph {
+            system: text_system.identity(),
             id,
             font_epoch,
             line_height,
@@ -140,6 +142,12 @@ impl ParagraphSnapshot {
     }
     pub fn font_epoch(&self) -> usize {
         self.0.font_epoch
+    }
+    pub fn text_system_id(&self) -> u64 {
+        self.0.system
+    }
+    pub(super) fn shaped_lines(&self) -> &[ShapedLine] {
+        &self.0.lines
     }
     pub fn line_height(&self) -> f32 {
         self.0.line_height

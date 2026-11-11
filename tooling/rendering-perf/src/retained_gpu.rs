@@ -13,6 +13,7 @@ mod retained_primitive;
 mod retained_queue;
 mod retained_reactive;
 mod retained_responsive;
+mod retained_text;
 
 fn compare(
     renderer: &mut WgpuFrameRenderer,
@@ -32,7 +33,7 @@ fn compare(
     actual.save(output.join(format!("{name}.png")))?;
     results.push(serde_json::json!({"case":name,"pixel_equal":true,"revision":frame.revision,"layout_runs":frame.layout_runs,"recorded_chunks":frame.recorded_chunks,
         "leaf_layouts":frame.layout_stats.leaf_layouts,"measure_calls":frame.layout_stats.measure_calls,
-        "reference": if frame.properties.effects.is_empty() && frame.items.iter().all(|item| item.image.is_none()) { "original full GPUI renderer" } else { "fresh full retained renderer; no reused cache" }}));
+        "reference": if frame.properties.effects.is_empty() && frame.items.iter().all(|item| item.image.is_none() && item.text.is_none()) { "original full GPUI renderer" } else { "fresh full retained renderer; no reused cache" }}));
     Ok(())
 }
 
@@ -656,6 +657,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_primitive::run(&mut renderer, &output, &mut results)?;
     retained_queue::run(&mut renderer, &output, &mut results)?;
     retained_image::run(&mut renderer, &output, &mut results)?;
+    retained_text::run(&mut renderer, &output, &mut results)?;
     fs::write(
         output.join("validation.json"),
         serde_json::to_vec_pretty(&results)?,
@@ -676,6 +678,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     fs::write(
         output.join("image-benchmark.json"),
         serde_json::to_vec_pretty(&retained_image::benchmark()?)?,
+    )?;
+    fs::write(
+        output.join("text-benchmark.json"),
+        serde_json::to_vec_pretty(&retained_text::benchmark()?)?,
     )?;
     Ok(())
 }

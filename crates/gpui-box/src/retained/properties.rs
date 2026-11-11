@@ -89,9 +89,24 @@ impl PaintItem {
     }
     pub fn ink_bounds(&self) -> Option<Rect> {
         let bounds = self.visible_bounds();
-        (!bounds.is_empty()
+        let quad = (!bounds.is_empty()
             && (self.image.is_some() || self.commands.iter().any(|command| self.visible(command))))
-        .then_some(bounds)
+        .then_some(bounds);
+        #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+        if self.text.as_ref().is_some_and(|text| text.color & 255 != 0)
+            && let Some(ink) = self.glyphs.as_ref().and_then(|chunk| chunk.ink)
+        {
+            let ink = ink.translated([self.content_bounds.x, self.content_bounds.y]);
+            let ink = self.clip.map_or(ink, |clip| ink.intersect(clip));
+            if !ink.is_empty() {
+                return Some(quad.map_or(ink, |quad| quad.union(ink)));
+            }
+        }
+        quad
+    }
+    #[cfg(not(all(feature = "retained-text", not(target_family = "wasm"))))]
+    pub(super) fn same_text(&self, _other: &Self) -> bool {
+        true
     }
 }
 
@@ -131,6 +146,7 @@ pub(super) fn damage(
                     && a.commands == b.commands
                     && a.fill_color == b.fill_color
                     && a.image == b.image
+                    && a.same_text(b)
                     && a.content_bounds == b.content_bounds
                     && same_effects(
                         a.properties.effect,

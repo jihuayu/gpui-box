@@ -1,6 +1,7 @@
 //! Real font shaping → owned wrapping → persistent Taffy correctness.
 use gpui::{TextRun, WindowTextSystem, font, px};
 use gpui_box::retained::{paragraph::ParagraphSnapshot, *};
+use gpui_box::retained::{reactive::*, text::*};
 use std::{borrow::Cow, sync::Arc};
 
 fn text_system() -> WindowTextSystem {
@@ -17,6 +18,223 @@ fn text_system() -> WindowTextSystem {
 }
 fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
     ParagraphSnapshot::shape(system, text, font("Noto Sans CJK SC"), 16.0, 32.0).unwrap()
+}
+
+#[test]
+fn glyph_resources_share_masks_bound_width_cache_and_outlive_the_font_owner() {
+    let system = text_system();
+    let paragraph = shape(&system, "office a\u{301} 中文\nsecond line");
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let resource = raster.prepare(paragraph.clone(), 1.0).unwrap();
+    let count = raster.rasterized_glyphs();
+    let shared = raster.prepare(paragraph, 1.0).unwrap();
+    assert_eq!(raster.rasterized_glyphs(), count);
+    let chunk = resource.chunk(120.0).unwrap();
+    let other = shared.chunk(120.0).unwrap();
+    assert!(chunk.glyphs.len() > 10);
+    for (a, b) in chunk.glyphs.iter().zip(other.glyphs.iter()) {
+        assert!(Arc::ptr_eq(&a.bitmap, &b.bitmap));
+        assert_eq!(a.origin, b.origin);
+    }
+    assert!(Arc::ptr_eq(&chunk, &resource.chunk(120.0).unwrap()));
+    let weak_chunk = Arc::downgrade(&chunk);
+    let weak_bitmap = Arc::downgrade(&chunk.glyphs[0].bitmap);
+    drop(chunk);
+    for width in [121.0, 122.0, 123.0, 124.0] {
+        resource.chunk(width).unwrap();
+    }
+    assert!(weak_chunk.upgrade().is_none());
+    drop(other);
+    drop(shared);
+    drop(system);
+    drop(raster);
+    let chunk = std::thread::spawn(move || resource.chunk(120.0).unwrap())
+        .join()
+        .unwrap();
+    assert!(weak_bitmap.upgrade().is_some());
+    drop(chunk);
+    assert!(weak_bitmap.upgrade().is_none());
+}
+
+#[test]
+fn glyph_preparation_rejects_foreign_fonts_stale_epochs_and_invalid_scale() {
+    let system = text_system();
+    let paragraph = shape(&system, "font epoch 中文");
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    for scale in [0.0, -1.0, f32::INFINITY, f32::NAN, f32::from_bits(1)] {
+        assert_eq!(
+            raster.prepare(paragraph.clone(), scale).unwrap_err(),
+            Error::InvalidTextResource
+        );
+    }
+    assert_eq!(
+        raster.prepare(paragraph.clone(), f32::MAX).unwrap_err(),
+        Error::UnsupportedText
+    );
+    let mut foreign = GlyphRasterizer::new(Arc::clone(&text_system()));
+    assert_eq!(
+        foreign.prepare(paragraph.clone(), 1.0).unwrap_err(),
+        Error::InvalidTextResource
+    );
+    let old = raster.prepare(paragraph.clone(), 1.0).unwrap();
+    let first = old.chunk(200.0).unwrap();
+    let scaled = raster.prepare(paragraph.clone(), 1.5).unwrap();
+    assert_ne!(
+        first.glyphs[0].bitmap.id(),
+        scaled.chunk(200.0).unwrap().glyphs[0].bitmap.id()
+    );
+    system
+        .add_fonts(vec![Cow::Borrowed(include_bytes!(
+            "../assets/NotoSansSC-Regular.otf"
+        ))])
+        .unwrap();
+    assert_eq!(
+        raster.prepare(paragraph, 1.0).unwrap_err(),
+        Error::InvalidTextResource
+    );
+    let current = raster
+        .prepare(shape(&system, "font epoch 中文"), 1.0)
+        .unwrap();
+    assert_ne!(
+        first.glyphs[0].bitmap.id(),
+        current.chunk(200.0).unwrap().glyphs[0].bitmap.id()
+    );
+    assert!(Arc::ptr_eq(&first, &old.chunk(200.0).unwrap()));
+}
+
+#[test]
+fn typed_text_equality_color_and_overflow_damage_preserve_owned_glyph_chunks() {
+    let system = text_system();
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let resource = raster.prepare(shape(&system, "Glyphs 中文"), 1.0).unwrap();
+    let mut tree = UiTree::new(Style::default(), 0).unwrap();
+    let node = tree
+        .append(
+            tree.root(),
+            Style {
+                size: taffy::Size {
+                    width: length(120.0),
+                    height: length(1.0),
+                },
+                flex_shrink: 0.0,
+                ..Default::default()
+            },
+            0,
+        )
+        .unwrap();
+    let mut ui = ReactiveUi::new(tree, BackendCapabilities::default()).unwrap();
+    let initial = Some(TextPaint {
+        resource: resource.clone(),
+        color: 0xffdd88ff,
+    });
+    let signal = ui.signal(initial.clone());
+    ui.bind(signal, Property::text(node)).unwrap();
+    let before = ui.frame([300.0, 120.0]).unwrap();
+    let equal = ui
+        .transaction(|tx| {
+            tx.set(signal, initial.clone())?;
+            Ok(())
+        })
+        .unwrap();
+    assert_eq!((equal.changed_sources, equal.sink_writes), (0, 0));
+    assert!(!equal.commit.request_frame);
+    let paint = TextPaint {
+        resource,
+        color: 0x66ccff80,
+    };
+    let changed = ui
+        .transaction(|tx| {
+            tx.set(signal, Some(paint))?;
+            Ok(())
+        })
+        .unwrap();
+    assert!(
+        changed
+            .commit
+            .routes
+            .contains(&(node, UpdatePath::ResourcePatch))
+    );
+    let after = ui.frame([300.0, 120.0]).unwrap();
+    assert_eq!((after.layout_runs, after.recorded_chunks), (0, 0));
+    assert!(Arc::ptr_eq(
+        before.items[1].glyphs.as_ref().unwrap(),
+        after.items[1].glyphs.as_ref().unwrap()
+    ));
+    let item = &after.items[1];
+    let ink = item.ink_bounds().unwrap();
+    assert!(ink.y + ink.height > item.bounds.y + item.bounds.height);
+    let damage = after.damage.bounds.unwrap();
+    assert_eq!(
+        damage.intersect(ink),
+        ink,
+        "damage includes ink outside the layout box"
+    );
+}
+
+#[test]
+fn text_image_swaps_adopt_final_measurement_and_conflicts_roll_back_atomically() {
+    let system = text_system();
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let paint = TextPaint {
+        resource: raster.prepare(shape(&system, "text"), 1.0).unwrap(),
+        color: 0xffffffff,
+    };
+    let image = ImageResource::rgba8([13, 17], vec![255; 13 * 17 * 4]).unwrap();
+    let mut tree = UiTree::new(
+        Style {
+            align_items: taffy::AlignItems::START,
+            ..Default::default()
+        },
+        0,
+    )
+    .unwrap();
+    let node = tree.append(tree.root(), Style::default(), 0).unwrap();
+    let mut tx = Transaction::default();
+    tx.text(node, Some(paint.clone()));
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    let before = tree.frame([300.0, 120.0]).unwrap();
+    for with_image in [false, true] {
+        let mut invalid = Transaction::default();
+        invalid.color(tree.root(), 0xff0000ff);
+        if with_image {
+            invalid.image(node, Some(image.clone()));
+        } else {
+            invalid.measure(node, None);
+        }
+        assert_eq!(
+            tree.commit(invalid, BackendCapabilities::default())
+                .unwrap_err(),
+            Error::InvalidMeasure
+        );
+        let frame = tree.frame([300.0, 120.0]).unwrap();
+        assert_eq!(frame.revision, before.revision);
+        assert_eq!(frame.items[0].fill_color, 0);
+    }
+    for _ in 0..2 {
+        let mut tx = Transaction::default();
+        tx.text(node, None);
+        tx.image(node, Some(image.clone()));
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+        let frame = tree.frame([300.0, 120.0]).unwrap();
+        assert_eq!(
+            [frame.items[1].bounds.width, frame.items[1].bounds.height],
+            [13.0, 17.0]
+        );
+        assert!(frame.items[1].glyphs.is_none());
+        let mut tx = Transaction::default();
+        tx.image(node, None);
+        tx.text(node, Some(paint.clone()));
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+        let frame = tree.frame([300.0, 120.0]).unwrap();
+        assert_eq!(frame.items[1].bounds, before.items[1].bounds);
+        assert!(frame.items[1].image.is_none());
+    }
+    let mut tx = Transaction::default();
+    tx.text(node, None);
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    let frame = tree.frame([300.0, 120.0]).unwrap();
+    assert!(frame.items[1].glyphs.is_none());
+    assert_eq!(frame.items[1].bounds.height, 0.0);
 }
 
 #[test]

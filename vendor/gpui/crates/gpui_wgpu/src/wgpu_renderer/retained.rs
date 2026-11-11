@@ -7,7 +7,9 @@ use std::{
     time::Duration,
 };
 pub type RetainedImage = image::RgbaImage;
+mod glyphs;
 mod images;
+pub use glyphs::{GlyphBatch, GlyphDrawId, RetainedGlyph};
 mod layers;
 pub use images::{QuadImage, QuadImageId};
 use layers::LayerCache;
@@ -23,6 +25,7 @@ pub struct QuadBatch {
     pub order: Option<Vec<QuadDraw>>,
     pub layers: Vec<QuadLayer>,
     pub images: Vec<QuadImage>,
+    pub glyphs: Vec<GlyphBatch>,
     pub cache_layers: bool,
     pub size: Size<DevicePixels>,
     pub redraw: QuadRedraw,
@@ -57,6 +60,10 @@ pub struct QuadSubmission {
     pub image_upload_bytes: u64,
     pub image_uploads: usize,
     pub image_geometry_bytes: u64,
+    pub glyph_atlas_bytes: u64,
+    pub glyph_atlas_uploads: usize,
+    pub glyph_instance_bytes: u64,
+    pub glyph_upload_ranges: usize,
 }
 
 struct Flight {
@@ -68,6 +75,7 @@ struct Flight {
     _clear: Option<(wgpu::Buffer, wgpu::BindGroup)>,
     _layers: Vec<layers::LayerLease>,
     _images: images::ImageLease,
+    _glyphs: glyphs::GlyphLease,
 }
 
 pub struct RetainedQuadRenderer {
@@ -87,6 +95,7 @@ pub struct RetainedQuadRenderer {
     force_full: bool,
     layers: LayerCache,
     images: images::ImageCache,
+    glyphs: glyphs::GlyphCache,
 }
 
 impl RetainedQuadRenderer {
@@ -107,6 +116,7 @@ impl RetainedQuadRenderer {
         let (buffer, binding) = allocation(&renderer, 1);
         let layers = LayerCache::new(&renderer);
         let images = images::ImageCache::new(&renderer);
+        let glyphs = glyphs::GlyphCache::new(&renderer);
         Ok(Self {
             renderer,
             buffer,
@@ -124,6 +134,7 @@ impl RetainedQuadRenderer {
             force_full: true,
             layers,
             images,
+            glyphs,
         })
     }
 
@@ -185,7 +196,22 @@ impl RetainedQuadRenderer {
                 .limits()
                 .max_texture_dimension_2d,
         )?;
-        LayerCache::validate(&batch.layers, order, batch.capacity, batch.size, &image_ids)?;
+        let glyph_ids = self.glyphs.validate(
+            &batch.glyphs,
+            self.renderer
+                .context
+                .device
+                .limits()
+                .max_storage_buffer_binding_size,
+        )?;
+        LayerCache::validate(
+            &batch.layers,
+            order,
+            batch.capacity,
+            batch.size,
+            &image_ids,
+            &glyph_ids,
+        )?;
         let serial = self
             .serial
             .checked_add(1)
@@ -315,6 +341,9 @@ impl RetainedQuadRenderer {
         let image_stats = self
             .images
             .prepare(&self.renderer, batch.images, batch.size);
+        let glyph_stats = self
+            .glyphs
+            .prepare(&self.renderer, batch.glyphs, batch.size)?;
         let layer_stats = self.layers.render(
             &self.renderer,
             &self.binding,
@@ -325,7 +354,10 @@ impl RetainedQuadRenderer {
             batch.cache_layers,
             &self.images,
             &image_stats.changed,
+            &self.glyphs,
+            &glyph_stats.changed,
         )?;
+        let mut root_draws = 0;
         if redraw != QuadRedraw::Unchanged {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("retained_quad_pass"),
@@ -359,8 +391,14 @@ impl RetainedQuadRenderer {
                     &mut pass,
                 );
             }
-            self.layers
-                .draw(core, &self.binding, &self.order, &mut pass, &self.images)?;
+            root_draws = self.layers.draw(
+                core,
+                &self.binding,
+                &self.order,
+                &mut pass,
+                &self.images,
+                &self.glyphs,
+            )?;
         }
         let submission = core.resources.queue.submit([encoder.finish()]);
         let completed = self.completed.clone();
@@ -378,6 +416,7 @@ impl RetainedQuadRenderer {
                 .map(|(buffer, binding)| (buffer.clone(), binding.bind_group.clone())),
             _layers: self.layers.leases(),
             _images: self.images.leases(),
+            _glyphs: self.glyphs.leases(),
         });
         self.serial = serial;
         self.renderer.check_gpu_errors()?;
@@ -397,7 +436,7 @@ impl RetainedQuadRenderer {
                 + if redraw == QuadRedraw::Unchanged {
                     0
                 } else {
-                    self.order.len() + usize::from(redraw != QuadRedraw::Full)
+                    root_draws + usize::from(redraw != QuadRedraw::Full)
                 },
             in_flight: self.flights.len(),
             buffer_generation: self.generation,
@@ -409,6 +448,10 @@ impl RetainedQuadRenderer {
             image_upload_bytes: image_stats.bytes,
             image_uploads: image_stats.uploads,
             image_geometry_bytes: image_stats.geometry_bytes,
+            glyph_atlas_bytes: glyph_stats.atlas_bytes,
+            glyph_atlas_uploads: glyph_stats.atlas_uploads,
+            glyph_instance_bytes: glyph_stats.instance_bytes,
+            glyph_upload_ranges: glyph_stats.ranges,
         })
     }
 

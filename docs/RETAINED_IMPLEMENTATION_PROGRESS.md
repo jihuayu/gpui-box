@@ -29,6 +29,9 @@ image draws and completion-held texture/binding leases.
 The [paragraph measurement stage](RETAINED_PARAGRAPH_MEASUREMENT.md) retains
 real shaped runs, wraps against Taffy content constraints without UI callbacks,
 memoizes four widths and records explicit font epochs.
+The [grayscale glyph stage](RETAINED_GLYPH_RENDERING.md) attaches owned platform
+masks to typed text properties, reuses packed R8 pages and persistent glyph
+instance ranges, and verifies real normal-click text painting and batch uploads.
 
 ## Current integrated foundation
 
@@ -75,7 +78,7 @@ click test passed pixel comparison at the actual window scale.
 | GPU arena | Generic CPU allocation table with generations and deferred slot reuse, WGPU geometric growth and completion-held buffer/binding leases | General resource/material records, budgets, compaction and other backends |
 | Batch GPU updates | Adjacent upload merging; 10,000-object translation and 10,000-signal color pixel verification; CPU per-signal/coalesced/typed-batch comparison; completed-work redraw A/B | Sustained 60/120Hz animation, general batch/fragmented order throughput and tuning |
 | P2 property / composite | Translation/clip/scroll reuse commands and update GPU instances/hit geometry; isolated subtree opacity supports nesting and 16-byte property-only updates | GPU transform/clip indirection, texture import for window presentation and NativeView geometry |
-| Text / images / complex primitives | Solid/decorated quads; immutable decoded RGBA textures and resource route; owned uniform-font LTR shaped paragraphs with pure wrapping, four-width cache, first baseline and captured font epoch; typed click/geometry, image clip/opacity and lifecycle pixels | Retained glyph/path/shadow paint types, glyph atlas/resource epochs and automatic font subscriptions; bidi/rich-text/selection; image decoding/fit/filter/color/animation/atlas/batching and physical resource budgets |
+| Text / images / complex primitives | Solid/decorated quads; immutable decoded RGBA textures; owned uniform-font LTR paragraphs and grayscale glyph masks, four-width chunks, system/font/scale identity, packed R8 pages, persistent 64-byte glyph ranges and adjacent batch merging; typed normal clicks, clip/opacity, CPU blend and lifecycle pixels | Path/shadow types, automatic font subscriptions, robust glyph pressure/compaction, material indirection; bidi/rich-text/selection/color/subpixel text; image decoding/fit/filter/color/animation/atlas/batching and physical resource budgets |
 | Flex / responsive contract | Opt-in validated Flex subset, separate layout/scale environment, threshold-equality rules, RTL/actual-window resize, bounded fixed content-box queries with dependency rejection | Broad Flex conformance/rounding, full environment subscriptions, constraint builders, general query dependency graph and adaptive structures; indexed rule dispatch |
 | Damage / cache / compositor | Old/new clipped ink/effect damage; preserved offscreen target, scissored clear/replay; Full/Damage/area-threshold Auto; isolated layer content cache and cached/uncached A/B; live-layer 256 MiB guard | Tight layer bounds, cross-frame physical memory accounting, cache admission/LRU, measured cost model, multiple damage regions, native surface buffer-age contract |
 | FramePacket / frames in flight | Owned snapshots/base deltas and immutable image resources, skip-frame resync, stale rejection, single-pending producer coalescing and wake intent, bounded GPU queue, completion/weak-reference and texture/binding retirement, poll/finish/reset with resource reupload | Forced device/surface loss, general resource/font epochs, host wake/idle-completion scheduling and deferring superseded snapshot production |
