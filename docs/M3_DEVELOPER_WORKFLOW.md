@@ -181,3 +181,68 @@ hardware along with the matching permission. Stable customization points remain.
 See the M1 permission continuation and ADR-014 for runtime evidence. Notification
 delivery itself, document/share/export declarations, release signing and updates
 retain their own roadmap issues.
+
+## Machine-readable CLI response v1
+
+Add `--json` once, before or after the existing positional arguments, for a
+single newline-terminated JSON value on stdout. The finite commands `info`,
+`--version`, `help`, `new`, `generate`, `doctor`, `devices`, `build`, `install`
+and `package` support this response envelope. Existing human output remains the
+default. All progress, diagnostics and child-process stdout use stderr in JSON
+mode. Child build/install processes receive closed stdin. The command exit status
+remains zero on success and nonzero on failure.
+
+```json
+{
+  "schema_version": 1,
+  "cli_version": "0.1.0-dev",
+  "upstream_revision": "f8cfc7ed9e57503def9479138894f3139f5400cc",
+  "command": "generate",
+  "success": true,
+  "result": { "completed": true },
+  "error": null
+}
+```
+
+On failure, result is null and error contains stable `code` and explanatory
+`message` fields. Consumers branch on code and response schema. Diagnostic text,
+OS messages, paths and child output are human-facing. Those strings can change
+and may include local project information. `info` returns structured version,
+upstream, host and target-family fields. `new` returns the destination. Help
+returns its text and response-schema version. Other commands return completion
+status. Per-check doctor data, parsed device inventories, artifact result paths
+and streaming progress events remain future schema additions.
+
+| Error code | Meaning |
+| --- | --- |
+| INVALID_ARGUMENTS | Unknown command, invalid shape or repeated --json |
+| CURRENT_DIRECTORY_UNAVAILABLE | Current working directory cannot be resolved |
+| DISTRIBUTION_UNAVAILABLE | New project's distribution path cannot be resolved |
+| PROJECT_CREATION_FAILED | App creation failed, including destination conflicts |
+| GENERATION_FAILED | Configuration, managed-file conflict or generation failed |
+| DIAGNOSTICS_FAILED | Doctor configuration or prerequisite checks failed |
+| DEVICE_QUERY_FAILED | SDK/adb discovery or device enumeration failed |
+| WORKFLOW_FAILED | Build/install/debug-package workflow failed |
+| PACKAGING_FAILED | Inspected release or portable packaging failed |
+| STREAMING_JSON_UNSUPPORTED | dev/logs requested the finite-response format |
+
+`dev` and `logs` use streaming human output. JSON requests for these commands
+fail before project mutations or tool startup. Duplicate `--json` also fails
+deterministically. Project schema remains the delivered `gpui-box.json` v1 with
+service schema v1. This slice adds no interactive prompts. Canonical schema
+migrations/precedence, dry-run/offline guarantees and streaming event contracts
+remain tracked by #61 and related CLI tasks.
+
+The CLI suite passes 22 tests. Five new command-level cases cover structured
+info/help/version, invalid/duplicate arguments, finite/streaming errors, and new
+and regenerate in a path containing spaces and Chinese text while preserving
+application-owned source and invalid configuration files.
+
+Integrated `mise run check` passes 175 host tests plus six compile-fail doctests
+and two nested child-process reports. Real `devices --json` keeps adb's emulator
+inventory on stderr and returns a parseable success envelope. The existing
+space-containing Wave Two Service App completes `build android --json` with
+35/36 Gradle tasks up to date and one bookkeeping task executed. The actual
+Gradle/native output stays on stderr. `doctor --json` returns DIAGNOSTICS_FAILED
+with exit code 1 for this host's missing Android SDK license record, retaining
+the corrective diagnostic on stderr. No physical device was used.
