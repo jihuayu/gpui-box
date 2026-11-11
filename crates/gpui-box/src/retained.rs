@@ -204,6 +204,7 @@ impl Patch {
 #[derive(Default)]
 pub struct Transaction {
     patches: Vec<Patch>,
+    topology_pending: bool,
 }
 
 impl Transaction {
@@ -246,6 +247,7 @@ impl Transaction {
     }
     /// Reorder the existing children of one parent, preserving their identity.
     pub fn reorder(&mut self, parent: NodeId, children: Vec<NodeId>) {
+        self.topology_pending = true;
         self.patches.push(Patch::Reorder(parent, children));
     }
 }

@@ -85,6 +85,9 @@ The [lifecycle extension](RETAINED_LIFECYCLE_EDITS.md) constructs/retires keyed
 scopes, writable/computed sources, effects, bindings and output atomically,
 preflights surviving dependencies/portals, cancels draft lifetimes and defers
 callbacks until all logical/reactive/render ownership maps publish.
+Its measured scan follow-up skips unnecessary property replay during
+construction, indexes draft binding endpoints and ranges named state/effect
+retirement by scope; full topology and extraction work remain in acceptance.
 
 ## Current integrated foundation
 

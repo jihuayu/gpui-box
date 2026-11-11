@@ -138,3 +138,8 @@ semantics, not a sublinear update or throughput improvement. Native-surface,
 cadence, input-to-present latency and energy qualification remain open.
 [Frozen results](performance/2026-11-12-lifecycle/README.md) include commands,
 source hashes, raw rotating-round samples and hardware lifecycle pixels.
+The [repeated-scan follow-up](performance/2026-11-12-lifecycle-scans/README.md)
+marks pending topology patches, indexes new binding endpoints and uses per-scope
+ordered ranges for draft retirement. Saved old/new executables were compared
+in A/B/B/A order; full validation and extraction remain, and host-load drift is
+reported alongside the observed CPU improvement.

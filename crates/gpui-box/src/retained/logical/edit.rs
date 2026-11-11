@@ -267,8 +267,7 @@ impl LogicalUi {
                     .chain(
                         draft
                             .added_sources
-                            .iter()
-                            .filter(|((scope, _), _)| scope == id)
+                            .range((*id, 0)..=(*id, u64::MAX))
                             .map(|(_, s)| s.dependency()),
                     )
                     .collect();
@@ -280,8 +279,7 @@ impl LogicalUi {
                     .chain(
                         draft
                             .added_effects
-                            .iter()
-                            .filter(|((scope, _), _)| scope == id)
+                            .range((*id, 0)..=(*id, u64::MAX))
                             .map(|(_, e)| *e),
                     )
                     .collect();

@@ -1,0 +1,19 @@
+{
+  "base_commit": "987b49a",
+  "commands": {
+    "tests": "mise exec -- cargo test --locked --offline -p gpui-box -p gpui-box-example-hello --features gpui-box/retained-text,gpui-box/retained-wgpu,gpui-box-example-hello/retained-wgpu -- --include-ignored",
+    "clippy": "mise exec -- cargo clippy --locked --offline -p gpui-box -p gpui-box-example-hello -p gpui-box-rendering-perf --features gpui-box-example-hello/retained-wgpu,gpui-box-rendering-perf/retained-gpu --all-targets -- -D warnings",
+    "hardware": "./tooling/rendering-perf/run-retained-gpu.ps1 -Output target/retained-lifecycle-indexed-20261112",
+    "abba": "Saved baseline retained-runtime-gpu.exe, candidate target/release/retained-runtime-gpu.exe; sequential full suite runs in old-1/new-1/new-2/old-2 order."
+  },
+  "core_passed": 104,
+  "gallery_passed": 12,
+  "ignored": 0,
+  "clippy_passed": true,
+  "hardware_pixel_cases": 157,
+  "abba_full_suite_runs_passed": 4,
+  "source_hashes_matched": 81,
+  "source_hash_mismatches": 0,
+  "compilation_absent_during_abba": true,
+  "timing_limit": "Control medians drifted too; pooled effect cannot be treated as environment-normalized speedup or general improvement."
+}

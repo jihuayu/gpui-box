@@ -30,6 +30,7 @@ pub struct ReactiveEdit<'a, 'tree> {
     endpoints: &'a BTreeMap<(NodeId, Field), BindingId>,
     next_binding: &'a mut u64,
     bindings: Vec<(BindingId, Binding)>,
+    bound_endpoints: BTreeSet<(NodeId, Field)>,
     live_bindings: &'a BTreeMap<BindingId, Binding>,
     unbound: BTreeSet<BindingId>,
     created: BTreeMap<SourceId, Source>,
@@ -85,9 +86,8 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
                         .contains(&self.live_bindings[id].source)
             })
             || self
-                .bindings
-                .iter()
-                .any(|(_, b)| b.node == property.node && b.field == property.field)
+                .bound_endpoints
+                .contains(&(property.node, property.field))
         {
             return Err(Error::BindingConflict);
         }
@@ -117,6 +117,7 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
                 )
             }),
         };
+        self.bound_endpoints.insert((binding.node, binding.field));
         self.bindings.push((id, binding));
         Ok(id)
     }
@@ -124,7 +125,8 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
     /// a later bind in this draft may claim the same endpoint immediately.
     pub fn unbind(&mut self, id: BindingId) -> Result<(), Error> {
         if let Some(index) = self.bindings.iter().position(|(binding, _)| *binding == id) {
-            self.bindings.remove(index);
+            let (_, binding) = self.bindings.remove(index);
+            self.bound_endpoints.remove(&(binding.node, binding.field));
             return Ok(());
         }
         if self.unbound.contains(&id) || !self.live_bindings.contains_key(&id) {
@@ -223,6 +225,11 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
         Ok(())
     }
     pub(in crate::retained) fn retire_output_bindings(&mut self, nodes: &BTreeSet<NodeId>) {
+        for (_, binding) in &self.bindings {
+            if nodes.contains(&binding.node) {
+                self.bound_endpoints.remove(&(binding.node, binding.field));
+            }
+        }
         self.bindings
             .retain(|(_, binding)| !nodes.contains(&binding.node));
     }
@@ -448,6 +455,7 @@ impl ReactiveUi {
                 endpoints: &self.endpoints,
                 next_binding: &mut self.next_binding,
                 bindings: vec![],
+                bound_endpoints: BTreeSet::new(),
                 live_bindings: &self.bindings,
                 unbound: BTreeSet::new(),
                 created: BTreeMap::new(),

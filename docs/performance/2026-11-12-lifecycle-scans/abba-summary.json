@@ -1,0 +1,104 @@
+{
+  "order": [
+    "old-1",
+    "new-1",
+    "new-2",
+    "old-2"
+  ],
+  "baseline_commit": "987b49a",
+  "baseline_executable_sha256": "4c886f7e587f172c447e71e953143603deb18e1c440ecd9520c19c79e9bfe79e",
+  "candidate_executable_sha256": "1f403be3ab85453e20545b182fadb4b9c9fdb71cb914a87cb6d427399d12e98b",
+  "scope": "Same frozen benchmark and release executable builds. Four sequential full-suite runs, ABBA ordering, no concurrent compilation. 120 samples/run/mode, 240 pooled per version. Control and per-run medians retained due host-load drift. Full validation unchanged. Not sustained or end-to-end latency.",
+  "cases": [
+    {
+      "replaced_scopes": 1,
+      "old": {
+        "run_draft_commit_medians_us": [
+          191.10000000000002,
+          207.70000000000002
+        ],
+        "run_sequential_commit_medians_us": [
+          125.2,
+          127.69999999999999
+        ],
+        "pooled_draft_commit_median_us": 196.95,
+        "pooled_draft_commit_p95_us": 359.3,
+        "pooled_draft_total_median_us": 543.05
+      },
+      "new": {
+        "run_draft_commit_medians_us": [
+          191.8,
+          171.5
+        ],
+        "run_sequential_commit_medians_us": [
+          128.5,
+          108.2
+        ],
+        "pooled_draft_commit_median_us": 178.85000000000002,
+        "pooled_draft_commit_p95_us": 299.70000000000005,
+        "pooled_draft_total_median_us": 499.4
+      },
+      "pooled_commit_speedup": 1.1012021246854904
+    },
+    {
+      "replaced_scopes": 16,
+      "old": {
+        "run_draft_commit_medians_us": [
+          388.8,
+          406.5
+        ],
+        "run_sequential_commit_medians_us": [
+          210.10000000000002,
+          242.7
+        ],
+        "pooled_draft_commit_median_us": 402.2,
+        "pooled_draft_commit_p95_us": 692.8000000000001,
+        "pooled_draft_total_median_us": 789.55
+      },
+      "new": {
+        "run_draft_commit_medians_us": [
+          346.70000000000005,
+          350.0
+        ],
+        "run_sequential_commit_medians_us": [
+          192.7,
+          236.9
+        ],
+        "pooled_draft_commit_median_us": 348.3,
+        "pooled_draft_commit_p95_us": 658.4,
+        "pooled_draft_total_median_us": 687.55
+      },
+      "pooled_commit_speedup": 1.1547516508756819
+    },
+    {
+      "replaced_scopes": 128,
+      "old": {
+        "run_draft_commit_medians_us": [
+          2418.7000000000003,
+          1865.1
+        ],
+        "run_sequential_commit_medians_us": [
+          1029.0,
+          835.0
+        ],
+        "pooled_draft_commit_median_us": 2104.65,
+        "pooled_draft_commit_p95_us": 3088.1,
+        "pooled_draft_total_median_us": 2710.55
+      },
+      "new": {
+        "run_draft_commit_medians_us": [
+          1582.6,
+          1685.3
+        ],
+        "run_sequential_commit_medians_us": [
+          798.0,
+          754.5
+        ],
+        "pooled_draft_commit_median_us": 1622.5500000000002,
+        "pooled_draft_commit_p95_us": 2499.1000000000004,
+        "pooled_draft_total_median_us": 2098.1000000000004
+      },
+      "pooled_commit_speedup": 1.2971248959970416
+    }
+  ]
+}

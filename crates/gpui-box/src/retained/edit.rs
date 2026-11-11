@@ -149,6 +149,9 @@ impl TreeEdit<'_> {
             .collect()
     }
     fn settle_topology(&mut self) -> Result<(), Error> {
+        if !self.properties.topology_pending {
+            return Ok(());
+        }
         let properties = std::mem::take(&mut self.properties);
         for patch in properties.patches {
             if let Patch::Reorder(parent, children) = patch {
