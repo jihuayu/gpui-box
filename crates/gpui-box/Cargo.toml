@@ -11,11 +11,13 @@ publish.workspace = true
 [features]
 default = []
 system = ["dep:gpui-system"]
+app-data = ["system", "dep:gpui-app-data"]
 system-gpui = ["system", "gpui-system/gpui"]
 android = ["dep:gpui", "dep:gpui-android"]
 desktop = ["dep:gpui", "dep:gpui_platform", "gpui_platform/font-kit", "gpui_platform/wayland", "gpui_platform/x11"]
 
 [dependencies]
+gpui-app-data = { workspace = true, optional = true }
 gpui-system = { workspace = true, optional = true }
 
 [target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
@@ -28,3 +30,7 @@ gpui-android = { workspace = true, optional = true }
 
 [lints]
 workspace = true
+
+[[example]]
+name = "settings"
+required-features = ["app-data"]

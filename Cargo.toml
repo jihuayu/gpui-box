@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/gpui-box", "crates/gpui-box-cli", "crates/gpui-android", "crates/gpui-system", "examples/hello", "examples/android", "examples/desktop"]
+members = ["crates/gpui-box", "crates/gpui-box-cli", "crates/gpui-android", "crates/gpui-system", "crates/gpui-app-data", "examples/hello", "examples/android", "examples/desktop"]
 default-members = ["crates/gpui-box", "crates/gpui-box-cli"]
 exclude = ["vendor/gpui"]
 
@@ -18,6 +18,7 @@ gpui = { path = "vendor/gpui/crates/gpui", default-features = false }
 gpui_platform = { path = "vendor/gpui/crates/gpui_platform", default-features = false }
 gpui-android = { path = "crates/gpui-android" }
 gpui-system = { path = "crates/gpui-system" }
+gpui-app-data = { path = "crates/gpui-app-data" }
 gpui-box-example-hello = { path = "examples/hello" }
 
 [workspace.lints.rust]
