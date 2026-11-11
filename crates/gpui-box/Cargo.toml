@@ -26,6 +26,8 @@ network = ["system", "lifecycle", "secrets", "dep:gpui-network"]
 network-gpui = ["network", "system-gpui", "lifecycle-gpui", "gpui-network/gpui"]
 jobs = ["system", "app-data", "lifecycle", "permissions", "power", "network", "dep:gpui-jobs"]
 jobs-gpui = ["jobs", "system-gpui", "lifecycle-gpui", "permissions-gpui", "power-gpui", "network-gpui", "gpui-jobs/gpui"]
+notification-schedule = ["system", "app-data", "permissions", "activation", "notifications", "dep:gpui-notification-schedule"]
+notification-schedule-gpui = ["notification-schedule", "system-gpui", "permissions-gpui", "activation-gpui", "notifications-gpui", "gpui-notification-schedule/gpui"]
 task-presentation-gpui = ["task-presentation", "system-gpui", "lifecycle-gpui", "menus-gpui", "notifications-gpui", "gpui-task-presentation/gpui"]
 sharing = ["system", "dep:gpui-sharing"]
 
@@ -77,6 +79,7 @@ gpui-tray = { workspace = true, optional = true }
 gpui-task-presentation = { workspace = true, optional = true }
 gpui-network = { workspace = true, optional = true }
 gpui-jobs = { workspace = true, optional = true }
+gpui-notification-schedule = { workspace = true, optional = true }
 
 [target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
 gpui = { workspace = true, optional = true }

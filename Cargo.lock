@@ -2201,6 +2201,7 @@ dependencies = [
  "gpui-local-auth",
  "gpui-menus",
  "gpui-network",
+ "gpui-notification-schedule",
  "gpui-notifications",
  "gpui-permissions",
  "gpui-power",
@@ -2377,6 +2378,22 @@ dependencies = [
  "gpui-system",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "gpui-notification-schedule"
+version = "0.1.0-dev"
+dependencies = [
+ "gpui",
+ "gpui-activation",
+ "gpui-app-data",
+ "gpui-notifications",
+ "gpui-permissions",
+ "gpui-system",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
 ]
 
 [[package]]
