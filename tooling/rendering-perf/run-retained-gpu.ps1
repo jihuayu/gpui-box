@@ -12,6 +12,7 @@ try {
         'crates/gpui-box/src/retained/reactive.rs',
         'crates/gpui-box/src/retained/logical.rs',
         'crates/gpui-box/src/retained/measure.rs',
+        'crates/gpui-box/src/retained/paint_store.rs',
         'crates/gpui-box/src/retained/responsive.rs',
         'crates/gpui-box/src/retained/primitive.rs',
         'crates/gpui-box/src/retained/frame_queue.rs',
@@ -43,6 +44,7 @@ try {
         'tooling/rendering-perf/src/retained_image.rs',
         'tooling/rendering-perf/src/retained_text.rs',
         'tooling/rendering-perf/src/retained_glyph_bench.rs',
+        'tooling/rendering-perf/src/retained_paint_store.rs',
         'tooling/rendering-perf/run-retained-gpu.ps1')
     $hashes = foreach ($source in $sources) {
         [ordered]@{path = $source; sha256 = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash}

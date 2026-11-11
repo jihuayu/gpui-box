@@ -251,11 +251,6 @@ impl WgpuFrameRenderer {
             || self.source != frame.base_revision.map(|revision| (frame.tree, revision))
             || self.scale != scale;
         self.failed = true;
-        let selected = if full_resync {
-            &frame.items
-        } else {
-            &frame.updates
-        };
         let retire: Vec<_> = if full_resync {
             let live: BTreeSet<_> = frame.items.iter().map(|item| item.node).collect();
             self.instances
@@ -279,7 +274,12 @@ impl WgpuFrameRenderer {
         self.arena
             .collect(self.backend.completed_serial().map_err(gpu_error)?);
         let mut command_count_changed = false;
-        for item in selected.iter() {
+        let selected: Box<dyn Iterator<Item = &PaintItem> + '_> = if full_resync {
+            Box::new(frame.items.iter())
+        } else {
+            Box::new(frame.updates.iter())
+        };
+        for item in selected {
             let handles = self.instances.entry(item.node).or_default();
             if handles.len() != item.commands.len() {
                 command_count_changed = true;
@@ -482,7 +482,11 @@ fn glyph_updates(
         reset,
         ..Default::default()
     };
-    let items = if reset { &frame.items } else { &frame.updates };
+    let items: Box<dyn Iterator<Item = &PaintItem> + '_> = if reset {
+        Box::new(frame.items.iter())
+    } else {
+        Box::new(frame.updates.iter())
+    };
     if !reset {
         updates.removed = frame
             .removed
@@ -492,7 +496,7 @@ fn glyph_updates(
     }
     #[cfg(feature = "retained-text")]
     {
-        for item in items.iter() {
+        for item in items {
             let Some(text) = &item.text else {
                 if !reset {
                     updates.removed.push([
@@ -725,7 +729,7 @@ mod tests {
         let mut other = UiTree::new(Style::default(), 0).unwrap();
         let other_frame = other.frame([100.0, 100.0]).unwrap();
         let mut invalid = frame.clone();
-        invalid.updates = other_frame.items;
+        invalid.updates = other_frame.items.iter().cloned().collect::<Vec<_>>().into();
         assert_eq!(
             validate(&invalid, [100, 100], 1.0),
             Err(Error::InvalidFrame)

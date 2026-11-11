@@ -10,6 +10,7 @@ mod retained_image;
 mod retained_layers;
 mod retained_logical;
 mod retained_measure;
+mod retained_paint_store;
 mod retained_primitive;
 mod retained_queue;
 mod retained_reactive;
@@ -659,6 +660,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_queue::run(&mut renderer, &output, &mut results)?;
     retained_image::run(&mut renderer, &output, &mut results)?;
     retained_text::run(&mut renderer, &output, &mut results)?;
+    retained_paint_store::run(&mut renderer, &output, &mut results)?;
     fs::write(
         output.join("validation.json"),
         serde_json::to_vec_pretty(&results)?,
@@ -687,6 +689,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     fs::write(
         output.join("glyph-geometry-benchmark.json"),
         serde_json::to_vec_pretty(&retained_glyph_bench::run()?)?,
+    )?;
+    fs::write(
+        output.join("paint-store-benchmark.json"),
+        serde_json::to_vec_pretty(&retained_paint_store::benchmark()?)?,
     )?;
     Ok(())
 }

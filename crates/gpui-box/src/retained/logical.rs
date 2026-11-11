@@ -401,7 +401,7 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![nodes[2], nodes[0], nodes[1]]
         );
-        for item in &after.items[1..] {
+        for item in after.items.iter().skip(1) {
             let old = before
                 .items
                 .iter()

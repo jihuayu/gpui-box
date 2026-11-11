@@ -278,7 +278,7 @@ mod tests {
         assert_eq!(frame.items[0].bounds, before.items[0].bounds);
         assert_eq!(frame.properties.scrolls[&root].value, [48.0, 0.0]);
         assert_eq!(frame.items[0].properties.scroll, None);
-        for item in &frame.items[1..] {
+        for item in frame.items.iter().skip(1) {
             assert_eq!(item.properties.clip, Some(root));
             assert_eq!(item.properties.scroll, Some(root));
             assert!(Arc::ptr_eq(

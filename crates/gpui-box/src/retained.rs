@@ -18,6 +18,8 @@ mod image;
 pub mod logical;
 pub use image::ImageResource;
 mod measure;
+mod paint_store;
+pub use paint_store::{FrameBuildPolicy, FrameBuildStats, PaintItems};
 #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
 pub mod paragraph;
 #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
@@ -82,10 +84,11 @@ pub struct FramePacket {
     pub tree: u64,
     pub base_revision: Option<u64>,
     pub revision: u64,
-    pub items: Arc<[PaintItem]>,
+    pub items: Arc<PaintItems>,
     pub layout_runs: u64,
     pub recorded_chunks: u64,
     pub layout_stats: LayoutStats,
+    pub build_stats: FrameBuildStats,
     pub updates: Arc<[PaintItem]>,
     pub removed: Arc<[NodeId]>,
     pub order: Option<Arc<[NodeId]>>,
@@ -322,6 +325,10 @@ pub struct UiTree {
     revision: u64,
     dirty: bool,
     layout_dirty: bool,
+    geometry_dirty: bool,
+    paint_dirty: std::collections::BTreeSet<NodeId>,
+    paint_indices: BTreeMap<NodeId, usize>,
+    frame_build_policy: FrameBuildPolicy,
     viewport: Option<[f32; 2]>,
     frame: Option<FramePacket>,
 }
@@ -384,6 +391,10 @@ impl UiTree {
             revision: 0,
             dirty: true,
             layout_dirty: true,
+            geometry_dirty: true,
+            paint_dirty: Default::default(),
+            paint_indices: Default::default(),
+            frame_build_policy: Default::default(),
             viewport: None,
             frame: None,
         })
@@ -689,6 +700,8 @@ impl UiTree {
             text_changed,
         ) in changed
         {
+            self.paint_dirty.insert(id);
+            self.geometry_dirty |= property_changed;
             if structure_changed {
                 let children = entry.children.expect("changed children");
                 let layouts = children
@@ -812,7 +825,15 @@ impl UiTree {
             cached.layout_runs = 0;
             cached.recorded_chunks = 0;
             cached.layout_stats = LayoutStats::default();
+            cached.build_stats = FrameBuildStats::default();
             return Ok(cached);
+        }
+        if self.frame_build_policy == FrameBuildPolicy::Selective
+            && !self.layout_dirty
+            && !self.geometry_dirty
+            && self.frame.is_some()
+        {
+            return self.patch_paint_frame();
         }
         let layout_runs = u64::from(self.layout_dirty);
         let mut layout_stats = LayoutStats::default();
@@ -1013,7 +1034,12 @@ impl UiTree {
             tree: self.identity,
             base_revision: self.frame.as_ref().map(|frame| frame.revision),
             revision: self.revision,
-            items: items.into(),
+            build_stats: FrameBuildStats {
+                extracted_nodes: items.len(),
+                full_rebuild: true,
+                ..Default::default()
+            },
+            items: Arc::new(items.into()),
             layout_runs,
             recorded_chunks,
             layout_stats,
@@ -1024,6 +1050,14 @@ impl UiTree {
             damage,
         };
         self.layout_dirty = false;
+        self.geometry_dirty = false;
+        self.paint_dirty.clear();
+        self.paint_indices = frame
+            .items
+            .iter()
+            .enumerate()
+            .map(|(index, item)| (item.node, index))
+            .collect();
         self.dirty = false;
         self.frame = Some(frame.clone());
         Ok(frame)
