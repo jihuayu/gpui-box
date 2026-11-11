@@ -5,12 +5,14 @@ use gpui_box::retained::{
     Transaction, UiTree, length,
     logical::LogicalUi,
     reactive::{Property, Signal},
+    responsive::{BreakpointStyles, FlexStyle, LayoutEnvironment, ResponsiveBindings, StyleQuery},
     taffy,
 };
 use std::{cell::RefCell, rc::Rc};
 
 pub struct RetainedDemo {
     tree: Rc<RefCell<LogicalUi>>,
+    responsive: Rc<RefCell<ResponsiveBindings>>,
     color: Signal<u32>,
     scroll: Signal<[f32; 2]>,
     measure: Signal<Option<MeasureSnapshot>>,
@@ -161,8 +163,50 @@ impl RetainedDemo {
                 .expect("create keyed render output");
             tree.bind(color, Property::color(node)).unwrap();
         }
+        let responsive_node = tree
+            .append_render(root_scope, tree.root_render(), Style::default(), 0)
+            .unwrap();
+        let responsive_style = tree.state(root_scope, 4, Style::default).unwrap();
+        let mut compact = FlexStyle::column().into_style();
+        compact.position = taffy::Position::Absolute;
+        compact.inset.left = length(184.0);
+        compact.inset.top = length(4.0);
+        let mut wide = compact.clone();
+        wide.flex_direction = taffy::FlexDirection::Row;
+        let rules = BreakpointStyles::new(
+            FlexStyle::try_from_style(compact).unwrap(),
+            vec![(600.0, FlexStyle::try_from_style(wide).unwrap())],
+        )
+        .unwrap();
+        let mut responsive = ResponsiveBindings::new();
+        responsive
+            .bind(
+                &mut tree,
+                responsive_style,
+                responsive_node,
+                StyleQuery::ViewportInline,
+                rules,
+            )
+            .unwrap();
+        for color in [0xddaa44ff, 0x44aaddff] {
+            tree.append_render(
+                root_scope,
+                responsive_node,
+                Style {
+                    size: taffy::Size {
+                        width: length(12.0),
+                        height: length(12.0),
+                    },
+                    flex_shrink: 0.0,
+                    ..Default::default()
+                },
+                color,
+            )
+            .unwrap();
+        }
         Self {
             tree: Rc::new(RefCell::new(tree)),
+            responsive: Rc::new(RefCell::new(responsive)),
             color,
             scroll,
             measure,
@@ -201,6 +245,7 @@ impl Render for RetainedDemo {
             self.render_count += 1;
         }
         let tree = self.tree.clone();
+        let responsive = self.responsive.clone();
         #[cfg(feature = "retained-wgpu")]
         let gpu = self.gpu.clone();
         #[cfg(feature = "retained-wgpu")]
@@ -364,10 +409,10 @@ impl Render for RetainedDemo {
             .child(
                 canvas(
                     move |bounds, _window, _| {
-                        let frame = tree
-                            .borrow_mut()
-                            .frame([f32::from(bounds.size.width), f32::from(bounds.size.height)])
-                            .expect("prepare retained frame");
+                        let mut environment = LayoutEnvironment::new([f32::from(bounds.size.width), f32::from(bounds.size.height)]);
+                        environment.device_scale = _window.scale_factor();
+                        let frame = responsive.borrow_mut().frame(&mut tree.borrow_mut(), &environment)
+                            .expect("resolve responsive retained frame").frame;
                         #[cfg(feature = "retained-wgpu")]
                         if let Some(gpu) = &gpu {
                             let scale = _window.scale_factor();
@@ -481,7 +526,7 @@ mod tests {
                 stats.sink_writes,
                 stats.frame_requests
             ),
-            (2, 1, 1, 1)
+            (3, 2, 2, 2)
         );
         let scroll = cx.debug_bounds("retained-scroll").unwrap();
         cx.simulate_click(scroll.center(), Modifiers::default());
@@ -536,7 +581,7 @@ mod tests {
             renders + 1,
             "outer transaction requests one view render"
         );
-        assert_eq!((stats.transactions, stats.frame_requests), (4, 3));
+        assert_eq!((stats.transactions, stats.frame_requests), (5, 4));
         let (scope_ids, node_ids) = view.read_with(cx, |view, _| {
             let tree = view.tree.borrow();
             let scopes = tree.children(tree.root_scope()).unwrap().to_vec();
@@ -582,6 +627,22 @@ mod tests {
                     .any(|item| item.bounds.width == 48.0 && item.bounds.height == 20.0)
             );
         });
+        for (width, direction) in [
+            (500.0, taffy::FlexDirection::Column),
+            (800.0, taffy::FlexDirection::Row),
+        ] {
+            cx.simulate_resize(size(px(width), px(600.0)));
+            cx.run_until_parked();
+            view.read_with(cx, |view, _| {
+                let tree = view.tree.borrow();
+                let source = tree.reactive().tree();
+                assert!(tree.published_frame().unwrap().items.iter().any(|item| {
+                    source.style(item.node).unwrap().position == taffy::Position::Absolute
+                        && source.style(item.node).unwrap().inset.left == length(184.0)
+                        && source.style(item.node).unwrap().flex_direction == direction
+                }));
+            });
+        }
     }
 
     #[cfg(feature = "retained-wgpu")]
@@ -707,5 +768,21 @@ mod tests {
             actual.as_raw() == reference.as_raw(),
             "normal measure click reaches GPU"
         );
+        for width in [500.0, 800.0] {
+            cx.simulate_resize(size(px(width), px(600.0)));
+            cx.run_until_parked();
+            let frame = view.read_with(cx, |view, _| {
+                view.tree.borrow().published_frame().unwrap().clone()
+            });
+            let actual = gpu.borrow_mut().image().unwrap();
+            let reference = gpu
+                .borrow_mut()
+                .reference_image(&frame, [actual.width(), actual.height()], scale)
+                .unwrap();
+            assert!(
+                actual.as_raw() == reference.as_raw(),
+                "responsive window resize reaches GPU"
+            );
+        }
     }
 }

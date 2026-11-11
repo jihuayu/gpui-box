@@ -15,6 +15,8 @@ The [logical scope stage](RETAINED_LOGICAL_SCOPES.md) separates component identi
 from render parentage, retaining keyed state and cleaning up portal output.
 The [owned measurement stage](RETAINED_OWNED_MEASUREMENT.md) adds intrinsic image
 and fixed custom inputs, baseline dependencies and actual measure-call counts.
+The [responsive contract stage](RETAINED_RESPONSIVE_CONTRACT.md) adds validated
+Flex styles, actual resize rules and fixed content-box container queries.
 
 ## Current integrated foundation
 
@@ -62,7 +64,7 @@ click test passed pixel comparison at the actual window scale.
 | Batch GPU updates | Adjacent upload merging; 10,000-object translation and 10,000-signal color pixel verification; CPU per-signal/coalesced/typed-batch comparison; completed-work redraw A/B | Sustained 60/120Hz animation, general batch/fragmented order throughput and tuning |
 | P2 property / composite | Translation/clip/scroll reuse commands and update GPU instances/hit geometry; isolated subtree opacity supports nesting and 16-byte property-only updates | GPU transform/clip indirection, texture import for window presentation and NativeView geometry |
 | Text / images / complex primitives | Existing legacy GPUI functionality; owned intrinsic image and fixed-content measurement drives rectangle geometry | Actual retained primitive types, decoded resources, font epochs, shaping/wrapping and corresponding pixels |
-| Flex / responsive contract | Pinned Taffy style input and persistent resize | Public subset validation, RTL/baseline/rounding tests, environment subscriptions, constraint/container queries and adaptive structures |
+| Flex / responsive contract | Opt-in validated Flex subset, separate layout/scale environment, threshold-equality rules, RTL/actual-window resize, bounded fixed content-box queries with dependency rejection | Broad Flex conformance/rounding, full environment subscriptions, constraint builders, general query dependency graph and adaptive structures; indexed rule dispatch |
 | Damage / cache / compositor | Old/new clipped ink/effect damage; preserved offscreen target, scissored clear/replay; Full/Damage/area-threshold Auto; isolated layer content cache and cached/uncached A/B; live-layer 256 MiB guard | Tight layer bounds, cross-frame physical memory accounting, cache admission/LRU, measured cost model, multiple damage regions, native surface buffer-age contract |
 | FramePacket / frames in flight | Owned snapshots plus base-revision deltas, skip-frame resync, stale-frame rejection, bounded queue, completion retirement, explicit poll/finish and renderer reset | Forced device/surface loss, resource epochs, host idle-completion scheduling and producer queue coalescing |
 

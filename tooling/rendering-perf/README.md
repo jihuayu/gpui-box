@@ -107,3 +107,15 @@ runtime, equality before fanout and changed-node per-signal/coalesced/typed-batc
 commit costs. The [reactive report](../../docs/RETAINED_REACTIVE_UPDATES.md)
 defines its scope and frozen results. `run-retained-gpu.ps1` additionally checks
 the 10,000-signal path through real instance uploads and full-reference pixels.
+
+## Owned measurement and responsive follow-up
+
+`./tooling/rendering-perf/run-measure.ps1` builds `measure-runtime-perf`. It
+compares one persistent fixed-intrinsic update with a fresh retained tree's
+construction, initial layout and frame extraction. It records actual content
+measure/leaf callbacks and checks identical geometry after every update. The
+[measurement report](../../docs/RETAINED_OWNED_MEASUREMENT.md) defines the timings
+and their limits. `run-retained-gpu.ps1` also checks logical scopes, measured
+geometry, responsive thresholds/RTL/content-box queries and hidden subtrees.
+The [responsive contract](../../docs/RETAINED_RESPONSIVE_CONTRACT.md) documents
+the supported subset and rejected dependency patterns.

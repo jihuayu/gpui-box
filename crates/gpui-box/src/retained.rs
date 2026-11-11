@@ -18,6 +18,7 @@ mod measure;
 pub use measure::{CustomMeasureSnapshot, ImageIntrinsicSize, LayoutStats, MeasureSnapshot};
 mod properties;
 pub mod reactive;
+pub mod responsive;
 pub use properties::{Damage, PropertyNode, PropertyState, PropertyTrees};
 #[cfg(all(feature = "retained-wgpu", not(target_family = "wasm")))]
 pub mod wgpu;
@@ -194,6 +195,11 @@ pub enum Error {
     ScopeInUse,
     InvalidMeasure,
     MeasuredNodeHasChildren,
+    InvalidEnvironment,
+    InvalidStyle,
+    UnsupportedLayout,
+    InvalidBreakpoint,
+    UnsafeContainerQuery,
 }
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -634,6 +640,9 @@ impl UiTree {
         let mut recorded_chunks = 0;
         while let Some((id, origin, inherited_clip, mut state)) = stack.pop() {
             let node = self.node(id)?;
+            if node.style.display == taffy::Display::None {
+                continue;
+            }
             let layout = *self.layout.layout(node.layout)?;
             let x = origin[0] + layout.location.x + node.translation[0];
             let y = origin[1] + layout.location.y + node.translation[1];
