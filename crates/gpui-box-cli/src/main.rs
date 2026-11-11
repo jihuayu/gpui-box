@@ -2,6 +2,7 @@ mod config;
 mod generate;
 mod output;
 mod package;
+mod reference;
 mod sdk;
 mod workflow;
 use output::CliError;
@@ -19,6 +20,13 @@ fn execute(arguments: &[String]) -> Result<Value, CliError> {
     match arguments {
         [] => return Ok(help()),
         [command] if matches!(command.as_str(), "--help" | "-h" | "help") => return Ok(help()),
+        [command] if command == "reference" => {
+            if !output::is_json() {
+                print!("{}", reference::markdown());
+            }
+            return serde_json::to_value(reference::contract())
+                .map_err(|error| CliError::new("REFERENCE_FAILED", error.to_string()));
+        }
         [command] if matches!(command.as_str(), "--version" | "-V") => {
             outputln!("gpui-box {}", gpui_box::VERSION);
             return Ok(json!({"version": gpui_box::VERSION}));
@@ -266,10 +274,7 @@ fn main() -> ExitCode {
     }
 }
 fn help() -> Value {
-    const HELP: &str = "gpui-box - desktop and mobile developer tools\n\nUsage gpui-box COMMAND\n\n  new PATH --distribution PATH  Generate a desktop/Android app\n  generate                      Update unmodified managed files\n  doctor                        Inspect config and prerequisites\n  dev desktop|android           Run the application\n  build desktop|android         Build a development artifact\n  install android               Install on the selected device\n  package android               Assemble a debug APK\n  package android --release     Sign and inspect release APK/AAB\n  package desktop --portable    Bundle Windows development output\n  devices                       List Android devices\n  logs [--device SERIAL]        Follow application logs\n  info | --version | --help\n\nAndroid development workflows accept --device SERIAL. Release requires explicit signing environment variables and checksum-pinned GPUI_BOX_BUNDLETOOL. See docs/M4_ANDROID_PACKAGING.md in the distribution. Update channels follow M5.";
-    let help = format!(
-        "{HELP}\n\nUse sdk export PATH --source CHECKOUT to export committed sources, then sdk verify PATH to check their manifest. Use new PATH --distribution PATH [--targets desktop,android] [--template starter|adaptive] for version-1 templates. Starter is the default. The distribution may be a source checkout or exported SDK. Use init PATH --distribution PATH [--targets desktop,android] [--template starter|adaptive] in an existing directory. Both targets are the default. Existing README.md, LICENSE and .gitignore are preserved by init. Other template conflicts are rejected. Use generate --dry-run to inspect managed changes without writing files. Replay the saved result object with generate --plan PATH. Use build desktop|android --dry-run to preview generation and build commands. Add --json once for a schema-v1 response from finite commands. Diagnostics and child output go to stderr. dev/logs use human output."
-    );
+    let help = reference::help();
     outputln!("{help}");
     json!({"help": help, "response_schema_version": 1, "json_streaming_commands": false})
 }

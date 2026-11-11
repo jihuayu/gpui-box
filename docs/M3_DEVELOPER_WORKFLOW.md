@@ -1,5 +1,29 @@
 # M3 developer workflow progress
 
+## Command reference and compatibility
+
+`gpui-box reference` renders the current command inventory as English Markdown.
+`gpui-box reference --json` returns CommandReference v1 inside the existing
+schema-v1 CLI envelope. It includes exact supported syntax, result identities,
+file/tool/device effects, offline boundaries, finite/streaming behavior and
+stable error codes. Help uses the same typed inventory. Both commands work from
+an empty directory and preserve its contents.
+
+The checked-in CLI_REFERENCE.md is generated from this inventory. The ordinary
+CLI suite compares it with current output, checks that every syntax also appears
+in help, and verifies invalid reference arguments produce deterministic read-only
+errors. After editing the inventory, rebuild the CLI and write its reference
+stdout as UTF-8 to docs/CLI_REFERENCE.md before running the suite. The command
+does not choose a destination or update files itself.
+
+Existing positional commands, template defaults and response fields remain
+compatible. Global offline enforcement, watch/add/registry commands, canonical
+configuration migrations and provider/platform expansion retain their own
+implementation issues. Current project generation, conflict/init recovery,
+export integrity and external template qualification are described below.
+
+[Generated command reference](CLI_REFERENCE.md)
+
 ## Source-checkout application template
 
 Build `gpui-box-cli` using `mise run build`, then add its `target/debug` directory
