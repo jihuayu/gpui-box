@@ -1822,6 +1822,7 @@ dependencies = [
  "gpui",
  "gpui-android",
  "gpui-app-data",
+ "gpui-permissions",
  "gpui-system",
  "gpui_platform",
 ]
@@ -1870,6 +1871,14 @@ dependencies = [
  "accesskit",
  "gpui",
  "gpui-box-components",
+]
+
+[[package]]
+name = "gpui-permissions"
+version = "0.1.0-dev"
+dependencies = [
+ "gpui",
+ "gpui-system",
 ]
 
 [[package]]

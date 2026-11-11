@@ -15,6 +15,7 @@ crates/
   gpui-android/             Distribution-owned Android platform integration
   gpui-system/              Typed capability, request and event contracts
   gpui-app-data/            Private directories and recoverable settings
+  gpui-permissions/         Permission status, contextual requests, settings recovery
 components/
   gpui-box-components/      Controls, themes, screen-owned models and shell primitives
 examples/
