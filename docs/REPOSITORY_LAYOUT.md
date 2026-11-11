@@ -13,6 +13,8 @@ crates/
   gpui-box/                 Public facade and coordinated GPUI exports
   gpui-box-cli/             Distribution development tools
   gpui-android/             Distribution-owned Android platform integration
+  gpui-app-data/            Application directories and recoverable settings
+  gpui-permissions/         Permission status, contextual requests, settings recovery
 components/                 Reusable UI packages, themes, and adaptive widgets
 examples/
   desktop/                  Desktop application using the facade
