@@ -10,6 +10,7 @@ publish.workspace = true
 
 [features]
 default = []
+updates = ["system", "app-data", "dep:gpui-updates"]
 sharing = ["system", "dep:gpui-sharing"]
 
 clipboard = ["system", "dep:gpui-clipboard"]
@@ -45,6 +46,7 @@ gpui-system = { workspace = true, optional = true }
 gpui-permissions = { workspace = true, optional = true }
 gpui-files = { workspace = true, optional = true }
 gpui-local-auth = { workspace = true, optional = true }
+gpui-updates = { workspace = true, optional = true }
 
 [target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
 gpui = { workspace = true, optional = true }

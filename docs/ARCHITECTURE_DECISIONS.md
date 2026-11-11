@@ -412,3 +412,37 @@ components require a policy extension coordinated with the owning provider.
 Build/signature/alignment evidence remains distinct from store/device acceptance,
 16 KB runtime qualification and completed license review. Offline readiness and
 clean-machine provisioning require their own source/tool/dependency closure tests.
+
+## ADR-016 — Authenticate exact update payloads and correlate each delivery phase
+
+### Context
+
+Release artifacts now have inspected app identity, signer and digests. Channel
+delivery needs pinned trust, monotonic replay protection and phase-specific
+completion evidence. Native handoff and installation are separate observations.
+
+### Decision
+
+Add a dependency-light gpui-updates crate with an optional facade feature. Use
+strict Ed25519 verification over a domain plus the exact bounded payload bytes.
+Application policy owns public keys, installed identity and HTTPS origins. Validate
+Android direct-APK metadata before atomically committing an AppData-backed
+application/sequence/version/digest/time checkpoint under an exclusive OS lock.
+
+Represent accepted metadata and stream-verification receipts with private fields.
+Correlate asynchronous state changes with session/generation tickets. Handoff
+requires a current UI owner, the latest authenticated offer and artifact receipt.
+Confirm installation through a fresh matching installed-identity probe. Preserve
+native cancellation and uncertain handoff reconciliation as separate results.
+
+### Consequences
+
+The signature protocol avoids cross-language JSON canonicalization assumptions.
+The same authenticated payload can be retried after interruption while older or
+equivocating payloads fail. Cryptography and persistence execute on workers.
+Native adapters must bind inspected files to their grants and recheck actual APK
+identity/signature, permissions and redirect origins. Durable download/installer
+state, signer lineage, store channels and platform runtime evidence retain
+explicit follow-up acceptance. Local settings and wall-clock checks have their
+documented trust boundary. Provider manifests retain ContractOnly until adapters
+supply compiled/runtime evidence.
