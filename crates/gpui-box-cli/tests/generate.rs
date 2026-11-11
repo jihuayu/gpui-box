@@ -553,6 +553,52 @@ fn recovery_plan_binds_journal_bytes_and_reports_recovery_without_output_rewrite
     assert_eq!(expected, snapshot(&app));
 }
 
+#[test]
+fn android_install_and_dev_check_devices_before_regenerating_or_building() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create(temporary.path());
+    let config_path = app.join("gpui-box.json");
+    let mut config: serde_json::Value =
+        serde_json::from_slice(&fs::read(&config_path).unwrap()).unwrap();
+    config["version"] = "4.0.0".into();
+    fs::write(config_path, serde_json::to_vec(&config).unwrap()).unwrap();
+    let before = snapshot(&app);
+    for operation in ["dev", "install"] {
+        let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+            .current_dir(&app)
+            .args([operation, "android", "--device", "missing", "--json"])
+            .env("ANDROID_HOME", temporary.path().join("missing-sdk"))
+            .output()
+            .unwrap();
+        assert!(!output.status.success());
+        let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        let code = if operation == "dev" {
+            "STREAMING_JSON_UNSUPPORTED"
+        } else {
+            "WORKFLOW_FAILED"
+        };
+        assert_eq!(response["error"]["code"], code);
+        if operation == "install" {
+            assert!(
+                response["error"]["message"]
+                    .as_str()
+                    .unwrap()
+                    .contains("Query Android devices")
+            );
+        }
+        assert_eq!(before, snapshot(&app));
+    }
+    let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+        .current_dir(&app)
+        .args(["dev", "android", "--device", "missing"])
+        .env("ANDROID_HOME", temporary.path().join("missing-sdk"))
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Query Android devices"));
+    assert_eq!(before, snapshot(&app));
+}
+
 #[cfg(windows)]
 #[test]
 fn interrupted_plan_apply_requires_new_preview_and_ordinary_generate_recovers() {

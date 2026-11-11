@@ -100,7 +100,10 @@ fn execute(arguments: &[String]) -> Result<Value, CliError> {
             package::windows_portable(&root).map_err(|e| CliError::new("PACKAGING_FAILED", e))?
         }
         [command] if command == "devices" => {
-            workflow::devices().map_err(|e| CliError::new("DEVICE_QUERY_FAILED", e))?
+            let inventory =
+                workflow::devices().map_err(|e| CliError::new("DEVICE_QUERY_FAILED", e))?;
+            return serde_json::to_value(inventory)
+                .map_err(|error| CliError::new("DEVICE_QUERY_FAILED", error.to_string()));
         }
         [command] if command == "logs" => {
             workflow::logs(&root, None).map_err(|e| CliError::new("LOG_STREAM_FAILED", e))?
