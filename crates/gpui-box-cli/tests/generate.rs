@@ -219,6 +219,98 @@ fn adaptive_template_records_provenance_and_preserves_application_sources() {
 }
 
 #[test]
+fn component_template_supports_all_targets_and_preserves_preview_customization() {
+    let temporary = tempfile::tempdir().unwrap();
+    for targets in ["desktop", "android", "desktop,android"] {
+        let app = temporary
+            .path()
+            .join(format!("Component {targets} 有 空格"));
+        let output = cli(
+            temporary.path(),
+            &[
+                "new",
+                app.to_str().unwrap(),
+                "--distribution",
+                distribution().to_str().unwrap(),
+                "--template",
+                "component",
+                "--targets",
+                targets,
+                "--json",
+            ],
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(response["result"]["template"]["id"], "component");
+        let provenance_path = app.join(".gpui-box/template.json");
+        let provenance_bytes = fs::read(&provenance_path).unwrap();
+        let provenance: serde_json::Value = serde_json::from_slice(&provenance_bytes).unwrap();
+        assert_eq!(provenance["template"], "component");
+        assert_eq!(provenance["template_version"], 1);
+        assert_eq!(
+            provenance["targets"],
+            serde_json::json!(targets.split(',').collect::<Vec<_>>())
+        );
+        let source_path = app.join("app/src/lib.rs");
+        let original = fs::read_to_string(&source_path).unwrap();
+        for label in [
+            "Component author preview",
+            "Component preview input",
+            "High contrast",
+            "Reduced motion",
+            "Large text",
+            "Example checked state",
+        ] {
+            assert!(original.contains(label));
+        }
+        assert_eq!(
+            app.join("desktop/src/main.rs").is_file(),
+            targets.contains("desktop")
+        );
+        assert_eq!(
+            app.join("android/src/lib.rs").is_file(),
+            targets.contains("android")
+        );
+        let customized = format!("{original}\n// My component specimen\n");
+        fs::write(&source_path, &customized).unwrap();
+        assert!(cli(&app, &["generate"]).status.success());
+        assert_eq!(fs::read_to_string(&source_path).unwrap(), customized);
+        assert_eq!(fs::read(provenance_path).unwrap(), provenance_bytes);
+    }
+    let app = temporary.path().join("Existing component preview");
+    fs::create_dir(&app).unwrap();
+    fs::write(app.join("README.md"), "Existing author guide").unwrap();
+    assert!(
+        cli(
+            temporary.path(),
+            &[
+                "init",
+                app.to_str().unwrap(),
+                "--distribution",
+                distribution().to_str().unwrap(),
+                "--template",
+                "component"
+            ]
+        )
+        .status
+        .success()
+    );
+    assert_eq!(
+        fs::read_to_string(app.join("README.md")).unwrap(),
+        "Existing author guide"
+    );
+    assert!(
+        fs::read_to_string(app.join("app/src/lib.rs"))
+            .unwrap()
+            .contains("ComponentPreview")
+    );
+}
+
+#[test]
 fn adaptive_init_preserves_existing_content_and_rejects_repeated_template_options() {
     let temporary = tempfile::tempdir().unwrap();
     let app = temporary.path().join("Existing adaptive 有 空格");

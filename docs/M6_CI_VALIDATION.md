@@ -138,8 +138,8 @@ checks. Final documentation-head checks are recorded in the implementation PR.
 All three jobs run `mise run check:templates` after their repository checks.
 Linux/Windows select desktop and Android selects Android. The opt-in integration
 test drives the real CLI to export/verify committed HEAD, generates both
-starter/adaptive-v1 across three target sets in external spaces/Chinese paths,
-and verifies no-op generation plus retained source/native customizations. Four
+starter/adaptive/component-v1 across three target sets in external spaces/Chinese paths,
+and verifies no-op generation plus retained source/native customizations. Six
 enabled combinations build through the normal CLI. Disabled targets must fail
 planning. Final SDK verification checks that those builds preserved the source
 closure. Desktop executables and both native APK ABIs are inspected, and

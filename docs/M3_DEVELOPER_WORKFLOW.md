@@ -586,7 +586,7 @@ gpui-box new "Adaptive Application" --distribution /path/to/sdk --template adapt
 gpui-box init /path/to/existing/app --distribution /path/to/sdk --template adaptive --targets android
 ```
 
-`new` and `init` accept `--template starter|adaptive`. Starter remains the default
+`new` and `init` accept `--template starter|adaptive|component`. Starter remains the default
 with both desktop and Android targets. The adaptive template reuses the same
 workspace/native generation, SDK verification, target selection, font assets and
 init ownership protections. Its JSON result and `.gpui-box/template.json` record
@@ -623,6 +623,53 @@ Windows is locked. Workbench/component templates, broader assistive-reader and
 host qualification remain #63/#3 acceptance gates. Physical-device testing
 remains deferred.
 
+## Component author template
+
+```sh
+gpui-box new "Component Preview" --distribution /path/to/sdk --template component
+gpui-box init /path/to/existing/preview --distribution /path/to/sdk --template component --targets desktop
+```
+
+The component-v1 template uses the existing new/init staging, target selection,
+provenance and ownership contract. Its application-owned specimen composes the
+delivered input, checkbox, switch, button, label and application-header controls.
+Replace the specimen in app/src/lib.rs and keep common editing/focus/semantic
+behavior in the coordinated component crate. The template supports desktop,
+Android and combined target sets. Default new/init behavior remains starter.
+
+Preview settings include dark/light palettes, high contrast, reduced motion and
+1.25x text scale. Theme changes update the retained input entity. Checked state,
+text and activation count remain in the shared view during resizing and Android
+Activity recreation. Compact/wide arrangement changes at720logical pixels with
+vertical scrolling, safe-area padding and keyboard avoidance. Tab/Shift+Tab
+traverse controls, Enter/Space activate them and Escape blurs/hides the keyboard.
+Settings actions retain their current control focus for keyboard continuation.
+The motion readout exposes the selected duration policy. Custom animations can
+consume that policy when added by the component author.
+
+Labels, checked states and editable values are available through the delivered
+platform semantic adapter. Screen-reader speech, process-death persistence,
+registry/publication metadata, isolated arbitrary-item preview commands and
+workbench/module generation retain their own acceptance gates.
+
+A fresh external Windows spaces/Chinese path completes desktop compilation/link
+in43.09s and strict application Clippy. Android builds both native ABIs through
+the normal CLI with all36Gradle tasks executed in2m28s. Normal dev installs and
+cold-starts on API35 Android15 x86_64 in2180ms. Actual taps toggle all settings,
+check the checkbox and increment the specimen. UiAutomation verifies native
+checked states, reduced-motion duration0ms and PreviewDraft42 editor text.
+Portrait/landscape/portrait retains all settings, draft and activation count.
+Tab/Space toggles the checkbox, then Tab/Enter activates the specimen. Rotation
+policy is restored to its original free state. Initial screenshot inspection
+found the editor's default light theme in the dark preview. The template now
+sets the retained editor's initial theme explicitly before its first frame.
+The final rebuilt app cold-starts in2630ms and retains FinalPreview42, all five
+boolean states and one activation across both layouts. Large-text landscape
+verification exposed an unconstrained scroll viewport. The template now uses
+a bounded scroll viewport around intrinsic-height content. Actual touch swipes
+reach the motion readout while the fixed header stays visible. Both orientation
+snapshots verify the retained activation and0ms policy after scrolling.
+
 ## Reproducible external template qualification
 
 `mise run check:templates` runs the opt-in real-tool qualification test. Set
@@ -646,13 +693,13 @@ mise -E android run check:templates
 ```
 
 The harness exports the checkout's committed HEAD through the actual CLI and
-verifies the complete SDK before and after qualification. It creates six
-applications from starter/adaptive-v1 crossed with desktop, Android and combined
+verifies the complete SDK before and after qualification. It creates nine
+applications from starter/adaptive/component-v1 crossed with desktop, Android and combined
 target sets. The fresh external workspace, SDK and application paths include
 spaces and Chinese characters. Each application receives an application-source
 customization and, when enabled, a native Gradle customization. No-op generation,
 unchanged template provenance and preserved customizations are asserted. A build
-plan must reject the selected host target when disabled. Four enabled cases
+plan must reject the selected host target when disabled. Six enabled cases
 run the normal `gpui-box build TARGET` entry point and produce a nonempty desktop
 executable or APK containing both ARM64/x86_64 native libraries.
 
@@ -680,7 +727,7 @@ Linux and Windows hosted jobs select desktop. The Android hosted job selects
 Android. Their existing validation artifacts retain the reports for14days.
 These checks qualify generated builds and customization preservation. Interactive
 desktop/emulator sessions, signing/install/update journeys, offline dependency
-provisioning, registry combinations, native CLI publication, workbench/component
+provisioning, registry combinations, native CLI publication, workbench
 templates and physical-device acceptance retain their operation-specific gates.
 
 ## Read-only build plans
