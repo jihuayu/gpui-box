@@ -17,6 +17,7 @@ crates/
   gpui-app-data/            Private directories and recoverable settings
   gpui-lifecycle/           Lifecycle, preferences and versioned restoration
   gpui-permissions/         Permission status, contextual requests, settings recovery
+  gpui-files/               Authorized file picking, opaque resources, safe save/export
   gpui-activation/          Validated URL opening and durable activation routing
   gpui-secrets/             Account-scoped secure credential storage
 components/

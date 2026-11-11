@@ -1835,6 +1835,7 @@ dependencies = [
  "gpui-activation",
  "gpui-android",
  "gpui-app-data",
+ "gpui-files",
  "gpui-lifecycle",
  "gpui-permissions",
  "gpui-secrets",
@@ -1886,6 +1887,16 @@ dependencies = [
  "accesskit",
  "gpui",
  "gpui-box-components",
+]
+
+[[package]]
+name = "gpui-files"
+version = "0.1.0-dev"
+dependencies = [
+ "gpui",
+ "gpui-app-data",
+ "gpui-system",
+ "tempfile",
 ]
 
 [[package]]

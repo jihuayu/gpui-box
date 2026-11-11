@@ -53,3 +53,7 @@ pub use gpui_activation as activation;
 /// Account-scoped secure credentials, with explicit native provider policies.
 #[cfg(feature = "secrets")]
 pub use gpui_secrets as secrets;
+
+/// Authorized file picking, opaque resources and safe save/export.
+#[cfg(feature = "files")]
+pub use gpui_files as files;
