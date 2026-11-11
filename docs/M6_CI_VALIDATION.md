@@ -120,3 +120,15 @@ in the implementation PR until qualification completes. Instrumentation APK
 compilation is a build gate. Emulator runtime CI, signing/install/update/release,
 16KB runtime, GPU/performance and physical-device acceptance retain separate
 gates. Physical-device testing remains deferred.
+
+The first complete hosted Android qualification on source head274a6f2 passed all
+steps in7minutes36seconds. Both native targets passed strict Clippy. Gradle ran
+all72tasks, built both APKs and completed lint. APK inspection found the ARM64
+and x86_64 libraries. The33441-byte validation/report artifact uploaded
+successfully. GitHub forced pinned Node20 actions onto Node24 and their steps
+passed. The same source head also passes Linux shared/component/gallery/desktop
+checks. Final documentation-head checks are recorded in the implementation PR.
+
+[Hosted Android qualification](https://github.com/jihuayu/gpui-box/actions/runs/43057400731)
+
+[Android validation reports](https://github.com/jihuayu/gpui-box/actions/runs/43057400731/artifacts/13872052434)
