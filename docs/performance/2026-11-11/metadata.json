@@ -1,0 +1,100 @@
+{
+  "started_at": "2026-11-11T16:17:39.6979676+08:00",
+  "base_commit": "59f9ab2b72c65ef80fe508e26252d2501f6d8e1e",
+  "upstream_commit": "f8cfc7ed9e57503def9479138894f3139f5400cc",
+  "branch": "codex/rendering-performance-research",
+  "source_hashes": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "90CECD4F6D0A0184F3796DEE78A949835D4017836A8538CFC78A36886C055F8E"
+    },
+    {
+      "path": "Cargo.toml",
+      "sha256": "37F6E1131EC1AC9C22CAFCC8F5E95C673F373E09A53B537C7FADF6D51D20BAAB"
+    },
+    {
+      "path": "tooling/rendering-perf/Cargo.toml",
+      "sha256": "EDCEC26CDA8D45D0C3CF38219A6F1DC3212D0026FABCDAE43DA72995284B3B2F"
+    },
+    {
+      "path": "tooling/rendering-perf/run.ps1",
+      "sha256": "0D86E39DBD84DB0A59FA2C5024AFCF7401281A558C9B60732CE860EC45BD80E9"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui/src/scene.rs",
+      "sha256": "B615C926356B9180C81706D84E1033501FF9F4CD70895374B0CE63FCF4BC153E"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui/src/taffy.rs",
+      "sha256": "48A3E432B8A28AAACCA2ADE807E3F69A80DEC8EED9BC1E0E36BE04EDCFEB4F24"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui/src/window.rs",
+      "sha256": "65D9626DBAF1D18CC5F5AE6379991460E45ACBA04F9736B59B6B89EB82444663"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui/src/bounds_tree.rs",
+      "sha256": "C3DA5ABCD110191EEA8B7B73A88BB8D1FD89251549E889C9CD42D1A7857A1B4C"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_windows/src/directx_renderer.rs",
+      "sha256": "D38EA8338BA50D36F0F362204E25FB52C52BAF15B3D8C12CE08BA37378534690"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer.rs",
+      "sha256": "757D9F2A4D270D4787B192937183C51BF286CAF33CD0F4F2BD459338FD8CFCD7"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_apple/src/metal_renderer.rs",
+      "sha256": "A1B4FA7DCDFE636B0CD311BF7E0D20B3E05399756BE8021FB0A2872DDA042C99"
+    },
+    {
+      "path": "tooling/rendering-perf/src/layout.rs",
+      "sha256": "DA3806454B502DF5B772C10B9FBA519FFADB2244EA9B21DA88A7079DEF5290D6"
+    },
+    {
+      "path": "tooling/rendering-perf/src/main.rs",
+      "sha256": "33E837A77EA3D193E334C0F87D85EB108115A4D7CEB302990FC483759126DD01"
+    },
+    {
+      "path": "tooling/rendering-perf/src/scene.rs",
+      "sha256": "C64F1EEC0413BCB68F4D805CA71443B009DBCAD241CC879DF8CE740A26AD82E8"
+    }
+  ],
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.1\nLLVM version: 22.1.8",
+  "cargo": "cargo 1.101.0 (e611c7a87 2026-11-04) (huacnlee/cargo 0.102.0-9, https://huacnlee.github.io/cargo/)",
+  "os": {
+    "Caption": "Microsoft Windows 11 企业版 LTSC",
+    "Version": "10.0.26100",
+    "BuildNumber": "26100"
+  },
+  "cpu": {
+    "Name": "AMD Ryzen 7 4800H with Radeon Graphics         ",
+    "NumberOfCores": 8,
+    "NumberOfLogicalProcessors": 16
+  },
+  "gpu_inventory_only_not_exercised": [
+    {
+      "Name": "GameViewer Virtual Display Adapter",
+      "DriverVersion": "15.6.5.199"
+    },
+    {
+      "Name": "NVIDIA GeForce GTX 1650 Ti",
+      "DriverVersion": "32.0.15.7196"
+    }
+  ],
+  "power_scheme": "电源方案 GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (平衡)",
+  "release_profile": "Cargo default release: opt-level=3, no custom LTO or target-cpu",
+  "features": [
+    "gpui-scene"
+  ],
+  "samples": 101,
+  "min_batch_us": 1000,
+  "sizes": [
+    300,
+    3000,
+    30000
+  ],
+  "runs": 3,
+  "methodology": "8 warmup operations then doubling batch calibration; nearest-rank quantiles of batched ns/op; no window, GPU, shaping, input or presentation"
+}

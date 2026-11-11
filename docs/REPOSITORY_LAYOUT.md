@@ -28,6 +28,8 @@ vendor/
     Cargo.upstream.toml     Original official workspace manifest
     UPSTREAM.json           Source revision, adaptations, and file hashes
 docs/                       Architecture, roadmap, research, and contributor guidance
+tooling/
+  rendering-perf/            Source-backed layout/Scene performance experiments
 ```
 
 ## Ownership rules
@@ -43,8 +45,10 @@ docs/                       Architecture, roadmap, research, and contributor gui
   here when it can use the common facade and services.
 - `platforms` owns OS host projects, resources, signing, and package integration.
 - `examples` contains executable consumer applications and acceptance galleries.
+- `tooling` owns developer tools and performance experiments; `rendering-perf`
+  runs isolated CPU layout/Scene measurements without changing engine behavior.
 - Application templates will live under `templates` when project generation is
-  implemented. Build orchestration will live under `tooling` when needed.
+  implemented.
 
 ## Current build paths
 

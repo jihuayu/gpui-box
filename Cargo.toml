@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/gpui-box", "crates/gpui-box-cli", "crates/gpui-android", "examples/hello", "examples/android", "examples/desktop"]
+members = ["crates/gpui-box", "crates/gpui-box-cli", "crates/gpui-android", "examples/hello", "examples/android", "examples/desktop", "tooling/rendering-perf"]
 default-members = ["crates/gpui-box", "crates/gpui-box-cli"]
 exclude = ["vendor/gpui"]
 

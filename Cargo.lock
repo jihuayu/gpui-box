@@ -1845,6 +1845,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpui-box-rendering-perf"
+version = "0.1.0-dev"
+dependencies = [
+ "gpui",
+ "taffy",
+]
+
+[[package]]
 name = "gpui_apple"
 version = "0.1.0"
 dependencies = [

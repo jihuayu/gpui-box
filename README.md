@@ -93,6 +93,7 @@ and will be added in their owning directories as implementation progresses.
 
 ## Documentation
 
+- [Rendering performance research and reproducible CPU experiments](docs/RENDERING_PERFORMANCE_RESEARCH.md)
 - [Repository layout](docs/REPOSITORY_LAYOUT.md)
 - [Project plan](docs/PROJECT_PLAN.md)
 - [Architecture decisions](docs/ARCHITECTURE_DECISIONS.md)
