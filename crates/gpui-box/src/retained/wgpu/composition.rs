@@ -60,6 +60,9 @@ pub(super) fn plan(
         for handle in instances.get(&item.node).ok_or(Error::InvalidFrame)? {
             push_instance(draws, handle.slot);
         }
+        if item.image.is_some() {
+            draws.push(QuadDraw::Image(key(item.node)));
+        }
     }
     while let Some((id, draws)) = stack.pop() {
         layers.push(QuadLayer {

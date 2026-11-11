@@ -38,6 +38,7 @@ enum Field {
     Opacity,
     Measure,
     Decoration,
+    Image,
 }
 
 /// Typed property endpoint. A render property has at most one signal writer.
@@ -113,6 +114,15 @@ impl Property<QuadDecoration> {
             node,
             field: Field::Decoration,
             write: |node, value, tx| tx.decoration(node, *value),
+        }
+    }
+}
+impl Property<Option<ImageResource>> {
+    pub fn image(node: NodeId) -> Self {
+        Self {
+            node,
+            field: Field::Image,
+            write: |node, value, tx| tx.image(node, value.clone()),
         }
     }
 }

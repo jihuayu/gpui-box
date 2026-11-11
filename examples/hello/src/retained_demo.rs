@@ -1,8 +1,8 @@
 //! Normal GPUI event → retained transaction → persistent layout → paint adapter.
 use gpui::*;
 use gpui_box::retained::{
-    BackendCapabilities, CustomMeasureSnapshot, MeasureSnapshot, QuadDecoration, Rect, Style,
-    Transaction, UiTree, length,
+    BackendCapabilities, CustomMeasureSnapshot, ImageResource, MeasureSnapshot, QuadDecoration,
+    Rect, Style, Transaction, UiTree, length,
     logical::LogicalUi,
     reactive::{Property, Signal},
     responsive::{BreakpointStyles, FlexStyle, LayoutEnvironment, ResponsiveBindings, StyleQuery},
@@ -17,6 +17,9 @@ pub struct RetainedDemo {
     scroll: Signal<[f32; 2]>,
     measure: Signal<Option<MeasureSnapshot>>,
     decoration: Signal<QuadDecoration>,
+    image: Signal<Option<ImageResource>>,
+    image_options: [ImageResource; 2],
+    image_cache: Rc<RefCell<std::collections::BTreeMap<u64, std::sync::Arc<RenderImage>>>>,
     last_commit: String,
     reversed: bool,
     #[cfg(test)]
@@ -210,6 +213,47 @@ impl RetainedDemo {
             )
             .unwrap();
         }
+        let image_options = [
+            ImageResource::rgba8(
+                [2, 2],
+                vec![
+                    255, 64, 0, 255, 0, 180, 255, 255, 0, 220, 90, 128, 255, 255, 255, 0,
+                ],
+            )
+            .unwrap(),
+            ImageResource::rgba8(
+                [2, 2],
+                vec![
+                    0, 180, 255, 255, 255, 64, 0, 255, 255, 255, 255, 0, 0, 220, 90, 128,
+                ],
+            )
+            .unwrap(),
+        ];
+        let image = tree
+            .state(root_scope, 6, || Some(image_options[0].clone()))
+            .unwrap();
+        let image_node = tree
+            .append_render(
+                root_scope,
+                tree.root_render(),
+                Style {
+                    position: taffy::Position::Absolute,
+                    inset: taffy::Rect {
+                        left: length(224.0),
+                        top: length(4.0),
+                        right: taffy::LengthPercentageAuto::auto(),
+                        bottom: taffy::LengthPercentageAuto::auto(),
+                    },
+                    size: taffy::Size {
+                        width: length(24.0),
+                        height: length(24.0),
+                    },
+                    ..Default::default()
+                },
+                0,
+            )
+            .unwrap();
+        tree.bind(image, Property::image(image_node)).unwrap();
         Self {
             tree: Rc::new(RefCell::new(tree)),
             responsive: Rc::new(RefCell::new(responsive)),
@@ -217,6 +261,9 @@ impl RetainedDemo {
             scroll,
             measure,
             decoration,
+            image,
+            image_options,
+            image_cache: Rc::new(RefCell::new(std::collections::BTreeMap::new())),
             last_commit: "Ready".into(),
             reversed: false,
             #[cfg(test)]
@@ -254,6 +301,7 @@ impl Render for RetainedDemo {
             self.render_count += 1;
         }
         let tree = self.tree.clone();
+        let image_cache = self.image_cache.clone();
         let responsive = self.responsive.clone();
         #[cfg(feature = "retained-wgpu")]
         let gpu = self.gpu.clone();
@@ -378,6 +426,21 @@ impl Render for RetainedDemo {
             )
             .children(effect_button)
             .child(div()
+                .id("retained-image")
+                .debug_selector(|| "retained-image".into())
+                .cursor_pointer()
+                .child("Replace retained image pixels")
+                .on_click(cx.listener(|this,_,_,cx| {
+                    let signal = this.image;
+                    let options = this.image_options.clone();
+                    let result = this.tree.borrow_mut().transaction(|tx| {
+                        let next = if tx.read(signal)?.as_ref() == Some(&options[0]) { &options[1] } else { &options[0] };
+                        tx.set(signal,Some(next.clone()))?;
+                        Ok(())
+                    }).expect("replace image resource");
+                    if result.commit.request_frame {cx.notify();}
+                })))
+            .child(div()
                 .id("retained-decoration")
                 .debug_selector(|| "retained-decoration".into())
                 .cursor_pointer()
@@ -458,7 +521,7 @@ impl Render for RetainedDemo {
                         #[cfg(feature = "retained-wgpu")]
                         let raster = gpu
                             .as_ref()
-                            .filter(|_| !frame.properties.effects.is_empty())
+                            .filter(|_| !frame.properties.effects.is_empty() || frame.items.iter().any(|item| item.image.is_some()))
                             .map(|gpu| {
                                 gpu.borrow_mut()
                                     .window_image()
@@ -474,9 +537,26 @@ impl Render for RetainedDemo {
                         }
                         #[cfg(not(feature = "retained-wgpu"))]
                         let raster: Option<std::sync::Arc<RenderImage>> = None;
-                        (frame, raster)
+                        let mut cache = image_cache.borrow_mut();
+                        let live:std::collections::BTreeSet<_> = frame.items.iter().filter_map(|item| item.image.as_ref().map(ImageResource::id)).collect();
+                        let retired:Vec<_> = cache.keys().filter(|id| !live.contains(id)).copied().collect();
+                        for id in retired {
+                            if let Some(image) = cache.remove(&id) {
+                                _window.drop_image(image).expect("retire decoded image sprite");
+                            }
+                        }
+                        for resource in frame.items.iter().filter_map(|item| item.image.as_ref()) {
+                            cache.entry(resource.id()).or_insert_with(|| {
+                                let mut bgra = resource.pixels().to_vec();
+                                for pixel in bgra.as_chunks_mut::<4>().0 {pixel.swap(0,2);}
+                                let [width,height] = resource.size();
+                                let image = image::RgbaImage::from_raw(width,height,bgra).expect("validated pixels");
+                                std::sync::Arc::new(RenderImage::new(vec![image::Frame::new(image)]))
+                            });
+                        }
+                        (frame, raster, cache.clone())
                     },
-                    |bounds, (frame, raster), window, _| {
+                    |bounds, (frame, raster, images), window, _| {
                         if let Some(raster) = raster {
                             window
                                 .paint_image(bounds, bounds, Corners::default(), raster, 0, false)
@@ -509,6 +589,11 @@ impl Render for RetainedDemo {
                                             rgba(decoration.border_color),
                                             BorderStyle::default(),
                                         ));
+                                }
+                                if let Some(resource) = &item.image {
+                                    let r = item.content_bounds;
+                                    let image_bounds = Bounds {origin:bounds.origin+point(px(r.x),px(r.y)),size:size(px(r.width),px(r.height))};
+                                    window.paint_image(image_bounds,image_bounds,Corners::default(),images[&resource.id()].clone(),0,false).expect("paint retained decoded image");
                                 }
                             });
                         }
@@ -617,6 +702,32 @@ mod tests {
             "outer transaction requests one view render"
         );
         assert_eq!((stats.transactions, stats.frame_requests), (5, 4));
+        let old_image = view.read_with(cx, |view, _| {
+            let resource = view
+                .tree
+                .borrow()
+                .read(view.image)
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .id();
+            view.image_cache.borrow()[&resource].clone()
+        });
+        assert!(cx.update(|window, _| window.has_image_atlas_entry(&old_image)));
+        let button = cx.debug_bounds("retained-image").unwrap();
+        cx.simulate_click(button.center(), Modifiers::default());
+        cx.run_until_parked();
+        let image_frame = view.read_with(cx, |view, _| {
+            view.tree.borrow().published_frame().unwrap().clone()
+        });
+        assert_eq!(
+            (image_frame.layout_runs, image_frame.recorded_chunks),
+            (0, 0)
+        );
+        assert!(
+            !cx.update(|window, _| window.has_image_atlas_entry(&old_image)),
+            "replacement retires legacy atlas entry"
+        );
         let (scope_ids, node_ids) = view.read_with(cx, |view, _| {
             let tree = view.tree.borrow();
             let scopes = tree.children(tree.root_scope()).unwrap().to_vec();
@@ -835,5 +946,43 @@ mod tests {
             actual.as_raw() == reference.as_raw(),
             "rounded border click reaches GPU"
         );
+        let old_resource = view.read_with(cx, |view, _| {
+            view.tree
+                .borrow()
+                .read(view.image)
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .id()
+        });
+        let button = cx.debug_bounds("retained-image").unwrap();
+        cx.simulate_click(button.center(), Modifiers::default());
+        cx.run_until_parked();
+        let frame = view.read_with(cx, |view, _| {
+            assert_ne!(
+                view.tree
+                    .borrow()
+                    .read(view.image)
+                    .unwrap()
+                    .as_ref()
+                    .unwrap()
+                    .id(),
+                old_resource
+            );
+            assert!(!view.image_cache.borrow().contains_key(&old_resource));
+            view.tree.borrow().published_frame().unwrap().clone()
+        });
+        assert_eq!((frame.layout_runs, frame.recorded_chunks), (0, 0));
+        let replaced = gpu.borrow_mut().image().unwrap();
+        assert_ne!(
+            actual.as_raw(),
+            replaced.as_raw(),
+            "image click changes real GPU pixels"
+        );
+        let reference = gpu
+            .borrow_mut()
+            .reference_image(&frame, [replaced.width(), replaced.height()], scale)
+            .unwrap();
+        assert_eq!(replaced.as_raw(), reference.as_raw());
     }
 }

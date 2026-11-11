@@ -5,7 +5,8 @@ use super::{
 };
 use gpui::{Bounds, ContentMask, DevicePixels, Quad, ScaledPixels, Scene, point, rgba, size};
 use gpui_wgpu::{
-    QuadBatch, QuadRedraw, QuadSubmission, QuadWrite, RetainedImage, RetainedQuadRenderer,
+    QuadBatch, QuadImage, QuadRedraw, QuadSubmission, QuadWrite, RetainedImage,
+    RetainedQuadRenderer,
 };
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 mod composition;
@@ -149,6 +150,7 @@ pub struct WgpuFrameRenderer {
     reference: Option<RetainedQuadRenderer>,
     policy: CompositorPolicy,
     had_effects: bool,
+    had_images: bool,
     cache_layers: bool,
     window_image: Option<(u64, Arc<gpui::RenderImage>)>,
 }
@@ -170,6 +172,7 @@ impl WgpuFrameRenderer {
             reference: None,
             policy: CompositorPolicy::Full,
             had_effects: false,
+            had_images: false,
             cache_layers: true,
             window_image: None,
         })
@@ -297,6 +300,8 @@ impl WgpuFrameRenderer {
             || frame.order.is_some()
             || command_count_changed
             || self.had_effects
+            || self.had_images
+            || frame.items.iter().any(|item| item.image.is_some())
             || !frame.properties.effects.is_empty();
         let (order, layers) = if rebuild_order {
             let (order, layers) = composition::plan(frame, &self.instances)?;
@@ -320,6 +325,23 @@ impl WgpuFrameRenderer {
                 writes,
                 order,
                 layers,
+                images: frame
+                    .items
+                    .iter()
+                    .filter_map(|item| {
+                        let image = item.image.as_ref()?;
+                        let rect =
+                            |r: Rect| [r.x * scale, r.y * scale, r.width * scale, r.height * scale];
+                        Some(QuadImage {
+                            id: [item.node.tree, item.node.slot as u64, item.node.generation],
+                            resource: image.id(),
+                            size: image.size(),
+                            rgba: image.pixels().clone(),
+                            bounds: rect(item.content_bounds),
+                            clip: rect(item.clip.unwrap_or(item.bounds)),
+                        })
+                    })
+                    .collect(),
                 cache_layers: self.cache_layers,
                 size: size(
                     DevicePixels(surface[0] as i32),
@@ -343,6 +365,7 @@ impl WgpuFrameRenderer {
         self.scale = scale;
         self.surface = surface;
         self.had_effects = !frame.properties.effects.is_empty();
+        self.had_images = frame.items.iter().any(|item| item.image.is_some());
         self.leases.push_back((gpu.serial, frame.clone()));
         self.collect()?;
         self.failed = false;
@@ -388,7 +411,9 @@ impl WgpuFrameRenderer {
         scale: f32,
     ) -> Result<RetainedImage, Error> {
         validate(frame, surface, scale)?;
-        if !frame.properties.effects.is_empty() {
+        if !frame.properties.effects.is_empty()
+            || frame.items.iter().any(|item| item.image.is_some())
+        {
             // Legacy GPUI flattens element opacity. Group isolation instead uses
             // a fresh full renderer with no previous raster-cache contents.
             let mut fresh = Self::new(1)?;
@@ -454,7 +479,10 @@ fn validate(frame: &FramePacket, surface: [u32; 2], scale: f32) -> Result<(), Er
                 return Err(Error::InvalidFrame);
             }
         }
-        for b in [Some(item.bounds), item.clip].into_iter().flatten() {
+        for b in [Some(item.bounds), Some(item.content_bounds), item.clip]
+            .into_iter()
+            .flatten()
+        {
             if !b.valid()
                 || [b.x, b.y, b.width, b.height, b.x + b.width, b.y + b.height]
                     .iter()
@@ -510,6 +538,8 @@ fn validate(frame: &FramePacket, surface: [u32; 2], scale: f32) -> Result<(), Er
                 value.bounds != item.bounds
                     || value.commands != item.commands
                     || value.fill_color != item.fill_color
+                    || value.image != item.image
+                    || value.content_bounds != item.content_bounds
                     || value.clip != item.clip
             })
         {
@@ -614,6 +644,13 @@ mod tests {
         );
         let mut invalid = frame.clone();
         invalid.removed = Arc::from([tree.root()]);
+        assert_eq!(
+            validate(&invalid, [100, 100], 1.0),
+            Err(Error::InvalidFrame)
+        );
+        let mut invalid = frame.clone();
+        Arc::make_mut(&mut invalid.updates)[0].image =
+            Some(ImageResource::rgba8([1, 1], vec![255; 4]).unwrap());
         assert_eq!(
             validate(&invalid, [100, 100], 1.0),
             Err(Error::InvalidFrame)

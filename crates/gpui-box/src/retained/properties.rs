@@ -89,8 +89,9 @@ impl PaintItem {
     }
     pub fn ink_bounds(&self) -> Option<Rect> {
         let bounds = self.visible_bounds();
-        (!bounds.is_empty() && self.commands.iter().any(|command| self.visible(command)))
-            .then_some(bounds)
+        (!bounds.is_empty()
+            && (self.image.is_some() || self.commands.iter().any(|command| self.visible(command))))
+        .then_some(bounds)
     }
 }
 
@@ -129,6 +130,8 @@ pub(super) fn damage(
                     && a.clip == b.clip
                     && a.commands == b.commands
                     && a.fill_color == b.fill_color
+                    && a.image == b.image
+                    && a.content_bounds == b.content_bounds
                     && same_effects(
                         a.properties.effect,
                         b.properties.effect,

@@ -23,6 +23,9 @@ The [material patch stage](RETAINED_MATERIAL_PATCH.md) preserves command identit
 for supported solid/decorated color changes while updating the owned material.
 The [visual frame queue stage](RETAINED_FRAME_QUEUE.md) coalesces pending output,
 checks skipped-base resync and verifies old-snapshot completion retirement.
+The [decoded image resource stage](RETAINED_IMAGE_RESOURCES.md) connects typed
+resource replacement, intrinsic invalidation, shared GPU textures, ordered
+image draws and completion-held texture/binding leases.
 
 ## Current integrated foundation
 
@@ -62,17 +65,17 @@ click test passed pixel comparison at the actual window scale.
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → paint/persistent WGPU, with hardware pixel checks | Native-surface presentation and complete general routing |
 | P0 equality and transactions | Source equality before fanout, final-value coalescing, atomic sink validation, nested savepoints, one outer frame intent, idle-render assertions | Computed/effect graph, cross-event producer scheduling and real OS idle-wakeup/energy measurements |
-| P0–P5 routing | Solid/decorated-quad color, paint, property, layout and reorder intents; reason records; P1 reuses commands with 0 layout/recording and stable instance dispatch | General primitive/material capabilities, semantic/resource channels and eliminate full snapshot scanning |
+| P0–P5 routing | Solid/decorated-quad color, paint, property, layout, reorder and decoded-image resource intents; reason records; P1 reuses commands with 0 layout/recording and stable instance dispatch | General primitive/material capabilities, semantic channels, general asynchronous resource invalidation and eliminate full snapshot scanning |
 | Logical / Render Tree | Independent generation-checked scopes, zero/multiple outputs and portals, keyed reorder retaining state/render/chunks, subtree source/binding/output cleanup; gallery and hardware validation | Atomic structural batches, portal reparenting, event/focus/semantics lifetime and legacy islands; eliminate whole-scope/order scans |
 | Persistent Taffy | Long-lived nodes, style/children setters, owned image intrinsic/fixed custom snapshots, baseline/overflow updates, actual leaf/measure-call counts, root cache and resize handling | Owned paragraph snapshots, constraint-dependent custom inputs, independent islands, full node visits/cache-hit counters |
 | Paint chunks / property trees | Shared local fill commands; sparse transform/clip/scroll/effect chains with inherited state, clip-aware geometry/hit testing | Stable chunk IDs, full affine transforms, selective geometry extraction and spatial indices |
 | GPU arena | Generic CPU allocation table with generations and deferred slot reuse, WGPU geometric growth and completion-held buffer/binding leases | General resource/material records, budgets, compaction and other backends |
 | Batch GPU updates | Adjacent upload merging; 10,000-object translation and 10,000-signal color pixel verification; CPU per-signal/coalesced/typed-batch comparison; completed-work redraw A/B | Sustained 60/120Hz animation, general batch/fragmented order throughput and tuning |
 | P2 property / composite | Translation/clip/scroll reuse commands and update GPU instances/hit geometry; isolated subtree opacity supports nesting and 16-byte property-only updates | GPU transform/clip indirection, texture import for window presentation and NativeView geometry |
-| Text / images / complex primitives | Solid/decorated quads with uniform rounded corners/inside borders; legacy GPUI functionality; owned intrinsic image/fixed-content measurement | Retained glyph/image/path/shadow types, decoded resources, font epochs, shaping/wrapping and corresponding pixels |
+| Text / images / complex primitives | Solid/decorated quads; immutable decoded RGBA image resources, shared retained textures, independent same-size resource route, typed normal click, intrinsic inputs, content-box draw/clip/opacity and lifecycle pixels | Retained glyph/path/shadow types, font epochs and shaping/wrapping; image decoding/fit/filter/color/animation/atlas/batching and physical resource budgets |
 | Flex / responsive contract | Opt-in validated Flex subset, separate layout/scale environment, threshold-equality rules, RTL/actual-window resize, bounded fixed content-box queries with dependency rejection | Broad Flex conformance/rounding, full environment subscriptions, constraint builders, general query dependency graph and adaptive structures; indexed rule dispatch |
 | Damage / cache / compositor | Old/new clipped ink/effect damage; preserved offscreen target, scissored clear/replay; Full/Damage/area-threshold Auto; isolated layer content cache and cached/uncached A/B; live-layer 256 MiB guard | Tight layer bounds, cross-frame physical memory accounting, cache admission/LRU, measured cost model, multiple damage regions, native surface buffer-age contract |
-| FramePacket / frames in flight | Owned snapshots/base deltas, skip-frame resync, stale rejection, single-pending producer coalescing and wake intent, bounded GPU queue, completion/weak-reference retirement, poll/finish/reset | Forced device/surface loss, resource epochs, host wake/idle-completion scheduling and deferring superseded snapshot production |
+| FramePacket / frames in flight | Owned snapshots/base deltas and immutable image resources, skip-frame resync, stale rejection, single-pending producer coalescing and wake intent, bounded GPU queue, completion/weak-reference and texture/binding retirement, poll/finish/reset with resource reupload | Forced device/surface loss, general resource/font epochs, host wake/idle-completion scheduling and deferring superseded snapshot production |
 
 ## Verification and present limits
 

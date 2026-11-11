@@ -8,6 +8,7 @@ pub type QuadLayerId = [u64; 3];
 pub enum QuadDraw {
     Instances(Range<u32>),
     Layer(QuadLayerId),
+    Image(QuadImageId),
 }
 
 pub struct QuadLayer {
@@ -120,6 +121,7 @@ impl LayerCache {
         order: &[QuadDraw],
         capacity: u32,
         size: Size<DevicePixels>,
+        images: &BTreeSet<QuadImageId>,
     ) -> Result<()> {
         let mut seen = BTreeSet::new();
         for layer in layers {
@@ -127,10 +129,10 @@ impl LayerCache {
                 layer.opacity.is_finite() && (0.0..=1.0).contains(&layer.opacity),
                 "invalid group opacity"
             );
-            Self::validate_draws(&layer.draws, &seen, capacity)?;
+            Self::validate_draws(&layer.draws, &seen, capacity, images)?;
             anyhow::ensure!(seen.insert(layer.id), "duplicate or cyclic layer");
         }
-        Self::validate_draws(order, &seen, capacity)?;
+        Self::validate_draws(order, &seen, capacity, images)?;
         let bytes = u64::from(size.width.0 as u32) * u64::from(size.height.0 as u32) * 4;
         anyhow::ensure!(
             bytes.saturating_mul(layers.len() as u64) <= 256 * 1024 * 1024,
@@ -143,6 +145,7 @@ impl LayerCache {
         draws: &[QuadDraw],
         seen: &BTreeSet<QuadLayerId>,
         capacity: u32,
+        images: &BTreeSet<QuadImageId>,
     ) -> Result<()> {
         for draw in draws {
             match draw {
@@ -152,6 +155,9 @@ impl LayerCache {
                 ),
                 QuadDraw::Layer(id) => {
                     anyhow::ensure!(seen.contains(id), "layer must precede its consumer")
+                }
+                QuadDraw::Image(id) => {
+                    anyhow::ensure!(images.contains(id), "missing decoded image")
                 }
             }
         }
@@ -215,6 +221,8 @@ impl LayerCache {
         writes: &[Range<u32>],
         size: Size<DevicePixels>,
         cache: bool,
+        images: &images::ImageCache,
+        changed_images: &BTreeSet<QuadImageId>,
     ) -> Result<LayerStats> {
         let mut stats = LayerStats::default();
         let mut changed = BTreeSet::new();
@@ -234,6 +242,7 @@ impl LayerCache {
                         .iter()
                         .any(|write| range.start < write.end && write.start < range.end),
                     QuadDraw::Layer(id) => changed.contains(id),
+                    QuadDraw::Image(id) => changed_images.contains(id),
                 });
             if opacity_changed {
                 let mut bytes = [0; 16];
@@ -258,7 +267,7 @@ impl LayerCache {
                     })],
                     ..Default::default()
                 });
-                self.draw(&renderer.core, binding, &layer.draws, &mut pass)?;
+                self.draw(&renderer.core, binding, &layer.draws, &mut pass, images)?;
                 stats.draws += layer.draws.len();
                 stats.rasterized += 1;
             } else {
@@ -281,6 +290,7 @@ impl LayerCache {
         binding: &InstanceBinding,
         draws: &[QuadDraw],
         pass: &mut wgpu::RenderPass<'_>,
+        images: &images::ImageCache,
     ) -> Result<()> {
         for draw in draws {
             match draw {
@@ -296,6 +306,7 @@ impl LayerCache {
                     pass.set_bind_group(0, &layer.binding, &[]);
                     pass.draw(0..3, 0..1);
                 }
+                QuadDraw::Image(id) => images.draw(*id, pass)?,
             }
         }
         Ok(())

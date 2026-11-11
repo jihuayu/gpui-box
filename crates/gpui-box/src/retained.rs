@@ -14,7 +14,9 @@ use taffy::prelude::*;
 pub use taffy::style_helpers::{length, percent};
 pub mod arena;
 pub mod frame_queue;
+mod image;
 pub mod logical;
+pub use image::ImageResource;
 mod measure;
 pub use measure::{CustomMeasureSnapshot, ImageIntrinsicSize, LayoutStats, MeasureSnapshot};
 mod primitive;
@@ -59,6 +61,9 @@ pub struct PaintItem {
     pub commands: Arc<[DisplayCommand]>,
     /// Current solid material, independent of the reusable command recording.
     pub fill_color: u32,
+    /// Optional decoded image stretched into the content box above the quad.
+    pub image: Option<ImageResource>,
+    pub content_bounds: Rect,
     pub clip: Option<Rect>,
     pub properties: PropertyState,
 }
@@ -101,6 +106,7 @@ pub enum UpdatePath {
     RepaintChunks,
     Relayout,
     ReconcileStructure,
+    ResourcePatch,
 }
 
 /// Capabilities are declared by the consumer of the frame, not by UI code.
@@ -126,6 +132,7 @@ pub enum RouteReason {
     LayoutInputsChanged,
     ChildOrderChanged,
     SharedPropertiesChanged,
+    ResourcePixelsChanged,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RouteDecision {
@@ -151,6 +158,7 @@ pub enum Patch {
     Opacity(NodeId, f32),
     Measure(NodeId, Option<MeasureSnapshot>),
     Decoration(NodeId, QuadDecoration),
+    Image(NodeId, Option<ImageResource>),
 }
 
 impl Patch {
@@ -164,7 +172,8 @@ impl Patch {
             | Self::Scroll(id, _)
             | Self::Opacity(id, _)
             | Self::Measure(id, _)
-            | Self::Decoration(id, _) => *id,
+            | Self::Decoration(id, _)
+            | Self::Image(id, _) => *id,
         }
     }
 }
@@ -203,6 +212,11 @@ impl Transaction {
     pub fn decoration(&mut self, node: NodeId, value: QuadDecoration) {
         self.patches.push(Patch::Decoration(node, value));
     }
+    /// Attach a decoded image to a leaf. The image owns its intrinsic size;
+    /// explicit measure writes while an image is attached are rejected.
+    pub fn image(&mut self, node: NodeId, image: Option<ImageResource>) {
+        self.patches.push(Patch::Image(node, image));
+    }
     /// Reorder the existing children of one parent, preserving their identity.
     pub fn reorder(&mut self, parent: NodeId, children: Vec<NodeId>) {
         self.patches.push(Patch::Reorder(parent, children));
@@ -239,6 +253,7 @@ pub enum Error {
     UnsafeContainerQuery,
     InvalidPrimitive,
     FrameQueuePoisoned,
+    InvalidImage,
 }
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -265,6 +280,7 @@ struct Node {
     opacity: f32,
     measure: Option<MeasureSnapshot>,
     decoration: QuadDecoration,
+    image: Option<ImageResource>,
 }
 struct Slot {
     generation: u64,
@@ -296,6 +312,7 @@ struct Pending {
     opacity: Option<f32>,
     measure: Option<Option<MeasureSnapshot>>,
     decoration: Option<QuadDecoration>,
+    image: Option<Option<ImageResource>>,
 }
 
 impl UiTree {
@@ -329,6 +346,7 @@ impl UiTree {
                     opacity: 1.0,
                     measure: None,
                     decoration: QuadDecoration::default(),
+                    image: None,
                 }),
             }],
             free: vec![],
@@ -411,6 +429,7 @@ impl UiTree {
             opacity: 1.0,
             measure: None,
             decoration: QuadDecoration::default(),
+            image: None,
         });
         self.node_mut(parent).children.push(id);
         self.revision = next;
@@ -504,6 +523,12 @@ impl UiTree {
                     decoration.validate()?;
                     entry.decoration = Some(decoration);
                 }
+                Patch::Image(_, image) => {
+                    if image.is_some() && !self.node(id)?.children.is_empty() {
+                        return Err(Error::MeasuredNodeHasChildren);
+                    }
+                    entry.image = Some(image);
+                }
                 Patch::Reorder(_, children) => {
                     let mut previous = self.node(id)?.children.clone();
                     let mut proposed = children.clone();
@@ -517,8 +542,19 @@ impl UiTree {
             }
         }
         let mut changed = Vec::new();
-        for (id, entry) in pending {
+        for (id, mut entry) in pending {
             let node = self.node(id)?;
+            let final_image = entry.image.as_ref().unwrap_or(&node.image);
+            if final_image.is_some() && entry.measure.is_some() {
+                return Err(Error::InvalidMeasure);
+            }
+            let image_changed = entry
+                .image
+                .as_ref()
+                .is_some_and(|image| *image != node.image);
+            if image_changed && entry.measure.is_none() {
+                entry.measure = Some(final_image.as_ref().map(ImageResource::measure));
+            }
             let style_changed = entry
                 .style
                 .as_ref()
@@ -547,6 +583,7 @@ impl UiTree {
                 || structure_changed
                 || measure_changed
                 || decoration_changed
+                || image_changed
             {
                 changed.push((
                     id,
@@ -557,6 +594,7 @@ impl UiTree {
                     structure_changed,
                     measure_changed,
                     decoration_changed,
+                    image_changed,
                 ));
             }
         }
@@ -583,6 +621,7 @@ impl UiTree {
             structure_changed,
             measure_changed,
             decoration_changed,
+            image_changed,
         ) in changed
         {
             if structure_changed {
@@ -638,6 +677,14 @@ impl UiTree {
                     } else {
                         RouteReason::BackendColorPatchUnavailable
                     },
+                );
+            }
+            if image_changed {
+                self.node_mut(id).image = entry.image.expect("changed image");
+                result.route(
+                    id,
+                    UpdatePath::ResourcePatch,
+                    RouteReason::ResourcePixelsChanged,
                 );
             }
             if decoration_changed {
@@ -805,6 +852,23 @@ impl UiTree {
                 },
                 commands,
                 fill_color: node.color,
+                image: node.image.clone(),
+                content_bounds: Rect {
+                    x: x + layout.border.left + layout.padding.left,
+                    y: y + layout.border.top + layout.padding.top,
+                    width: (layout.size.width
+                        - layout.border.left
+                        - layout.border.right
+                        - layout.padding.left
+                        - layout.padding.right)
+                        .max(0.0),
+                    height: (layout.size.height
+                        - layout.border.top
+                        - layout.border.bottom
+                        - layout.padding.top
+                        - layout.padding.bottom)
+                        .max(0.0),
+                },
                 clip,
                 properties: paint_state,
             });
@@ -822,6 +886,8 @@ impl UiTree {
                     old.bounds != item.bounds
                         || old.commands != item.commands
                         || old.fill_color != item.fill_color
+                        || old.image != item.image
+                        || old.content_bounds != item.content_bounds
                         || old.clip != item.clip
                 })
             })

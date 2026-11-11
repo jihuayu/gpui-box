@@ -7,7 +7,9 @@ use std::{
     time::Duration,
 };
 pub type RetainedImage = image::RgbaImage;
+mod images;
 mod layers;
+pub use images::{QuadImage, QuadImageId};
 use layers::LayerCache;
 pub use layers::{QuadDraw, QuadLayer, QuadLayerId};
 
@@ -20,6 +22,7 @@ pub struct QuadBatch {
     pub writes: Vec<QuadWrite>,
     pub order: Option<Vec<QuadDraw>>,
     pub layers: Vec<QuadLayer>,
+    pub images: Vec<QuadImage>,
     pub cache_layers: bool,
     pub size: Size<DevicePixels>,
     pub redraw: QuadRedraw,
@@ -51,6 +54,9 @@ pub struct QuadSubmission {
     pub rasterized_layers: usize,
     pub reused_layers: usize,
     pub property_upload_bytes: u64,
+    pub image_upload_bytes: u64,
+    pub image_uploads: usize,
+    pub image_geometry_bytes: u64,
 }
 
 struct Flight {
@@ -61,6 +67,7 @@ struct Flight {
     _binding: wgpu::BindGroup,
     _clear: Option<(wgpu::Buffer, wgpu::BindGroup)>,
     _layers: Vec<layers::LayerLease>,
+    _images: images::ImageLease,
 }
 
 pub struct RetainedQuadRenderer {
@@ -79,6 +86,7 @@ pub struct RetainedQuadRenderer {
     clear: Option<(wgpu::Buffer, InstanceBinding)>,
     force_full: bool,
     layers: LayerCache,
+    images: images::ImageCache,
 }
 
 impl RetainedQuadRenderer {
@@ -98,6 +106,7 @@ impl RetainedQuadRenderer {
         );
         let (buffer, binding) = allocation(&renderer, 1);
         let layers = LayerCache::new(&renderer);
+        let images = images::ImageCache::new(&renderer);
         Ok(Self {
             renderer,
             buffer,
@@ -114,6 +123,7 @@ impl RetainedQuadRenderer {
             clear: None,
             force_full: true,
             layers,
+            images,
         })
     }
 
@@ -167,7 +177,15 @@ impl RetainedQuadRenderer {
             );
         }
         let order = batch.order.as_ref().unwrap_or(&self.order);
-        LayerCache::validate(&batch.layers, order, batch.capacity, batch.size)?;
+        let image_ids = self.images.validate(
+            &batch.images,
+            self.renderer
+                .context
+                .device
+                .limits()
+                .max_texture_dimension_2d,
+        )?;
+        LayerCache::validate(&batch.layers, order, batch.capacity, batch.size, &image_ids)?;
         let serial = self
             .serial
             .checked_add(1)
@@ -294,6 +312,9 @@ impl RetainedQuadRenderer {
         } else {
             batch.redraw
         };
+        let image_stats = self
+            .images
+            .prepare(&self.renderer, batch.images, batch.size);
         let layer_stats = self.layers.render(
             &self.renderer,
             &self.binding,
@@ -302,6 +323,8 @@ impl RetainedQuadRenderer {
             &dirty_ranges,
             batch.size,
             batch.cache_layers,
+            &self.images,
+            &image_stats.changed,
         )?;
         if redraw != QuadRedraw::Unchanged {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -337,7 +360,7 @@ impl RetainedQuadRenderer {
                 );
             }
             self.layers
-                .draw(core, &self.binding, &self.order, &mut pass)?;
+                .draw(core, &self.binding, &self.order, &mut pass, &self.images)?;
         }
         let submission = core.resources.queue.submit([encoder.finish()]);
         let completed = self.completed.clone();
@@ -354,6 +377,7 @@ impl RetainedQuadRenderer {
                 .as_ref()
                 .map(|(buffer, binding)| (buffer.clone(), binding.bind_group.clone())),
             _layers: self.layers.leases(),
+            _images: self.images.leases(),
         });
         self.serial = serial;
         self.renderer.check_gpu_errors()?;
@@ -382,6 +406,9 @@ impl RetainedQuadRenderer {
             rasterized_layers: layer_stats.rasterized,
             reused_layers: layer_stats.reused,
             property_upload_bytes: layer_stats.property_bytes,
+            image_upload_bytes: image_stats.bytes,
+            image_uploads: image_stats.uploads,
+            image_geometry_bytes: image_stats.geometry_bytes,
         })
     }
 
