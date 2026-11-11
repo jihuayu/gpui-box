@@ -640,10 +640,14 @@ include(":app")
         }
         changes.push(change);
     }
-    let state: BTreeMap<_, _> = files
-        .iter()
-        .map(|(path, content)| (path.clone(), hash(content)))
-        .collect();
+    // Disabled targets retain their files and ownership hashes so re-enabling
+    // them can distinguish the previous generated output from caller edits.
+    let mut state = previous;
+    state.extend(
+        files
+            .iter()
+            .map(|(path, content)| (path.clone(), hash(content))),
+    );
     let state = serde_json::to_vec_pretty(&state).map_err(|e| e.to_string())?;
     let metadata = file_change(root, ".gpui-box/generated.json", &state)?;
     Ok(PreparedGeneration {

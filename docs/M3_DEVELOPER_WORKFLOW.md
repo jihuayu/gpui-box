@@ -463,13 +463,17 @@ the exact generated staging entries. It uses no recursive caller-tree deletion.
 
 Repeated init reports an already-initialized project and directs the caller to
 `generate`. Configuration changes continue through generation plans/journals.
-Changing the selected targets later updates managed manifests. Old user-owned
-source/native customization files retain the existing preservation contract.
+Changing the selected targets later updates managed manifests. Disabled-target
+files and their ownership hashes are retained, allowing conflict-checked
+re-enablement. Old user-owned source/native customization files retain the
+existing preservation contract. Adding a target that the starter never created
+requires its source entry point and mise/native customization setup. Automated
+platform-add provisioning retains #73's gate.
 Existing Cargo workspaces require explicit application integration when their
 Cargo.toml conflicts. Adaptive/workbench/component templates, SDK closure and
 canonical schema migrations retain #63/#62/#61 acceptance gates.
 
-Windows CLI qualification passes 47 tests and strict Clippy. Added regressions
+Windows CLI qualification passes 48 tests and strict Clippy. Added regressions
 cover single-target output/provenance, no-op generation, init with existing
 documents, repeated init, ownership conflicts, active locks and invalid options.
 Linux CI also runs linked-output rejection. External applications in paths with

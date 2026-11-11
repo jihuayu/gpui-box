@@ -158,6 +158,31 @@ fn selected_targets_generate_only_the_requested_starter_platform() {
 }
 
 #[test]
+fn target_reenable_retains_managed_ownership_and_detects_disabled_target_edits() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create(temporary.path());
+    let path = app.join("gpui-box.json");
+    let mut config: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    config["targets"] = serde_json::json!(["desktop"]);
+    fs::write(&path, serde_json::to_vec(&config).unwrap()).unwrap();
+    assert!(cli(&app, &["generate"]).status.success());
+    config["targets"] = serde_json::json!(["desktop", "android"]);
+    fs::write(&path, serde_json::to_vec(&config).unwrap()).unwrap();
+    assert!(cli(&app, &["generate"]).status.success());
+    config["targets"] = serde_json::json!(["desktop"]);
+    fs::write(&path, serde_json::to_vec(&config).unwrap()).unwrap();
+    assert!(cli(&app, &["generate"]).status.success());
+    fs::write(app.join("android/Cargo.toml"), "caller-owned edit").unwrap();
+    config["targets"] = serde_json::json!(["desktop", "android"]);
+    fs::write(&path, serde_json::to_vec(&config).unwrap()).unwrap();
+    let before = snapshot(&app);
+    let output = cli(&app, &["generate"]);
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("was edited"));
+    assert_eq!(snapshot(&app), before);
+}
+
+#[test]
 fn init_preserves_existing_documents_and_rejects_repeated_initialization() {
     let temporary = tempfile::tempdir().unwrap();
     let app = temporary.path().join("Existing app 有 空格");
