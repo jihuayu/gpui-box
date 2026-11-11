@@ -22,6 +22,8 @@ dnd = ["system", "clipboard", "files", "lifecycle", "dep:gpui-dnd"]
 dnd-gpui = ["dnd", "system-gpui", "files-gpui", "lifecycle-gpui", "gpui-dnd/gpui"]
 tray-gpui = ["tray", "system-gpui", "lifecycle-gpui", "menus-gpui", "gpui-tray/gpui"]
 task-presentation = ["system", "lifecycle", "menus", "notifications", "dep:gpui-task-presentation"]
+network = ["system", "lifecycle", "secrets", "dep:gpui-network"]
+network-gpui = ["network", "system-gpui", "lifecycle-gpui", "gpui-network/gpui"]
 task-presentation-gpui = ["task-presentation", "system-gpui", "lifecycle-gpui", "menus-gpui", "notifications-gpui", "gpui-task-presentation/gpui"]
 sharing = ["system", "dep:gpui-sharing"]
 
@@ -68,6 +70,7 @@ gpui-menus = { workspace = true, optional = true }
 gpui-power = { workspace = true, optional = true }
 gpui-tray = { workspace = true, optional = true }
 gpui-task-presentation = { workspace = true, optional = true }
+gpui-network = { workspace = true, optional = true }
 
 [target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
 gpui = { workspace = true, optional = true }
@@ -76,6 +79,9 @@ gpui_platform = { workspace = true, optional = true }
 [target.'cfg(target_os = "android")'.dependencies]
 gpui = { workspace = true, optional = true }
 gpui-android = { workspace = true, optional = true }
+
+[target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dev-dependencies]
+gpui-box-components = { path = "../../components/gpui-box-components" }
 
 [lints]
 workspace = true
