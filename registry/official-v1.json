@@ -1,0 +1,831 @@
+{
+  "schema_version": 1,
+  "sdk_version": "0.1.0-dev",
+  "upstream_revision": "f8cfc7ed9e57503def9479138894f3139f5400cc",
+  "rust_version": "1.98.1",
+  "source_revision": "c95aea6872f48cd3fbd2e5e737c42cdc11370a88",
+  "entries": [
+    {
+      "id": "official/capability/commands",
+      "version": "0.1.0-dev",
+      "title": "Typed command contributions",
+      "kind": "capability",
+      "delivery": "capability",
+      "license": "Apache-2.0",
+      "sdk_version": "0.1.0-dev",
+      "upstream_revision": "f8cfc7ed9e57503def9479138894f3139f5400cc",
+      "sources": [
+        {
+          "path": "LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "crates/gpui-menus/Cargo.toml",
+          "sha256": "5c4a1f8410487626a66b555d8a6420d86325478250eb8d4793fdd369578d2049"
+        },
+        {
+          "path": "crates/gpui-menus/src/command.rs",
+          "sha256": "d2f07f27acdb23d928469aee620bc010e931817cb832b7c14484d3a6720f13e8"
+        },
+        {
+          "path": "crates/gpui-menus/src/lib.rs",
+          "sha256": "9da2ffbe44f1f9bd086cc8b8afbbdd47830736040b4b9b22eb11f1f2f3ed23d4"
+        },
+        {
+          "path": "crates/gpui-menus/src/service.rs",
+          "sha256": "075322ff41de4d7d4c468a7d88573a15a894332b8be8fe3fa6ec968a3059b069"
+        }
+      ],
+      "dependencies": [],
+      "platforms": {
+        "android": {
+          "status": "experimental",
+          "scope": "API35 emulator and ARM64/x86_64 builds have separate acceptance records. Physical devices and actual reader speech remain open.",
+          "evidence": "docs/S_MENUS.md"
+        },
+        "ios": {
+          "status": "unverified",
+          "scope": "Apple host and iOS backend acceptance required.",
+          "evidence": "docs/S_MENUS.md"
+        },
+        "linux": {
+          "status": "experimental",
+          "scope": "Hosted native desktop builds. Interactive X11/Wayland qualification remains open.",
+          "evidence": "docs/S_MENUS.md"
+        },
+        "macos": {
+          "status": "unverified",
+          "scope": "Apple host build and runtime qualification required.",
+          "evidence": "docs/S_MENUS.md"
+        },
+        "web": {
+          "status": "unsupported",
+          "scope": "No supported Web generation or build adapter in this snapshot.",
+          "evidence": "docs/S_MENUS.md"
+        },
+        "windows": {
+          "status": "experimental",
+          "scope": "Native desktop compilation and selected runtime records. Locked-session template interaction remains open.",
+          "evidence": "docs/S_MENUS.md"
+        }
+      }
+    },
+    {
+      "id": "official/control/adaptive-shell",
+      "version": "0.1.0-dev",
+      "title": "Adaptive shell",
+      "kind": "control",
+      "delivery": "package",
+      "license": "Apache-2.0",
+      "sdk_version": "0.1.0-dev",
+      "upstream_revision": "f8cfc7ed9e57503def9479138894f3139f5400cc",
+      "sources": [
+        {
+          "path": "LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "components/gpui-box-components/Cargo.toml",
+          "sha256": "0d22bb78af111b1c6ae07724d880f8fddf2d5c7abfdc24c85233df996d4adc1b"
+        },
+        {
+          "path": "components/gpui-box-components/src/lib.rs",
+          "sha256": "8dd7fbe98de19233b9496e21afa098e46398f2200adce7394ef976eae1a62abe"
+        },
+        {
+          "path": "components/gpui-box-components/src/shell.rs",
+          "sha256": "3faf0b3ed9c8332c812461885bad11bc226884a124cf1ee5d8b87799c1545313"
+        }
+      ],
+      "dependencies": [
+        {
+          "id": "official/control/button",
+          "version": "0.1.0-dev"
+        },
+        {
+          "id": "official/control/label",
+          "version": "0.1.0-dev"
+        },
+        {
+          "id": "official/theme/default",
+          "version": "0.1.0-dev"
+        }
+      ],
+      "platforms": {
+        "android": {
+          "status": "experimental",
+          "scope": "API35 emulator and ARM64/x86_64 builds have separate acceptance records. Physical devices and actual reader speech remain open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "ios": {
+          "status": "unverified",
+          "scope": "Apple host and iOS backend acceptance required.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "linux": {
+          "status": "experimental",
+          "scope": "Hosted native desktop builds. Interactive X11/Wayland qualification remains open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "macos": {
+          "status": "unverified",
+          "scope": "Apple host build and runtime qualification required.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "web": {
+          "status": "unsupported",
+          "scope": "No supported Web generation or build adapter in this snapshot.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "windows": {
+          "status": "experimental",
+          "scope": "Native desktop compilation and selected runtime records. Locked-session template interaction remains open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        }
+      }
+    },
+    {
+      "id": "official/control/button",
+      "version": "0.1.0-dev",
+      "title": "Button",
+      "kind": "control",
+      "delivery": "package",
+      "license": "Apache-2.0",
+      "sdk_version": "0.1.0-dev",
+      "upstream_revision": "f8cfc7ed9e57503def9479138894f3139f5400cc",
+      "sources": [
+        {
+          "path": "LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "components/gpui-box-components/Cargo.toml",
+          "sha256": "0d22bb78af111b1c6ae07724d880f8fddf2d5c7abfdc24c85233df996d4adc1b"
+        },
+        {
+          "path": "components/gpui-box-components/src/lib.rs",
+          "sha256": "8dd7fbe98de19233b9496e21afa098e46398f2200adce7394ef976eae1a62abe"
+        }
+      ],
+      "dependencies": [
+        {
+          "id": "official/theme/default",
+          "version": "0.1.0-dev"
+        }
+      ],
+      "platforms": {
+        "android": {
+          "status": "experimental",
+          "scope": "API35 emulator and ARM64/x86_64 builds have separate acceptance records. Physical devices and actual reader speech remain open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "ios": {
+          "status": "unverified",
+          "scope": "Apple host and iOS backend acceptance required.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "linux": {
+          "status": "experimental",
+          "scope": "Hosted native desktop builds. Interactive X11/Wayland qualification remains open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "macos": {
+          "status": "unverified",
+          "scope": "Apple host build and runtime qualification required.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "web": {
+          "status": "unsupported",
+          "scope": "No supported Web generation or build adapter in this snapshot.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "windows": {
+          "status": "experimental",
+          "scope": "Native desktop compilation and selected runtime records. Locked-session template interaction remains open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        }
+      }
+    },
+    {
+      "id": "official/control/checkbox",
+      "version": "0.1.0-dev",
+      "title": "Checkbox",
+      "kind": "control",
+      "delivery": "package",
+      "license": "Apache-2.0",
+      "sdk_version": "0.1.0-dev",
+      "upstream_revision": "f8cfc7ed9e57503def9479138894f3139f5400cc",
+      "sources": [
+        {
+          "path": "LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "components/gpui-box-components/Cargo.toml",
+          "sha256": "0d22bb78af111b1c6ae07724d880f8fddf2d5c7abfdc24c85233df996d4adc1b"
+        },
+        {
+          "path": "components/gpui-box-components/src/lib.rs",
+          "sha256": "8dd7fbe98de19233b9496e21afa098e46398f2200adce7394ef976eae1a62abe"
+        }
+      ],
+      "dependencies": [
+        {
+          "id": "official/control/button",
+          "version": "0.1.0-dev"
+        },
+        {
+          "id": "official/theme/default",
+          "version": "0.1.0-dev"
+        }
+      ],
+      "platforms": {
+        "android": {
+          "status": "experimental",
+          "scope": "API35 emulator and ARM64/x86_64 builds have separate acceptance records. Physical devices and actual reader speech remain open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "ios": {
+          "status": "unverified",
+          "scope": "Apple host and iOS backend acceptance required.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "linux": {
+          "status": "experimental",
+          "scope": "Hosted native desktop builds. Interactive X11/Wayland qualification remains open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "macos": {
+          "status": "unverified",
+          "scope": "Apple host build and runtime qualification required.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "web": {
+          "status": "unsupported",
+          "scope": "No supported Web generation or build adapter in this snapshot.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "windows": {
+          "status": "experimental",
+          "scope": "Native desktop compilation and selected runtime records. Locked-session template interaction remains open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        }
+      }
+    },
+    {
+      "id": "official/control/label",
+      "version": "0.1.0-dev",
+      "title": "Label",
+      "kind": "control",
+      "delivery": "package",
+      "license": "Apache-2.0",
+      "sdk_version": "0.1.0-dev",
+      "upstream_revision": "f8cfc7ed9e57503def9479138894f3139f5400cc",
+      "sources": [
+        {
+          "path": "LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "components/gpui-box-components/Cargo.toml",
+          "sha256": "0d22bb78af111b1c6ae07724d880f8fddf2d5c7abfdc24c85233df996d4adc1b"
+        },
+        {
+          "path": "components/gpui-box-components/src/lib.rs",
+          "sha256": "8dd7fbe98de19233b9496e21afa098e46398f2200adce7394ef976eae1a62abe"
+        }
+      ],
+      "dependencies": [
+        {
+          "id": "official/theme/default",
+          "version": "0.1.0-dev"
+        }
+      ],
+      "platforms": {
+        "android": {
+          "status": "experimental",
+          "scope": "API35 emulator and ARM64/x86_64 builds have separate acceptance records. Physical devices and actual reader speech remain open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "ios": {
+          "status": "unverified",
+          "scope": "Apple host and iOS backend acceptance required.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "linux": {
+          "status": "experimental",
+          "scope": "Hosted native desktop builds. Interactive X11/Wayland qualification remains open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "macos": {
+          "status": "unverified",
+          "scope": "Apple host build and runtime qualification required.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "web": {
+          "status": "unsupported",
+          "scope": "No supported Web generation or build adapter in this snapshot.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "windows": {
+          "status": "experimental",
+          "scope": "Native desktop compilation and selected runtime records. Locked-session template interaction remains open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        }
+      }
+    },
+    {
+      "id": "official/control/switch",
+      "version": "0.1.0-dev",
+      "title": "Switch",
+      "kind": "control",
+      "delivery": "package",
+      "license": "Apache-2.0",
+      "sdk_version": "0.1.0-dev",
+      "upstream_revision": "f8cfc7ed9e57503def9479138894f3139f5400cc",
+      "sources": [
+        {
+          "path": "LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "components/gpui-box-components/Cargo.toml",
+          "sha256": "0d22bb78af111b1c6ae07724d880f8fddf2d5c7abfdc24c85233df996d4adc1b"
+        },
+        {
+          "path": "components/gpui-box-components/src/lib.rs",
+          "sha256": "8dd7fbe98de19233b9496e21afa098e46398f2200adce7394ef976eae1a62abe"
+        }
+      ],
+      "dependencies": [
+        {
+          "id": "official/control/button",
+          "version": "0.1.0-dev"
+        },
+        {
+          "id": "official/theme/default",
+          "version": "0.1.0-dev"
+        }
+      ],
+      "platforms": {
+        "android": {
+          "status": "experimental",
+          "scope": "API35 emulator and ARM64/x86_64 builds have separate acceptance records. Physical devices and actual reader speech remain open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "ios": {
+          "status": "unverified",
+          "scope": "Apple host and iOS backend acceptance required.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "linux": {
+          "status": "experimental",
+          "scope": "Hosted native desktop builds. Interactive X11/Wayland qualification remains open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "macos": {
+          "status": "unverified",
+          "scope": "Apple host build and runtime qualification required.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "web": {
+          "status": "unsupported",
+          "scope": "No supported Web generation or build adapter in this snapshot.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "windows": {
+          "status": "experimental",
+          "scope": "Native desktop compilation and selected runtime records. Locked-session template interaction remains open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        }
+      }
+    },
+    {
+      "id": "official/control/text-field",
+      "version": "0.1.0-dev",
+      "title": "Text field",
+      "kind": "control",
+      "delivery": "package",
+      "license": "Apache-2.0",
+      "sdk_version": "0.1.0-dev",
+      "upstream_revision": "f8cfc7ed9e57503def9479138894f3139f5400cc",
+      "sources": [
+        {
+          "path": "LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "components/gpui-box-components/Cargo.toml",
+          "sha256": "0d22bb78af111b1c6ae07724d880f8fddf2d5c7abfdc24c85233df996d4adc1b"
+        },
+        {
+          "path": "components/gpui-box-components/src/input.rs",
+          "sha256": "cc1ffbe8ab79b0f38c7f73dea0b7b94230e74573a58d8f291be37769757a4fe2"
+        },
+        {
+          "path": "components/gpui-box-components/src/lib.rs",
+          "sha256": "8dd7fbe98de19233b9496e21afa098e46398f2200adce7394ef976eae1a62abe"
+        }
+      ],
+      "dependencies": [
+        {
+          "id": "official/theme/default",
+          "version": "0.1.0-dev"
+        }
+      ],
+      "platforms": {
+        "android": {
+          "status": "experimental",
+          "scope": "API35 emulator and ARM64/x86_64 builds have separate acceptance records. Physical devices and actual reader speech remain open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "ios": {
+          "status": "unverified",
+          "scope": "Apple host and iOS backend acceptance required.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "linux": {
+          "status": "experimental",
+          "scope": "Hosted native desktop builds. Interactive X11/Wayland qualification remains open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "macos": {
+          "status": "unverified",
+          "scope": "Apple host build and runtime qualification required.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "web": {
+          "status": "unsupported",
+          "scope": "No supported Web generation or build adapter in this snapshot.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "windows": {
+          "status": "experimental",
+          "scope": "Native desktop compilation and selected runtime records. Locked-session template interaction remains open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        }
+      }
+    },
+    {
+      "id": "official/template/adaptive",
+      "version": "0.1.0-dev",
+      "title": "Adaptive application template",
+      "kind": "template",
+      "delivery": "source",
+      "license": "Apache-2.0",
+      "sdk_version": "0.1.0-dev",
+      "upstream_revision": "f8cfc7ed9e57503def9479138894f3139f5400cc",
+      "sources": [
+        {
+          "path": "LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "templates/adaptive.rs",
+          "sha256": "e82effda51bffdc6f8b4a0788e7863a7e58ae4997c22cc99dacd04c04989b6b0"
+        }
+      ],
+      "dependencies": [
+        {
+          "id": "official/control/adaptive-shell",
+          "version": "0.1.0-dev"
+        },
+        {
+          "id": "official/control/button",
+          "version": "0.1.0-dev"
+        },
+        {
+          "id": "official/control/label",
+          "version": "0.1.0-dev"
+        },
+        {
+          "id": "official/control/text-field",
+          "version": "0.1.0-dev"
+        }
+      ],
+      "platforms": {
+        "android": {
+          "status": "experimental",
+          "scope": "API35 emulator and ARM64/x86_64 builds have separate acceptance records. Physical devices and actual reader speech remain open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "ios": {
+          "status": "unverified",
+          "scope": "Apple host and iOS backend acceptance required.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "linux": {
+          "status": "experimental",
+          "scope": "Hosted native desktop builds. Interactive X11/Wayland qualification remains open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "macos": {
+          "status": "unverified",
+          "scope": "Apple host build and runtime qualification required.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "web": {
+          "status": "unsupported",
+          "scope": "No supported Web generation or build adapter in this snapshot.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "windows": {
+          "status": "experimental",
+          "scope": "Native desktop compilation and selected runtime records. Locked-session template interaction remains open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        }
+      }
+    },
+    {
+      "id": "official/template/component",
+      "version": "0.1.0-dev",
+      "title": "Component application template",
+      "kind": "template",
+      "delivery": "source",
+      "license": "Apache-2.0",
+      "sdk_version": "0.1.0-dev",
+      "upstream_revision": "f8cfc7ed9e57503def9479138894f3139f5400cc",
+      "sources": [
+        {
+          "path": "LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "templates/component.rs",
+          "sha256": "36a0725ab6d1cc3cc2580c6e26d6c9b7c772c3c54aef28b6b010f414f8643a91"
+        }
+      ],
+      "dependencies": [
+        {
+          "id": "official/control/adaptive-shell",
+          "version": "0.1.0-dev"
+        },
+        {
+          "id": "official/control/button",
+          "version": "0.1.0-dev"
+        },
+        {
+          "id": "official/control/checkbox",
+          "version": "0.1.0-dev"
+        },
+        {
+          "id": "official/control/label",
+          "version": "0.1.0-dev"
+        },
+        {
+          "id": "official/control/switch",
+          "version": "0.1.0-dev"
+        },
+        {
+          "id": "official/control/text-field",
+          "version": "0.1.0-dev"
+        }
+      ],
+      "platforms": {
+        "android": {
+          "status": "experimental",
+          "scope": "API35 emulator and ARM64/x86_64 builds have separate acceptance records. Physical devices and actual reader speech remain open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "ios": {
+          "status": "unverified",
+          "scope": "Apple host and iOS backend acceptance required.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "linux": {
+          "status": "experimental",
+          "scope": "Hosted native desktop builds. Interactive X11/Wayland qualification remains open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "macos": {
+          "status": "unverified",
+          "scope": "Apple host build and runtime qualification required.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "web": {
+          "status": "unsupported",
+          "scope": "No supported Web generation or build adapter in this snapshot.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "windows": {
+          "status": "experimental",
+          "scope": "Native desktop compilation and selected runtime records. Locked-session template interaction remains open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        }
+      }
+    },
+    {
+      "id": "official/template/starter",
+      "version": "0.1.0-dev",
+      "title": "Starter application template",
+      "kind": "template",
+      "delivery": "source",
+      "license": "Apache-2.0",
+      "sdk_version": "0.1.0-dev",
+      "upstream_revision": "f8cfc7ed9e57503def9479138894f3139f5400cc",
+      "sources": [
+        {
+          "path": "LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "templates/app.rs",
+          "sha256": "271fb941983d92805032a663060ea2f4f682d390205513722b59a001e8b994ee"
+        }
+      ],
+      "dependencies": [
+        {
+          "id": "official/control/button",
+          "version": "0.1.0-dev"
+        },
+        {
+          "id": "official/control/label",
+          "version": "0.1.0-dev"
+        },
+        {
+          "id": "official/control/text-field",
+          "version": "0.1.0-dev"
+        }
+      ],
+      "platforms": {
+        "android": {
+          "status": "experimental",
+          "scope": "API35 emulator and ARM64/x86_64 builds have separate acceptance records. Physical devices and actual reader speech remain open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "ios": {
+          "status": "unverified",
+          "scope": "Apple host and iOS backend acceptance required.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "linux": {
+          "status": "experimental",
+          "scope": "Hosted native desktop builds. Interactive X11/Wayland qualification remains open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "macos": {
+          "status": "unverified",
+          "scope": "Apple host build and runtime qualification required.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "web": {
+          "status": "unsupported",
+          "scope": "No supported Web generation or build adapter in this snapshot.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "windows": {
+          "status": "experimental",
+          "scope": "Native desktop compilation and selected runtime records. Locked-session template interaction remains open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        }
+      }
+    },
+    {
+      "id": "official/template/workbench",
+      "version": "0.1.0-dev",
+      "title": "Workbench application template",
+      "kind": "template",
+      "delivery": "source",
+      "license": "Apache-2.0",
+      "sdk_version": "0.1.0-dev",
+      "upstream_revision": "f8cfc7ed9e57503def9479138894f3139f5400cc",
+      "sources": [
+        {
+          "path": "LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "templates/workbench.rs",
+          "sha256": "ae9aa23acb7ffdc3dc0d7f418080e6beac3c0f558d591e8f3bcc044da3f44452"
+        },
+        {
+          "path": "templates/workbench/contracts.rs",
+          "sha256": "946b31826f04568165d9b7d782e53f0da3d17b012ca2d76c10c213aa14cd26e7"
+        },
+        {
+          "path": "templates/workbench/documents.rs",
+          "sha256": "4aa4e73181db95f47721d456e1ca2421b576a7179ccfed3d49b72d93ac8418bc"
+        },
+        {
+          "path": "templates/workbench/providers.rs",
+          "sha256": "a9000317692211211749963c1a5cea77df0993503d2420d7f3d8b02c599ec07d"
+        },
+        {
+          "path": "templates/workbench/search.rs",
+          "sha256": "c4045c9212ef6d890b6fb5ba4a2169cb97c269350f2805722698ff82596e8d49"
+        }
+      ],
+      "dependencies": [
+        {
+          "id": "official/capability/commands",
+          "version": "0.1.0-dev"
+        },
+        {
+          "id": "official/control/adaptive-shell",
+          "version": "0.1.0-dev"
+        },
+        {
+          "id": "official/control/button",
+          "version": "0.1.0-dev"
+        },
+        {
+          "id": "official/control/label",
+          "version": "0.1.0-dev"
+        },
+        {
+          "id": "official/control/text-field",
+          "version": "0.1.0-dev"
+        }
+      ],
+      "platforms": {
+        "android": {
+          "status": "experimental",
+          "scope": "API35 emulator and ARM64/x86_64 builds have separate acceptance records. Physical devices and actual reader speech remain open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "ios": {
+          "status": "unverified",
+          "scope": "Apple host and iOS backend acceptance required.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "linux": {
+          "status": "experimental",
+          "scope": "Hosted native desktop builds. Interactive X11/Wayland qualification remains open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "macos": {
+          "status": "unverified",
+          "scope": "Apple host build and runtime qualification required.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "web": {
+          "status": "unsupported",
+          "scope": "No supported Web generation or build adapter in this snapshot.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "windows": {
+          "status": "experimental",
+          "scope": "Native desktop compilation and selected runtime records. Locked-session template interaction remains open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        }
+      }
+    },
+    {
+      "id": "official/theme/default",
+      "version": "0.1.0-dev",
+      "title": "Default light and dark tokens",
+      "kind": "theme",
+      "delivery": "package",
+      "license": "Apache-2.0",
+      "sdk_version": "0.1.0-dev",
+      "upstream_revision": "f8cfc7ed9e57503def9479138894f3139f5400cc",
+      "sources": [
+        {
+          "path": "LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "components/gpui-box-components/Cargo.toml",
+          "sha256": "0d22bb78af111b1c6ae07724d880f8fddf2d5c7abfdc24c85233df996d4adc1b"
+        },
+        {
+          "path": "components/gpui-box-components/src/lib.rs",
+          "sha256": "8dd7fbe98de19233b9496e21afa098e46398f2200adce7394ef976eae1a62abe"
+        }
+      ],
+      "dependencies": [],
+      "platforms": {
+        "android": {
+          "status": "experimental",
+          "scope": "API35 emulator and ARM64/x86_64 builds have separate acceptance records. Physical devices and actual reader speech remain open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "ios": {
+          "status": "unverified",
+          "scope": "Apple host and iOS backend acceptance required.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "linux": {
+          "status": "experimental",
+          "scope": "Hosted native desktop builds. Interactive X11/Wayland qualification remains open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "macos": {
+          "status": "unverified",
+          "scope": "Apple host build and runtime qualification required.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "web": {
+          "status": "unsupported",
+          "scope": "No supported Web generation or build adapter in this snapshot.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        },
+        "windows": {
+          "status": "experimental",
+          "scope": "Native desktop compilation and selected runtime records. Locked-session template interaction remains open.",
+          "evidence": "docs/M3_DEVELOPER_WORKFLOW.md"
+        }
+      }
+    }
+  ]
+}

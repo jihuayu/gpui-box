@@ -27,6 +27,30 @@ pub struct ErrorReference {
 
 const COMMANDS: &[CommandReference] = &[
     CommandReference {
+        syntax: "list",
+        summary: "List the bundled official registry with platform evidence",
+        result: "RegistryView v1 with immutable snapshot digest",
+        effects: "Read embedded metadata. Installation tracking is unavailable",
+        offline: "Bundled snapshot only. No project, tools or network required",
+        json: true,
+    },
+    CommandReference {
+        syntax: "info ITEM",
+        summary: "Describe one exact namespaced registry entry",
+        result: "RegistryView v1 containing one entry",
+        effects: "Read embedded metadata",
+        offline: "Bundled snapshot only. No project, tools or network required",
+        json: true,
+    },
+    CommandReference {
+        syntax: "registry resolve ITEMS...",
+        summary: "Resolve the bundled dependency closure in deterministic order",
+        result: "Resolution v1 with exact versions, source digests and platform evidence",
+        effects: "Read embedded metadata without applying an installation",
+        offline: "Bundled snapshot only. No source fetching, tools or network required",
+        json: true,
+    },
+    CommandReference {
         syntax: "new PATH --distribution PATH [--targets desktop,android] [--template starter|adaptive|component|workbench]",
         summary: "Create a version-1 application in a new directory",
         result: "Destination and template identity",
@@ -200,6 +224,14 @@ const NOTES: &[&str] = &[
 ];
 
 const ERRORS: &[ErrorReference] = &[
+    ErrorReference {
+        code: "REGISTRY_QUERY_FAILED",
+        meaning: "Bundled registry validation failed or the requested item is unknown",
+    },
+    ErrorReference {
+        code: "REGISTRY_RESOLUTION_FAILED",
+        meaning: "Registry identity, metadata or dependency closure is incompatible, missing or cyclic",
+    },
     ErrorReference {
         code: "REFERENCE_FAILED",
         meaning: "Built-in command reference serialization failed",
