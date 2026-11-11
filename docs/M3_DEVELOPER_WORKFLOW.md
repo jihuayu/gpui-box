@@ -129,3 +129,24 @@ registration, native permission descriptions and provider evidence inspection.
 The source-checkout template and debug workflows are implemented. Portable
 packaged template distribution, release signing/profile/feature options, broader
 host diagnostics and non-Windows template qualification remain separate gates.
+
+## Typed service declaration continuation
+
+Service schema v1 adds permission kinds with printable contextual purpose strings
+and lowercase custom URL schemes. Unknown provider objects, versions, duplicate
+kinds/schemes, web/resource schemes and unsupported platforms fail validation.
+Generation emits requested native permissions, singleTop custom-scheme intent
+filters and a managed `gpui-box-services.json` asset. Regeneration removes obsolete
+declarations and preserves application source/customization points. Existing
+configurations can omit services. The starter README includes the schema example.
+
+Doctor reports configured permissions and schemes separately from runtime evidence.
+Permission declarations alone do not install #20's native provider. Document,
+notification/share/export provider schemas remain with their integration gates.
+Custom URL delivery consumes the generated asset and forwards stable IDs through
+an application-owned callback. The host provides bounded transient retries and
+process-local deduplication. Durable routing uses #24's inbox on a worker.
+
+CLI tests now total 11, including typed generation/removal and malformed or
+unsupported declaration rejection. The source-checkout dependency and debug-key
+packaging boundaries from the first delivery continue to apply.

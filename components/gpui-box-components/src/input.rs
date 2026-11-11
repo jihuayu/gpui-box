@@ -808,6 +808,36 @@ impl TextInput {
     pub fn value(&self) -> &str {
         &self.content
     }
+    /// Directed byte selection for versioned application-owned restoration.
+    pub fn selection(&self) -> (usize, usize) {
+        if self.selection_reversed {
+            (self.selected_range.end, self.selected_range.start)
+        } else {
+            (self.selected_range.start, self.selected_range.end)
+        }
+    }
+    /// Restore a draft at scalar boundaries. IME composition belongs to the old
+    /// connection and is finished when restoring into a fresh process.
+    pub fn restore_draft(
+        &mut self,
+        value: &str,
+        anchor: usize,
+        focus: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_value(value.to_owned(), window, cx);
+        let boundary = |offset: usize| {
+            let mut offset = offset.min(value.len());
+            while !value.is_char_boundary(offset) {
+                offset -= 1;
+            }
+            offset
+        };
+        let (anchor, focus) = (boundary(anchor), boundary(focus));
+        self.selection_reversed = anchor > focus;
+        self.selected_range = anchor.min(focus)..anchor.max(focus);
+    }
     pub fn set_value(
         &mut self,
         value: impl Into<SharedString>,
@@ -816,6 +846,7 @@ impl TextInput {
     ) {
         self.content = value.into();
         self.selected_range = self.content.len()..self.content.len();
+        self.selection_reversed = false;
         self.marked_range = None;
         window.notify_text_input_changed(&self.focus_handle);
         cx.notify();

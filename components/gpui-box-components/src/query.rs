@@ -236,4 +236,16 @@ mod tests {
         drop(client);
         assert!(active.reason().is_some());
     }
+
+    #[test]
+    fn client_identity_rejects_matching_request_and_mutation_numbers() {
+        let mut first = QueryClient::default();
+        let mut second = QueryClient::default();
+        let foreign = first.start("items");
+        let current = second.start("items");
+        assert!(!second.complete(&"items", &foreign, Ok(1)));
+        assert!(!second.reconcile(&first.mutation("items"), 2));
+        assert!(second.complete(&"items", &current, Ok(3)));
+        assert_eq!(second.state(&"items").unwrap().value, Some(3));
+    }
 }

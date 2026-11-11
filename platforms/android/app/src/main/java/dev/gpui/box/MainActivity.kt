@@ -2,6 +2,15 @@ package dev.gpui.box
 
 import android.app.Activity
 import android.content.Intent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
+import android.app.KeyguardManager
+import android.content.res.Configuration
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
 import android.os.Bundle
 import android.content.ComponentCallbacks2
 import android.util.Log
@@ -19,6 +28,31 @@ class MainActivity : Activity() {
     private var backRegistered = false
     private var predictiveClaimed = false
     private var predictiveStarted = false
+    private var resumed = false
+    private var started = false
+    private val lockReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) { updateHostState() }
+    }
+    private val motionObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean) { updateHostState() }
+    }
+    fun updateHostState() {
+        if (!::gpui.isInitialized || gpui.generation == 0L) return
+        val config = resources.configuration
+        NativeBridge.hostState(gpui.generation, started, resumed && hasWindowFocus(),
+            getSystemService(KeyguardManager::class.java).isDeviceLocked,
+            config.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES,
+            config.fontScale, config.locales[0].toLanguageTag(),
+            Settings.Global.getFloat(contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f)
+    }
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        updateHostState()
+    }
+    override fun onConfigurationChanged(configuration: Configuration) {
+        super.onConfigurationChanged(configuration)
+        updateHostState()
+    }
     private val backCallback = object : OnBackAnimationCallback {
         override fun onBackStarted(event: BackEvent) {
             // Android 15 ViewRootImpl sends a synthetic (0, 0) start for
@@ -64,6 +98,7 @@ class MainActivity : Activity() {
     }
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
+        state?.getByteArray("gpui-box.application-state")?.let(NativeBridge::restoreState)
         gpui = GpuiView(this)
         services = GpuiServices(this)
         val saved = state?.getStringArrayList("gpui-box.pending-urls")
@@ -92,6 +127,13 @@ class MainActivity : Activity() {
         })
         setContentView(content)
         NativeBridge.bind(gpui)
+        registerReceiver(lockReceiver, IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_USER_PRESENT)
+        }, RECEIVER_NOT_EXPORTED)
+        contentResolver.registerContentObserver(
+            Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE), false, motionObserver)
     }
     private fun enqueueUrl(intent: Intent) {
         if (!services.accepts(intent)) return
@@ -110,6 +152,7 @@ class MainActivity : Activity() {
         deliverPendingUrls()
     }
     override fun onSaveInstanceState(state: Bundle) {
+        state.putByteArray("gpui-box.application-state", NativeBridge.saveState())
         state.putStringArrayList("gpui-box.pending-urls", ArrayList(pendingUrls.map { "${it.first}\n${it.second}" }))
         super.onSaveInstanceState(state)
     }
@@ -121,9 +164,13 @@ class MainActivity : Activity() {
         }
     }
     fun openUrl(url: String) = services.openUrl(url)
-    override fun onResume() { super.onResume(); gpui.setResumed(true); updateBackRegistration() }
-    override fun onPause() { backCallback.onBackCancelled(); gpui.setResumed(false); super.onPause() }
+    override fun onStart() { super.onStart(); started = true; updateHostState() }
+    override fun onStop() { started = false; updateHostState(); super.onStop() }
+    override fun onResume() { super.onResume(); resumed = true; gpui.setResumed(true); updateHostState(); updateBackRegistration() }
+    override fun onPause() { resumed = false; backCallback.onBackCancelled(); gpui.setResumed(false); updateHostState(); super.onPause() }
     override fun onDestroy() {
+        unregisterReceiver(lockReceiver)
+        contentResolver.unregisterContentObserver(motionObserver)
         if (backRegistered) onBackInvokedDispatcher.unregisterOnBackInvokedCallback(backCallback)
         NativeBridge.unbind(gpui)
         super.onDestroy()

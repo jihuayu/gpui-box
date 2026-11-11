@@ -58,6 +58,7 @@ class GpuiView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
             attached = true
         }
         NativeBridge.lifecycle(generation, resumed)
+        (context as? MainActivity)?.updateHostState()
         updateAccessibility()
         (context as? MainActivity)?.updateBackRegistration()
         scheduleFrame()

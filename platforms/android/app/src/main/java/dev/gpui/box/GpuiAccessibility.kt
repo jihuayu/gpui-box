@@ -65,7 +65,7 @@ class GpuiAccessibility(private val view: GpuiView) : AccessibilityNodeProvider(
                 if (node.optString("value") != prior.optString("value")) {
                     val type = if (node.optBoolean("editable")) AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED
                         else if (node.optBoolean("live")) AccessibilityEvent.TYPE_ANNOUNCEMENT else continue
-                    event(id, type)
+                    event(id, type, prior)
                 }
             }
         }
@@ -78,10 +78,26 @@ class GpuiAccessibility(private val view: GpuiView) : AccessibilityNodeProvider(
         ) else Rect(0, 0, view.width, view.height)
     }
     private fun exposed(node: JSONObject) = !node.optBoolean("hidden") && !node.optBoolean("textRun")
+    private fun hitTest(id: Int, x: Int, y: Int, visited: MutableSet<Int>): Int {
+        if (!visited.add(id)) return -1
+        val node = nodes[id] ?: return -1
+        if (!exposed(node)) return -1
+        val children = node.getJSONArray("children")
+        // Later siblings paint above earlier siblings. Descendants precede containers.
+        for (index in children.length() - 1 downTo 0) {
+            val child = ids[children.getString(index)] ?: continue
+            val target = hitTest(child, x, y, visited)
+            if (target != -1) return target
+        }
+        return if (node.has("bounds") && bounds(node).contains(x, y) &&
+            (node.optBoolean("focusable") || node.optBoolean("clickable") ||
+                !node.optString("label").let { it.isEmpty() || it == "null" } ||
+                !node.optString("value").let { it.isEmpty() || it == "null" })) id else -1
+    }
     fun hover(motion: MotionEvent): Boolean {
         if (!manager.isEnabled || !manager.isTouchExplorationEnabled) return false
         val target = if (motion.actionMasked == MotionEvent.ACTION_HOVER_EXIT) -1 else
-            nodes.entries.lastOrNull { (_, node) -> exposed(node) && bounds(node).contains(motion.x.toInt(), motion.y.toInt()) }?.key ?: -1
+            hitTest(root, motion.x.toInt(), motion.y.toInt(), mutableSetOf())
         if (hovered != target) {
             if (hovered != -1) event(hovered, AccessibilityEvent.TYPE_VIEW_HOVER_EXIT)
             hovered = target
@@ -191,7 +207,7 @@ class GpuiAccessibility(private val view: GpuiView) : AccessibilityNodeProvider(
         } else arguments?.getCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE)?.toString() ?: ""
         return NativeBridge.accessibilityAction(view.generation, node.getString("id").toULong().toLong(), operation, text)
     }
-    private fun event(id: Int, type: Int) {
+    private fun event(id: Int, type: Int, prior: JSONObject? = null) {
         if (!manager.isEnabled) return
         val event = AccessibilityEvent.obtain(type)
         event.setSource(view, id)
@@ -200,10 +216,22 @@ class GpuiAccessibility(private val view: GpuiView) : AccessibilityNodeProvider(
         nodes[id]?.let { node ->
             val value = node.optString("value").takeUnless { it == "null" } ?: node.optString("label").takeUnless { it == "null" }
             if (value != null) event.text.add(value)
+            if (type == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED && prior != null) {
+                val before = prior.optString("value").takeUnless { it == "null" } ?: ""
+                val after = value ?: ""
+                val prefix = before.commonPrefixWith(after).length
+                val suffix = before.substring(prefix).commonSuffixWith(after.substring(prefix)).length
+                event.beforeText = before
+                event.fromIndex = prefix
+                event.removedCount = before.length - prefix - suffix
+                event.addedCount = after.length - prefix - suffix
+            }
             node.optJSONArray("selection")?.let { selection ->
-                event.fromIndex = selection.getInt(0)
-                event.toIndex = selection.getInt(1)
-                event.itemCount = value?.length ?: 0
+                if (type == AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED) {
+                    event.fromIndex = selection.getInt(0)
+                    event.toIndex = selection.getInt(1)
+                    event.itemCount = value?.length ?: 0
+                }
             }
         }
         view.parent?.requestSendAccessibilityEvent(view, event)

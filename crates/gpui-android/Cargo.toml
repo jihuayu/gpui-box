@@ -10,6 +10,7 @@ publish.workspace = true
 
 [target.'cfg(target_os = "android")'.dependencies]
 gpui.workspace = true
+gpui-lifecycle = { workspace = true, features = ["gpui"] }
 gpui_wgpu = { path = "../../vendor/gpui/crates/gpui_wgpu" }
 anyhow = "1.0"
 accesskit = "0.24.0"

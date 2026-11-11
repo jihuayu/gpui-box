@@ -107,7 +107,7 @@ impl Platform for AndroidPlatform {
         Ok(Box::new(AndroidWindow(self.window.clone())))
     }
     fn window_appearance(&self) -> WindowAppearance {
-        WindowAppearance::Dark
+        self.window.appearance.get()
     }
     fn open_url(&self, url: &str) {
         super::bridge::open_url(url);

@@ -213,7 +213,9 @@ class PlatformFoundationTest {
             if (keyboardVisible) SystemClock.sleep(50)
         }
         assertFalse("The IME must finish hiding before testing navigation back", keyboardVisible)
-        instrumentation.uiAutomation.waitForIdle(500, 5_000)
+        // Accessibility activation can restore editor focus and reopen the IME
+        // after the visibility check. This navigation-only case keeps it disabled.
+        instrumentation.getUiAutomation(android.app.UiAutomation.FLAG_DONT_USE_ACCESSIBILITY)
         instrumentation.waitForIdleSync()
         instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         // A native back callback updates Rust state, then GPUI removes the old

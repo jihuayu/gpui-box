@@ -2041,6 +2041,7 @@ dependencies = [
  "anyhow",
  "futures",
  "gpui",
+ "gpui-lifecycle",
  "gpui_wgpu",
  "jni",
  "log",
@@ -2123,6 +2124,7 @@ dependencies = [
  "gpui",
  "gpui-android",
  "gpui-box-components",
+ "gpui-lifecycle",
 ]
 
 [[package]]

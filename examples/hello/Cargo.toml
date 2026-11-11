@@ -12,6 +12,7 @@ gpui-box-components = { path = "../../components/gpui-box-components" }
 
 [target.'cfg(target_os = "android")'.dependencies]
 gpui-android.workspace = true
+gpui-lifecycle.workspace = true
 
 [lints]
 workspace = true

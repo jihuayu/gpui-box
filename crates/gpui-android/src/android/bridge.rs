@@ -26,6 +26,41 @@ thread_local! {
     static RUNTIME: RefCell<Option<Rc<Runtime>>> = const { RefCell::new(None) };
     static LAUNCH: RefCell<Option<fn(&mut App)>> = const { RefCell::new(None) };
     static ACTIVATION: super::CallbackSlot<Box<dyn FnMut(&str, &str) -> bool>> = super::CallbackSlot::default();
+    static SAVE_STATE: super::CallbackSlot<Box<dyn FnMut() -> Vec<u8>>> = super::CallbackSlot::default();
+    static RESTORED_STATE: RefCell<Option<Vec<u8>>> = const { RefCell::new(None) };
+}
+
+/// Register application-owned versioned UI state. Android may reclaim a stopped
+/// process, so persist durable business data separately through private storage.
+/// The host bounds this transient Activity state to 128 KiB.
+pub fn on_saved_state(save: impl FnMut() -> Vec<u8> + 'static) {
+    SAVE_STATE.with(|slot| slot.set(Box::new(save)));
+}
+
+/// Consume state through the launch callback's App context after constructing
+/// the application model, preserving GPUI's existing mutable-borrow ownership.
+pub fn take_saved_state() -> Option<Vec<u8>> {
+    RESTORED_STATE.with(|slot| slot.borrow_mut().take())
+}
+
+pub fn save_state() -> Vec<u8> {
+    let value = SAVE_STATE
+        .with(|slot| slot.with(|save| save()))
+        .unwrap_or_default();
+    if value.len() > 128 * 1024 {
+        log::warn!("Application UI snapshot exceeds the 128 KiB Activity limit");
+        Vec::new()
+    } else {
+        value
+    }
+}
+
+pub fn restore_state(value: Vec<u8>) {
+    // Activity recreation retains the authoritative live Rust model. A saved
+    // Bundle is consumed only when a new process has not launched its model yet.
+    if runtime().is_none() && value.len() <= 128 * 1024 {
+        RESTORED_STATE.with(|slot| slot.replace(Some(value)));
+    }
 }
 
 /// Install an application-owned activation handoff. Return true only after
@@ -159,7 +194,11 @@ pub fn attach(
         let launch = LAUNCH
             .with(|slot| *slot.borrow())
             .ok_or_else(|| anyhow::anyhow!("initialize must precede attach"))?;
-        let application = Application::with_platform(platform.clone()).run_embedded(launch);
+        let application = Application::with_platform(platform.clone()).run_embedded(move |cx| {
+            gpui_lifecycle::gpui_adapter::install_lifecycle_service(super::lifecycle_service(), cx)
+                .expect("install process-owned Android lifecycle service");
+            launch(cx);
+        });
         RUNTIME.with(|slot| {
             slot.replace(Some(Rc::new(Runtime {
                 platform,
@@ -169,6 +208,7 @@ pub fn attach(
             })))
         });
     }
+    super::host::attach(generation);
     log::info!("Surface attached generation={generation} {width}x{height} density={scale}");
     post(0);
     Ok(())
@@ -179,6 +219,7 @@ pub fn detach(generation: u64) {
     if let Some(runtime) = runtime() {
         runtime.platform.window.detach(generation);
     }
+    super::host::detach(generation);
     log::info!("Surface detached generation={generation}");
 }
 
@@ -211,6 +252,7 @@ pub fn lifecycle(generation: u64, resumed: bool) {
         back_gesture(generation, 3, 0., 0., 0.);
     }
     if let Some(window) = window(generation) {
+        super::host::visibility(generation, resumed);
         window.set_visible(resumed);
         if let Some(runtime) = runtime() {
             runtime.platform.lifecycle.with(|cb| {
@@ -341,6 +383,7 @@ pub fn back_gesture(generation: u64, phase: i32, x: f32, y: f32, progress: f32) 
 }
 
 pub fn memory_warning() {
+    super::host::memory_warning();
     if let Some(runtime) = runtime() {
         runtime.platform.memory_warning.with(|callback| callback());
         post(0);
@@ -414,6 +457,7 @@ pub fn key(generation: u64, key: &str, modifiers: i32, down: bool, held: bool) -
     let Some(window) = window(generation).filter(|w| w.visible.get()) else {
         return false;
     };
+    super::host::input();
     let keystroke = Keystroke {
         key: key.into(),
         modifiers: Modifiers {
@@ -495,6 +539,9 @@ pub fn touch(generation: u64, id: u64, phase: i32, x: f32, y: f32) {
     let Some(window) = window(generation) else {
         return;
     };
+    if window.visible.get() && phase == 0 {
+        super::host::input();
+    }
     let phase = match phase {
         0 => TouchPhase::Started,
         1 => TouchPhase::Moved,

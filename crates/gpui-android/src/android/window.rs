@@ -49,6 +49,8 @@ pub(super) struct WindowState {
     pub insets_changed: CallbackSlot<Box<dyn FnMut(WindowInsets)>>,
     pub handle: Cell<Option<AnyWindowHandle>>,
     pub visible: Cell<bool>,
+    pub appearance: Cell<WindowAppearance>,
+    pub appearance_changed: CallbackSlot<Box<dyn FnMut()>>,
     pub input_handler: CallbackSlot<PlatformInputHandler>,
     input_focus: Cell<Option<FocusId>>,
     pub input_epoch: Cell<u64>,
@@ -116,6 +118,8 @@ impl WindowState {
             insets_changed: CallbackSlot::default(),
             handle: Cell::new(None),
             visible: Cell::new(true),
+            appearance: Cell::new(WindowAppearance::Dark),
+            appearance_changed: CallbackSlot::default(),
             input_handler: CallbackSlot::default(),
             input_focus: Cell::new(None),
             input_epoch: Cell::new(1),
@@ -294,7 +298,7 @@ impl PlatformWindow for AndroidWindow {
         self.0.scale.get()
     }
     fn appearance(&self) -> WindowAppearance {
-        WindowAppearance::Dark
+        self.0.appearance.get()
     }
     fn display(&self) -> Option<Rc<dyn PlatformDisplay>> {
         Some(self.0.clone())
@@ -376,7 +380,9 @@ impl PlatformWindow for AndroidWindow {
     fn on_should_close(&self, _: Box<dyn FnMut() -> bool>) {}
     fn on_hit_test_window_control(&self, _: Box<dyn FnMut() -> Option<WindowControlArea>>) {}
     fn on_close(&self, _: Box<dyn FnOnce()>) {}
-    fn on_appearance_changed(&self, _: Box<dyn FnMut()>) {}
+    fn on_appearance_changed(&self, callback: Box<dyn FnMut()>) {
+        self.0.appearance_changed.set(callback);
+    }
     fn draw(&self, scene: &Scene) {
         if self.0.surface.borrow().is_some() {
             self.0.renderer.borrow_mut().draw(scene);

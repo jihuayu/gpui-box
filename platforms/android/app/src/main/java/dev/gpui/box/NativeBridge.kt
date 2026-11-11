@@ -89,6 +89,11 @@ object NativeBridge {
     @JvmStatic external fun resize(generation: Long, width: Int, height: Int, density: Float)
     @JvmStatic external fun frame(generation: Long)
     @JvmStatic external fun lifecycle(generation: Long, resumed: Boolean)
+    @JvmStatic external fun hostState(generation: Long, resumed: Boolean, focused: Boolean,
+        locked: Boolean, dark: Boolean, textScale: Float, locale: String, reducedMotion: Boolean)
+    @JvmStatic external fun hostSnapshot(): String
+    @JvmStatic external fun saveState(): ByteArray
+    @JvmStatic external fun restoreState(state: ByteArray)
     @JvmStatic external fun touch(generation: Long, id: Long, phase: Int, x: Float, y: Float)
     @JvmStatic external fun text(generation: Long): String
     @JvmStatic external fun textState(generation: Long): IntArray

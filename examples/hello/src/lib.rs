@@ -482,6 +482,15 @@ pub fn open(cx: &mut App) {
         .expect("open shared example");
     #[cfg(target_os = "android")]
     {
+        let mut save_app = cx.to_async();
+        gpui_android::on_saved_state(move || {
+            window
+                .update(&mut save_app, |view, window, cx| view.snapshot(window, cx))
+                .unwrap_or_default()
+        });
+        if let Some(bytes) = gpui_android::take_saved_state() {
+            let _ = window.update(cx, |view, window, cx| view.restore(&bytes, window, cx));
+        }
         let mut app = cx.to_async();
         gpui_android::on_activation(move |_, _| {
             window
@@ -496,4 +505,100 @@ pub fn open(cx: &mut App) {
     #[cfg(not(target_os = "android"))]
     let _ = window;
     cx.activate(true);
+}
+
+#[cfg(target_os = "android")]
+impl Hello {
+    fn snapshot(&self, window: &Window, cx: &App) -> Vec<u8> {
+        use gpui_lifecycle::*;
+        let preferences = self.preferences.snapshot(cx);
+        let route = RouteIdentity::new(if self.gallery_open {
+            "gallery"
+        } else {
+            "platform"
+        })
+        .with_param("count", self.count.to_string())
+        .with_param("dark", preferences.dark.to_string())
+        .with_param("checked", preferences.checked.to_string())
+        .with_param("large_text", preferences.large_text.to_string());
+        let generation = gpui_android::lifecycle_service()
+            .surface(SurfaceId(1))
+            .map_or(0, |s| s.generation);
+        let mut snapshot = VersionedSnapshot::new(SchemaVersion(1), generation, route);
+        for (name, controller, committed) in [
+            ("primary", &self.input, self.committed.get(cx)),
+            ("secondary", &self.secondary_input, String::new()),
+        ] {
+            let input = controller.read(cx);
+            let (anchor, focus) = input.selection();
+            let text = input.value();
+            let utf16 = |offset| text[..offset].encode_utf16().count() as u32;
+            let draft = FieldDraft::new(name)
+                .with_text(committed, text)
+                .with_selection(
+                    SelectionRange::new(utf16(anchor), utf16(focus)),
+                    SelectionRange::new(anchor as u32, focus as u32),
+                );
+            snapshot.drafts.insert(name.into(), draft);
+            if input.focus_handle(cx).is_focused(window) {
+                snapshot.focus = Some(FocusTarget::new(name));
+            }
+        }
+        snapshot.encode()
+    }
+
+    fn restore(&mut self, bytes: &[u8], window: &mut Window, cx: &mut Context<Self>) {
+        use gpui_lifecycle::*;
+        let Ok(snapshot) = VersionedSnapshot::decode(bytes) else {
+            return;
+        };
+        if snapshot.schema != SchemaVersion(1) {
+            return;
+        }
+        self.gallery_open = snapshot.route.name == "gallery";
+        self.count = snapshot
+            .route
+            .param("count")
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0);
+        self.preferences.command(
+            |preferences| {
+                preferences.dark = snapshot.route.param("dark") != Some("false");
+                preferences.checked = snapshot.route.param("checked") == Some("true");
+                preferences.large_text = snapshot.route.param("large_text") == Some("true");
+            },
+            cx,
+        );
+        let preferences = self.preferences.snapshot(cx);
+        let mut theme = if preferences.dark {
+            gpui_box_components::Theme::DARK
+        } else {
+            gpui_box_components::Theme::LIGHT
+        };
+        theme.text_scale = if preferences.large_text { 1.5 } else { 1.0 };
+        for (name, controller) in [
+            ("primary", self.input.clone()),
+            ("secondary", self.secondary_input.clone()),
+        ] {
+            if let Some(draft) = snapshot.drafts.get(name) {
+                controller.update(cx, |input, cx| {
+                    input.set_theme(theme, cx);
+                    input.restore_draft(
+                        &draft.draft,
+                        draft.selection_bytes.anchor as usize,
+                        draft.selection_bytes.focus as usize,
+                        window,
+                        cx,
+                    );
+                    if snapshot.focus.as_ref().is_some_and(|f| f.as_str() == name) {
+                        input.focus_handle(cx).focus(window, cx);
+                    }
+                });
+                if name == "primary" {
+                    self.committed.set(draft.committed.clone(), cx);
+                }
+            }
+        }
+        cx.notify();
+    }
 }
