@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 /** Stable, process-owned bridge. Requests always unwind Rust before host work. */
 object NativeBridge {
-    @Volatile private var storageContext: Context? = null
+    @Volatile private var storageApplication: android.app.Application? = null
     private val handler = Handler(Looper.getMainLooper())
     private var view = WeakReference<GpuiView>(null)
     private val generations = AtomicLong()
@@ -23,12 +23,12 @@ object NativeBridge {
 
     fun installStorageContext(context: Context) {
         checkMain()
-        storageContext = context.applicationContext
+        storageApplication = context.applicationContext as android.app.Application
     }
     /** Worker-only application roots. Never retain an Activity for storage. */
     @JvmStatic fun storageDirectories(): String {
         check(Looper.myLooper() !== Looper.getMainLooper()) { "Private storage requires a worker" }
-        val context = checkNotNull(storageContext) { "Private storage host is not installed" }
+        val context = checkNotNull(storageApplication) { "Private storage host is not installed" }
         val durable = java.io.File(context.noBackupFilesDir, "gpui-box")
         return org.json.JSONObject().apply {
             for (name in listOf("control", "config", "data", "logs", "temporary")) {
