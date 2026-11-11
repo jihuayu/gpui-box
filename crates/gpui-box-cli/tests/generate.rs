@@ -106,6 +106,218 @@ fn new_never_overwrites_an_existing_destination() {
 }
 
 #[test]
+fn selected_targets_generate_only_the_requested_starter_platform() {
+    let temporary = tempfile::tempdir().unwrap();
+    for target in ["desktop", "android"] {
+        let app = temporary.path().join(format!("{target} 有 空格"));
+        let output = cli(
+            temporary.path(),
+            &[
+                "new",
+                app.to_str().unwrap(),
+                "--targets",
+                target,
+                "--distribution",
+                distribution().to_str().unwrap(),
+                "--json",
+            ],
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let manifest = fs::read_to_string(app.join("Cargo.toml")).unwrap();
+        assert!(manifest.contains(&format!("members = [\"app\",\"{target}\"]")));
+        assert_eq!(app.join("desktop").exists(), target == "desktop");
+        assert_eq!(app.join("android").exists(), target == "android");
+        assert_eq!(app.join("android-host").exists(), target == "android");
+        assert_eq!(app.join("mise.android.toml").exists(), target == "android");
+        let provenance: serde_json::Value =
+            serde_json::from_slice(&fs::read(app.join(".gpui-box/template.json")).unwrap())
+                .unwrap();
+        assert_eq!(provenance["template"], "starter");
+        assert_eq!(provenance["template_version"], 1);
+        assert_eq!(provenance["targets"], serde_json::json!([target]));
+        let output = cli(&app, &["generate", "--json"]);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let receipt: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(receipt["result"]["files_written"], serde_json::json!([]));
+    }
+}
+
+#[test]
+fn init_preserves_existing_documents_and_rejects_repeated_initialization() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = temporary.path().join("Existing app 有 空格");
+    fs::create_dir(&app).unwrap();
+    for path in ["README.md", "LICENSE", ".gitignore", "business.txt"] {
+        fs::write(app.join(path), format!("original {path}\n")).unwrap();
+    }
+    let distribution = distribution();
+    let args = [
+        "init",
+        ".",
+        "--distribution",
+        distribution.to_str().unwrap(),
+        "--targets",
+        "desktop",
+        "--json",
+    ];
+    let output = cli(&app, &args);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    for path in ["README.md", "LICENSE", ".gitignore", "business.txt"] {
+        assert_eq!(
+            fs::read_to_string(app.join(path)).unwrap(),
+            format!("original {path}\n")
+        );
+    }
+    let config: serde_json::Value =
+        serde_json::from_slice(&fs::read(app.join("gpui-box.json")).unwrap()).unwrap();
+    assert_eq!(config["name"], "Existing app 有 空格");
+    assert!(!app.join("android-host").exists());
+    let before = snapshot(&app);
+    let output = cli(&app, &args);
+    assert!(!output.status.success());
+    let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(
+        response["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("already initialized")
+    );
+    assert_eq!(snapshot(&app), before);
+    assert!(cli(&app, &["generate"]).status.success());
+}
+
+#[test]
+fn init_conflicts_and_invalid_target_options_preserve_existing_tree() {
+    let temporary = tempfile::tempdir().unwrap();
+    for conflict in [
+        "Cargo.toml",
+        "app/src/lib.rs",
+        "mise.toml",
+        ".gpui-box/template.json",
+    ] {
+        let app = temporary.path().join(conflict.replace('/', "-"));
+        fs::create_dir_all(app.join(conflict).parent().unwrap()).unwrap();
+        fs::write(app.join(conflict), "caller-owned").unwrap();
+        let before = snapshot(&app);
+        let output = cli(
+            &app,
+            &[
+                "init",
+                ".",
+                "--distribution",
+                distribution().to_str().unwrap(),
+                "--json",
+            ],
+        );
+        assert!(!output.status.success());
+        let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert!(
+            response["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("Init conflicts"),
+            "{response}"
+        );
+        assert_eq!(snapshot(&app), before);
+    }
+    for targets in ["", "android,android", "ios", "desktop,web"] {
+        let app = temporary.path().join("Invalid target");
+        let output = cli(
+            temporary.path(),
+            &[
+                "new",
+                app.to_str().unwrap(),
+                "--distribution",
+                distribution().to_str().unwrap(),
+                "--targets",
+                targets,
+            ],
+        );
+        assert!(!output.status.success());
+        assert!(!app.exists());
+    }
+}
+
+#[test]
+fn init_rejects_active_lock_and_project_options_fail_before_writes() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = temporary.path().join("Locked existing app");
+    fs::create_dir(&app).unwrap();
+    fs::write(app.join(".gpui-box-init.lock"), "another initializer").unwrap();
+    let before = snapshot(&app);
+    let output = cli(
+        &app,
+        &[
+            "init",
+            ".",
+            "--distribution",
+            distribution().to_str().unwrap(),
+            "--json",
+        ],
+    );
+    assert!(!output.status.success());
+    assert_eq!(snapshot(&app), before);
+    let destination = temporary.path().join("Must remain absent");
+    for options in [
+        vec!["--targets"],
+        vec!["--targets", "desktop", "--targets", "android"],
+        vec!["--template", "unknown"],
+    ] {
+        let distribution = distribution();
+        let mut args = vec![
+            "new",
+            destination.to_str().unwrap(),
+            "--distribution",
+            distribution.to_str().unwrap(),
+        ];
+        args.extend(options);
+        args.push("--json");
+        let output = cli(temporary.path(), &args);
+        let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(response["error"]["code"], "INVALID_ARGUMENTS");
+        assert!(!destination.exists());
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn init_rejects_linked_output_directories_without_writing_through_them() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = temporary.path().join("Linked existing app");
+    let outside = temporary.path().join("Outside app");
+    fs::create_dir(&app).unwrap();
+    fs::create_dir(&outside).unwrap();
+    std::os::unix::fs::symlink(&outside, app.join("app")).unwrap();
+    let output = cli(
+        &app,
+        &[
+            "init",
+            ".",
+            "--distribution",
+            distribution().to_str().unwrap(),
+            "--targets",
+            "desktop",
+        ],
+    );
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("links or reparse points"));
+    assert_eq!(fs::read_dir(&outside).unwrap().count(), 0);
+    assert_eq!(fs::read_dir(&app).unwrap().count(), 1);
+}
+
+#[test]
 fn release_requires_explicit_signing_before_running_build_tools() {
     let temporary = tempfile::tempdir().unwrap();
     let app = create(temporary.path());
