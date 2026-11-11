@@ -70,6 +70,18 @@ post-commit effects run. Effects remain synchronous, read-only and infallible.
 Logical render-owner maps update before the API returns; effects receive source
 inputs only, and cannot access/reenter the mutable LogicalUi.
 
+The endpoint lifecycle follow-up adds `ReactiveEdit::unbind` and
+`LogicalEdit::unbind`. Removing an existing binding frees its endpoint within
+the draft for a later bind. Its changed-source sink is skipped, and the new
+writer synchronizes from final settled values. If the edit fails, the old
+subscription and source values remain intact. Unbinding alone retains the
+current property value. Creating then unbinding a provisional binding cancels
+its synchronization and publication; its serial can never identify a later
+binding. Equal-value replacement changes subscriptions without advancing the
+render revision or requesting a frame. Duplicate/stale/foreign unbinds reject.
+[Frozen follow-up evidence](performance/2026-11-12-edit-rebind/README.md) records
+the atomic replacement tests and an independent hardware final-writer case.
+
 `LogicalEdit` requires a live existing owner for every new output. Reparenting
 retains logical ownership. Removing a host with another scope's descendants
 rejects unless those descendants are moved out or explicitly removed in the
@@ -113,6 +125,6 @@ output against both a fresh full consumer and a separately built final scene,
 rejected edits causing no submit, old snapshots and final output retirement.
 
 Scope/source/effect registration or disposal, keyed scope creation/reorder
-inside this edit, arbitrary endpoint unbinding/rebinding, asynchronous effects,
+inside this edit, asynchronous effects,
 focus/events/semantics lifetime and legacy islands remain outside this API.
 The complete [RFC acceptance goal](RETAINED_IMPLEMENTATION_PROGRESS.md) stays open.

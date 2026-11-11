@@ -61,6 +61,9 @@ impl LogicalEdit<'_, '_, '_> {
     ) -> Result<BindingId, Error> {
         self.render.bind(signal, property)
     }
+    pub fn unbind(&mut self, binding: BindingId) -> Result<(), Error> {
+        self.render.unbind(binding)
+    }
 }
 impl LogicalUi {
     /// Atomically edit render output and existing scoped sources. Scope/state/

@@ -181,3 +181,127 @@ fn property_child_lists_are_settled_before_skipping_removed_sinks() {
     assert_eq!(ui.binding_count(), 0);
     assert_eq!(*ui.read(source).unwrap(), 7);
 }
+
+#[test]
+fn endpoint_replacement_publishes_final_writer_and_failure_keeps_old_subscription() {
+    let (mut ui, child) = super::super::tests::fixture();
+    let old = ui.signal(0x0000ffffu32);
+    let next = ui.signal(0x4488ffffu32);
+    let binding = ui.bind(old, Property::color(child)).unwrap().0;
+    let before = ui.frame([100.0, 100.0]).unwrap();
+    let stats = ui.stats();
+    assert!(matches!(
+        ui.edit(
+            |tx| {
+                tx.set(old, 7)?;
+                tx.set(next, 8)?;
+                Ok(())
+            },
+            |(), edit| {
+                edit.unbind(binding)?;
+                edit.bind(next, Property::color(child))?;
+                edit.tree().properties().opacity(child, f32::NAN);
+                Ok(())
+            }
+        ),
+        Err(Error::InvalidOpacity)
+    ));
+    assert_eq!(ui.stats(), stats);
+    assert_eq!(*ui.read(old).unwrap(), 0x0000ffff);
+    let result = ui
+        .edit(
+            |tx| {
+                tx.set(old, 7)?;
+                tx.set(next, 8)?;
+                Ok(())
+            },
+            |(), edit| {
+                edit.unbind(binding)?;
+                let replacement = edit.bind(next, Property::color(child))?;
+                edit.tree().properties().color(child, 99);
+                Ok(replacement)
+            },
+        )
+        .unwrap();
+    assert_eq!(result.result.commit.revision, before.revision + 1);
+    assert_eq!(result.result.sink_writes, 1);
+    assert_eq!(ui.binding_count(), 1);
+    assert_eq!(ui.tree.node(child).unwrap().color, 8);
+    assert!(ui.unbind(binding).is_err());
+    let equal = ui
+        .transaction(|tx| {
+            tx.set(old, 9)?;
+            Ok(())
+        })
+        .unwrap();
+    assert_eq!(equal.sink_writes, 0);
+    assert!(!equal.commit.request_frame);
+    ui.transaction(|tx| {
+        tx.set(next, 10)?;
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(ui.tree.node(child).unwrap().color, 10);
+    let detached = ui
+        .edit(
+            |tx| {
+                tx.set(next, 11)?;
+                Ok(())
+            },
+            |(), edit| {
+                edit.unbind(result.result.value)?;
+                edit.tree().properties().color(child, 12);
+                Ok(())
+            },
+        )
+        .unwrap();
+    assert_eq!(detached.result.sink_writes, 0);
+    assert_eq!(ui.tree.node(child).unwrap().color, 12);
+    assert_eq!(ui.binding_count(), 0);
+}
+
+#[test]
+fn cancelled_binding_and_equal_rebinding_change_lifetime_without_requesting_a_frame() {
+    let (mut ui, child) = super::super::tests::fixture();
+    let a = ui.signal(0x0000ffffu32);
+    let b = ui.signal(0x0000ffffu32);
+    let old = ui.bind(a, Property::color(child)).unwrap().0;
+    let before = ui.frame([100.0, 100.0]).unwrap();
+    let root = ui.root();
+    let result = ui
+        .edit(
+            |_| Ok(()),
+            |(), edit| {
+                let node = edit.tree().append(root, Style::default(), 0)?;
+                let binding = edit.bind(a, Property::color(node))?;
+                edit.unbind(binding)?;
+                assert_eq!(edit.unbind(binding), Err(Error::InvalidBinding));
+                edit.tree().remove(node)?;
+                edit.unbind(old)?;
+                assert_eq!(edit.unbind(old), Err(Error::InvalidBinding));
+                let replacement = edit.bind(b, Property::color(child))?;
+                Ok((binding, replacement))
+            },
+        )
+        .unwrap();
+    assert!(!result.result.commit.request_frame);
+    assert_eq!(result.result.commit.revision, before.revision);
+    assert_eq!(ui.binding_count(), 1);
+    assert!(ui.unbind(result.result.value.0).is_err());
+    assert!(Arc::ptr_eq(
+        &before.items,
+        &ui.frame([100.0, 100.0]).unwrap().items
+    ));
+    ui.transaction(|tx| {
+        tx.set(a, 1)?;
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(ui.tree.node(child).unwrap().color, 0x0000ffff);
+    ui.transaction(|tx| {
+        tx.set(b, 2)?;
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(ui.tree.node(child).unwrap().color, 2);
+}

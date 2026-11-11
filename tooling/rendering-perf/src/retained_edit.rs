@@ -40,7 +40,7 @@ pub(super) fn run(
     let derived = ui.computed(scopes[0], 1, &[color.dependency()], move |i| {
         Ok(*i.read(color)?)
     })?;
-    ui.bind(derived, Property::color(portal))?;
+    let portal_binding = ui.bind(derived, Property::color(portal))?.0;
     let old = ui.frame([128.0, 80.0])?;
     renderer.submit(&old, [128, 80], 1.0)?;
     let image = ImageResource::rgba8([8, 4], vec![255; 128])?;
@@ -164,6 +164,49 @@ pub(super) fn run(
         output,
         results,
     )?;
+    let alternate = ui.state(scopes[0], 2, || 0xff88ccffu32)?;
+    ui.edit(
+        |tx| {
+            tx.set(color, 0x88cc44ff)?;
+            tx.set(alternate, 0xdd66aaff)?;
+            Ok(())
+        },
+        |(), edit| {
+            edit.unbind(portal_binding)?;
+            edit.bind(alternate, Property::color(portal))?;
+            Ok(())
+        },
+    )?;
+    let rebound = ui.frame([128.0, 80.0])?;
+    assert_eq!(rebound.revision, frame.revision + 1);
+    assert_eq!(
+        rebound
+            .items
+            .iter()
+            .find(|i| i.node == portal)
+            .unwrap()
+            .fill_color,
+        0xdd66aaff
+    );
+    assert_eq!(
+        rebound
+            .items
+            .iter()
+            .find(|i| i.node == result.result.value.1)
+            .unwrap()
+            .fill_color,
+        0x88cc44ff
+    );
+    renderer.submit(&rebound, [128, 80], 1.0)?;
+    compare(
+        renderer,
+        &rebound,
+        [128, 80],
+        1.0,
+        "edit-rebind-final-writer",
+        output,
+        results,
+    )?;
     ui.edit(
         |tx| {
             tx.set(color, 0x22dd88ff)?;
@@ -178,7 +221,7 @@ pub(super) fn run(
         },
     )?;
     let removed = ui.frame([128.0, 80.0])?;
-    assert_eq!(removed.revision, frame.revision + 1);
+    assert_eq!(removed.revision, rebound.revision + 1);
     assert_eq!(ui.reactive().binding_count(), 0);
     renderer.submit(&removed, [128, 80], 1.0)?;
     assert!(old.items.iter().any(|i| i.node == portal));

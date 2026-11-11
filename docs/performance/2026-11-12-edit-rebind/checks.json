@@ -1,0 +1,22 @@
+{
+  "base_commit": "e8c3965",
+  "core": {
+    "command": "mise exec -- cargo test --locked --offline -p gpui-box --features retained-text,retained-wgpu",
+    "passed": 92
+  },
+  "gallery": {
+    "command": "mise exec -- cargo test --locked --offline -p gpui-box-example-hello --features retained-wgpu -- --include-ignored",
+    "passed": 12,
+    "ignored": 0
+  },
+  "clippy": {
+    "command": "mise exec -- cargo clippy --locked --offline -p gpui-box -p gpui-box-example-hello -p gpui-box-rendering-perf --features gpui-box-example-hello/retained-wgpu,gpui-box-rendering-perf/retained-gpu --all-targets -- -D warnings",
+    "passed": true
+  },
+  "hardware": {
+    "command": "./tooling/rendering-perf/run-retained-gpu.ps1 -Output target/retained-edit-rebind-20261112",
+    "passed": 153,
+    "matching_source_hashes": 79
+  },
+  "scope": "Windows hardware only; CPU structure controls unchanged. No rebind performance or cross-platform claim."
+}

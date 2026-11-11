@@ -25,6 +25,8 @@ pub struct ReactiveEdit<'a, 'tree> {
     endpoints: &'a BTreeMap<(NodeId, Field), BindingId>,
     next_binding: &'a mut u64,
     bindings: Vec<(BindingId, Binding)>,
+    live_bindings: &'a BTreeMap<BindingId, Binding>,
+    unbound: BTreeSet<BindingId>,
 }
 impl<'tree> ReactiveEdit<'_, 'tree> {
     pub fn tree(&mut self) -> &mut TreeEdit<'tree> {
@@ -57,7 +59,8 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
         self.tree.children(property.node)?;
         if self
             .endpoints
-            .contains_key(&(property.node, property.field))
+            .get(&(property.node, property.field))
+            .is_some_and(|id| !self.unbound.contains(id))
             || self
                 .bindings
                 .iter()
@@ -93,6 +96,19 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
         };
         self.bindings.push((id, binding));
         Ok(id)
+    }
+    /// Detach after validation. The current material stays until another write;
+    /// a later bind in this draft may claim the same endpoint immediately.
+    pub fn unbind(&mut self, id: BindingId) -> Result<(), Error> {
+        if let Some(index) = self.bindings.iter().position(|(binding, _)| *binding == id) {
+            self.bindings.remove(index);
+            return Ok(());
+        }
+        if self.unbound.contains(&id) || !self.live_bindings.contains_key(&id) {
+            return Err(Error::InvalidBinding);
+        }
+        self.unbound.insert(id);
+        Ok(())
     }
 }
 
@@ -206,10 +222,11 @@ impl ReactiveUi {
                 let b = &self.bindings[id];
                 let mut tx = Transaction::default();
                 (b.write)(value.as_ref(), &mut tx);
-                sinks.push((b.node, tx));
+                sinks.push((*id, b.node, tx));
             }
         }
         let mut new_bindings = vec![];
+        let mut unbound = BTreeSet::new();
         let mut sink_writes = 0;
         let identity = self.identity;
         let result = self.tree.edit(self.capabilities, |tree| {
@@ -221,6 +238,8 @@ impl ReactiveUi {
                 endpoints: &self.endpoints,
                 next_binding: &mut self.next_binding,
                 bindings: vec![],
+                live_bindings: &self.bindings,
+                unbound: BTreeSet::new(),
             };
             let value = render(source_result, &mut edit)?;
             let dead = edit.tree.removed_ids()?;
@@ -236,15 +255,19 @@ impl ReactiveUi {
                 (binding.write)(value.as_ref(), edit.tree.properties());
             }
             sink_writes = edit.bindings.len();
-            for (node, tx) in sinks {
-                if !dead.contains(&node) {
+            for (id, node, tx) in sinks {
+                if !dead.contains(&node) && !edit.unbound.contains(&id) {
                     edit.tree.properties().patches.extend(tx.patches);
                     sink_writes += 1;
                 }
             }
             new_bindings = edit.bindings;
+            unbound = edit.unbound;
             Ok(value)
         })?;
+        for id in unbound {
+            self.unbind(id).expect("prevalidated draft unbinding");
+        }
         if !result.removed.is_empty() {
             self.retire_dead_bindings();
         }
