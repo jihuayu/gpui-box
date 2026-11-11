@@ -693,13 +693,13 @@ mise -E android run check:templates
 ```
 
 The harness exports the checkout's committed HEAD through the actual CLI and
-verifies the complete SDK before and after qualification. It creates nine
-applications from starter/adaptive/component-v1 crossed with desktop, Android and combined
+verifies the complete SDK before and after qualification. It creates twelve
+applications from starter/adaptive/component/workbench-v1 crossed with desktop, Android and combined
 target sets. The fresh external workspace, SDK and application paths include
 spaces and Chinese characters. Each application receives an application-source
 customization and, when enabled, a native Gradle customization. No-op generation,
 unchanged template provenance and preserved customizations are asserted. A build
-plan must reject the selected host target when disabled. Six enabled cases
+plan must reject the selected host target when disabled. Eight enabled cases
 run the normal `gpui-box build TARGET` entry point and produce a nonempty desktop
 executable or APK containing both ARM64/x86_64 native libraries.
 
@@ -727,8 +727,8 @@ Linux and Windows hosted jobs select desktop. The Android hosted job selects
 Android. Their existing validation artifacts retain the reports for14days.
 These checks qualify generated builds and customization preservation. Interactive
 desktop/emulator sessions, signing/install/update journeys, offline dependency
-provisioning, registry combinations, native CLI publication, workbench
-templates and physical-device acceptance retain their operation-specific gates.
+provisioning, registry combinations, native CLI publication, arbitrary module
+scaffolding and physical-device acceptance retain their operation-specific gates.
 
 ## Read-only build plans
 
@@ -788,3 +788,68 @@ application previews both targets without rewriting its manifest, then completes
 Android and Windows desktop builds through the normal CLI entry points.
 Physical-device testing remains deferred. SDK closure, explicit Rust target
 selection, broader platform add/list and the remaining #61/#62/#73 gates stay open.
+
+## Modular workbench template
+
+```sh
+gpui-box new "Workbench" --distribution /path/to/sdk --template workbench
+gpui-box init /path/to/existing/app --distribution /path/to/sdk --template workbench --targets desktop
+mise exec -- cargo test -p box-app --lib
+```
+
+Workbench-v1 uses the existing staged initialization and application ownership
+contract. app/src/lib.rs is the composition root. contracts.rs defines a small
+GPUI-independent document service. documents.rs registers typed open/save UI
+commands. search.rs consumes the document projection through the same injected
+contract and contributes a typed query command. Neither feature imports the
+other. providers.rs supplies an explicit three-document in-memory fake.
+The UI displays this provider status and routes search results into the shared
+editor. Save updates the in-process provider. Reopening a document reads its
+last saved content. Unsaved edits remain in the editor during viewport changes.
+
+Each feature retains its command registration leases and owner-bound scope.
+Dropping a feature revokes its registrations. Closing the owning view disposes
+the logical command surface and UI owner. Command results use a monotonically
+increasing application revision and a weak entity to reject stale publication.
+The example uses short UI handlers over three in-memory records. Production
+I/O and expensive search belong in bounded background commands through the
+existing service. Replace the explicit provider at the composition root.
+
+Compact presentation shows search or one document with Back, Escape and Android
+back navigation. Wide presentation shows both panes. Both retain editor/query
+entities, support keyboard traversal, safe areas, keyboard avoidance and a
+bounded touch-scroll viewport. The generator enables only the workbench's
+additional menus facade feature. It reads template-v1 provenance with a16KiB
+bound during regeneration to preserve that dependency selection. Legacy projects
+without provenance retain starter-compatible manifests. Invalid or unsupported
+provenance fails before managed-file writes. Application-owned feature source
+and existing documentation remain preserved by generation/init.
+
+Generated application tests cover Unicode text, missing/oversized provider
+writes, search/open/save collaboration, case-insensitive/empty results, feature
+registration disposal and released-owner write rejection. Hosted desktop
+qualification executes these tests for both enabled workbench target sets.
+All four templates span twelve generation cases and eight enabled build cases
+in each native target job. Template receipts retain explicit build/runtime
+boundaries.
+
+Native menu installation, durable storage, arbitrary module scaffolding,
+module-scoped runs, dynamic loading, assistive-reader speech and physical-device
+acceptance retain #49/#75/#72/#3/#7 gates. This template is a statically linked
+application example.
+
+### Workbench qualification on November 12, 2026
+
+- All65Windows CLI cases and integrated `mise run check` pass after consuming
+  the component, tray and task-presentation deliveries. The external application
+  passes three provider/command collaboration/cleanup tests and strict Clippy.
+- A fresh spaces/Chinese-path application compiles and links Windows desktop
+  through the normal CLI in1m00s. Interactive desktop inspection remains pending
+  while Windows is locked.
+- Normal Android dev builds both ABIs, executes all37tasks in2m43s, installs and
+  cold-starts on API35 Android15 x86_64 in2134ms. Actual taps/text input filter
+  Welcome, open its document, append Runtime42 and save through the injected
+  provider. Portrait/landscape/portrait retains the query/editor and saved state.
+  System back returns to the filtered search. Reopening reads the saved content.
+  Semantic XML and inspected screenshots confirm both layouts. Rotation mode
+  returns to the original free policy. Physical-device testing remains deferred.

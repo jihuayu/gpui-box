@@ -119,7 +119,7 @@ impl Qualification {
             true,
         )?;
         let mut applications = Vec::new();
-        for template in ["starter", "adaptive", "component"] {
+        for template in ["starter", "adaptive", "component", "workbench"] {
             for targets in ["desktop", "android", "desktop,android"] {
                 let label = format!("{template}-{}", targets.replace(',', "-"));
                 let app = workspace.join(format!("Application {label} 有 空格"));
@@ -189,6 +189,15 @@ impl Qualification {
                         }
                     }
                     self.cli(&format!("{label}-build"), &app, &["build", target], true)?;
+                    if template == "workbench" && target == "desktop" {
+                        self.run(
+                            &format!("{label}-application-tests"),
+                            Command::new("mise")
+                                .current_dir(&app)
+                                .args(["exec", "--", "cargo", "test", "-p", "box-app", "--lib"]),
+                            true,
+                        )?;
+                    }
                     let artifact = if target == "android" {
                         let apk =
                             app.join("android-host/app/build/outputs/apk/debug/app-debug.apk");
