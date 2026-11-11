@@ -19,6 +19,8 @@ The [responsive contract stage](RETAINED_RESPONSIVE_CONTRACT.md) adds validated
 Flex styles, actual resize rules and fixed content-box container queries.
 The [decorated quad stage](RETAINED_DECORATED_QUADS.md) adds uniform rounded
 fills/inside borders and explicit update-route reasons.
+The [material patch stage](RETAINED_MATERIAL_PATCH.md) preserves command identity
+for supported solid/decorated color changes while updating the owned material.
 
 ## Current integrated foundation
 
@@ -58,7 +60,7 @@ click test passed pixel comparison at the actual window scale.
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → paint/persistent WGPU, with hardware pixel checks | Native-surface presentation and complete general routing |
 | P0 equality and transactions | Source equality before fanout, final-value coalescing, atomic sink validation, nested savepoints, one outer frame intent, idle-render assertions | Computed/effect graph, cross-event producer scheduling and real OS idle-wakeup/energy measurements |
-| P0–P5 routing | Solid/decorated-quad color, paint, property, layout and reorder intents; backend capability input and reason records; actual stable instance dispatch | General primitive/material capabilities, semantic/resource channels, guarantee 0 command rerecord on P1 and eliminate full snapshot scanning |
+| P0–P5 routing | Solid/decorated-quad color, paint, property, layout and reorder intents; reason records; P1 reuses commands with 0 layout/recording and stable instance dispatch | General primitive/material capabilities, semantic/resource channels and eliminate full snapshot scanning |
 | Logical / Render Tree | Independent generation-checked scopes, zero/multiple outputs and portals, keyed reorder retaining state/render/chunks, subtree source/binding/output cleanup; gallery and hardware validation | Atomic structural batches, portal reparenting, event/focus/semantics lifetime and legacy islands; eliminate whole-scope/order scans |
 | Persistent Taffy | Long-lived nodes, style/children setters, owned image intrinsic/fixed custom snapshots, baseline/overflow updates, actual leaf/measure-call counts, root cache and resize handling | Owned paragraph snapshots, constraint-dependent custom inputs, independent islands, full node visits/cache-hit counters |
 | Paint chunks / property trees | Shared local fill commands; sparse transform/clip/scroll/effect chains with inherited state, clip-aware geometry/hit testing | Stable chunk IDs, full affine transforms, selective geometry extraction and spatial indices |

@@ -45,7 +45,7 @@ impl Record {
 }
 
 fn record(item: &PaintItem, command: &DisplayCommand, scale: f32) -> Record {
-    let (color, decoration) = command.quad();
+    let (color, decoration) = item.resolved_quad(command);
     let decoration = decoration.resolved(item.bounds);
     let scaled = |bounds: Rect| Rect {
         x: bounds.x * scale,
@@ -507,6 +507,7 @@ fn validate(frame: &FramePacket, surface: [u32; 2], scale: f32) -> Result<(), Er
             || current.get(&item.node).is_none_or(|value| {
                 value.bounds != item.bounds
                     || value.commands != item.commands
+                    || value.fill_color != item.fill_color
                     || value.clip != item.clip
             })
         {

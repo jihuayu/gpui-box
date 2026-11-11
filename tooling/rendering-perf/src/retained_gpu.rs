@@ -95,6 +95,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
     frame = tree.frame([320.0, 96.0])?;
     assert_eq!(frame.layout_runs, 0);
+    assert_eq!(frame.recorded_chunks, 0);
     let color = renderer.submit(&frame, size, 1.0)?.unwrap();
     assert_eq!(color.gpu.uploaded_bytes, 160);
     assert_eq!(color.gpu.upload_ranges, 1);

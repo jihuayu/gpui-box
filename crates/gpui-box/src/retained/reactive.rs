@@ -681,12 +681,16 @@ mod tests {
             ]
         );
         let after = ui.frame([100.0, 100.0]).unwrap();
-        assert_eq!((after.layout_runs, after.recorded_chunks), (0, 2));
+        assert_eq!((after.layout_runs, after.recorded_chunks), (0, 0));
         assert_eq!(
             before.items[1].commands[0],
             DisplayCommand::Fill(0x0000ffff)
         );
-        assert_eq!(after.items[1].commands[0], DisplayCommand::Fill(0xaabbccff));
+        assert_eq!(after.items[1].fill_color, 0xaabbccff);
+        assert!(Arc::ptr_eq(
+            &before.items[1].commands,
+            &after.items[1].commands
+        ));
     }
 
     #[test]

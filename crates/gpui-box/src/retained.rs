@@ -56,6 +56,8 @@ pub struct PaintItem {
     pub node: NodeId,
     pub bounds: Rect,
     pub commands: Arc<[DisplayCommand]>,
+    /// Current solid material, independent of the reusable command recording.
+    pub fill_color: u32,
     pub clip: Option<Rect>,
     pub properties: PropertyState,
 }
@@ -617,7 +619,9 @@ impl UiTree {
             if color_changed {
                 let node = self.node_mut(id);
                 node.color = entry.color.expect("changed color");
-                node.chunk = None;
+                if !capabilities.solid_color_patch || decoration_changed {
+                    node.chunk = None;
+                }
                 result.route(
                     id,
                     if capabilities.solid_color_patch && !decoration_changed {
@@ -798,6 +802,7 @@ impl UiTree {
                     height: layout.size.height,
                 },
                 commands,
+                fill_color: node.color,
                 clip,
                 properties: paint_state,
             });
@@ -814,6 +819,7 @@ impl UiTree {
                 previous.get(&item.node).is_none_or(|old| {
                     old.bounds != item.bounds
                         || old.commands != item.commands
+                        || old.fill_color != item.fill_color
                         || old.clip != item.clip
                 })
             })

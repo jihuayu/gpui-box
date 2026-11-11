@@ -63,7 +63,7 @@ pub(super) fn run(
     );
     assert_eq!(ui.stats().frame_requests, 1);
     let frame = ui.frame([800.0, 400.0])?;
-    assert_eq!((frame.layout_runs, frame.recorded_chunks), (0, 10_000));
+    assert_eq!((frame.layout_runs, frame.recorded_chunks), (0, 0));
     let submitted = renderer.submit(&frame, [800, 400], 1.0)?.unwrap();
     assert_eq!(submitted.gpu.uploaded_bytes, 1_600_000);
     assert!((1..=2).contains(&submitted.gpu.upload_ranges));

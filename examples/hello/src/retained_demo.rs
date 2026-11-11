@@ -481,7 +481,7 @@ impl Render for RetainedDemo {
                             });
                             window.with_content_mask(mask, |window| {
                                 for command in item.commands.iter() {
-                                    let (color,decoration) = command.quad();
+                                    let (color,decoration) = item.resolved_quad(command);
                                     let decoration = decoration.resolved(item.bounds);
                                     window.paint_quad(quad(
                                             Bounds {
@@ -531,7 +531,7 @@ mod tests {
             assert_eq!(*view.tree.borrow().read(view.color).unwrap(), 0xc75824ff);
             view.tree.borrow().published_frame().unwrap().clone()
         });
-        assert_ne!(before.items[1].commands[0], after.items[1].commands[0]);
+        assert_ne!(before.items[1].fill_color, after.items[1].fill_color);
         let equal = cx
             .debug_bounds("retained-equal")
             .expect("equality button rendered");

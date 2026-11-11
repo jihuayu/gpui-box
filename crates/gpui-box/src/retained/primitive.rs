@@ -36,8 +36,16 @@ impl DisplayCommand {
             Self::DecoratedFill { color, decoration } => (*color, *decoration),
         }
     }
-    pub(super) fn visible(&self) -> bool {
-        let (color, decoration) = self.quad();
+}
+
+impl PaintItem {
+    /// Resolve current material against a reusable geometry command. Consumers
+    /// must use this rather than the command's recorded seed color.
+    pub fn resolved_quad(&self, command: &DisplayCommand) -> (u32, QuadDecoration) {
+        (self.fill_color, command.quad().1)
+    }
+    pub(super) fn visible(&self, command: &DisplayCommand) -> bool {
+        let (color, decoration) = self.resolved_quad(command);
         color & 255 != 0 || decoration.border_width > 0.0 && decoration.border_color & 255 != 0
     }
 }
@@ -115,6 +123,65 @@ mod tests {
             .resolved(after.items[0].bounds)
             .radius,
             20.0
+        );
+    }
+
+    #[test]
+    fn instance_material_changes_reuse_commands_and_damage_old_and_new_alpha() {
+        let mut tree = UiTree::new(
+            Style {
+                size: Size {
+                    width: length(80.0),
+                    height: length(40.0),
+                },
+                ..Default::default()
+            },
+            0xff8844ff,
+        )
+        .unwrap();
+        let before = tree.frame([80.0, 40.0]).unwrap();
+        let mut tx = Transaction::default();
+        tx.color(tree.root(), 0);
+        tree.commit(
+            tx,
+            BackendCapabilities {
+                solid_color_patch: true,
+            },
+        )
+        .unwrap();
+        let hidden = tree.frame([80.0, 40.0]).unwrap();
+        assert_eq!(hidden.recorded_chunks, 0);
+        assert!(Arc::ptr_eq(
+            &before.items[0].commands,
+            &hidden.items[0].commands
+        ));
+        assert!(hidden.items[0].ink_bounds().is_none());
+        assert!(hidden.damage.bounds.is_some());
+        assert_eq!(before.items[0].fill_color, 0xff8844ff);
+        let mut tx = Transaction::default();
+        tx.color(tree.root(), 0x44bb88ff);
+        tree.commit(
+            tx,
+            BackendCapabilities {
+                solid_color_patch: true,
+            },
+        )
+        .unwrap();
+        let restored = tree.frame([80.0, 40.0]).unwrap();
+        assert_eq!(restored.recorded_chunks, 0);
+        assert!(restored.items[0].ink_bounds().is_some());
+        assert_eq!(restored.updates[0].fill_color, 0x44bb88ff);
+        assert!(restored.damage.bounds.is_some());
+        // Backend fallback re-records a canonical seed without changing how a
+        // published material is resolved by either CPU or GPU consumers.
+        let mut tx = Transaction::default();
+        tx.color(tree.root(), 0x112233ff);
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+        let fallback = tree.frame([80.0, 40.0]).unwrap();
+        assert_eq!(fallback.recorded_chunks, 1);
+        assert_eq!(
+            fallback.items[0].commands[0],
+            DisplayCommand::Fill(0x112233ff)
         );
     }
 }

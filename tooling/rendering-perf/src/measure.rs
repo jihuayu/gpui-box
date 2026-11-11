@@ -112,6 +112,7 @@ fn main() -> Result<(), Box<dyn StdError>> {
                     assert_eq!(a.bounds, b.bounds);
                     assert_eq!(a.clip, b.clip);
                     assert_eq!(a.commands, b.commands);
+                    assert_eq!(a.fill_color, b.fill_color);
                 }
                 assert_eq!(a.items.len(), b.items.len());
                 assert_eq!(a.recorded_chunks, 0);

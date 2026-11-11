@@ -73,6 +73,11 @@ pub(super) fn run(
         RouteReason::StableSolidQuadColor
     );
     let frame = tree.frame([160.0, 96.0])?;
+    assert_eq!(frame.recorded_chunks, 0);
+    assert!(std::sync::Arc::ptr_eq(
+        &before.items[1].commands,
+        &frame.items[1].commands
+    ));
     assert_eq!(
         renderer
             .submit(&frame, [200, 120], 1.25)?

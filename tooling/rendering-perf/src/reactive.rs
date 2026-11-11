@@ -155,6 +155,7 @@ fn main() -> Result<(), Box<dyn StdError>> {
         assert_eq!((actual.layout_runs, reference.layout_runs), (0, 0));
         for (a, b) in actual.items.iter().zip(reference.items.iter()) {
             assert_eq!((a.bounds, &a.commands), (b.bounds, &b.commands));
+            assert_eq!(a.fill_color, b.fill_color);
         }
         let names = [
             "one-transaction-per-signal",
