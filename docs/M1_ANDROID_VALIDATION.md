@@ -179,3 +179,64 @@ broader gesture stress, combined IME/predictive-back animation and full edge-to-
 insets also remain open. #21 owns application-facing restoration/lifecycle
 contracts. #2 owns their host integration. Physical-device, multiple GPU vendor
 and real Chinese candidate-UI qualification remain deferred.
+
+## Host integration and accessibility continuation
+
+The host installs the merged `gpui-lifecycle` handle in GPUI SystemServices before
+application launch. Generation-gated observations cover Activity started/resumed,
+window focus, OS appearance, font scale, locale, disabled-animation preference,
+keyguard and memory warnings. Input observations use monotonic time. High contrast,
+network reachability and measured platform idleness retain unavailable status.
+The GPUI window also receives appearance changes through its existing callback.
+Started visibility and resumed/focused input state remain separate.
+
+AccessKit geometry is already physical pixels in the pinned engine. The adapter
+now composes ancestor transforms and avoids multiplying Android density twice.
+TextInput supplies an actual TextRun and directed scalar selection. Android maps
+selection actions to UTF-16, rejects malformed/out-of-range input and retains
+focused-run identity. Virtual focus, subtree text queries, hover enter/exit and
+text/selection/live events are transported through AccessibilityNodeProvider.
+Hover chooses the deepest exposed node in reverse sibling paint order. Wider
+clipping/transformed fixture coverage and TalkBack speech remain open gates.
+
+Applications register `on_saved_state`, consume `take_saved_state` through launch's
+App context, and encode their schema. The example reuses VersionedSnapshot for
+route, preferences, counter, committed text, drafts, directed selections and focus.
+Old connection composition is finished. Bundle payloads are bounded to 128 KiB.
+Activity recreation keeps the live Rust model authoritative. New processes consume
+the saved Bundle once. This is transient UI restoration. Durable business state
+and activation inboxes use their application services.
+
+The API 35 emulator passed a cold custom-scheme launch, exposing `Activation events
+1`, and a real warm ACTION_VIEW delivery in instrumentation. The bounded pending
+queue retains IDs across Activity recreation. Application acceptance is explicit.
+The host supports 16 pending events and a 256-ID process duplicate window. Durable
+routing requires the #24 inbox, and overflow is logged without raw URLs.
+
+Manual process reclamation kept the Android task, sent HOME, called `am kill`,
+confirmed the old PID exited, and reopened the launcher task. PID 12771 was replaced
+by 12928. Gallery route and draft `ProcessRestoreQ` survived. Activation count
+reset to zero as expected for a new runtime. The restored focus reopened the IME,
+so the keyboard was dismissed before querying the offscreen field's semantics.
+This exercises Android process recreation on the emulator. Force-stop is a separate
+operation and is not a saved-task restoration contract.
+
+The connected suite now has 11 tests. New native provider checks travel through
+UiAutomation's Android accessibility connection for roles, editing, text selection,
+virtual focus and click actions. Other additions cover committed/draft isolation,
+large-text retention, query cleanup, stale callbacks and Intent deduplication.
+Tests release their accessibility connection and restore the platform page between
+cases. The navigation-only back case keeps accessibility disabled after IME hiding,
+preventing test-induced focus/IME reactivation.
+
+The remaining M1 gates include TalkBack speech/gesture exploration and live-region
+qualification, device-loss recovery, wider pointer cancellation/gesture stress,
+combined predictive-back/IME animation, full edge-to-edge insets, and deferred
+ARM64 hardware/multi-vendor/real Chinese keyboard candidate UI. #2 remains open.
+
+Validation commands for this continuation include `mise run check`,
+`mise run check:components`, `mise run build:desktop`, cargo-ndk x86_64 strict
+Clippy, Gradle lint and the full connected suite. Lint reports 0 errors and
+8 warnings. Upstream linker messages and Android deprecation warnings remain
+visible. A Windows files test now explicitly closes its verified reader before
+atomic replacement, coordinated in #23. This restores portability of that test.

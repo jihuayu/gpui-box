@@ -1,4 +1,4 @@
-//! Explicit Entity-backed state. Reads are tracked by GPUI's existing view machinery.
+//! Entity-backed state with explicit scopes over GPUI's observe/notify scheduling.
 use gpui::{App, AppContext, Context, Entity, Subscription};
 use std::{cell::Cell, rc::Rc};
 

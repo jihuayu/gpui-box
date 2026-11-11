@@ -22,10 +22,11 @@ struct Runtime {
     queue: RefCell<PriorityQueueReceiver<RunnableVariant>>,
     delivered_urls: RefCell<std::collections::VecDeque<String>>,
 }
+type ActivationCallback = Box<dyn FnMut(&str, &str) -> bool>;
 thread_local! {
     static RUNTIME: RefCell<Option<Rc<Runtime>>> = const { RefCell::new(None) };
     static LAUNCH: RefCell<Option<fn(&mut App)>> = const { RefCell::new(None) };
-    static ACTIVATION: super::CallbackSlot<Box<dyn FnMut(&str, &str) -> bool>> = super::CallbackSlot::default();
+    static ACTIVATION: super::CallbackSlot<ActivationCallback> = super::CallbackSlot::default();
     static SAVE_STATE: super::CallbackSlot<Box<dyn FnMut() -> Vec<u8>>> = super::CallbackSlot::default();
     static RESTORED_STATE: RefCell<Option<Vec<u8>>> = const { RefCell::new(None) };
 }
@@ -252,7 +253,6 @@ pub fn lifecycle(generation: u64, resumed: bool) {
         back_gesture(generation, 3, 0., 0., 0.);
     }
     if let Some(window) = window(generation) {
-        super::host::visibility(generation, resumed);
         window.set_visible(resumed);
         if let Some(runtime) = runtime() {
             runtime.platform.lifecycle.with(|cb| {

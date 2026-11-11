@@ -678,6 +678,8 @@ fn large_streaming_cancellation_cleanup_and_ui_context_rejection() {
     let mut head = [0u8; 4];
     assert_eq!(reader.read(&mut head).unwrap(), 4);
     assert_eq!(head, data[..4]);
+    // Windows holds replacement access until the reader handle is released.
+    drop(reader);
 
     let mut chunks = 0usize;
     let mut sum = 0usize;

@@ -150,3 +150,9 @@ process-local deduplication. Durable routing uses #24's inbox on a worker.
 CLI tests now total 11, including typed generation/removal and malformed or
 unsupported declaration rejection. The source-checkout dependency and debug-key
 packaging boundaries from the first delivery continue to apply.
+
+A fresh `target/Wave Two Service App` builds the Windows executable and both
+Android ABIs with a camera declaration and custom `gpui-box-wave2` scheme. APK
+inspection confirms both native libraries and the exact managed service asset.
+Doctor reports configured services and the host's missing SDK license record.
+The starter installs an explicit activation callback with a visible event count.

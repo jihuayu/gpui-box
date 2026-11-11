@@ -3,6 +3,7 @@ use gpui_box_components::{TextInput, Theme, button};
 struct ApplicationView {
     count: usize,
     input: Entity<TextInput>,
+    activation_count: usize,
 }
 impl Render for ApplicationView {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -29,6 +30,7 @@ impl Render for ApplicationView {
             .font_family("Noto Sans CJK SC")
             .child(div().text_3xl().child("Your gpui-box application"))
             .child("Desktop and Android share this Rust view.")
+            .child(format!("Activation events {}", self.activation_count))
             .child(button(
                 "counter",
                 format!("Count {}", self.count),
@@ -50,10 +52,22 @@ pub fn open(cx: &mut App) {
         ))])
         .expect("load bundled font");
     gpui_box_components::input::bind_keys(cx);
-    cx.open_window(WindowOptions::default(), |_, cx| {
+    let window = cx.open_window(WindowOptions::default(), |_, cx| {
         let input = cx.new(TextInput::new);
-        cx.new(|_| ApplicationView { count: 0, input })
+        cx.new(|_| ApplicationView { count: 0, input, activation_count: 0 })
     })
     .expect("open application");
+    #[cfg(target_os = "android")]
+    {
+        let mut app = cx.to_async();
+        gpui_box::android::on_activation(move |_, _| {
+            window.update(&mut app, |view, _, cx| {
+                view.activation_count += 1;
+                cx.notify();
+            }).is_ok()
+        });
+    }
+    #[cfg(not(target_os = "android"))]
+    let _ = window;
     cx.activate(true);
 }

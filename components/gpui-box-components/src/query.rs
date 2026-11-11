@@ -239,7 +239,7 @@ mod tests {
 
     #[test]
     fn client_identity_rejects_matching_request_and_mutation_numbers() {
-        let mut first = QueryClient::default();
+        let mut first = QueryClient::<_, i32>::default();
         let mut second = QueryClient::default();
         let foreign = first.start("items");
         let current = second.start("items");

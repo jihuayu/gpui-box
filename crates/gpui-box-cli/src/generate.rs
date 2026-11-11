@@ -167,7 +167,7 @@ debug = "limited"
             components = quoted(&format!("{distribution}/components/gpui-box-components"))
         ),
     );
-    add("app/Cargo.toml", "[package]\nname = \"box-app\"\nversion = \"0.1.0\"\nedition = \"2024\"\nlicense = \"Apache-2.0\"\n[dependencies]\ngpui.workspace = true\ngpui-box-components.workspace = true\n".into());
+    add("app/Cargo.toml", "[package]\nname = \"box-app\"\nversion = \"0.1.0\"\nedition = \"2024\"\nlicense = \"Apache-2.0\"\n[dependencies]\ngpui.workspace = true\ngpui-box-components.workspace = true\n[target.'cfg(target_os = \"android\")'.dependencies]\ngpui-box = { workspace = true, features = [\"android\"] }\n".into());
     add("desktop/Cargo.toml", "[package]\nname = \"box-desktop\"\nversion = \"0.1.0\"\nedition = \"2024\"\nlicense = \"Apache-2.0\"\n[dependencies]\ngpui-box = { workspace = true, features = [\"desktop\"] }\nbox-app = { path = \"../app\" }\n".into());
     add("android/Cargo.toml", "[package]\nname = \"box-android\"\nversion = \"0.1.0\"\nedition = \"2024\"\nlicense = \"Apache-2.0\"\n[lib]\nname = \"gpui_box_android\"\ncrate-type = [\"cdylib\"]\n[target.'cfg(target_os = \"android\")'.dependencies]\ngpui-box = { workspace = true, features = [\"android\"] }\nbox-app = { path = \"../app\" }\n".into());
     add(

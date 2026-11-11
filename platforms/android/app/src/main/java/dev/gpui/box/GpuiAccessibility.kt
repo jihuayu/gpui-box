@@ -89,7 +89,7 @@ class GpuiAccessibility(private val view: GpuiView) : AccessibilityNodeProvider(
             val target = hitTest(child, x, y, visited)
             if (target != -1) return target
         }
-        return if (node.has("bounds") && bounds(node).contains(x, y) &&
+        return if (node.optJSONArray("bounds") != null && bounds(node).contains(x, y) &&
             (node.optBoolean("focusable") || node.optBoolean("clickable") ||
                 !node.optString("label").let { it.isEmpty() || it == "null" } ||
                 !node.optString("value").let { it.isEmpty() || it == "null" })) id else -1

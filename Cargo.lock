@@ -2126,6 +2126,7 @@ dependencies = [
  "gpui-android",
  "gpui-box-components",
  "gpui-lifecycle",
+ "gpui-system",
 ]
 
 [[package]]

@@ -359,15 +359,40 @@ impl Hello {
                     });
                 }
             }))
-            .child(status(
-                "query-status",
-                match self.queries.state(&"items") {
-                    Some(state) if state.pending() => Status::Loading,
-                    Some(state) if state.value.is_some() => Status::Ready,
-                    _ => Status::Empty,
-                },
-                theme,
-            ))
+            .child(button("fail-items", "Fail item refresh", theme, {
+                let entity = cx.entity().downgrade();
+                move |_, cx| {
+                    let _ = entity.update(cx, |this, cx| {
+                        let request = this.queries.start("items");
+                        this.queries.complete(
+                            &"items",
+                            &request,
+                            Err(gpui_system::SystemError::new(
+                                gpui_system::ErrorCode::Unavailable,
+                                "The fake transport is offline",
+                            )),
+                        );
+                        this.request = None;
+                        cx.notify();
+                    });
+                }
+            }))
+            .child(
+                status(
+                    "query-status",
+                    match self.queries.state(&"items") {
+                        Some(state) if state.pending() => Status::Loading,
+                        Some(state) if state.error.is_some() && state.value.is_some() => {
+                            Status::Offline
+                        }
+                        Some(state) if state.error.is_some() => Status::Error,
+                        Some(state) if state.value.is_some() => Status::Ready,
+                        _ => Status::Empty,
+                    },
+                    theme,
+                )
+                .aria_label("Item query status"),
+            )
             .children(
                 self.queries
                     .state(&"items")

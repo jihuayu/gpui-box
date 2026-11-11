@@ -1,9 +1,10 @@
 //! One UI-thread lifecycle service shared by the native host and application.
 use gpui_lifecycle::*;
-use std::time::Instant;
+use std::{cell::Cell, time::Instant};
 
 const SURFACE: SurfaceId = SurfaceId(1);
 thread_local! {
+    static LAST_GENERATION: Cell<u64> = const { Cell::new(0) };
     static SERVICE: LifecycleService = LifecycleService::new(
         ProcessId(std::process::id()), SessionId(1));
 }
@@ -15,23 +16,16 @@ pub fn lifecycle_service() -> LifecycleService {
 }
 
 pub(super) fn attach(generation: u64) {
-    let _ = lifecycle_service().register_surface(SURFACE, generation);
+    if lifecycle_service()
+        .register_surface(SURFACE, generation)
+        .unwrap_or(false)
+    {
+        LAST_GENERATION.with(|current| current.set(generation));
+    }
 }
 
 pub(super) fn detach(generation: u64) {
     let _ = lifecycle_service().detach_surface_at(SURFACE, generation, Instant::now());
-}
-
-pub(super) fn visibility(generation: u64, resumed: bool) {
-    let service = lifecycle_service();
-    let Some(snapshot) = service
-        .surface(SURFACE)
-        .filter(|s| s.generation == generation)
-    else {
-        return;
-    };
-    let focused = snapshot.visibility.is_focused();
-    apply_visibility(&service, generation, resumed, focused);
 }
 
 fn apply_visibility(service: &LifecycleService, generation: u64, resumed: bool, focused: bool) {
@@ -45,17 +39,15 @@ fn apply_visibility(service: &LifecycleService, generation: u64, resumed: bool, 
         visibility,
         generation,
     };
-    if service
-        .apply_surface_at(SURFACE, snapshot, now)
-        .unwrap_or(false)
-    {
-        let phase = match (resumed, focused) {
-            (true, true) => AppPhase::ForegroundActive,
-            (true, false) => AppPhase::ForegroundInactive,
-            (false, _) => AppPhase::Background,
-        };
-        let _ = service.set_phase_at(phase, now);
+    if service.surface(SURFACE).is_some() {
+        let _ = service.apply_surface_at(SURFACE, snapshot, now);
     }
+    let phase = match (resumed, focused) {
+        (true, true) => AppPhase::ForegroundActive,
+        (true, false) => AppPhase::ForegroundInactive,
+        (false, _) => AppPhase::Background,
+    };
+    let _ = service.set_phase_at(phase, now);
 }
 
 /// Apply host observations only for the current attached surface generation.
@@ -72,10 +64,7 @@ pub fn host_state(
     reduced_motion: bool,
 ) {
     let service = lifecycle_service();
-    if service
-        .surface(SURFACE)
-        .is_none_or(|s| s.generation != generation)
-    {
+    if generation == 0 || !LAST_GENERATION.with(|current| current.get() == generation) {
         return;
     }
     apply_visibility(&service, generation, resumed, focused);
