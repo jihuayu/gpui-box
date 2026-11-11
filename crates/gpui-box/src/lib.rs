@@ -73,3 +73,7 @@ pub use gpui_sharing as sharing;
 /// Local user verification, protected-key signing and protected-secret release.
 #[cfg(feature = "local-auth")]
 pub use gpui_local_auth as local_auth;
+
+/// Signed update metadata and generation-correlated delivery contracts.
+#[cfg(feature = "updates")]
+pub use gpui_updates as updates;

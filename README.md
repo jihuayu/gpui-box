@@ -126,6 +126,7 @@ before regeneration or distributing generated output.
 - [M2 component gallery](docs/M2_COMPONENT_GALLERY.md)
 - [M3 developer workflow](docs/M3_DEVELOPER_WORKFLOW.md)
 - [M4 application packaging](docs/M4_ANDROID_PACKAGING.md)
+- [M5 update trust and orchestration](docs/M5_UPDATE_CONTRACTS.md)
 - [Reference research](docs/REFERENCES.md)
 - [Later Android native composition](docs/ANDROID_COMPOSITION_PLAN.md)
 - [GitHub roadmap](https://github.com/jihuayu/gpui-box/issues/17)
