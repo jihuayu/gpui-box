@@ -427,3 +427,41 @@ Integrated `mise run check` passes 194 host tests plus six compile-fail doctests
 and two nested child reports. Physical-device testing remains deferred. SDK
 closure, canonical schema/migrations, platform add/list and broader host/backend
 qualification retain the open #61/#62/#73/M3 gates.
+
+## Read-only build plans
+
+Use `gpui-box build desktop --dry-run --json` or `gpui-box build android
+--dry-run --json` for a schema-v1 BuildPlan. The plan includes operation,
+host architecture/OS, configured target, toolchain target labels, the complete
+generation ChangePlan, and the command's program, argument vector, working
+directory, inherited-environment flag and explicit environment overrides.
+Android currently builds both ARM64 and x86_64 at API35 through the pinned
+Gradle host. Desktop uses the host's default Rust target. Application-owned
+Gradle customization and inherited Cargo/mise configuration retain control of
+their downstream tool behavior.
+
+Preview reads local configuration/distribution inputs and managed ownership
+metadata. It creates no directories/locks/journals/output and starts no tool
+process or network request. It works before managed outputs have been generated
+and when local build tools are absent. Conflicts, active generation locks,
+invalid configuration and disabled targets produce `BUILD_PLAN_FAILED`.
+Human preview prints the command summary. JSON contains the full typed plan.
+
+The real build entry point and preview share command construction. Actual Android
+execution still regenerates files and verifies wrapper pins before starting
+Java. Actual builds recompute current inputs. A preview is a snapshot and does
+not reserve state for later execution. Build plans list subsequent generation,
+child lockfile/build/cache writes and potential dependency downloads separately.
+Inherited environment values are excluded from the plan. Build dry-run applies
+to the default build command with no device override. Install/dev device selection
+retains its separate adb workflow.
+
+The Windows CLI suite passes 43 tests. Two new command groups cover deterministic
+plans with pending generation changes, explicit argument boundaries in
+space-containing paths, unavailable tools/SDK, secret exclusion, uninitialized
+projects and read-only failures. Integrated `mise run check` passes 196 host
+tests plus six compile-fail doctests and two nested child reports. A real generated
+application previews both targets without rewriting its manifest, then completes
+Android and Windows desktop builds through the normal CLI entry points.
+Physical-device testing remains deferred. SDK closure, explicit Rust target
+selection, broader platform add/list and the remaining #61/#62/#73 gates stay open.

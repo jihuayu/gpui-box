@@ -48,8 +48,12 @@ pub fn verify_wrapper(host: &Path) -> Result<(), String> {
 }
 
 pub fn gradle(root: &Path, tasks: &[&str]) -> Result<Command, String> {
+    verify_wrapper(&root.join("android-host"))?;
+    Ok(gradle_command(root, tasks))
+}
+
+pub(crate) fn gradle_command(root: &Path, tasks: &[&str]) -> Command {
     let host = root.join("android-host");
-    verify_wrapper(&host)?;
     // Invoke the verified wrapper directly through Java on every host. This
     // avoids Windows batch argument parsing and executable-bit migration issues.
     let mut command = Command::new("mise");
@@ -59,7 +63,7 @@ pub fn gradle(root: &Path, tasks: &[&str]) -> Result<Command, String> {
         .arg(host.join("gradle/wrapper/gradle-wrapper.jar"))
         .args(["org.gradle.wrapper.GradleWrapperMain", "-p", "android-host"])
         .args(tasks);
-    Ok(command)
+    command
 }
 
 fn java(root: &Path) -> Command {
