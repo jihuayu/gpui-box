@@ -94,6 +94,10 @@ pub use gpui_menus as menus;
 #[cfg(feature = "power")]
 pub use gpui_power as power;
 
+/// Lifecycle-aware tray and menu-bar status items with scoped leases.
+#[cfg(feature = "tray")]
+pub use gpui_tray as tray;
+
 #[cfg(test)]
 mod tests {
     #[cfg(feature = "power")]
@@ -107,6 +111,19 @@ mod tests {
         assert_eq!(crate::power::PowerOperation::ALL.len(), 5);
         assert_eq!(crate::power::platform_support_matrix().len(), 30);
         assert_eq!(crate::power::DEFAULT_POWER_EVENT_CAPACITY, 64);
+    }
+
+    #[cfg(feature = "tray")]
+    #[test]
+    fn tray_facade_reexports_the_coordinated_contracts() {
+        assert_eq!(
+            crate::tray::UPSTREAM_GPUI_REVISION,
+            crate::UPSTREAM_REVISION
+        );
+        assert_eq!(crate::tray::PACKAGE_VERSION, crate::VERSION);
+        assert_eq!(crate::tray::TrayOperation::ALL.len(), 5);
+        assert_eq!(crate::tray::platform_support_matrix().len(), 30);
+        assert_eq!(crate::tray::DEFAULT_TRAY_EVENT_CAPACITY, 64);
     }
 
     #[cfg(feature = "diagnostics")]
