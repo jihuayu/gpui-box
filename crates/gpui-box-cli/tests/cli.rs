@@ -25,3 +25,186 @@ fn unsupported_commands_fail_with_help_guidance() {
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).contains("--help"));
 }
+
+fn json_response(output: &std::process::Output, success: bool) -> serde_json::Value {
+    assert_eq!(output.status.success(), success);
+    let response: serde_json::Value =
+        serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
+            panic!(
+                "Invalid JSON response {error}: {}",
+                String::from_utf8_lossy(&output.stdout)
+            )
+        });
+    assert_eq!(response["schema_version"], 1);
+    assert_eq!(response["cli_version"], gpui_box::VERSION);
+    assert_eq!(response["upstream_revision"], gpui_box::UPSTREAM_REVISION);
+    assert_eq!(response["success"], success);
+    assert_eq!(response["result"].is_null(), !success);
+    assert_eq!(response["error"].is_null(), success);
+    response
+}
+
+#[test]
+fn json_info_help_and_version_have_one_versioned_stdout_value() {
+    for arguments in [
+        vec!["--json", "info"],
+        vec!["--help", "--json"],
+        vec!["--version", "--json"],
+        vec!["--json"],
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+            .args(&arguments)
+            .output()
+            .unwrap();
+        let response = json_response(&output, true);
+        match response["command"].as_str().unwrap() {
+            "info" => {
+                assert_eq!(response["result"]["host"]["os"], std::env::consts::OS);
+                assert_eq!(
+                    response["result"]["desktop_targets"],
+                    serde_json::json!(["windows", "macos", "linux"])
+                );
+            }
+            "--version" => assert_eq!(response["result"]["version"], gpui_box::VERSION),
+            _ => assert!(
+                response["result"]["help"]
+                    .as_str()
+                    .unwrap()
+                    .contains("build desktop|android")
+            ),
+        }
+    }
+}
+
+#[test]
+fn json_argument_failures_have_stable_codes_and_exit_status() {
+    for arguments in [
+        vec!["unknown", "--json"],
+        vec!["--json", "info", "--json"],
+        vec!["build", "--json"],
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+            .args(arguments)
+            .output()
+            .unwrap();
+        let response = json_response(&output, false);
+        assert_eq!(response["error"]["code"], "INVALID_ARGUMENTS");
+        assert!(response["error"]["message"].as_str().unwrap().len() > 4);
+    }
+}
+
+#[test]
+fn json_streaming_commands_fail_before_starting_or_mutating_a_project() {
+    let directory = tempfile::tempdir().unwrap();
+    for arguments in [vec!["dev", "android", "--json"], vec!["logs", "--json"]] {
+        let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+            .current_dir(directory.path())
+            .args(arguments)
+            .output()
+            .unwrap();
+        let response = json_response(&output, false);
+        assert_eq!(response["error"]["code"], "STREAMING_JSON_UNSUPPORTED");
+        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+    }
+}
+
+#[test]
+fn json_project_generation_handles_spaces_customizations_and_errors() {
+    let directory = tempfile::tempdir().unwrap();
+    let distribution = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap();
+    let destination = directory.path().join("JSON App 有 空格");
+    let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+        .args([
+            "--json",
+            "new",
+            destination.to_str().unwrap(),
+            "--distribution",
+            distribution.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    let response = json_response(&output, true);
+    assert_eq!(
+        response["result"]["destination"],
+        destination.to_str().unwrap()
+    );
+    let app_source = destination.join("app/src/lib.rs");
+    std::fs::write(&app_source, "// application-owned\n").unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+        .current_dir(&destination)
+        .args(["generate", "--json"])
+        .output()
+        .unwrap();
+    assert_eq!(json_response(&output, true)["result"]["completed"], true);
+    assert_eq!(
+        std::fs::read_to_string(app_source).unwrap(),
+        "// application-owned\n"
+    );
+    std::fs::write(destination.join("gpui-box.json"), b"invalid project").unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+        .current_dir(&destination)
+        .args(["generate", "--json"])
+        .output()
+        .unwrap();
+    assert_eq!(
+        json_response(&output, false)["error"]["code"],
+        "GENERATION_FAILED"
+    );
+    assert_eq!(
+        std::fs::read(destination.join("gpui-box.json")).unwrap(),
+        b"invalid project"
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+        .args([
+            "new",
+            destination.to_str().unwrap(),
+            "--distribution",
+            distribution.to_str().unwrap(),
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(
+        json_response(&output, false)["error"]["code"],
+        "PROJECT_CREATION_FAILED"
+    );
+}
+
+#[test]
+fn json_finite_command_failures_are_machine_readable() {
+    let directory = tempfile::tempdir().unwrap();
+    for (arguments, code) in [
+        (vec!["doctor", "--json"], "DIAGNOSTICS_FAILED"),
+        (vec!["build", "android", "--json"], "WORKFLOW_FAILED"),
+        (vec!["install", "android", "--json"], "WORKFLOW_FAILED"),
+        (
+            vec!["package", "android", "--release", "--json"],
+            "PACKAGING_FAILED",
+        ),
+        (
+            vec!["package", "desktop", "--portable", "--json"],
+            "PACKAGING_FAILED",
+        ),
+        (
+            vec![
+                "new",
+                "App",
+                "--distribution",
+                "missing-distribution",
+                "--json",
+            ],
+            "DISTRIBUTION_UNAVAILABLE",
+        ),
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+            .current_dir(directory.path())
+            .args(arguments)
+            .output()
+            .unwrap();
+        assert_eq!(json_response(&output, false)["error"]["code"], code);
+    }
+}

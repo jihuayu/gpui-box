@@ -712,7 +712,7 @@ pub fn windows_portable(root: &Path) -> Result<(), String> {
         format!("{}  {name}.zip\n", digest(&destination)?),
     )
     .map_err(|error| error.to_string())?;
-    println!("Windows developer bundle {}", destination.display());
+    crate::outputln!("Windows developer bundle {}", destination.display());
     Ok(())
 }
 
@@ -1006,7 +1006,7 @@ pub fn android(root: &Path) -> Result<(), String> {
     fs::write(staging.join("SHA256SUMS"), sums.concat()).map_err(|error| error.to_string())?;
     fs::rename(&staging, &destination)
         .map_err(|error| format!("Publish release artifacts: {error}"))?;
-    println!("Inspected release artifacts {}", destination.display());
+    crate::outputln!("Inspected release artifacts {}", destination.display());
     Ok(())
 }
 

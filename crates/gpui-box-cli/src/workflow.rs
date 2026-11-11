@@ -2,11 +2,15 @@ use crate::config::AppConfig;
 use std::{
     env,
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, Stdio},
 };
 
 pub fn run(command: &mut Command) -> Result<(), String> {
-    println!("Running {command:?}");
+    crate::outputln!("Running {command:?}");
+    if crate::output::is_json() {
+        command.stdin(Stdio::null());
+        command.stdout(Stdio::from(std::io::stderr()));
+    }
     let status = command
         .status()
         .map_err(|e| format!("Start command: {e}"))?;
@@ -94,24 +98,26 @@ pub fn logs(root: &Path, serial: Option<&str>) -> Result<(), String> {
 pub fn doctor(root: &Path) -> Result<(), String> {
     let config = AppConfig::load(root)?;
     let distribution = config.distribution(root)?;
-    println!(
+    crate::outputln!(
         "Configuration v{} · {} · {}",
-        config.schema_version, config.application_id, config.update_channel
+        config.schema_version,
+        config.application_id,
+        config.update_channel
     );
-    println!("Distribution {}", distribution.display());
+    crate::outputln!("Distribution {}", distribution.display());
     let mut missing = false;
-    println!(
+    crate::outputln!(
         "Service declaration schema {}",
         config.services.schema_version
     );
     for declaration in &config.services.permissions {
-        println!(
+        crate::outputln!(
             "CONFIGURED Android {:?} permission. Android host adapter is available. Runtime authorization is queried in the app. See #20/#2 for per-operation qualification.",
             declaration.kind
         );
     }
     for scheme in &config.services.url_schemes {
-        println!(
+        crate::outputln!(
             "CONFIGURED Android custom URL scheme {scheme}. Validate host routing through the packaged application."
         );
     }
@@ -141,7 +147,7 @@ pub fn doctor(root: &Path) -> Result<(), String> {
             .args(args);
         match command.output() {
             Ok(result) if result.status.success() => {
-                println!("OK {}", String::from_utf8_lossy(&result.stdout).trim())
+                crate::outputln!("OK {}", String::from_utf8_lossy(&result.stdout).trim())
             }
             _ => {
                 eprintln!("MISSING {program}. {fix}");
@@ -151,15 +157,15 @@ pub fn doctor(root: &Path) -> Result<(), String> {
     }
     if config.targets.iter().any(|t| t == "android") {
         match crate::package::verify_wrapper(&root.join("android-host")) {
-            Ok(()) => println!("OK Gradle Wrapper JAR and distribution SHA-256 pins"),
+            Ok(()) => crate::outputln!("OK Gradle Wrapper JAR and distribution SHA-256 pins"),
             Err(error) => {
                 missing = true;
                 eprintln!("INVALID Gradle Wrapper. {error}. Run gpui-box generate.");
             }
         }
         match crate::package::bundletool() {
-            Ok(_) => println!("OK optional release bundletool 1.18.3 checksum"),
-            Err(error) => println!("RELEASE prerequisite {error}"),
+            Ok(_) => crate::outputln!("OK optional release bundletool 1.18.3 checksum"),
+            Err(error) => crate::outputln!("RELEASE prerequisite {error}"),
         }
         for name in [
             "GPUI_BOX_ANDROID_KEYSTORE",
@@ -167,7 +173,7 @@ pub fn doctor(root: &Path) -> Result<(), String> {
             "GPUI_BOX_ANDROID_KEY_ALIAS",
             "GPUI_BOX_ANDROID_KEY_PASSWORD",
         ] {
-            println!(
+            crate::outputln!(
                 "RELEASE {name} {}",
                 if env::var_os(name).is_some_and(|value| !value.is_empty()) {
                     "configured"
@@ -208,7 +214,7 @@ pub fn doctor(root: &Path) -> Result<(), String> {
                         )
                         .contains(expected) =>
                 {
-                    println!("OK {} {expected}", args[0])
+                    crate::outputln!("OK {} {expected}", args[0])
                 }
                 _ => {
                     missing = true;
@@ -227,7 +233,7 @@ pub fn doctor(root: &Path) -> Result<(), String> {
                         .lines()
                         .any(|line| line == target)
             }) {
-                println!("OK Rust target {target}");
+                crate::outputln!("OK Rust target {target}");
             } else {
                 missing = true;
                 eprintln!(
@@ -249,7 +255,7 @@ pub fn doctor(root: &Path) -> Result<(), String> {
                     "licenses/android-sdk-license",
                 ] {
                     if sdk.join(path).exists() {
-                        println!("OK Android {path}");
+                        crate::outputln!("OK Android {path}");
                     } else {
                         missing = true;
                         eprintln!(
@@ -263,12 +269,12 @@ pub fn doctor(root: &Path) -> Result<(), String> {
                 missing = true;
             }
         }
-        println!(
+        crate::outputln!(
             "Android tool pins JDK 17.0.21+9, Gradle 8.13, cargo-ndk 4.1.2. Run mise -E android install and rustup target add aarch64-linux-android x86_64-linux-android."
         );
     }
     if cfg!(windows) {
-        println!(
+        crate::outputln!(
             "Desktop requires MSVC C++ Build Tools and a Windows SDK. The build command validates linking."
         );
     }
