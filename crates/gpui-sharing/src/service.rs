@@ -193,3 +193,124 @@ impl ShareInteraction {
         self
     }
 }
+
+/// Internal bridge constructed by a native host with the same attachment.
+#[cfg(target_os = "windows")]
+pub(crate) struct ClipboardCopy(pub(crate) gpui_clipboard::Clipboard);
+#[cfg(target_os = "windows")]
+impl CopyTextProvider for ClipboardCopy {
+    fn capability(&self) -> Capability<ShareOperation> {
+        let Some(c) = self
+            .0
+            .capabilities()
+            .into_iter()
+            .find(|c| c.operation == gpui_clipboard::ClipboardOperation::WriteText)
+        else {
+            return unsupported(ShareOperation::CopyText);
+        };
+        Capability {
+            operation: ShareOperation::CopyText,
+            support: c.support,
+            availability: c.availability,
+            configuration: c.configuration,
+            permission: c.permission,
+            evidence: c.evidence,
+            constraints: c.constraints,
+            observed_revision: c.observed_revision,
+        }
+    }
+    fn copy_text(&self, text: &str, context: &OperationContext) -> ServiceResult<()> {
+        let mut interaction = self
+            .0
+            .user_initiated()?
+            .with_cancellation(context.cancellation.clone());
+        if let Some(deadline) = context.deadline {
+            interaction = interaction.with_deadline(deadline);
+        }
+        self.0
+            .write_text(text, interaction)
+            .map(|result| match result {
+                Completion::Completed(_) => Completion::Completed(()),
+                Completion::Cancelled(reason) => Completion::Cancelled(reason),
+            })
+    }
+}
+#[cfg(all(test, target_os = "windows"))]
+mod copy_tests {
+    use super::*;
+    use gpui_clipboard::{
+        Clipboard, ClipboardOperation, ClipboardProvider, ClipboardReceipt, ClipboardText,
+    };
+    use gpui_system::{CancelReason, SurfaceId, UiOwner};
+    use std::{cell::Cell, rc::Rc};
+    struct NativeCopy {
+        calls: Cell<usize>,
+        cancel_after: gpui_system::CancellationToken,
+    }
+    impl ClipboardProvider for NativeCopy {
+        fn capabilities(&self) -> Vec<Capability<ClipboardOperation>> {
+            vec![Capability {
+                operation: ClipboardOperation::WriteText,
+                support: Support::Native,
+                availability: Availability::Available,
+                configuration: Configuration::Ready,
+                permission: PermissionState::NotRequired,
+                evidence: Evidence::Compiled,
+                constraints: vec![],
+                observed_revision: 1,
+            }]
+        }
+        fn read_text(&self, _: &OperationContext) -> ServiceResult<ClipboardText> {
+            unreachable!()
+        }
+        fn write_text(
+            &self,
+            text: &str,
+            context: &OperationContext,
+        ) -> ServiceResult<ClipboardReceipt> {
+            context.check_at(Instant::now())?;
+            if let Some(reason) = context.cancellation.reason() {
+                return Ok(Completion::Cancelled(reason));
+            }
+            assert_eq!(text, "中文 😀");
+            self.calls.set(self.calls.get() + 1);
+            self.cancel_after.cancel(CancelReason::Caller);
+            Ok(Completion::Completed(ClipboardReceipt {
+                sequence: Some(12),
+            }))
+        }
+    }
+    #[test]
+    fn production_clipboard_bridge_preserves_cancellation_deadline_and_unicode() {
+        let owner = UiOwner::new(SurfaceId(1));
+        let token = gpui_system::CancellationToken::default();
+        let provider = Rc::new(NativeCopy {
+            calls: Cell::new(0),
+            cancel_after: token.clone(),
+        });
+        let clipboard = Clipboard::new(provider.clone(), owner.context(None).unwrap()).unwrap();
+        let bridge = ClipboardCopy(clipboard);
+        let mut context = OperationContext {
+            ui: Some(owner.context(None).unwrap()),
+            deadline: Some(Instant::now() - std::time::Duration::from_secs(1)),
+            ..Default::default()
+        };
+        assert_eq!(
+            bridge.copy_text("中文 😀", &context).unwrap_err().code,
+            ErrorCode::TimedOut
+        );
+        context.deadline = None;
+        context.cancellation.cancel(CancelReason::User);
+        assert_eq!(
+            bridge.copy_text("中文 😀", &context).unwrap(),
+            Completion::Cancelled(CancelReason::User)
+        );
+        assert_eq!(provider.calls.get(), 0);
+        context.cancellation = token;
+        assert_eq!(
+            bridge.copy_text("中文 😀", &context).unwrap(),
+            Completion::Completed(())
+        );
+        assert_eq!(provider.calls.get(), 1);
+    }
+}

@@ -307,3 +307,40 @@ fn share_debug_redacts_payload_and_title() {
     assert!(!debug.contains("SecretTitle"));
     assert!(!debug.contains("unchanged"));
 }
+
+#[test]
+fn deserialized_urls_are_revalidated_at_execution() {
+    let owner = owner();
+    let provider = Rc::new(Provider::default());
+    let sharing = Sharing::new(provider.clone(), owner.context(None).unwrap());
+    for value in [
+        "javascript:alert(1)",
+        "https://user:secret@example.com/",
+        "file:///secret",
+        "not a url",
+    ] {
+        let url: AllowedUrl =
+            serde_json::from_value(serde_json::Value::String(value.into())).unwrap();
+        assert!(
+            sharing
+                .share(
+                    ShareRequest::native(ShareItem::Url(url)),
+                    sharing.user_initiated().unwrap()
+                )
+                .is_err()
+        );
+    }
+    assert_eq!(provider.calls.get(), 0);
+    let url = UrlPolicy::new(["https"])
+        .unwrap()
+        .parse("https://example.com/report")
+        .unwrap();
+    assert!(
+        sharing
+            .share(
+                ShareRequest::native(ShareItem::Url(url)),
+                sharing.user_initiated().unwrap()
+            )
+            .is_ok()
+    );
+}

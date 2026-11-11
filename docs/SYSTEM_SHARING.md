@@ -33,7 +33,10 @@ The caller selects `ShareRoute::Native` or `ShareRoute::CopyText` before executi
 A native failure, denial, unavailable service or cancellation never silently
 copies content. Copy accepts exactly one text or URL item; it does not flatten
 multiple items or expose a file path. Install a `CopyTextProvider` explicitly to
-permit that route. A copy provider must report native acceptance rather than wrap
+permit that route. `WindowsSharing::attach_with_copy` explicitly installs the
+production clipboard bridge on the same HWND/UI attachment. It forwards the
+sharing cancellation token and deadline into the single-use clipboard interaction.
+A copy provider must report native acceptance rather than wrap
 a void API that swallows failures.
 
 `SubmittedOutcomeUnobservable` means the OS accepted the invocation of sharing
@@ -81,6 +84,8 @@ the host apartment. Missing/incompatible apartment returns configuration errors.
 Windows 10+ `DataTransferManager` HWND interop submits one text or HTTP(S) link.
 The adapter installs its removable `DataRequested` listener before calling
 `ShowShareUIForWindow`, without holding Rust borrows across native callbacks.
+Only one adapter may attach to the same HWND at a time, so independently created
+services cannot register competing DataRequested listeners for one window.
 One pending data request occupies the provider lane. Until data is supplied or
 its 120-second controlled request expiry is observed, a subsequent share returns
 `Busy`. Callback duplication cannot claim the same payload twice. A stale UI

@@ -26,6 +26,7 @@ use gpui_system::{
 };
 use std::{
     cell::RefCell,
+    collections::BTreeSet,
     marker::PhantomData,
     rc::Rc,
     sync::{Arc, Mutex},
@@ -33,6 +34,15 @@ use std::{
 };
 
 const DATA_REQUEST_LIFETIME: Duration = Duration::from_secs(120);
+thread_local! { static ATTACHED_WINDOWS: RefCell<BTreeSet<isize>> = const { RefCell::new(BTreeSet::new()) }; }
+struct WindowRegistration(isize);
+impl Drop for WindowRegistration {
+    fn drop(&mut self) {
+        ATTACHED_WINDOWS.with(|windows| {
+            windows.borrow_mut().remove(&self.0);
+        });
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NativeDataState {
@@ -54,6 +64,7 @@ pub struct WindowsSharing {
     ui: UiContext,
     session: RefCell<Option<NativeSession>>,
     _local: PhantomData<Rc<()>>,
+    _registration: Option<WindowRegistration>,
 }
 impl WindowsSharing {
     /// `hwnd` is the raw Win32 window value from the host's borrowed handle.
@@ -61,14 +72,34 @@ impl WindowsSharing {
     /// fresh adapter; keeping a numeric handle never keeps a window alive.
     pub fn attach(hwnd: isize, ui: UiContext) -> Result<Sharing, SystemError> {
         let binding = ui.clone();
-        let value = Self {
+        let mut value = Self {
             hwnd: HWND(hwnd as *mut _),
             ui,
             session: RefCell::new(None),
             _local: PhantomData,
+            _registration: None,
         };
         value.check_owner(false)?;
+        if !ATTACHED_WINDOWS.with(|windows| windows.borrow_mut().insert(hwnd)) {
+            return Err(error(
+                ErrorCode::Busy,
+                "A sharing provider is already attached to this native window",
+            ));
+        }
+        value._registration = Some(WindowRegistration(hwnd));
         Ok(Sharing::new(Rc::new(value), binding))
+    }
+    /// Explicitly install the native clipboard copy route on the same HWND and
+    /// UI attachment. Native is still selected unless the request says CopyText.
+    pub fn attach_with_copy(hwnd: isize, ui: UiContext) -> Result<Sharing, SystemError> {
+        let clipboard = gpui_clipboard::WindowsClipboard::attach(
+            std::num::NonZeroIsize::new(hwnd).ok_or_else(|| {
+                error(ErrorCode::ContextExpired, "Share window handle is invalid")
+            })?,
+            ui.clone(),
+        )?;
+        Ok(Self::attach(hwnd, ui)?
+            .with_copy_provider(Rc::new(crate::service::ClipboardCopy(clipboard))))
     }
     fn check_owner(&self, require_foreground: bool) -> Result<(), SystemError> {
         if !self.ui.is_current() {

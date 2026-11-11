@@ -1941,10 +1941,12 @@ dependencies = [
  "gpui",
  "gpui-activation",
  "gpui-app-data",
+ "gpui-clipboard",
  "gpui-files",
  "gpui-system",
  "gpui_platform",
  "raw-window-handle",
+ "serde_json",
  "tempfile",
  "windows 0.62.2",
 ]
