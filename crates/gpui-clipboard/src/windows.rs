@@ -119,7 +119,7 @@ impl ClipboardProvider for WindowsProvider {
             return Err(native_error("Clipboard text could not be read"));
         }
         let bytes = unsafe { GlobalSize(allocation) };
-        if bytes < 2 || bytes % 2 != 0 || bytes > (MAX_TEXT_BYTES + 1) * 2 {
+        if bytes < 2 || bytes % 2 != 0 {
             return Err(error(
                 ErrorCode::InvalidInput,
                 "Native clipboard text exceeds bounds or is malformed",
@@ -131,7 +131,11 @@ impl ClipboardProvider for WindowsProvider {
         }
         let _locked = LockedAllocation(allocation);
         // SAFETY: GlobalSize bounds this live, locked allocation; aligned Windows HGLOBAL storage.
-        let units = unsafe { std::slice::from_raw_parts(pointer, bytes / 2) };
+        // GlobalSize may include allocator padding. Scan at most the accepted
+        // text bound plus its terminator, rather than rejecting valid text only
+        // because the native allocation was rounded upward.
+        let units =
+            unsafe { std::slice::from_raw_parts(pointer, (bytes / 2).min(MAX_TEXT_BYTES + 1)) };
         let text = decode_text(units)?;
         Ok(Completion::Completed(ClipboardText::Text(text)))
     }
@@ -257,6 +261,13 @@ mod tests {
         let units: Vec<u16> = "中文 🦀".encode_utf16().chain(Some(0)).collect();
         assert_eq!(decode_text(&units).unwrap(), "中文 🦀");
         assert_eq!(decode_text(&[0]).unwrap(), "");
+        let mut padded = vec![b'a' as u16; MAX_TEXT_BYTES];
+        padded.push(0);
+        padded.extend([0; 16]);
+        assert_eq!(
+            decode_text(&padded[..MAX_TEXT_BYTES + 1]).unwrap().len(),
+            MAX_TEXT_BYTES
+        );
     }
 
     #[test]
