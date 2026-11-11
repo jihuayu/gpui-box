@@ -317,21 +317,37 @@ impl ReactiveUi {
     }
 
     pub fn dispose_signal<T>(&mut self, signal: Signal<T>) -> Result<(), Error> {
-        let bindings: Vec<_> = self.source(signal.id)?.bindings.iter().copied().collect();
+        self.dispose_source(signal.id)
+    }
+
+    fn dispose_source(&mut self, source: SourceId) -> Result<(), Error> {
+        let bindings: Vec<_> = self.source(source)?.bindings.iter().copied().collect();
         for binding in bindings {
             self.unbind(binding)?;
         }
-        let slot = &mut self.sources[signal.id.slot];
+        let slot = &mut self.sources[source.slot];
         slot.source = None;
         if let Some(next) = slot.generation.checked_add(1) {
             slot.generation = next;
-            self.free.push(signal.id.slot);
+            self.free.push(source.slot);
         }
         Ok(())
     }
 
     pub fn append(&mut self, parent: NodeId, style: Style, color: u32) -> Result<NodeId, Error> {
         self.tree.append(parent, style, color)
+    }
+
+    pub(super) fn dispose_scope_sources(&mut self, sources: Vec<Box<dyn ScopedSource>>) {
+        for source in sources {
+            source.dispose(self);
+        }
+    }
+
+    pub(super) fn reorder(&mut self, node: NodeId, children: Vec<NodeId>) -> Result<Commit, Error> {
+        let mut tx = Transaction::default();
+        tx.reorder(node, children);
+        self.tree.commit(tx, self.capabilities)
     }
 
     /// Retire every endpoint in a removed subtree, including invisible descendants.
@@ -403,6 +419,19 @@ pub struct ReactiveTransaction<'a> {
     values: BTreeMap<SourceId, Rc<dyn Value>>,
     writes: u64,
     equal: u64,
+}
+
+pub(super) trait ScopedSource {
+    fn as_any(&self) -> &dyn Any;
+    fn dispose(&self, ui: &mut ReactiveUi);
+}
+impl<T: 'static> ScopedSource for Signal<T> {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn dispose(&self, ui: &mut ReactiveUi) {
+        let _ = ui.dispose_signal(*self);
+    }
 }
 impl ReactiveTransaction<'_> {
     pub fn read<T: 'static>(&self, signal: Signal<T>) -> Result<&T, Error> {

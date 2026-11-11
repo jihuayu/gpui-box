@@ -11,6 +11,8 @@ The [group-compositing stage](RETAINED_GROUP_COMPOSITING.md) adds isolated opaci
 content-cache invalidation and a correct readback bridge for normal window paint.
 The [reactive update stage](RETAINED_REACTIVE_UPDATES.md) connects typed source/sink
 bindings, nested event transactions, lifecycle cleanup and measured batch dispatch.
+The [logical scope stage](RETAINED_LOGICAL_SCOPES.md) separates component identity
+from render parentage, retaining keyed state and cleaning up portal output.
 
 ## Current integrated foundation
 
@@ -51,7 +53,7 @@ click test passed pixel comparison at the actual window scale.
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → paint/persistent WGPU, with hardware pixel checks | Native-surface presentation and complete general routing |
 | P0 equality and transactions | Source equality before fanout, final-value coalescing, atomic sink validation, nested savepoints, one outer frame intent, idle-render assertions | Computed/effect graph, cross-event producer scheduling and real OS idle-wakeup/energy measurements |
 | P0–P5 routing | Rectangle color/translation/style/reorder intents and backend capability input | General primitive capabilities, explicit fallback reasons, semantic/resource channels and actual GPU patch dispatch |
-| Logical / Render Tree | Persistent one-to-one rectangle identity, children, removal and generation; signal handles and property sinks retire on disposal/subtree removal | Separate logical scopes and render identities, portals, keyed reconciliation, event/semantics lifetime and legacy islands |
+| Logical / Render Tree | Independent generation-checked scopes, zero/multiple outputs and portals, keyed reorder retaining state/render/chunks, subtree source/binding/output cleanup; gallery and hardware validation | Atomic structural batches, portal reparenting, event/focus/semantics lifetime and legacy islands; eliminate whole-scope/order scans |
 | Persistent Taffy | Long-lived nodes, style/children setters, root cache and resize handling | Owned text/image/custom measure snapshots, baseline/overflow dependencies, independent islands and layout visit counters |
 | Paint chunks / property trees | Shared local fill commands; sparse transform/clip/scroll/effect chains with inherited state, clip-aware geometry/hit testing | Stable chunk IDs, full affine transforms, selective geometry extraction and spatial indices |
 | GPU arena | Generic CPU allocation table with generations and deferred slot reuse, WGPU geometric growth and completion-held buffer/binding leases | General resource/material records, budgets, compaction and other backends |

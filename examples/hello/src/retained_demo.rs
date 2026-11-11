@@ -2,16 +2,18 @@
 use gpui::*;
 use gpui_box::retained::{
     BackendCapabilities, DisplayCommand, Rect, Style, Transaction, UiTree, length,
-    reactive::{Property, ReactiveUi, Signal},
+    logical::LogicalUi,
+    reactive::{Property, Signal},
     taffy,
 };
 use std::{cell::RefCell, rc::Rc};
 
 pub struct RetainedDemo {
-    tree: Rc<RefCell<ReactiveUi>>,
+    tree: Rc<RefCell<LogicalUi>>,
     color: Signal<u32>,
     scroll: Signal<[f32; 2]>,
     last_commit: String,
+    reversed: bool,
     #[cfg(test)]
     render_count: usize,
     #[cfg(feature = "retained-wgpu")]
@@ -85,24 +87,56 @@ impl RetainedDemo {
         tree.commit(transaction, BackendCapabilities::default())
             .unwrap();
         let mut tree =
-            ReactiveUi::new(tree, BackendCapabilities::default()).expect("create reactive UI");
-        let color = tree.signal(0x245fc7ff);
-        let scroll = tree.signal([0.0; 2]);
+            LogicalUi::from_tree(tree, BackendCapabilities::default()).expect("create logical UI");
+        let root_scope = tree.root_scope();
+        let color = tree.state(root_scope, 0, || 0x245fc7ff).unwrap();
+        let scroll = tree.state(root_scope, 1, || [0.0; 2]).unwrap();
         tree.bind(color, Property::color(tile)).expect("bind color");
         tree.bind(scroll, Property::scroll(viewport))
             .expect("bind scroll");
         #[cfg(feature = "retained-wgpu")]
         let opacity = {
-            let opacity = tree.signal(1.0);
+            let opacity = tree.state(root_scope, 2, || 1.0).unwrap();
             tree.bind(opacity, Property::opacity(viewport))
                 .expect("bind opacity");
             opacity
         };
+        let keyed = tree
+            .reconcile_keys(root_scope, &[1, 2, 3])
+            .expect("create keyed scopes");
+        for scope in keyed.order {
+            let key = tree.key(scope).unwrap();
+            let color = tree
+                .state(scope, 0, || match key {
+                    1 => 0xeeaa44ff,
+                    2 => 0x44cc88ff,
+                    _ => 0x4488ffff,
+                })
+                .unwrap();
+            let initial = *tree.read(color).unwrap();
+            let node = tree
+                .append_render(
+                    scope,
+                    tree.root_render(),
+                    Style {
+                        size: taffy::Size {
+                            width: length(24.0),
+                            height: length(24.0),
+                        },
+                        flex_shrink: 0.0,
+                        ..Default::default()
+                    },
+                    initial,
+                )
+                .expect("create keyed render output");
+            tree.bind(color, Property::color(node)).unwrap();
+        }
         Self {
             tree: Rc::new(RefCell::new(tree)),
             color,
             scroll,
             last_commit: "Ready".into(),
+            reversed: false,
             #[cfg(test)]
             render_count: 0,
             #[cfg(feature = "retained-wgpu")]
@@ -256,6 +290,25 @@ impl Render for RetainedDemo {
                     })),
             )
             .children(effect_button)
+            .child(
+                div()
+                    .id("retained-keyed")
+                    .debug_selector(|| "retained-keyed".into())
+                    .cursor_pointer()
+                    .child("Reverse keyed components")
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.reversed = !this.reversed;
+                        let mut tree = this.tree.borrow_mut();
+                        let root = tree.root_scope();
+                        let keys = if this.reversed { [3, 2, 1] } else { [1, 2, 3] };
+                        let change = tree
+                            .reconcile_keys(root, &keys)
+                            .expect("reorder keyed components");
+                        if change.request_frame {
+                            cx.notify();
+                        }
+                    })),
+            )
             .child(self.last_commit.clone())
             .child(
                 canvas(
@@ -433,6 +486,36 @@ mod tests {
             "outer transaction requests one view render"
         );
         assert_eq!((stats.transactions, stats.frame_requests), (4, 3));
+        let (scope_ids, node_ids) = view.read_with(cx, |view, _| {
+            let tree = view.tree.borrow();
+            let scopes = tree.children(tree.root_scope()).unwrap().to_vec();
+            let nodes = scopes
+                .iter()
+                .map(|scope| tree.renders(*scope).unwrap()[0])
+                .collect::<Vec<_>>();
+            (scopes, nodes)
+        });
+        let keyed = cx.debug_bounds("retained-keyed").unwrap();
+        cx.simulate_click(keyed.center(), Modifiers::default());
+        cx.run_until_parked();
+        view.read_with(cx, |view, _| {
+            let tree = view.tree.borrow();
+            assert_eq!(
+                tree.children(tree.root_scope()).unwrap(),
+                scope_ids.iter().rev().copied().collect::<Vec<_>>()
+            );
+            let output = tree.published_frame().unwrap();
+            assert_eq!(
+                output
+                    .items
+                    .iter()
+                    .filter(|item| node_ids.contains(&item.node))
+                    .map(|item| item.node)
+                    .collect::<Vec<_>>(),
+                node_ids.iter().rev().copied().collect::<Vec<_>>()
+            );
+            assert_eq!(output.recorded_chunks, 0);
+        });
     }
 
     #[cfg(feature = "retained-wgpu")]
@@ -526,6 +609,21 @@ mod tests {
         assert!(
             !cx.update(|window, _| window.has_image_atlas_entry(&presented)),
             "retire the readback sprite when isolation is removed"
+        );
+        let keyed = cx.debug_bounds("retained-keyed").unwrap();
+        cx.simulate_click(keyed.center(), Modifiers::default());
+        cx.run_until_parked();
+        let reordered = view.read_with(cx, |view, _| {
+            view.tree.borrow().published_frame().unwrap().clone()
+        });
+        let actual = gpu.borrow_mut().image().unwrap();
+        let reference = gpu
+            .borrow_mut()
+            .reference_image(&reordered, [actual.width(), actual.height()], scale)
+            .unwrap();
+        assert!(
+            actual.as_raw() == reference.as_raw(),
+            "normal keyed click reaches GPU"
         );
     }
 }

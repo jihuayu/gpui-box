@@ -13,6 +13,7 @@ pub use taffy::Style;
 use taffy::prelude::*;
 pub use taffy::style_helpers::{length, percent};
 pub mod arena;
+pub mod logical;
 mod properties;
 pub mod reactive;
 pub use properties::{Damage, PropertyNode, PropertyState, PropertyTrees};
@@ -179,6 +180,9 @@ pub enum Error {
     InvalidSignal,
     InvalidBinding,
     BindingConflict,
+    InvalidScope,
+    DuplicateKey,
+    ScopeInUse,
 }
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
