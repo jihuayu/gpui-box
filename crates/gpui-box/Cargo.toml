@@ -21,6 +21,8 @@ lifecycle-gpui = ["lifecycle", "system-gpui", "gpui-lifecycle/gpui"]
 system-gpui = ["system", "gpui-system/gpui"]
 activation = ["system", "dep:gpui-activation"]
 activation-gpui = ["activation", "system-gpui", "gpui-activation/gpui"]
+notifications = ["system", "app-data", "permissions", "activation", "dep:gpui-notifications"]
+notifications-gpui = ["notifications", "system-gpui", "permissions-gpui", "activation-gpui", "gpui-notifications/gpui"]
 permissions = ["system", "dep:gpui-permissions"]
 permissions-gpui = ["permissions", "system-gpui", "gpui-permissions/gpui"]
 files = ["system", "app-data", "dep:gpui-files"]
@@ -34,6 +36,7 @@ gpui-sharing = { workspace = true, optional = true }
 gpui-clipboard = { workspace = true, optional = true }
 gpui-secrets = { workspace = true, optional = true }
 gpui-activation = { workspace = true, optional = true }
+gpui-notifications = { workspace = true, optional = true }
 gpui-app-data = { workspace = true, optional = true }
 gpui-lifecycle = { workspace = true, optional = true }
 gpui-system = { workspace = true, optional = true }

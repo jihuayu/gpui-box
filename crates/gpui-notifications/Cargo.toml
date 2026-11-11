@@ -1,0 +1,33 @@
+[package]
+name = "gpui-notifications"
+description = "Immediate local notifications with replacement, withdrawal and activation routing for gpui-box"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+gpui = [
+    "dep:gpui",
+    "gpui-system/gpui",
+    "gpui-permissions/gpui",
+    "gpui-activation/gpui",
+]
+
+[dependencies]
+gpui-system.workspace = true
+gpui-app-data.workspace = true
+gpui-permissions.workspace = true
+gpui-activation.workspace = true
+serde = { version = "1.0.219", features = ["derive"] }
+gpui = { workspace = true, optional = true }
+
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }
+tempfile = "3.27"
+
+[lints]
+workspace = true

@@ -151,6 +151,13 @@ Account-scoped secure credential storage builds on these primitives in
 secure provider returns `Unavailable`; credentials never fall back to private
 settings, files or logs.
 
+Immediate local notification submission, replacement, withdrawal and cold/warm
+activation reconstruction build on these primitives in
+`crates/gpui-notifications`. See
+[`SYSTEM_NOTIFICATIONS.md`](SYSTEM_NOTIFICATIONS.md). Receipts describe
+submission only; observed display and user activation remain separate events.
+No native notification provider is installed by this crate.
+
 ## Verification and remaining platform work
 
 Initial evidence was collected on Windows x86_64 on November 11, 2026 using the
