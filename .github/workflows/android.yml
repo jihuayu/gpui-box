@@ -69,6 +69,11 @@ jobs:
           unzip -l platforms/android/app/build/outputs/apk/debug/app-debug.apk | tee target/ci/apk-contents.txt
           grep -F 'lib/arm64-v8a/libgpui_box_android.so' target/ci/apk-contents.txt
           grep -F 'lib/x86_64/libgpui_box_android.so' target/ci/apk-contents.txt
+      - name: Qualify external SDK and project templates
+        env:
+          GPUI_BOX_QUALIFICATION_TARGET: android
+          GPUI_BOX_QUALIFICATION_REPORT_DIR: ${{ github.workspace }}/target/ci/template-qualification
+        run: mise run check:templates 2>&1 | tee target/ci/templates.log
       - name: Upload validation logs and reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
