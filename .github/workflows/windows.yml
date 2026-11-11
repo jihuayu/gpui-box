@@ -1,0 +1,74 @@
+name: Windows checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shared-and-cli:
+    name: Shared code, CLI and components
+    runs-on: windows-2025
+    timeout-minutes: 60
+    env:
+      CARGO_TERM_COLOR: never
+      CARGO_INCREMENTAL: "0"
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Configure MSVC
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
+        with:
+          arch: x64
+      - name: Set up pinned mise and Rust
+        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: 2026.7.5
+          sha256: 1840f167ec8b161598e08b8ede769cf9954c0239b25bb7bdf0b326124b548c32
+          cache: true
+      - name: Install Rust checks
+        run: |
+          mise run setup:rust
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Path target/ci -Force | Out-Null
+          mise exec -- rustc --version --verbose | Tee-Object -FilePath target/ci/rust.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          mise exec -- cargo --version | Tee-Object -FilePath target/ci/cargo.txt
+          exit $LASTEXITCODE
+      - name: Check shared packages and CLI
+        run: |
+          mise run check 2>&1 | Tee-Object -FilePath target/ci/check.log
+          exit $LASTEXITCODE
+      - name: Check shared components
+        run: |
+          mise run check:components 2>&1 | Tee-Object -FilePath target/ci/components.log
+          exit $LASTEXITCODE
+      - name: Test shared gallery workflows
+        run: |
+          mise exec -- cargo test --locked -p gpui-box-example-hello 2>&1 | Tee-Object -FilePath target/ci/gallery.log
+          exit $LASTEXITCODE
+      - name: Check desktop application
+        run: |
+          mise run check:desktop 2>&1 | Tee-Object -FilePath target/ci/desktop.log
+          exit $LASTEXITCODE
+      - name: Upload validation logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-checks-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/ci/
+          if-no-files-found: warn
+          retention-days: 14
