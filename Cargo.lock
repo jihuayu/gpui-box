@@ -2114,6 +2114,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpui-accessibility"
+version = "0.1.0-dev"
+dependencies = [
+ "accesskit",
+ "gpui",
+ "gpui-system",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "gpui-activation"
 version = "0.1.0-dev"
 dependencies = [
@@ -2162,6 +2173,7 @@ name = "gpui-box"
 version = "0.1.0-dev"
 dependencies = [
  "gpui",
+ "gpui-accessibility",
  "gpui-activation",
  "gpui-android",
  "gpui-app-data",

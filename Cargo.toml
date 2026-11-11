@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/gpui-box", "crates/gpui-box-cli", "crates/gpui-android", "crates/gpui-lifecycle", "crates/gpui-system", "crates/gpui-app-data", "crates/gpui-permissions", "crates/gpui-files", "crates/gpui-sharing", "crates/gpui-clipboard", "crates/gpui-notifications", "crates/gpui-activation", "crates/gpui-secrets", "crates/gpui-local-auth", "crates/gpui-updates", "examples/hello", "examples/android", "examples/desktop", "components/gpui-box-components"]
+members = ["crates/gpui-box", "crates/gpui-box-cli", "crates/gpui-accessibility", "crates/gpui-android", "crates/gpui-lifecycle", "crates/gpui-system", "crates/gpui-app-data", "crates/gpui-permissions", "crates/gpui-files", "crates/gpui-sharing", "crates/gpui-clipboard", "crates/gpui-notifications", "crates/gpui-activation", "crates/gpui-secrets", "crates/gpui-local-auth", "crates/gpui-updates", "examples/hello", "examples/android", "examples/desktop", "components/gpui-box-components"]
 default-members = ["crates/gpui-box", "crates/gpui-box-cli"]
 exclude = ["vendor/gpui"]
 
@@ -14,6 +14,7 @@ publish = false
 
 [workspace.dependencies]
 gpui-box = { path = "crates/gpui-box", default-features = false }
+gpui-accessibility = { path = "crates/gpui-accessibility", default-features = false }
 gpui = { path = "vendor/gpui/crates/gpui", default-features = false }
 gpui_platform = { path = "vendor/gpui/crates/gpui_platform", default-features = false }
 gpui-android = { path = "crates/gpui-android" }

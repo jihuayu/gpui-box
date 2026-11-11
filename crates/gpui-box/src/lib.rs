@@ -21,6 +21,10 @@ pub use gpui_lifecycle as lifecycle;
 #[cfg(feature = "permissions")]
 pub use gpui_permissions as permissions;
 
+/// AccessKit semantic inventory, scene audits and assistive-technology evidence.
+#[cfg(feature = "accessibility")]
+pub use gpui_accessibility as accessibility;
+
 /// GPUI types from the distribution's coordinated source tree.
 #[cfg(any(
     all(
