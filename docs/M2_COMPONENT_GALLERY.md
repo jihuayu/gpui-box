@@ -131,3 +131,119 @@ Entity handles. Desktop compilation retains its existing shared gallery path.
 Notification denial/retry/permanent denial and settings-to-resume authorization,
 camera grant and already-granted no-prompt paths are covered by native instrumentation.
 Screen-reader speech and physical-device evidence remain deferred acceptance gates.
+
+## Production shell, virtualization and cross-service continuation
+
+This continuation implements the production shell/list/model slice of #3 and the
+end-to-end gallery workflows for #18, #23, #25, #26 and #28. The earlier audit
+and remaining-acceptance notes above are retained; this section supersedes only
+the implementation gaps it explicitly names.
+
+### Shell primitives and motion/accessibility tokens
+
+`gpui-box-components::shell` now provides:
+
+- `app_bar`: an accessible `Role::Header` with a 56px minimum height, optional
+  leading slot, scaled title and trailing actions. The bar uses the theme's
+  surface, foreground and a visible outline.
+- `NavItem` + `bottom_navigation`: an accessible `Role::Navigation` tab bar
+  labelled `Primary navigation`, with a caller-supplied container label (the
+  gallery uses `Gallery sections`). Every item is a focusable, 48px-minimum
+  `Role::Tab` with `aria_selected`, a visible focus ring, an explicit label,
+  distinct selected/unselected styling, pointer activation and the matching
+  AccessKit Click action. The gallery uses the four unique labels
+  `Section: Overview`, `Section: Adaptive shell`, `Section: System workflows`
+  and `Section: Local unlock`.
+- `BottomSheetController`: retained open state plus separate trigger/sheet
+  `FocusHandle`s. `open`/`present` dismiss the virtual keyboard and focus the
+  sheet; `dismiss` clears the flag and restores the trigger. `motion_duration_ms`
+  reads the theme's reduced-motion policy.
+- `keyboard_avoidance` / `keyboard_bottom_inset`: apply the window IME bottom
+  inset as padding without changing controller state.
+- `master_detail`: one retained tree that switches at 720 logical pixels between
+  a compact detail-or-master pane and a wide master plus detail (or empty-state)
+  layout.
+
+`Theme` keeps every previous public field and `Theme::DARK`/`Theme::LIGHT` remain
+`pub const`. It now derives `Debug` and adds `reduced_motion` and `high_contrast`
+flags, `HIGH_CONTRAST_DARK`/`HIGH_CONTRAST_LIGHT` palettes, const builders
+`with_text_scale`, `with_reduced_motion`, `with_high_contrast`, and
+`transition_ms(standard_ms)` returning zero when reduced motion is enabled.
+High-contrast dialogs, app bars, navigation and buttons gain visible borders;
+the standard, non-high-contrast button and `TextInput` dimensions are unchanged.
+
+### Deterministic virtualization
+
+`VirtualListSpec` and `VirtualWindow` centralize fixed-height windowing. The
+computation clamps invalid/negative/NaN row heights and viewports, an empty
+list, an oversized scroll offset and overscan; both spacers conserve the full
+scroll extent exactly. `scroll_to_index` and `set_item_count` re-clamp retained
+scroll state, so filter-driven shrinking cannot leave an out-of-range offset.
+`virtual_list` renders a `Role::List` containing only the visible slice plus the
+top/bottom spacers. A 10,000-item test renders only the visible window, while the
+gallery filters 500 catalog rows, scrolls and jumps, and keeps the filter draft,
+selected item and clamped scroll position across compact/wide transitions.
+
+### Screen model service overrides
+
+`Navigation<T>` exposes its root, route slice and `reset_to_root`. `ScreenModel<R>`
+combines that navigation stack with an owned `gpui_system::SystemServices`,
+providing `new`, `with_services`, `with_service`, `insert_service`,
+`replace_service`, typed `service::<S>()`, service accessors and mutable
+navigation access. Registrations are screen-scoped, so tests install fakes
+without process globals.
+
+### Gallery workflows
+
+`examples/hello/src/workflows.rs` owns a per-instance scratch root (PID, atomic
+sequence and timestamp; removed on drop), private `AppData`, a background
+operation context and explicitly registered fake providers. The default gallery
+section remains `Overview`; the section bar switches to the new surfaces.
+
+- Workflow 1 opens an authorized document through `FileService`, reads and edits
+  the draft with `纪要 · 已审阅 ✅`, saves atomically, stages an
+  `ExportResourceLease`, and hands a `ShareResource` to the share service while
+  retaining the staged lease. A toggle makes native file sharing report
+  `Unsupported`; the workbench then keeps the lease and only copies through an
+  explicit, caller-initiated `Clipboard::user_initiated()` action. The fallback
+  copies the document snapshot captured at staging time, so later uncommitted
+  draft edits never leak into the clipboard, and a fallback requested before
+  staging is rejected with an updated status.
+- Workflow 2 completes an in-process export, verifies notification permission,
+  posts a notification bound to a document activation target, replaces it, and
+  routes both a warm callback and a simulated cold relaunch. Replacement before
+  the first post is rejected with an updated status. The cold path re-opens the
+  durable activation store and inbox over the same `AppData` roots and clears
+  process-local activation memory, so duplicate suppression is proven by the
+  durable `ActivationInbox` tombstone rather than the consumer-side handled set.
+- Workflow 3 probes local-auth readiness, exercises a user-cancelled prompt,
+  `BiometricOnly` versus `BiometricOrDeviceCredential` fallback, grants an
+  `AccountUnlockManager` unlock and releases an account-scoped `SecretBytes`
+  through the capability-gated operation. Release requires an unlocked session
+  before the local-auth service applies its own foreground/session-lock gating;
+  only the protected key identity and byte length are displayed. Background and
+  session-lock transitions relock the account and are asserted to block release.
+
+### Validation and remaining gates
+
+Component tests cover theme builders/motion (including reversible high
+contrast), virtual-window clamping and spacer conservation for 10,000 rows,
+rendered visible-slice size, `ScreenModel` service registration/replacement/
+missing lookup, navigation, app bar/navigation/master-detail rendering, retained
+`TextInput` state across compact/wide switches, and bottom-sheet trigger/sheet
+focus restoration. The hello tests cover all three cross-service workflows,
+including pre-stage fallback rejection and staged-snapshot copying, pre-post
+replacement rejection, warm and simulated-cold activation with durable-tombstone
+duplicate suppression after process-memory reset, cancelled verification,
+biometric/device-credential unlock, strict locked-session release gating, secret
+redaction and both relock paths. Gallery tests verify the default `Overview`
+section, labelled bottom-navigation switching, focusable catalog rows with
+AccessKit activation, 500-item filter/scroll retention, sheet isolation, Tab
+cycling and Escape dismissal with trigger-focus restoration.
+
+Remaining acceptance is unchanged where it depends on unavailable externals:
+physical iOS/Android hardware qualification, TalkBack/VoiceOver speech and
+exploration, a coordinated GPUI Kit port/build matrix, and full Windows
+screen-reader acceptance. The fake providers are deterministic test doubles and
+are not evidence of native provider behavior. See the issue-linked system
+documents for those gates.

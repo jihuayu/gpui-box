@@ -1,4 +1,7 @@
 //! Small state prototypes owned by the screen model across layout changes.
+use gpui_system::{SystemError, SystemServices};
+use std::rc::Rc;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Navigation<T> {
     root: T,
@@ -14,6 +17,12 @@ impl<T> Navigation<T> {
     pub fn current(&self) -> &T {
         self.routes.last().unwrap_or(&self.root)
     }
+    pub fn root(&self) -> &T {
+        &self.root
+    }
+    pub fn routes(&self) -> &[T] {
+        &self.routes
+    }
     pub fn push(&mut self, route: T) {
         self.routes.push(route);
     }
@@ -22,6 +31,58 @@ impl<T> Navigation<T> {
     }
     pub fn depth(&self) -> usize {
         self.routes.len()
+    }
+    pub fn reset_to_root(&mut self) {
+        self.routes.clear();
+    }
+}
+
+/// A screen-owned navigation stack plus explicitly registered services.
+///
+/// Services are typed `gpui_system::SystemServices` entries, not process
+/// globals. Tests and applications can install deterministic providers on one
+/// screen without leaking them into another screen or the process.
+pub struct ScreenModel<R> {
+    navigation: Navigation<R>,
+    services: SystemServices,
+}
+impl<R> ScreenModel<R> {
+    pub fn new(root: R) -> Self {
+        Self::with_services(root, SystemServices::new())
+    }
+    pub fn with_services(root: R, services: SystemServices) -> Self {
+        Self {
+            navigation: Navigation::new(root),
+            services,
+        }
+    }
+    /// Register one service, rejecting a duplicate concrete type.
+    pub fn with_service<S: 'static>(mut self, service: S) -> Result<Self, SystemError> {
+        self.insert_service(service)?;
+        Ok(self)
+    }
+    pub fn insert_service<S: 'static>(&mut self, service: S) -> Result<(), SystemError> {
+        self.services.register(service)
+    }
+    /// Replace an existing service or install the first one. Install overrides
+    /// before starting work; existing handles retain their original provider.
+    pub fn replace_service<S: 'static>(&mut self, service: S) {
+        self.services.override_provider(service);
+    }
+    pub fn service<S: 'static>(&self) -> Result<Rc<S>, SystemError> {
+        self.services.service::<S>()
+    }
+    pub fn services(&self) -> &SystemServices {
+        &self.services
+    }
+    pub fn services_mut(&mut self) -> &mut SystemServices {
+        &mut self.services
+    }
+    pub fn navigation(&self) -> &Navigation<R> {
+        &self.navigation
+    }
+    pub fn navigation_mut(&mut self) -> &mut Navigation<R> {
+        &mut self.navigation
     }
 }
 /// Request epochs reject responses from an obsolete screen or query.

@@ -4,11 +4,17 @@ pub mod model;
 pub mod query;
 pub mod reactive;
 pub mod shell;
+pub mod virtual_list;
 use gpui::{prelude::*, *};
 pub use input::TextInput;
+pub use model::{Navigation, ScreenModel};
+pub use shell::{
+    BottomSheetController, NavItem, app_bar, bottom_navigation, keyboard_avoidance, master_detail,
+};
+pub use virtual_list::{VirtualListSpec, VirtualWindow, virtual_list};
 
 /// Shared tokens with logical dimensions and 48px touch targets.
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Theme {
     pub background: u32,
     pub surface: u32,
@@ -17,6 +23,10 @@ pub struct Theme {
     pub accent: u32,
     pub border: u32,
     pub text_scale: f32,
+    /// Suppresses non-essential animation while preserving functionality.
+    pub reduced_motion: bool,
+    /// Requests stronger foreground/surface/border separation.
+    pub high_contrast: bool,
 }
 impl Theme {
     pub const DARK: Self = Self {
@@ -27,6 +37,8 @@ impl Theme {
         accent: 0x245fc7,
         border: 0x48607e,
         text_scale: 1.0,
+        reduced_motion: false,
+        high_contrast: false,
     };
     pub const LIGHT: Self = Self {
         background: 0xeaf1fa,
@@ -36,7 +48,75 @@ impl Theme {
         accent: 0x245fc7,
         border: 0xb0c4de,
         text_scale: 1.0,
+        reduced_motion: false,
+        high_contrast: false,
     };
+    pub const HIGH_CONTRAST_DARK: Self = Self {
+        background: 0x0b0f16,
+        surface: 0x121924,
+        text: 0xffffff,
+        muted: 0xd6e2f0,
+        accent: 0x3b82f6,
+        border: 0xf2f6fc,
+        text_scale: 1.0,
+        reduced_motion: false,
+        high_contrast: true,
+    };
+    pub const HIGH_CONTRAST_LIGHT: Self = Self {
+        background: 0xffffff,
+        surface: 0xf4f7fb,
+        text: 0x000000,
+        muted: 0x2b3a4d,
+        accent: 0x0b4fc4,
+        border: 0x101820,
+        text_scale: 1.0,
+        reduced_motion: false,
+        high_contrast: true,
+    };
+    pub const fn with_text_scale(mut self, scale: f32) -> Self {
+        self.text_scale = scale;
+        self
+    }
+    pub const fn with_reduced_motion(mut self, reduced: bool) -> Self {
+        self.reduced_motion = reduced;
+        self
+    }
+    /// Set the high-contrast flag. Enabling it also strengthens the text,
+    /// muted and border tokens against the theme's current background while
+    /// preserving the application's background, surface and accent palette.
+    pub const fn with_high_contrast(mut self, high_contrast: bool) -> Self {
+        self.high_contrast = high_contrast;
+        if dark_color(self.background) {
+            if high_contrast {
+                self.text = 0xffffff;
+                self.muted = 0xd6e2f0;
+                self.border = 0xf2f6fc;
+            } else {
+                self.text = Self::DARK.text;
+                self.muted = Self::DARK.muted;
+                self.border = Self::DARK.border;
+            }
+        } else if high_contrast {
+            self.text = 0x000000;
+            self.muted = 0x2b3a4d;
+            self.border = 0x101820;
+        } else {
+            self.text = Self::LIGHT.text;
+            self.muted = Self::LIGHT.muted;
+            self.border = Self::LIGHT.border;
+        }
+        self
+    }
+    /// Standard motion duration, suppressed entirely when reduced motion is on.
+    pub const fn transition_ms(&self, standard_ms: u32) -> u32 {
+        if self.reduced_motion { 0 } else { standard_ms }
+    }
+}
+const fn dark_color(color: u32) -> bool {
+    let red = (color >> 16) & 0xff;
+    let green = (color >> 8) & 0xff;
+    let blue = color & 0xff;
+    red * 299 + green * 587 + blue * 114 < 128 * 1000
 }
 /// GPUI supplies pointer, touch and keyboard click activation. AccessKit shares the action.
 pub fn button(
@@ -48,7 +128,7 @@ pub fn button(
     let label = label.into();
     let action = std::rc::Rc::new(action);
     let click = action.clone();
-    div()
+    let element = div()
         .id(id)
         .role(accesskit::Role::Button)
         .aria_label(label.clone())
@@ -67,7 +147,12 @@ pub fn button(
         .on_click(move |_, window, cx| click(window, cx))
         .on_a11y_action(accesskit::Action::Click, move |_, window, cx| {
             action(window, cx)
-        })
+        });
+    if theme.high_contrast {
+        element.border_2().border_color(rgb(theme.border))
+    } else {
+        element
+    }
 }
 pub fn label(
     id: impl Into<ElementId>,
