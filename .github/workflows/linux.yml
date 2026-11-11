@@ -30,14 +30,29 @@ jobs:
         with:
           persist-credentials: false
       - name: Install Linux build dependencies
+        timeout-minutes: 10
         run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y \
+          mkdir -p target/ci
+          printf '%s\n' \
+            'deb https://archive.ubuntu.com/ubuntu noble main universe' \
+            'deb https://archive.ubuntu.com/ubuntu noble-updates main universe' \
+            'deb https://security.ubuntu.com/ubuntu noble-security main universe' \
+            > "$RUNNER_TEMP/gpui-box-ubuntu.list"
+          apt_options=(
+            -o "Dir::Etc::sourcelist=$RUNNER_TEMP/gpui-box-ubuntu.list"
+            -o 'Dir::Etc::sourceparts=-'
+            -o 'Acquire::Retries=2'
+            -o 'Acquire::https::Timeout=20'
+            -o 'APT::Update::Error-Mode=any'
+          )
+          sudo apt-get "${apt_options[@]}" update 2>&1 | tee target/ci/apt-update.log
+          sudo apt-get "${apt_options[@]}" install --no-install-recommends -y \
             clang cmake pkg-config libclang-dev libssl-dev libudev-dev \
             libfontconfig1-dev libxkbcommon-x11-dev libwayland-dev \
             libx11-xcb-dev libxcb1-dev libvulkan-dev libegl1-mesa-dev \
             libx11-dev libxi-dev libxrandr-dev libxcursor-dev libxinerama-dev \
-            libasound2-dev libglib2.0-dev libdbus-1-dev
+            libasound2-dev libglib2.0-dev libdbus-1-dev \
+            2>&1 | tee target/ci/apt-install.log
       - name: Set up pinned mise and Rust
         uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
         with:
