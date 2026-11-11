@@ -3,9 +3,100 @@ use serde::Serialize;
 use std::{
     collections::BTreeMap,
     env,
+    io::Read,
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
+
+fn validate_activity_launch(text: &str, activity: &str) -> Result<(), String> {
+    let lines = text.lines().map(str::trim).collect::<Vec<_>>();
+    if lines.iter().any(|line| {
+        line.starts_with("Error")
+            || line.starts_with("Exception")
+            || line.contains("java.lang.")
+            || line.starts_with("Status: timeout")
+    }) {
+        return Err(
+            "Android ActivityManager reported a launch error or timeout. See launch diagnostics."
+                .into(),
+        );
+    }
+    let statuses = lines
+        .iter()
+        .filter_map(|line| line.strip_prefix("Status: "))
+        .collect::<Vec<_>>();
+    let activities = lines
+        .iter()
+        .filter_map(|line| line.strip_prefix("Activity: "))
+        .collect::<Vec<_>>();
+    if statuses != ["ok"] || activities != [activity] || !lines.contains(&"Complete") {
+        return Err("Android launch did not confirm the requested Activity with Status: ok and Complete. See launch diagnostics.".into());
+    }
+    Ok(())
+}
+
+fn launch_diagnostics(mut reader: impl Read) -> Result<String, String> {
+    const LIMIT: usize = 512 * 1024;
+    let mut bytes = Vec::new();
+    let mut buffer = [0_u8; 8192];
+    let mut truncated = false;
+    loop {
+        let count = reader
+            .read(&mut buffer)
+            .map_err(|error| format!("Read Android launch diagnostics: {error}"))?;
+        if count == 0 {
+            break;
+        }
+        let keep = count.min(LIMIT - bytes.len());
+        bytes.extend_from_slice(&buffer[..keep]);
+        truncated |= keep != count;
+        // Continue draining excess output so the child cannot block on a full pipe.
+    }
+    let text = String::from_utf8_lossy(&bytes).into_owned();
+    crate::outputln!("{}", text.trim_end());
+    if truncated {
+        return Err("Android launch diagnostics exceed 512 KiB per stream".into());
+    }
+    Ok(text)
+}
+
+fn launch_android(command: &mut Command, activity: &str) -> Result<(), String> {
+    crate::outputln!("Running {command:?}");
+    let mut child = command
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| format!("Start Android launch: {error}"))?;
+    let stdout = child.stdout.take().expect("piped launch stdout");
+    let stderr = child.stderr.take().expect("piped launch stderr");
+    let stdout = std::thread::spawn(move || launch_diagnostics(stdout));
+    let stderr = std::thread::spawn(move || launch_diagnostics(stderr));
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    let result = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break Ok(status),
+            Ok(None) if std::time::Instant::now() < deadline => {
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            Ok(None) => break Err("Android launch exceeded 60 seconds".to_string()),
+            Err(error) => break Err(format!("Wait for Android launch: {error}")),
+        }
+    };
+    if result.is_err() {
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+    let stdout = stdout.join().map_err(|_| "Android stdout reader failed")?;
+    let stderr = stderr.join().map_err(|_| "Android stderr reader failed")?;
+    let status = result?;
+    let stdout = stdout?;
+    let stderr = stderr?;
+    if !status.success() {
+        return Err(format!("Android launch command failed with {status}"));
+    }
+    validate_activity_launch(&format!("{stdout}\n{stderr}"), activity)
+}
 
 pub fn run(command: &mut Command) -> Result<(), String> {
     crate::outputln!("Running {command:?}");
@@ -321,7 +412,7 @@ pub fn workflow(
             run(&mut build)?;
             if operation == "dev" {
                 let activity = format!("{}/dev.gpui.box.MainActivity", config.application_id);
-                run(connected(serial)?.args(["shell", "am", "start", "-W", "-n", &activity]))?;
+                launch_android(connected(serial)?.args(["shell", "am", "start", "-W", "-n", &activity]), &activity)?;
             }
             Ok(())
         }
@@ -603,6 +694,76 @@ pub fn doctor(root: &Path) -> Result<DoctorReport, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn android_launch_requires_successful_status_exact_activity_and_completion() {
+        let activity = "dev.example.app/dev.gpui.box.MainActivity";
+        let successful = format!(
+            "Starting: Intent {{ cmp={activity} }}\nStatus: ok\nLaunchState: COLD\nActivity: {activity}\nTotalTime: 2206\nWaitTime: 2209\nComplete\n"
+        );
+        assert!(validate_activity_launch(&successful, activity).is_ok());
+        assert!(validate_activity_launch(&successful.replace('\n', "\r\n"), activity).is_ok());
+        for text in [
+            successful.replace("Status: ok", "Status: timeout"),
+            successful.replace("Status: ok", "Status: unknown"),
+            successful.replace("Complete", ""),
+            successful.replace("Activity: dev.example.app", "Activity: dev.other.app"),
+            format!("{successful}Error: Activity class does not exist\n"),
+            format!("{successful}Exception occurred while executing 'start'\n"),
+            format!("{successful}java.lang.SecurityException: denied\n"),
+            format!("{successful}Status: ok\n"),
+            "Starting: Intent only\n".into(),
+        ] {
+            assert!(
+                validate_activity_launch(&text, activity).is_err(),
+                "accepted {text:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn android_launch_diagnostics_are_bounded_and_drained() {
+        assert_eq!(
+            launch_diagnostics("launch output".as_bytes()).unwrap(),
+            "launch output"
+        );
+        let mut bytes = std::io::Cursor::new(vec![b' '; 512 * 1024 + 1]);
+        assert!(
+            launch_diagnostics(&mut bytes)
+                .unwrap_err()
+                .contains("512 KiB")
+        );
+        assert_eq!(bytes.position(), 512 * 1024 + 1);
+    }
+
+    #[test]
+    fn launch_child_process() {
+        let Ok(mode) = std::env::var("GPUI_BOX_TEST_LAUNCH") else {
+            return;
+        };
+        println!("Status: ok\nActivity: dev.example.app/dev.gpui.box.MainActivity\nComplete");
+        match mode.as_str() {
+            "error" => eprintln!("Error: Activity class does not exist"),
+            "exit" => std::process::exit(3),
+            _ => {}
+        }
+    }
+
+    #[test]
+    fn android_launch_checks_both_streams_and_process_status() {
+        for mode in ["success", "error", "exit"] {
+            let mut command = Command::new(std::env::current_exe().unwrap());
+            command
+                .args([
+                    "--exact",
+                    "workflow::tests::launch_child_process",
+                    "--nocapture",
+                ])
+                .env("GPUI_BOX_TEST_LAUNCH", mode);
+            let result = launch_android(&mut command, "dev.example.app/dev.gpui.box.MainActivity");
+            assert_eq!(result.is_ok(), mode == "success", "{mode}: {result:?}");
+        }
+    }
 
     #[test]
     fn doctor_optional_checks_preserve_readiness_and_required_failures_clear_it() {

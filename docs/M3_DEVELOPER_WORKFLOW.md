@@ -512,6 +512,27 @@ Inherited environment values are excluded from the plan. Build dry-run applies
 to the default build command with no device override. Install/dev device selection
 retains its separate adb workflow.
 
+## Android launch result validation
+
+`dev android` captures and drains both adb launch streams with a 512 KiB bound
+per stream and a 60-second local adb wait deadline. Launch succeeds only when
+the child exits successfully and ActivityManager reports exactly one
+`Status: ok`, the requested `Activity:` identity and `Complete`. Explicit errors,
+Java exceptions, timeouts, ambiguous/missing statuses and different activities
+fail the workflow even if adb exits zero. Diagnostics remain available in human
+output. The deadline terminates and reaps this invocation's adb client. Android
+may have received the launch request before failure, so a failed report still
+requires checking current device state before retrying. Other adb clients and
+the shared server keep their existing lifecycles.
+
+Regression coverage includes cold-success/CRLF, missing completion, wrong target,
+timeouts/errors/duplicate statuses, bounded output and actual subprocess success,
+stderr-error and nonzero exit. The normal generated-app `dev android` path
+installs and cold-starts on API35 x86_64 in 1446ms with validated output.
+This confirms ActivityManager launch completion. Later rendering, crash and
+interactive acceptance retain their separate gates. Physical devices remain
+deferred. Watch builds and process-group development supervision stay under #72.
+
 The Windows CLI suite passes 43 tests. Two new command groups cover deterministic
 plans with pending generation changes, explicit argument boundaries in
 space-containing paths, unavailable tools/SDK, secret exclusion, uninitialized
