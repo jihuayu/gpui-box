@@ -198,3 +198,10 @@ on these primitives in `crates/gpui-sharing`. See [SYSTEM_SHARING.md](SYSTEM_SHA
 The Windows adapter reports invocation acceptance separately from presentation
 and target delivery; copy is a caller-selected route. Native file handoff and
 Android/Apple/Linux adapters remain separate qualification gates.
+
+
+Foreground, user-initiated text clipboard operations build on these primitives
+in `crates/gpui-clipboard`. See [`SYSTEM_CLIPBOARD.md`](SYSTEM_CLIPBOARD.md).
+Windows has an explicit HWND-bound native provider; other hosts report
+unavailability until their adapters are installed. The legacy GPUI void write API
+is not treated as an observable native acceptance receipt.

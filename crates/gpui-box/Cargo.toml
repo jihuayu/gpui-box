@@ -11,6 +11,8 @@ publish.workspace = true
 [features]
 default = []
 sharing = ["system", "dep:gpui-sharing"]
+
+clipboard = ["system", "dep:gpui-clipboard"]
 system = ["dep:gpui-system"]
 secrets = ["system", "dep:gpui-secrets"]
 app-data = ["system", "dep:gpui-app-data"]
@@ -28,6 +30,8 @@ desktop = ["dep:gpui", "dep:gpui_platform", "gpui_platform/font-kit", "gpui_plat
 
 [dependencies]
 gpui-sharing = { workspace = true, optional = true }
+
+gpui-clipboard = { workspace = true, optional = true }
 gpui-secrets = { workspace = true, optional = true }
 gpui-activation = { workspace = true, optional = true }
 gpui-app-data = { workspace = true, optional = true }
