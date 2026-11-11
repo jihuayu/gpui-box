@@ -2,7 +2,8 @@
 
 This stage connects the owned paragraph measurement path to actual retained
 text painting for the [RFC](https://app.notion.com/p/415d83088d4e818290cddca2f104e65c).
-The full implementation goal remains open in the
+The subsequent [glyph material update](performance/2026-11-11-glyph-materials/README.md)
+separates node colors from glyph geometry. The full implementation goal remains open in the
 [acceptance table](RETAINED_IMPLEMENTATION_PROGRESS.md).
 
 `GlyphRasterizer` captures the real platform `TextSystem`. It prepares immutable
@@ -39,8 +40,9 @@ between image and text by clearing the old attachment; final attachment
 measurement takes precedence. Detaching clears the owned measurement unless an
 explicit replacement measure is supplied. Source equality skips sink dispatch.
 Changing color with the same resource produces `ResourcePatch` with no layout
-and no quad-command recording, reusing the same glyph chunk. It currently writes
-per-glyph color in the instance buffer rather than a separate material uniform.
+and no quad-command recording, reusing the same glyph chunk. The current backend
+writes a 16-byte per-node material record without rewriting glyph geometry.
+The initial frozen evidence retains its earlier inline-color upload counts.
 
 The WGPU backend packs unique masks into 1024-square R8 atlas pages and uses one
 64-byte instance per visible bitmap. Per-node ranges persist, grow geometrically
@@ -58,6 +60,13 @@ and instance reuse; submission leases retain buffers, page textures and bindings
 until GPU completion. Skipped-base packets resynchronize from their full owned
 snapshot. Reset reuploads the exact owned masks from that snapshot.
 
+Instances reference stable per-node color slots in a separate storage buffer.
+Color writes merge adjacent material ranges and independently invalidate layer
+contents. Slot reuse is queue ordered, and old material buffers/bindings remain
+leased through completion after growth. Color-only changes write no geometry;
+clip/translation/rewrap continue to write affected geometry instances. This
+separation reduces upload size while full CPU glyph planning still remains.
+
 Live guards cover 32 MiB of unique bitmap data, 64 atlas pages and the device
 storage-buffer limit. They do not form a physical cross-frame budget. Packing
 fragmentation can exhaust pages/buffer capacity before those live guards; a
@@ -72,13 +81,14 @@ is separate and is not claimed pixel-identical to the retained integer-origin
 contract. Direct GPU texture import/presentation remains required.
 
 Validation includes 44 core tests, ten shared-example tests including real click
-dispatch and real Cosmic/Noto shaping/rasterization, plus 100 hardware pixel
-scenarios. Seventeen hardware cases cover text: Unicode/combining characters,
+dispatch and real Cosmic/Noto shaping/rasterization, plus 102 hardware pixel
+scenarios. Nineteen hardware cases cover text: Unicode/combining characters,
 color/alpha, damage translation, clip, rewrap, shared masks, isolated opacity and
 cache reuse, resource replacement, skipped base, explicit reset, device scale,
 quad occlusion, removal/retirement, overlapping in-flight replacements, multiple
-atlas pages and five-node adjacent upload merging. The latter writes 2,560 bytes
-in one range with zero atlas upload.
+atlas pages, material cache invalidation, material slot reuse and five-node
+adjacent upload merging. The latter now writes 80 material bytes in one range,
+with zero geometry/atlas upload; initial inline colors wrote 2,560 bytes.
 
 The incremental/full comparison uses a fresh retained renderer and the same
 glyph shader. A separate CPU full-mask blender verifies supported non-effect
@@ -98,6 +108,6 @@ scan the packet. No sublinear text-update or end-to-end FPS claim follows.
 Remaining text acceptance includes rich text/font runs and decorations, full
 bidi and alignment contracts, editing/selection/caret/IME, color glyphs, LCD and
 subpixel variants, automatic font subscriptions, async preparation/cancellation,
-material/property indirection, indexed chunk deltas, robust pressure handling,
+property indirection, general/rich-text materials, indexed chunk deltas, robust pressure handling,
 cross-backend validation and native presentation. Paths and shadows remain
 separate unimplemented primitive classes.

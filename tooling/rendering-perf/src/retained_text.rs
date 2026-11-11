@@ -193,7 +193,20 @@ pub(super) fn run(
     ));
     let color = renderer.submit(&frame, [400, 220], 1.0)?.unwrap();
     assert_eq!(color.gpu.glyph_atlas_bytes, 0);
-    assert!(color.gpu.glyph_instance_bytes > 0 && color.gpu.glyph_upload_ranges == 1);
+    assert_eq!(
+        (
+            color.gpu.glyph_instance_bytes,
+            color.gpu.glyph_upload_ranges
+        ),
+        (0, 0)
+    );
+    assert_eq!(
+        (
+            color.gpu.glyph_material_bytes,
+            color.gpu.glyph_material_ranges
+        ),
+        (16, 1)
+    );
     cpu_oracle(&frame, [400, 220], 1.0, &renderer.image()?);
     compare(
         renderer,
@@ -204,6 +217,8 @@ pub(super) fn run(
         output,
         results,
     )?;
+    results.last_mut().unwrap()["glyph_material_bytes"] = color.gpu.glyph_material_bytes.into();
+    results.last_mut().unwrap()["glyph_instance_bytes"] = color.gpu.glyph_instance_bytes.into();
     let mut tx = Transaction::default();
     tx.translation(node, [4.25, 3.25]);
     tree.commit(tx, BackendCapabilities::default())?;
@@ -305,9 +320,10 @@ pub(super) fn run(
         (
             opacity.gpu.glyph_atlas_bytes,
             opacity.gpu.glyph_instance_bytes,
+            opacity.gpu.glyph_material_bytes,
             opacity.gpu.rasterized_layers
         ),
-        (0, 0, 0)
+        (0, 0, 0, 0)
     );
     compare(
         renderer,
@@ -315,6 +331,26 @@ pub(super) fn run(
         [400, 220],
         1.0,
         "text-opacity-cache",
+        output,
+        results,
+    )?;
+    set(&mut tree, node, &a, 0x55ffaaff)?;
+    frame = tree.frame([400.0, 220.0])?;
+    let layer_color = renderer.submit(&frame, [400, 220], 1.0)?.unwrap();
+    assert_eq!(
+        (
+            layer_color.gpu.rasterized_layers,
+            layer_color.gpu.glyph_instance_bytes,
+            layer_color.gpu.glyph_material_bytes
+        ),
+        (1, 0, 16)
+    );
+    compare(
+        renderer,
+        &frame,
+        [400, 220],
+        1.0,
+        "text-material-invalidates-layer",
         output,
         results,
     )?;
@@ -507,9 +543,9 @@ pub(super) fn run(
     }
     renderer.submit(&batch.frame([400.0, 220.0])?, [400, 220], 1.0)?;
     let mut tx = Transaction::default();
-    for node in nodes {
+    for node in &nodes {
         tx.text(
-            node,
+            *node,
             Some(TextPaint {
                 resource: short.clone(),
                 color: 0x88ddffff,
@@ -523,9 +559,10 @@ pub(super) fn run(
         (
             batched.gpu.glyph_atlas_bytes,
             batched.gpu.glyph_instance_bytes,
-            batched.gpu.glyph_upload_ranges
+            batched.gpu.glyph_material_bytes,
+            batched.gpu.glyph_material_ranges
         ),
-        (0, 5 * 8 * 64, 1)
+        (0, 0, 5 * 16, 1)
     );
     cpu_oracle(&batch_frame, [400, 220], 1.0, &renderer.image()?);
     compare(
@@ -534,6 +571,28 @@ pub(super) fn run(
         [400, 220],
         1.0,
         "text-batched-color-merge",
+        output,
+        results,
+    )?;
+    results.last_mut().unwrap()["glyph_material_bytes"] = batched.gpu.glyph_material_bytes.into();
+    results.last_mut().unwrap()["glyph_material_ranges"] = batched.gpu.glyph_material_ranges.into();
+    results.last_mut().unwrap()["glyph_instance_bytes"] = batched.gpu.glyph_instance_bytes.into();
+    for node in nodes {
+        batch.remove(node)?;
+    }
+    renderer.submit(&batch.frame([400.0, 220.0])?, [400, 220], 1.0)?;
+    let node = batch.append(batch.root(), style(8.0, 4.0, 350.0, None), 0)?;
+    set(&mut batch, node, &short, 0xff4488ff)?;
+    let reused = batch.frame([400.0, 220.0])?;
+    let submit = renderer.submit(&reused, [400, 220], 1.0)?.unwrap();
+    assert_eq!(submit.gpu.glyph_material_bytes, 16);
+    cpu_oracle(&reused, [400, 220], 1.0, &renderer.image()?);
+    compare(
+        renderer,
+        &reused,
+        [400, 220],
+        1.0,
+        "text-material-slot-reuse",
         output,
         results,
     )?;
@@ -551,13 +610,14 @@ pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
     renderer.submit(&tree.frame([800.0, 600.0])?, [800, 600], 1.0)?;
     renderer.finish()?;
     let mut cases = vec![];
-    let mut samples = [vec![], vec![]];
-    let mut round_medians = [vec![], vec![]];
-    let mut atlas_bytes = [vec![], vec![]];
-    let mut instance_bytes = [vec![], vec![]];
+    let mut samples = [vec![], vec![], vec![]];
+    let mut round_medians = [vec![], vec![], vec![]];
+    let mut atlas_bytes = [vec![], vec![], vec![]];
+    let mut instance_bytes = [vec![], vec![], vec![]];
+    let mut material_bytes = [vec![], vec![], vec![]];
     let mut baseline_pixels = None;
     for round in 0..3 {
-        for mode in if round % 2 == 0 { [0, 1] } else { [1, 0] } {
+        for mode in (0..3).map(|index| (index + round) % 3) {
             let mut round_samples = vec![];
             for i in 0..26 {
                 set(
@@ -566,8 +626,23 @@ pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
                     &resource,
                     if i % 2 == 0 { 0x88ddffff } else { 0xffdd88ff },
                 )?;
+                // Identical visible pixels: vary a clip edge beyond the text ink solely
+                // in mode 1 to exercise full instance rewrites with a warm atlas.
+                // This is an upload-path diagnostic, not the old inline-color shader.
+                let edge = if mode == 1 { (i % 2) as f32 } else { 0.0 };
+                let mut tx = Transaction::default();
+                tx.clip(
+                    node,
+                    Some(Rect {
+                        x: 0.0,
+                        y: 0.0,
+                        width: 790.0 + edge,
+                        height: 600.0,
+                    }),
+                );
+                tree.commit(tx, BackendCapabilities::default())?;
                 let frame = tree.frame([800.0, 600.0])?;
-                if mode == 1 {
+                if mode == 2 {
                     renderer.reset()?;
                 }
                 let start = Instant::now();
@@ -579,6 +654,7 @@ pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
                     round_samples.push(elapsed);
                     atlas_bytes[mode].push(submit.gpu.glyph_atlas_bytes);
                     instance_bytes[mode].push(submit.gpu.glyph_instance_bytes);
+                    material_bytes[mode].push(submit.gpu.glyph_material_bytes);
                 }
             }
             round_samples.sort_by(f64::total_cmp);
@@ -592,7 +668,7 @@ pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
             }
         }
     }
-    for mode in 0..2 {
+    for mode in 0..3 {
         samples[mode].sort_by(f64::total_cmp);
         assert!(
             atlas_bytes[mode]
@@ -604,10 +680,24 @@ pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
                 .iter()
                 .all(|bytes| *bytes == instance_bytes[mode][0])
         );
-        assert_eq!(atlas_bytes[mode][0] == 0, mode == 0);
-        cases.push(serde_json::json!({"mode":if mode==0 {"reuse glyph atlas and instances"} else {"cold renderer uploads same glyph masks"},"samples":samples[mode].len(),"median_us":samples[mode][samples[mode].len()/2],"p95_us":samples[mode][samples[mode].len()*95/100],"atlas_bytes_per_frame":atlas_bytes[mode][0],"instance_bytes_per_frame":instance_bytes[mode][0],"sorted_samples_us":samples[mode],"round_medians_us":round_medians[mode],"pixel_equal":true}));
+        assert_eq!(atlas_bytes[mode][0] == 0, mode != 2);
+        assert!(
+            material_bytes[mode]
+                .iter()
+                .all(|bytes| *bytes == material_bytes[mode][0])
+        );
+        if mode == 0 {
+            assert_eq!((instance_bytes[mode][0], material_bytes[mode][0]), (0, 16));
+        }
+        if mode == 1 {
+            assert_eq!(
+                (instance_bytes[mode][0], material_bytes[mode][0]),
+                (450 * 64, 16)
+            );
+        }
+        cases.push(serde_json::json!({"mode":match mode {0=>"reuse glyph atlas and instances; material-only color",1=>"warm atlas; outside-ink clip alternation rewrites instances",_=>"cold renderer uploads same glyph masks"},"samples":samples[mode].len(),"median_us":samples[mode][samples[mode].len()/2],"p95_us":samples[mode][samples[mode].len()*95/100],"atlas_bytes_per_frame":atlas_bytes[mode][0],"instance_bytes_per_frame":instance_bytes[mode][0],"material_bytes_per_frame":material_bytes[mode][0],"sorted_samples_us":samples[mode],"round_medians_us":round_medians[mode],"pixel_equal":true}));
     }
     Ok(
-        serde_json::json!({"scope":"Full-redraw FramePacket submit + GPU completion for text color changes. Resources, shaping, rasterization, snapshot extraction and renderer reset construction outside timing. Cold mode starts with empty GPU atlas/instances, including GPU allocation/binding and buffer growth. No readback/presentation. 3 rotating rounds, 6 warmups + 20 samples per mode per round.","glyphs":resource.chunk(780.0)?.glyphs.len(),"rasterized_glyphs":raster.rasterized_glyphs(),"cases":cases}),
+        serde_json::json!({"scope":"Full-redraw FramePacket submit + GPU completion for text color changes. Warm instance-rewrite diagnostic varies a clip edge beyond the text ink with identical output and same material shader; it is not a reconstruction of the previous inline-color shader. Resources, shaping, rasterization, snapshot extraction and renderer reset construction outside timing. Cold mode starts with empty GPU atlas/instances, including GPU allocation/binding and buffer growth. No readback/presentation. 3 rotating rounds, 6 warmups + 20 samples per mode per round.","glyphs":resource.chunk(780.0)?.glyphs.len(),"rasterized_glyphs":raster.rasterized_glyphs(),"cases":cases}),
     )
 }

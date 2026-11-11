@@ -64,6 +64,8 @@ pub struct QuadSubmission {
     pub glyph_atlas_uploads: usize,
     pub glyph_instance_bytes: u64,
     pub glyph_upload_ranges: usize,
+    pub glyph_material_bytes: u64,
+    pub glyph_material_ranges: usize,
 }
 
 struct Flight {
@@ -452,6 +454,8 @@ impl RetainedQuadRenderer {
             glyph_atlas_uploads: glyph_stats.atlas_uploads,
             glyph_instance_bytes: glyph_stats.instance_bytes,
             glyph_upload_ranges: glyph_stats.ranges,
+            glyph_material_bytes: glyph_stats.material_bytes,
+            glyph_material_ranges: glyph_stats.material_ranges,
         })
     }
 
