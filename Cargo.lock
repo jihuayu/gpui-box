@@ -1835,6 +1835,7 @@ dependencies = [
  "gpui-activation",
  "gpui-android",
  "gpui-app-data",
+ "gpui-clipboard",
  "gpui-files",
  "gpui-lifecycle",
  "gpui-permissions",
@@ -1887,6 +1888,14 @@ dependencies = [
  "accesskit",
  "gpui",
  "gpui-box-components",
+]
+
+[[package]]
+name = "gpui-clipboard"
+version = "0.1.0-dev"
+dependencies = [
+ "gpui-system",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

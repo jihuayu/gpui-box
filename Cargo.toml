@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/gpui-box", "crates/gpui-box-cli", "crates/gpui-android", "crates/gpui-lifecycle", "crates/gpui-system", "crates/gpui-app-data", "crates/gpui-permissions", "crates/gpui-files", "crates/gpui-activation", "crates/gpui-secrets", "examples/hello", "examples/android", "examples/desktop", "components/gpui-box-components"]
+members = ["crates/gpui-box", "crates/gpui-box-cli", "crates/gpui-android", "crates/gpui-lifecycle", "crates/gpui-system", "crates/gpui-app-data", "crates/gpui-permissions", "crates/gpui-files", "crates/gpui-activation", "crates/gpui-secrets", "crates/gpui-clipboard", "examples/hello", "examples/android", "examples/desktop", "components/gpui-box-components"]
 default-members = ["crates/gpui-box", "crates/gpui-box-cli"]
 exclude = ["vendor/gpui"]
 
@@ -19,11 +19,12 @@ gpui_platform = { path = "vendor/gpui/crates/gpui_platform", default-features = 
 gpui-android = { path = "crates/gpui-android" }
 gpui-lifecycle = { path = "crates/gpui-lifecycle", default-features = false }
 gpui-system = { path = "crates/gpui-system" }
+gpui-files = { path = "crates/gpui-files", default-features = false }
 gpui-app-data = { path = "crates/gpui-app-data" }
 gpui-permissions = { path = "crates/gpui-permissions", default-features = false }
-gpui-files = { path = "crates/gpui-files", default-features = false }
 gpui-activation = { path = "crates/gpui-activation", default-features = false }
 gpui-secrets = { path = "crates/gpui-secrets" }
+gpui-clipboard = { path = "crates/gpui-clipboard" }
 gpui-box-example-hello = { path = "examples/hello" }
 
 [workspace.lints.rust]
