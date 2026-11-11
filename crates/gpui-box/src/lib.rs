@@ -69,3 +69,7 @@ pub use gpui_files as files;
 /// Explicit native text/link sharing and authorized export leases.
 #[cfg(feature = "sharing")]
 pub use gpui_sharing as sharing;
+
+/// Local user verification, protected-key signing and protected-secret release.
+#[cfg(feature = "local-auth")]
+pub use gpui_local_auth as local_auth;
