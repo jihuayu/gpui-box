@@ -15,6 +15,7 @@ struct Record {
     bounds: Rect,
     color: u32,
     clip: Option<Rect>,
+    decoration: QuadDecoration,
 }
 
 impl Record {
@@ -35,12 +36,17 @@ impl Record {
                 }),
             },
             background: rgba(self.color).into(),
+            corner_radii: gpui::Corners::all(ScaledPixels(self.decoration.radius)),
+            border_widths: gpui::Edges::all(ScaledPixels(self.decoration.border_width)),
+            border_color: rgba(self.decoration.border_color).into(),
             ..Default::default()
         }
     }
 }
 
-fn record(item: &PaintItem, color: u32, scale: f32) -> Record {
+fn record(item: &PaintItem, command: &DisplayCommand, scale: f32) -> Record {
+    let (color, decoration) = command.quad();
+    let decoration = decoration.resolved(item.bounds);
     let scaled = |bounds: Rect| Rect {
         x: bounds.x * scale,
         y: bounds.y * scale,
@@ -51,6 +57,11 @@ fn record(item: &PaintItem, color: u32, scale: f32) -> Record {
         bounds: scaled(item.bounds),
         color,
         clip: item.clip.map(scaled),
+        decoration: QuadDecoration {
+            radius: decoration.radius * scale,
+            border_width: decoration.border_width * scale,
+            ..decoration
+        },
     }
 }
 
@@ -272,8 +283,7 @@ impl WgpuFrameRenderer {
                     .map_err(gpu_error)?;
             }
             for (index, command) in item.commands.iter().enumerate() {
-                let DisplayCommand::Fill(color) = command;
-                let record = record(item, *color, scale);
+                let record = record(item, command, scale);
                 if let Some(handle) = handles.get(index) {
                     self.arena.update(*handle, record).map_err(gpu_error)?;
                 } else {
@@ -386,8 +396,7 @@ impl WgpuFrameRenderer {
         let mut scene = Scene::default();
         for item in frame.items.iter() {
             for command in item.commands.iter() {
-                let DisplayCommand::Fill(color) = command;
-                scene.insert_primitive(record(item, *color, scale).quad());
+                scene.insert_primitive(record(item, command, scale).quad());
             }
         }
         scene.finish();
@@ -430,6 +439,19 @@ fn validate(frame: &FramePacket, surface: [u32; 2], scale: f32) -> Result<(), Er
     }
     let mut nodes = BTreeSet::new();
     for item in frame.items.iter().chain(frame.updates.iter()) {
+        for command in item.commands.iter() {
+            let (_, decoration) = command.quad();
+            if decoration.validate().is_err()
+                || [
+                    decoration.resolved(item.bounds).radius,
+                    decoration.resolved(item.bounds).border_width,
+                ]
+                .iter()
+                .any(|v| !(*v * scale).is_finite())
+            {
+                return Err(Error::InvalidFrame);
+            }
+        }
         for b in [Some(item.bounds), item.clip].into_iter().flatten() {
             if !b.valid()
                 || [b.x, b.y, b.width, b.height, b.x + b.width, b.y + b.height]
@@ -589,6 +611,19 @@ mod tests {
         );
         let mut invalid = frame.clone();
         invalid.removed = Arc::from([tree.root()]);
+        assert_eq!(
+            validate(&invalid, [100, 100], 1.0),
+            Err(Error::InvalidFrame)
+        );
+        let mut invalid = frame.clone();
+        Arc::make_mut(&mut invalid.items)[0].commands =
+            Arc::from([DisplayCommand::DecoratedFill {
+                color: 0,
+                decoration: QuadDecoration {
+                    radius: f32::NAN,
+                    ..Default::default()
+                },
+            }]);
         assert_eq!(
             validate(&invalid, [100, 100], 1.0),
             Err(Error::InvalidFrame)

@@ -1,7 +1,7 @@
 //! Normal GPUI event → retained transaction → persistent layout → paint adapter.
 use gpui::*;
 use gpui_box::retained::{
-    BackendCapabilities, CustomMeasureSnapshot, DisplayCommand, MeasureSnapshot, Rect, Style,
+    BackendCapabilities, CustomMeasureSnapshot, MeasureSnapshot, QuadDecoration, Rect, Style,
     Transaction, UiTree, length,
     logical::LogicalUi,
     reactive::{Property, Signal},
@@ -16,6 +16,7 @@ pub struct RetainedDemo {
     color: Signal<u32>,
     scroll: Signal<[f32; 2]>,
     measure: Signal<Option<MeasureSnapshot>>,
+    decoration: Signal<QuadDecoration>,
     last_commit: String,
     reversed: bool,
     #[cfg(test)]
@@ -96,6 +97,9 @@ impl RetainedDemo {
         let color = tree.state(root_scope, 0, || 0x245fc7ff).unwrap();
         let scroll = tree.state(root_scope, 1, || [0.0; 2]).unwrap();
         tree.bind(color, Property::color(tile)).expect("bind color");
+        let decoration = tree.state(root_scope, 5, QuadDecoration::default).unwrap();
+        tree.bind(decoration, Property::decoration(tile))
+            .expect("bind decoration");
         tree.bind(scroll, Property::scroll(viewport))
             .expect("bind scroll");
         let measure = tree
@@ -210,6 +214,7 @@ impl RetainedDemo {
             color,
             scroll,
             measure,
+            decoration,
             last_commit: "Ready".into(),
             reversed: false,
             #[cfg(test)]
@@ -366,6 +371,21 @@ impl Render for RetainedDemo {
                     })),
             )
             .children(effect_button)
+            .child(div()
+                .id("retained-decoration")
+                .debug_selector(|| "retained-decoration".into())
+                .cursor_pointer()
+                .child("Toggle rounded border")
+                .on_click(cx.listener(|this,_,_,cx| {
+                    let decoration = this.decoration;
+                    let result = this.tree.borrow_mut().transaction(|tx| {
+                        let next = if tx.read(decoration)?.radius == 0.0 {
+                            QuadDecoration {radius:12.0,border_width:3.0,border_color:0xeeaa44ff}
+                        } else {QuadDecoration::default()};
+                        tx.set(decoration,next)?; Ok(())
+                    }).expect("commit rounded border");
+                    if result.commit.request_frame {cx.notify();}
+                })))
             .child(
                 div()
                     .id("retained-measure")
@@ -461,8 +481,9 @@ impl Render for RetainedDemo {
                             });
                             window.with_content_mask(mask, |window| {
                                 for command in item.commands.iter() {
-                                    match command {
-                                        DisplayCommand::Fill(color) => window.paint_quad(fill(
+                                    let (color,decoration) = command.quad();
+                                    let decoration = decoration.resolved(item.bounds);
+                                    window.paint_quad(quad(
                                             Bounds {
                                                 origin: bounds.origin
                                                     + point(px(item.bounds.x), px(item.bounds.y)),
@@ -471,9 +492,12 @@ impl Render for RetainedDemo {
                                                     px(item.bounds.height),
                                                 ),
                                             },
-                                            rgba(*color),
-                                        )),
-                                    }
+                                            px(decoration.radius),
+                                            rgba(color),
+                                            px(decoration.border_width),
+                                            rgba(decoration.border_color),
+                                            BorderStyle::default(),
+                                        ));
                                 }
                             });
                         }
@@ -784,5 +808,21 @@ mod tests {
                 "responsive window resize reaches GPU"
             );
         }
+        let decoration = cx.debug_bounds("retained-decoration").unwrap();
+        cx.simulate_click(decoration.center(), Modifiers::default());
+        cx.run_until_parked();
+        let frame = view.read_with(cx, |view, _| {
+            view.tree.borrow().published_frame().unwrap().clone()
+        });
+        assert_eq!((frame.layout_runs, frame.recorded_chunks), (0, 1));
+        let actual = gpu.borrow_mut().image().unwrap();
+        let reference = gpu
+            .borrow_mut()
+            .reference_image(&frame, [actual.width(), actual.height()], scale)
+            .unwrap();
+        assert!(
+            actual.as_raw() == reference.as_raw(),
+            "rounded border click reaches GPU"
+        );
     }
 }

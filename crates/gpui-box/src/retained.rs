@@ -16,7 +16,9 @@ pub mod arena;
 pub mod logical;
 mod measure;
 pub use measure::{CustomMeasureSnapshot, ImageIntrinsicSize, LayoutStats, MeasureSnapshot};
+mod primitive;
 mod properties;
+pub use primitive::QuadDecoration;
 pub mod reactive;
 pub mod responsive;
 pub use properties::{Damage, PropertyNode, PropertyState, PropertyTrees};
@@ -42,6 +44,10 @@ pub struct Rect {
 #[derive(Clone, Debug, PartialEq)]
 pub enum DisplayCommand {
     Fill(u32),
+    DecoratedFill {
+        color: u32,
+        decoration: QuadDecoration,
+    },
 }
 
 /// Local commands survive commits that only change layout or translation.
@@ -106,6 +112,29 @@ pub struct Commit {
     pub changed_nodes: usize,
     pub request_frame: bool,
     pub routes: Vec<(NodeId, UpdatePath)>,
+    pub decisions: Vec<RouteDecision>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RouteReason {
+    StableSolidQuadColor,
+    BackendColorPatchUnavailable,
+    PrimitivePaintChanged,
+    LayoutInputsChanged,
+    ChildOrderChanged,
+    SharedPropertiesChanged,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RouteDecision {
+    pub node: NodeId,
+    pub path: UpdatePath,
+    pub reason: RouteReason,
+}
+impl Commit {
+    fn route(&mut self, node: NodeId, path: UpdatePath, reason: RouteReason) {
+        self.routes.push((node, path));
+        self.decisions.push(RouteDecision { node, path, reason });
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -118,6 +147,7 @@ pub enum Patch {
     Scroll(NodeId, [f32; 2]),
     Opacity(NodeId, f32),
     Measure(NodeId, Option<MeasureSnapshot>),
+    Decoration(NodeId, QuadDecoration),
 }
 
 impl Patch {
@@ -130,7 +160,8 @@ impl Patch {
             | Self::Clip(id, _)
             | Self::Scroll(id, _)
             | Self::Opacity(id, _)
-            | Self::Measure(id, _) => *id,
+            | Self::Measure(id, _)
+            | Self::Decoration(id, _) => *id,
         }
     }
 }
@@ -166,6 +197,9 @@ impl Transaction {
     pub fn measure(&mut self, node: NodeId, snapshot: Option<MeasureSnapshot>) {
         self.patches.push(Patch::Measure(node, snapshot));
     }
+    pub fn decoration(&mut self, node: NodeId, value: QuadDecoration) {
+        self.patches.push(Patch::Decoration(node, value));
+    }
     /// Reorder the existing children of one parent, preserving their identity.
     pub fn reorder(&mut self, parent: NodeId, children: Vec<NodeId>) {
         self.patches.push(Patch::Reorder(parent, children));
@@ -200,6 +234,7 @@ pub enum Error {
     UnsupportedLayout,
     InvalidBreakpoint,
     UnsafeContainerQuery,
+    InvalidPrimitive,
 }
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -225,6 +260,7 @@ struct Node {
     scroll: [f32; 2],
     opacity: f32,
     measure: Option<MeasureSnapshot>,
+    decoration: QuadDecoration,
 }
 struct Slot {
     generation: u64,
@@ -255,6 +291,7 @@ struct Pending {
     scroll: Option<[f32; 2]>,
     opacity: Option<f32>,
     measure: Option<Option<MeasureSnapshot>>,
+    decoration: Option<QuadDecoration>,
 }
 
 impl UiTree {
@@ -287,6 +324,7 @@ impl UiTree {
                     scroll: [0.0; 2],
                     opacity: 1.0,
                     measure: None,
+                    decoration: QuadDecoration::default(),
                 }),
             }],
             free: vec![],
@@ -368,6 +406,7 @@ impl UiTree {
             scroll: [0.0; 2],
             opacity: 1.0,
             measure: None,
+            decoration: QuadDecoration::default(),
         });
         self.node_mut(parent).children.push(id);
         self.revision = next;
@@ -457,6 +496,10 @@ impl UiTree {
                     }
                     entry.measure = Some(snapshot);
                 }
+                Patch::Decoration(_, decoration) => {
+                    decoration.validate()?;
+                    entry.decoration = Some(decoration);
+                }
                 Patch::Reorder(_, children) => {
                     let mut previous = self.node(id)?.children.clone();
                     let mut proposed = children.clone();
@@ -477,6 +520,9 @@ impl UiTree {
                 .as_ref()
                 .is_some_and(|style| **style != node.style);
             let color_changed = entry.color.is_some_and(|color| color != node.color);
+            let decoration_changed = entry
+                .decoration
+                .is_some_and(|value| value != node.decoration);
             let property_changed = entry
                 .translation
                 .is_some_and(|value| value != node.translation)
@@ -496,6 +542,7 @@ impl UiTree {
                 || property_changed
                 || structure_changed
                 || measure_changed
+                || decoration_changed
             {
                 changed.push((
                     id,
@@ -505,6 +552,7 @@ impl UiTree {
                     property_changed,
                     structure_changed,
                     measure_changed,
+                    decoration_changed,
                 ));
             }
         }
@@ -520,6 +568,7 @@ impl UiTree {
             changed_nodes: changed.len(),
             request_frame: true,
             routes: vec![],
+            decisions: vec![],
         };
         for (
             id,
@@ -529,6 +578,7 @@ impl UiTree {
             property_changed,
             structure_changed,
             measure_changed,
+            decoration_changed,
         ) in changed
         {
             if structure_changed {
@@ -540,7 +590,11 @@ impl UiTree {
                 self.layout.set_children(self.node(id)?.layout, &layouts)?;
                 self.node_mut(id).children = children;
                 self.layout_dirty = true;
-                result.routes.push((id, UpdatePath::ReconcileStructure));
+                result.route(
+                    id,
+                    UpdatePath::ReconcileStructure,
+                    RouteReason::ChildOrderChanged,
+                );
             }
             if style_changed || measure_changed {
                 let node = self.node(id)?;
@@ -558,20 +612,37 @@ impl UiTree {
                 self.node_mut(id).style = style;
                 self.node_mut(id).measure = snapshot;
                 self.layout_dirty = true;
-                result.routes.push((id, UpdatePath::Relayout));
+                result.route(id, UpdatePath::Relayout, RouteReason::LayoutInputsChanged);
             }
             if color_changed {
                 let node = self.node_mut(id);
                 node.color = entry.color.expect("changed color");
                 node.chunk = None;
-                result.routes.push((
+                result.route(
                     id,
-                    if capabilities.solid_color_patch {
+                    if capabilities.solid_color_patch && !decoration_changed {
                         UpdatePath::InstancePatch
                     } else {
                         UpdatePath::RepaintChunks
                     },
-                ));
+                    if decoration_changed {
+                        RouteReason::PrimitivePaintChanged
+                    } else if capabilities.solid_color_patch {
+                        RouteReason::StableSolidQuadColor
+                    } else {
+                        RouteReason::BackendColorPatchUnavailable
+                    },
+                );
+            }
+            if decoration_changed {
+                let node = self.node_mut(id);
+                node.decoration = entry.decoration.expect("changed decoration");
+                node.chunk = None;
+                result.route(
+                    id,
+                    UpdatePath::RepaintChunks,
+                    RouteReason::PrimitivePaintChanged,
+                );
             }
             if property_changed {
                 let node = self.node_mut(id);
@@ -587,7 +658,11 @@ impl UiTree {
                 if let Some(value) = entry.opacity {
                     node.opacity = value;
                 }
-                result.routes.push((id, UpdatePath::PropertyPatch));
+                result.route(
+                    id,
+                    UpdatePath::PropertyPatch,
+                    RouteReason::SharedPropertiesChanged,
+                );
             }
         }
         Ok(result)
@@ -704,7 +779,14 @@ impl UiTree {
                 .chunk
                 .get_or_insert_with(|| {
                     recorded_chunks += 1;
-                    Arc::from([DisplayCommand::Fill(node.color)])
+                    Arc::from([if node.decoration == QuadDecoration::default() {
+                        DisplayCommand::Fill(node.color)
+                    } else {
+                        DisplayCommand::DecoratedFill {
+                            color: node.color,
+                            decoration: node.decoration,
+                        }
+                    }])
                 })
                 .clone();
             items.push(PaintItem {

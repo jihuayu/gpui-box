@@ -89,11 +89,7 @@ impl PaintItem {
     }
     pub fn ink_bounds(&self) -> Option<Rect> {
         let bounds = self.visible_bounds();
-        (!bounds.is_empty()
-            && self.commands.iter().any(|command| match command {
-                DisplayCommand::Fill(color) => color & 255 != 0,
-            }))
-        .then_some(bounds)
+        (!bounds.is_empty() && self.commands.iter().any(DisplayCommand::visible)).then_some(bounds)
     }
 }
 
