@@ -18,6 +18,8 @@ menus-gpui = ["menus", "system-gpui", "permissions-gpui", "activation-gpui", "gp
 power = ["system", "lifecycle", "permissions", "dep:gpui-power"]
 power-gpui = ["power", "system-gpui", "lifecycle-gpui", "permissions-gpui", "gpui-power/gpui"]
 tray = ["system", "lifecycle", "menus", "dep:gpui-tray"]
+dnd = ["system", "clipboard", "files", "lifecycle", "dep:gpui-dnd"]
+dnd-gpui = ["dnd", "system-gpui", "files-gpui", "lifecycle-gpui", "gpui-dnd/gpui"]
 tray-gpui = ["tray", "system-gpui", "lifecycle-gpui", "menus-gpui", "gpui-tray/gpui"]
 task-presentation = ["system", "lifecycle", "menus", "notifications", "dep:gpui-task-presentation"]
 task-presentation-gpui = ["task-presentation", "system-gpui", "lifecycle-gpui", "menus-gpui", "notifications-gpui", "gpui-task-presentation/gpui"]
@@ -49,6 +51,7 @@ desktop = ["dep:gpui", "dep:gpui_platform", "gpui_platform/font-kit", "gpui_plat
 gpui-sharing = { workspace = true, optional = true }
 
 gpui-clipboard = { workspace = true, optional = true }
+gpui-dnd = { workspace = true, optional = true }
 gpui-secrets = { workspace = true, optional = true }
 gpui-activation = { workspace = true, optional = true }
 gpui-notifications = { workspace = true, optional = true }

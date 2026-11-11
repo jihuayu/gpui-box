@@ -98,6 +98,11 @@ pub use gpui_power as power;
 #[cfg(feature = "tray")]
 pub use gpui_tray as tray;
 
+/// Typed rich clipboard formats, opaque resource handoffs and drag-and-drop
+/// contracts with scoped leases.
+#[cfg(feature = "dnd")]
+pub use gpui_dnd as dnd;
+
 /// Taskbar, Dock, badge, attention and notification task presentation.
 #[cfg(feature = "task-presentation")]
 pub use gpui_task_presentation as task_presentation;
@@ -128,6 +133,17 @@ mod tests {
         assert_eq!(crate::tray::TrayOperation::ALL.len(), 5);
         assert_eq!(crate::tray::platform_support_matrix().len(), 30);
         assert_eq!(crate::tray::DEFAULT_TRAY_EVENT_CAPACITY, 64);
+    }
+
+    #[cfg(feature = "dnd")]
+    #[test]
+    fn dnd_facade_reexports_the_coordinated_contracts() {
+        assert_eq!(crate::dnd::UPSTREAM_GPUI_REVISION, crate::UPSTREAM_REVISION);
+        assert_eq!(crate::dnd::PACKAGE_VERSION, crate::VERSION);
+        assert_eq!(crate::dnd::DndOperation::ALL.len(), 6);
+        assert_eq!(crate::dnd::platform_support_matrix().len(), 36);
+        assert_eq!(crate::dnd::DEFAULT_DND_EVENT_CAPACITY, 64);
+        assert_eq!(crate::dnd::MAX_ACTIVE_STREAM_LEASES, 64);
     }
 
     #[cfg(feature = "task-presentation")]
