@@ -208,3 +208,84 @@ fn json_finite_command_failures_are_machine_readable() {
         assert_eq!(json_response(&output, false)["error"]["code"], code);
     }
 }
+
+#[test]
+fn generated_reference_matches_markdown_and_help_from_any_directory() {
+    let directory = tempfile::tempdir().unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+        .current_dir(directory.path())
+        .arg("reference")
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert!(output.stderr.is_empty());
+    let expected =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/CLI_REFERENCE.md");
+    let markdown = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(
+        markdown.replace("\r\n", "\n"),
+        std::fs::read_to_string(expected)
+            .unwrap()
+            .replace("\r\n", "\n")
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+        .current_dir(directory.path())
+        .args(["reference", "--json"])
+        .output()
+        .unwrap();
+    let response = json_response(&output, true);
+    assert_eq!(response["command"], "reference");
+    let contract = &response["result"];
+    assert_eq!(contract["schema_version"], 1);
+    assert_eq!(contract["response_schema_version"], 1);
+    let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+        .current_dir(directory.path())
+        .args(["--help", "--json"])
+        .output()
+        .unwrap();
+    let help = json_response(&output, true)["result"]["help"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let mut syntaxes = std::collections::BTreeSet::new();
+    for command in contract["commands"].as_array().unwrap() {
+        let syntax = command["syntax"].as_str().unwrap();
+        assert!(syntaxes.insert(syntax));
+        assert!(help.contains(syntax));
+        assert!(markdown.contains(&format!("### `{syntax}`")));
+        for field in ["summary", "result", "effects", "offline"] {
+            assert!(!command[field].as_str().unwrap().is_empty());
+        }
+        let streaming = syntax.starts_with("dev ") || syntax.starts_with("logs ");
+        assert_eq!(command["json"], !streaming);
+    }
+    assert_eq!(syntaxes.len(), 20);
+    let mut codes = std::collections::BTreeSet::new();
+    for error in contract["errors"].as_array().unwrap() {
+        let code = error["code"].as_str().unwrap();
+        assert!(codes.insert(code));
+        assert!(markdown.contains(code));
+    }
+    assert_eq!(codes.len(), 17);
+    assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+}
+
+#[test]
+fn reference_invalid_arguments_are_finite_and_read_only() {
+    let directory = tempfile::tempdir().unwrap();
+    for arguments in [
+        vec!["reference", "unexpected", "--json"],
+        vec!["reference", "--json", "--json"],
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+            .current_dir(directory.path())
+            .args(arguments)
+            .output()
+            .unwrap();
+        assert_eq!(
+            json_response(&output, false)["error"]["code"],
+            "INVALID_ARGUMENTS"
+        );
+    }
+    assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+}
