@@ -125,6 +125,7 @@ before regeneration or distributing generated output.
 - [M1 Android validation](docs/M1_ANDROID_VALIDATION.md)
 - [M2 component gallery](docs/M2_COMPONENT_GALLERY.md)
 - [M3 developer workflow](docs/M3_DEVELOPER_WORKFLOW.md)
+- [CLI command reference](docs/CLI_REFERENCE.md)
 - [M4 application packaging](docs/M4_ANDROID_PACKAGING.md)
 - [M5 update trust and orchestration](docs/M5_UPDATE_CONTRACTS.md)
 - [Reference research](docs/REFERENCES.md)
