@@ -14,6 +14,7 @@ gpui-system.workspace = true
 [target.'cfg(target_os = "android")'.dependencies]
 gpui-android.workspace = true
 gpui-lifecycle.workspace = true
+gpui-permissions = { workspace = true, features = ["gpui"] }
 
 [lints]
 workspace = true

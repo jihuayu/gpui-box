@@ -24,6 +24,8 @@ import android.widget.FrameLayout
 class MainActivity : Activity() {
     private lateinit var gpui: GpuiView
     private lateinit var services: GpuiServices
+    lateinit var permissions: GpuiPermissions
+        private set
     private val pendingUrls = java.util.ArrayDeque<Pair<String, String>>()
     private var backRegistered = false
     private var predictiveClaimed = false
@@ -101,6 +103,7 @@ class MainActivity : Activity() {
         state?.getByteArray("gpui-box.application-state")?.let(NativeBridge::restoreState)
         gpui = GpuiView(this)
         services = GpuiServices(this)
+        permissions = GpuiPermissions(this, state)
         val saved = state?.getStringArrayList("gpui-box.pending-urls")
         if (saved != null) for (entry in saved) {
             val separator = entry.indexOf('\n')
@@ -152,6 +155,7 @@ class MainActivity : Activity() {
         deliverPendingUrls()
     }
     override fun onSaveInstanceState(state: Bundle) {
+        permissions.save(state)
         state.putByteArray("gpui-box.application-state", NativeBridge.saveState())
         state.putStringArrayList("gpui-box.pending-urls", ArrayList(pendingUrls.map { "${it.first}\n${it.second}" }))
         super.onSaveInstanceState(state)
@@ -164,6 +168,11 @@ class MainActivity : Activity() {
         }
     }
     fun openUrl(url: String) = services.openUrl(url)
+    fun canPresentPermissionUi() = resumed && hasWindowFocus() && !isFinishing && !isDestroyed
+    override fun onRequestPermissionsResult(code: Int, names: Array<out String>, results: IntArray) {
+        super.onRequestPermissionsResult(code, names, results)
+        permissions.result(code, names, results)
+    }
     override fun onStart() { super.onStart(); started = true; updateHostState() }
     override fun onStop() { started = false; updateHostState(); super.onStop() }
     override fun onResume() { super.onResume(); resumed = true; gpui.setResumed(true); updateHostState(); updateBackRegistration() }

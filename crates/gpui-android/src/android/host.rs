@@ -5,6 +5,7 @@ use std::{cell::Cell, time::Instant};
 const SURFACE: SurfaceId = SurfaceId(1);
 thread_local! {
     static LAST_GENERATION: Cell<u64> = const { Cell::new(0) };
+    static PERMISSION_FOREGROUND: Cell<bool> = const { Cell::new(false) };
     static SERVICE: LifecycleService = LifecycleService::new(
         ProcessId(std::process::id()), SessionId(1));
 }
@@ -26,6 +27,9 @@ pub(super) fn attach(generation: u64) {
 
 pub(super) fn detach(generation: u64) {
     let _ = lifecycle_service().detach_surface_at(SURFACE, generation, Instant::now());
+    if LAST_GENERATION.with(Cell::get) == generation {
+        PERMISSION_FOREGROUND.with(|active| active.set(false));
+    }
 }
 
 fn apply_visibility(service: &LifecycleService, generation: u64, resumed: bool, focused: bool) {
@@ -68,6 +72,11 @@ pub fn host_state(
         return;
     }
     apply_visibility(&service, generation, resumed, focused);
+    let active = resumed && focused;
+    let was_active = PERMISSION_FOREGROUND.with(|previous| previous.replace(active));
+    if active && !was_active {
+        let _ = super::permission_service().reconcile_on_resume();
+    }
     let _ = service.set_session_lock(if locked {
         SessionLockState::Locked
     } else {
@@ -124,6 +133,7 @@ pub fn host_snapshot() -> String {
         "locale": preferences.locale.available().map(|s| s.as_str()),
         "reducedMotion": preferences.reduced_motion.available(),
         "activeMillis": service.active_duration(Instant::now()).as_millis() as u64,
+        "permissions": super::permissions::diagnostics(),
     })
     .to_string()
 }

@@ -86,6 +86,27 @@ macro_rules! android_entrypoint {
             })
         }
         #[unsafe(no_mangle)]
+        pub unsafe extern "system" fn Java_dev_gpui_box_NativeBridge_permissionPending(
+            mut env: JNIEnv,
+            _: JClass,
+            request: jlong,
+        ) -> jboolean {
+            boundary(&mut env, |_| {
+                $crate::permission_pending(request as u64) as jboolean
+            })
+        }
+        #[unsafe(no_mangle)]
+        pub unsafe extern "system" fn Java_dev_gpui_box_NativeBridge_permissionResult(
+            mut env: JNIEnv,
+            _: JClass,
+            request: jlong,
+            error: jint,
+        ) -> jboolean {
+            boundary(&mut env, |_| {
+                $crate::permission_result(request as u64, error) as jboolean
+            })
+        }
+        #[unsafe(no_mangle)]
         pub unsafe extern "system" fn Java_dev_gpui_box_NativeBridge_saveState(
             mut env: JNIEnv,
             _: JClass,

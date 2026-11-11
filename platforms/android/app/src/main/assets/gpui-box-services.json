@@ -1,5 +1,8 @@
 {
   "schema_version": 1,
-  "permissions": [],
+  "permissions": [
+    {"kind": "notifications", "purpose": "Demonstrate contextual notification permission and settings recovery in the gallery."},
+    {"kind": "camera", "purpose": "Demonstrate an explicit camera permission request in the gallery. No image is captured."}
+  ],
   "url_schemes": ["gpui-box-example"]
 }

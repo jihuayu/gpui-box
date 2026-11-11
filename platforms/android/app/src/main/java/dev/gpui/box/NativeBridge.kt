@@ -16,6 +16,7 @@ object NativeBridge {
     private val contacts = AtomicLong()
     private val attachments = AtomicLong()
     private val surfaces = AtomicLong()
+    val permissionProcessToken: String = java.util.UUID.randomUUID().toString()
     init { System.loadLibrary("gpui_box_android"); initialize() }
 
     fun bind(value: GpuiView) {
@@ -77,6 +78,20 @@ object NativeBridge {
             ?.setPrimaryClip(ClipData.newPlainText("gpui-box", text))
     }
     @JvmStatic fun checkMainThread() = checkMain()
+    @JvmStatic fun permissionStatus(kind: Int): Int {
+        checkMain()
+        return (view.get()?.context as? MainActivity)?.permissions?.status(kind) ?: -3
+    }
+    @JvmStatic fun requestPermission(kind: Int, id: Long): Int {
+        checkMain()
+        return (view.get()?.context as? MainActivity)?.permissions?.request(kind, id) ?: -3
+    }
+    @JvmStatic fun permissionSettings(target: Int): Int {
+        checkMain()
+        return (view.get()?.context as? MainActivity)?.permissions?.settings(target) ?: -3
+    }
+    @JvmStatic external fun permissionResult(id: Long, error: Int): Boolean
+    @JvmStatic external fun permissionPending(id: Long): Boolean
     @JvmStatic external fun editorInfo(generation: Long): IntArray
     @JvmStatic external fun editorAction(generation: Long, session: Long): Boolean
     @JvmStatic external fun caretBounds(generation: Long, session: Long): FloatArray?

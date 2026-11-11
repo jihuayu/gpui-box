@@ -162,3 +162,19 @@ warm `gpui-box-wave2://open/warm` Intents through its generated manifest and
 managed asset. Native semantics confirmed activation counts 1 then 2. The starter
 status uses a semantic Label. A no-change repeat build reports all 36 tasks
 UP-TO-DATE. Both Windows and Android builds pass after finalizing the starter.
+
+## Android permission adapter continuation
+
+The Android host now installs the shared native PermissionService before launch.
+Generated declarations feed both manifest entries and the host's service asset.
+Applications obtain a current `permission_context()` and use the shared service
+for asynchronous request and settings operations. Doctor describes the adapter
+and keeps configuration separate from current authorization/runtime qualification.
+Generated camera, microphone and location features are optional so requesting
+permission does not implicitly exclude other device hardware from app stores.
+The existing generation regression checks addition and removal of optional camera
+hardware along with the matching permission. Stable customization points remain.
+
+See the M1 permission continuation and ADR-014 for runtime evidence. Notification
+delivery itself, document/share/export declarations, release signing and updates
+retain their own roadmap issues.

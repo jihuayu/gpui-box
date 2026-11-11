@@ -238,6 +238,33 @@ include(":app")
             permission += &format!("\n<uses-permission android:name=\"{name}\" />");
         }
     }
+    // Runtime permission intent must not silently exclude devices from stores.
+    // Applications can require hardware explicitly through native customization.
+    for (kind, feature) in [
+        (
+            crate::config::PermissionKind::Camera,
+            "android.hardware.camera",
+        ),
+        (
+            crate::config::PermissionKind::Microphone,
+            "android.hardware.microphone",
+        ),
+        (
+            crate::config::PermissionKind::LocationWhenInUse,
+            "android.hardware.location",
+        ),
+    ] {
+        if config
+            .services
+            .permissions
+            .iter()
+            .any(|declaration| declaration.kind == kind)
+        {
+            permission += &format!(
+                "\n<uses-feature android:name=\"{feature}\" android:required=\"false\" />"
+            );
+        }
+    }
     let mut registrations = String::new();
     for scheme in &config.services.url_schemes {
         registrations += &format!(

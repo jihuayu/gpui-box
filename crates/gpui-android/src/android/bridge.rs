@@ -106,6 +106,23 @@ pub(super) fn post(command: i32) {
     }
 }
 
+pub(super) fn permission_call(
+    method: &str,
+    signature: &str,
+    values: &[JValue],
+) -> anyhow::Result<i32> {
+    let host = HOST
+        .get()
+        .ok_or_else(|| anyhow::anyhow!("Android host is not installed"))?;
+    let mut env = host.vm.attach_current_thread()?;
+    let class: &JClass = host.class.as_obj().into();
+    let result = env.call_static_method(class, method, signature, values);
+    if result.is_err() && env.exception_check()? {
+        env.exception_clear()?;
+    }
+    Ok(result?.i()?)
+}
+
 pub(super) fn read_clipboard() -> Option<String> {
     let host = HOST.get()?;
     let result = (|| -> jni::errors::Result<Option<String>> {
@@ -198,6 +215,9 @@ pub fn attach(
         let application = Application::with_platform(platform.clone()).run_embedded(move |cx| {
             gpui_lifecycle::gpui_adapter::install_lifecycle_service(super::lifecycle_service(), cx)
                 .expect("install process-owned Android lifecycle service");
+            super::permission_service()
+                .install_cloned(cx.default_global::<gpui_system::SystemServices>())
+                .expect("install process-owned Android permission service");
             launch(cx);
         });
         RUNTIME.with(|slot| {
@@ -210,6 +230,7 @@ pub fn attach(
         });
     }
     super::host::attach(generation);
+    super::permissions::attach(generation);
     log::info!("Surface attached generation={generation} {width}x{height} density={scale}");
     post(0);
     Ok(())
@@ -221,6 +242,7 @@ pub fn detach(generation: u64) {
         runtime.platform.window.detach(generation);
     }
     super::host::detach(generation);
+    super::permissions::detach(generation);
     log::info!("Surface detached generation={generation}");
 }
 

@@ -1,4 +1,6 @@
 //! One Rust page shared by the desktop executable and Android native library.
+#[cfg(target_os = "android")]
+mod permissions;
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 use gpui_box_components::input;
@@ -30,6 +32,8 @@ struct Hello {
     modal_open: bool,
     modal_focus: FocusHandle,
     modal_trigger: FocusHandle,
+    #[cfg(target_os = "android")]
+    permissions: Entity<permissions::PermissionPanel>,
 }
 impl Render for Hello {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -437,7 +441,19 @@ impl Hello {
                         }),
                     ),
             )
+            .children(self.permission_panel())
             .into_any_element()
+    }
+
+    fn permission_panel(&self) -> Option<AnyElement> {
+        #[cfg(target_os = "android")]
+        {
+            Some(self.permissions.clone().into_any_element())
+        }
+        #[cfg(not(target_os = "android"))]
+        {
+            None
+        }
     }
 
     fn close_modal(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -500,6 +516,8 @@ pub fn open(cx: &mut App) {
                         modal_open: false,
                         modal_focus: cx.focus_handle(),
                         modal_trigger: cx.focus_handle(),
+                        #[cfg(target_os = "android")]
+                        permissions: cx.new(permissions::PermissionPanel::new),
                     }
                 })
             },

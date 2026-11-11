@@ -123,6 +123,15 @@ example restores route, preferences, counter, committed values, field drafts,
 selection and focus after background process reclamation. Business persistence
 uses private storage separately. See ADR-012/013 and the M1 continuation report.
 
+The host also installs an Android PermissionService. Typed configuration and
+manifest declarations are both required for runtime requests. Notification and
+camera gallery controls demonstrate explicit request, fresh status and settings
+recovery. The platform supports five declared permission kinds, including limited
+approximate location and policy restrictions. Photos, biometrics and special
+access remain separate providers. Requests use a foreground Activity, process-local
+IDs and surface-owned context generations. See ADR-014 and the M1 report for
+verified operations and the deferred device gates.
+
 See [M0 validation](../../docs/M0_ANDROID_VALIDATION.md) for commands, results,
 renderer decision, and deferred device qualification. See
 [M1 validation](../../docs/M1_ANDROID_VALIDATION.md) for subsequent platform work.
