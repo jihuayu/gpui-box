@@ -19,6 +19,7 @@ crates/
   gpui-permissions/         Permission status, contextual requests, settings recovery
   gpui-activation/          Validated URL opening and durable activation routing
   gpui-secrets/             Account-scoped secure credential storage
+  gpui-clipboard/           Foreground text clipboard with native error reporting
 components/
   gpui-box-components/      Controls, themes, screen-owned models and shell primitives
 examples/

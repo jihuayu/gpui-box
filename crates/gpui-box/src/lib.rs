@@ -53,3 +53,7 @@ pub use gpui_activation as activation;
 /// Account-scoped secure credentials, with explicit native provider policies.
 #[cfg(feature = "secrets")]
 pub use gpui_secrets as secrets;
+
+/// Foreground, user-initiated plain-text clipboard operations.
+#[cfg(feature = "clipboard")]
+pub use gpui_clipboard as clipboard;
