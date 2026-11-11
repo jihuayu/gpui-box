@@ -1,0 +1,715 @@
+//! Persistent rectangle UI foundation. Layout uses the pinned Taffy engine.
+//! The GPUI adapter currently submits the owned frame through ordinary paint.
+
+use std::{
+    collections::BTreeMap,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
+};
+pub use taffy::Style;
+use taffy::prelude::*;
+pub use taffy::style_helpers::{length, percent};
+
+/// Identity belongs to one tree and one lifetime of its arena slot.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct NodeId {
+    tree: u64,
+    slot: usize,
+    generation: u64,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Rect {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum DisplayCommand {
+    Fill(u32),
+}
+
+/// Local commands survive commits that only change layout or translation.
+#[derive(Clone, Debug)]
+pub struct PaintItem {
+    pub node: NodeId,
+    pub bounds: Rect,
+    pub commands: Arc<[DisplayCommand]>,
+}
+
+/// Owned output can be read after the producing tree has changed or been dropped.
+#[derive(Clone, Debug)]
+pub struct FramePacket {
+    pub revision: u64,
+    pub items: Arc<[PaintItem]>,
+    pub layout_runs: u64,
+    pub recorded_chunks: u64,
+}
+
+impl FramePacket {
+    pub fn hit_test(&self, x: f32, y: f32) -> Option<NodeId> {
+        self.items
+            .iter()
+            .rev()
+            .find(|item| {
+                let b = item.bounds;
+                x >= b.x && y >= b.y && x < b.x + b.width && y < b.y + b.height
+            })
+            .map(|item| item.node)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UpdatePath {
+    Noop,
+    InstancePatch,
+    PropertyPatch,
+    RepaintChunks,
+    Relayout,
+    ReconcileStructure,
+}
+
+/// Capabilities are declared by the consumer of the frame, not by UI code.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct BackendCapabilities {
+    pub solid_color_patch: bool,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct Commit {
+    pub revision: u64,
+    pub changed_nodes: usize,
+    pub request_frame: bool,
+    pub routes: Vec<(NodeId, UpdatePath)>,
+}
+
+#[derive(Clone, Debug)]
+pub enum Patch {
+    Color(NodeId, u32),
+    Style(NodeId, Box<Style>),
+    Translation(NodeId, [f32; 2]),
+    Reorder(NodeId, Vec<NodeId>),
+}
+
+#[derive(Default)]
+pub struct Transaction {
+    patches: Vec<Patch>,
+}
+
+impl Transaction {
+    pub fn color(&mut self, node: NodeId, rgba: u32) {
+        self.patches.push(Patch::Color(node, rgba));
+    }
+    pub fn style(&mut self, node: NodeId, style: Style) {
+        self.patches.push(Patch::Style(node, Box::new(style)));
+    }
+    pub fn translation(&mut self, node: NodeId, translation: [f32; 2]) {
+        self.patches.push(Patch::Translation(node, translation));
+    }
+    /// Reorder the existing children of one parent, preserving their identity.
+    pub fn reorder(&mut self, parent: NodeId, children: Vec<NodeId>) {
+        self.patches.push(Patch::Reorder(parent, children));
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Error {
+    InvalidNode,
+    InvalidTranslation,
+    InvalidViewport,
+    InvalidChildren,
+    CannotRemoveRoot,
+    RevisionExhausted,
+    Layout(String),
+}
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "retained UI error: {self:?}")
+    }
+}
+impl std::error::Error for Error {}
+impl From<taffy::TaffyError> for Error {
+    fn from(error: taffy::TaffyError) -> Self {
+        Self::Layout(error.to_string())
+    }
+}
+
+struct Node {
+    layout: taffy::NodeId,
+    children: Vec<NodeId>,
+    parent: Option<NodeId>,
+    style: Style,
+    color: u32,
+    translation: [f32; 2],
+    chunk: Option<Arc<[DisplayCommand]>>,
+}
+struct Slot {
+    generation: u64,
+    node: Option<Node>,
+}
+
+/// One UI owner mutates the tree. FramePackets own everything they expose.
+pub struct UiTree {
+    identity: u64,
+    slots: Vec<Slot>,
+    free: Vec<usize>,
+    layout: TaffyTree<()>,
+    root: NodeId,
+    revision: u64,
+    dirty: bool,
+    layout_dirty: bool,
+    viewport: Option<[f32; 2]>,
+    frame: Option<FramePacket>,
+}
+
+#[derive(Default)]
+struct Pending {
+    color: Option<u32>,
+    style: Option<Style>,
+    translation: Option<[f32; 2]>,
+    children: Option<Vec<NodeId>>,
+}
+
+impl UiTree {
+    pub fn new(style: Style, rgba: u32) -> Result<Self, Error> {
+        static NEXT: AtomicU64 = AtomicU64::new(1);
+        let identity = NEXT
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| n.checked_add(1))
+            .map_err(|_| Error::RevisionExhausted)?;
+        let mut layout = TaffyTree::new();
+        layout.disable_rounding();
+        let id = layout.new_leaf(style.clone())?;
+        let root = NodeId {
+            tree: identity,
+            slot: 0,
+            generation: 0,
+        };
+        Ok(Self {
+            identity,
+            slots: vec![Slot {
+                generation: 0,
+                node: Some(Node {
+                    layout: id,
+                    children: vec![],
+                    parent: None,
+                    style,
+                    color: rgba,
+                    translation: [0.0; 2],
+                    chunk: None,
+                }),
+            }],
+            free: vec![],
+            layout,
+            root,
+            revision: 0,
+            dirty: true,
+            layout_dirty: true,
+            viewport: None,
+            frame: None,
+        })
+    }
+
+    pub fn root(&self) -> NodeId {
+        self.root
+    }
+    /// Most recently published output, including its own committed revision.
+    pub fn published_frame(&self) -> Option<&FramePacket> {
+        self.frame.as_ref()
+    }
+    pub fn style(&self, id: NodeId) -> Result<&Style, Error> {
+        Ok(&self.node(id)?.style)
+    }
+
+    fn node(&self, id: NodeId) -> Result<&Node, Error> {
+        if id.tree != self.identity {
+            return Err(Error::InvalidNode);
+        }
+        self.slots
+            .get(id.slot)
+            .filter(|slot| slot.generation == id.generation)
+            .and_then(|slot| slot.node.as_ref())
+            .ok_or(Error::InvalidNode)
+    }
+    fn node_mut(&mut self, id: NodeId) -> &mut Node {
+        self.slots[id.slot].node.as_mut().expect("validated node")
+    }
+    fn advance(&mut self) -> Result<(), Error> {
+        self.revision = self
+            .revision
+            .checked_add(1)
+            .ok_or(Error::RevisionExhausted)?;
+        self.dirty = true;
+        Ok(())
+    }
+
+    pub fn append(&mut self, parent: NodeId, style: Style, rgba: u32) -> Result<NodeId, Error> {
+        let parent_layout = self.node(parent)?.layout;
+        let next = self
+            .revision
+            .checked_add(1)
+            .ok_or(Error::RevisionExhausted)?;
+        let layout = self.layout.new_leaf(style.clone())?;
+        self.layout.add_child(parent_layout, layout)?;
+        let slot = self.free.pop().unwrap_or(self.slots.len());
+        if slot == self.slots.len() {
+            self.slots.push(Slot {
+                generation: 0,
+                node: None,
+            });
+        }
+        let id = NodeId {
+            tree: self.identity,
+            slot,
+            generation: self.slots[slot].generation,
+        };
+        self.slots[slot].node = Some(Node {
+            layout,
+            children: vec![],
+            parent: Some(parent),
+            style,
+            color: rgba,
+            translation: [0.0; 2],
+            chunk: None,
+        });
+        self.node_mut(parent).children.push(id);
+        self.revision = next;
+        self.dirty = true;
+        self.layout_dirty = true;
+        Ok(id)
+    }
+
+    pub fn remove(&mut self, id: NodeId) -> Result<(), Error> {
+        let parent = self.node(id)?.parent.ok_or(Error::CannotRemoveRoot)?;
+        self.advance()?;
+        let mut order = vec![id];
+        let mut i = 0;
+        while i < order.len() {
+            order.extend(self.node(order[i])?.children.clone());
+            i += 1;
+        }
+        for removed in order.into_iter().rev() {
+            let layout = self.node(removed)?.layout;
+            self.layout.remove(layout)?;
+            let slot = &mut self.slots[removed.slot];
+            slot.node = None;
+            if let Some(next) = slot.generation.checked_add(1) {
+                slot.generation = next;
+                self.free.push(removed.slot);
+            }
+        }
+        self.node_mut(parent).children.retain(|child| *child != id);
+        self.layout_dirty = true;
+        Ok(())
+    }
+
+    /// Validate every patch before changing state, then compare final field values.
+    /// Writing A→B→A in one transaction produces no UI work.
+    pub fn commit(
+        &mut self,
+        transaction: Transaction,
+        capabilities: BackendCapabilities,
+    ) -> Result<Commit, Error> {
+        let mut pending: BTreeMap<NodeId, Pending> = BTreeMap::new();
+        for patch in transaction.patches {
+            let id = match &patch {
+                Patch::Color(id, _)
+                | Patch::Style(id, _)
+                | Patch::Translation(id, _)
+                | Patch::Reorder(id, _) => *id,
+            };
+            self.node(id)?;
+            let entry = pending.entry(id).or_default();
+            match patch {
+                Patch::Color(_, color) => entry.color = Some(color),
+                Patch::Style(_, style) => entry.style = Some(*style),
+                Patch::Translation(_, translation) => {
+                    if translation.iter().any(|v| !v.is_finite()) {
+                        return Err(Error::InvalidTranslation);
+                    }
+                    entry.translation = Some(translation);
+                }
+                Patch::Reorder(_, children) => {
+                    let mut previous = self.node(id)?.children.clone();
+                    let mut proposed = children.clone();
+                    previous.sort_unstable();
+                    proposed.sort_unstable();
+                    if previous != proposed {
+                        return Err(Error::InvalidChildren);
+                    }
+                    entry.children = Some(children);
+                }
+            }
+        }
+        let mut changed = Vec::new();
+        for (id, entry) in pending {
+            let node = self.node(id)?;
+            let style_changed = entry
+                .style
+                .as_ref()
+                .is_some_and(|style| *style != node.style);
+            let color_changed = entry.color.is_some_and(|color| color != node.color);
+            let property_changed = entry
+                .translation
+                .is_some_and(|value| value != node.translation);
+            let structure_changed = entry
+                .children
+                .as_ref()
+                .is_some_and(|children| *children != node.children);
+            if style_changed || color_changed || property_changed || structure_changed {
+                changed.push((
+                    id,
+                    entry,
+                    style_changed,
+                    color_changed,
+                    property_changed,
+                    structure_changed,
+                ));
+            }
+        }
+        if changed.is_empty() {
+            return Ok(Commit {
+                revision: self.revision,
+                ..Default::default()
+            });
+        }
+        self.advance()?;
+        let mut result = Commit {
+            revision: self.revision,
+            changed_nodes: changed.len(),
+            request_frame: true,
+            routes: vec![],
+        };
+        for (id, entry, style_changed, color_changed, property_changed, structure_changed) in
+            changed
+        {
+            if structure_changed {
+                let children = entry.children.expect("changed children");
+                let layouts = children
+                    .iter()
+                    .map(|child| self.node(*child).map(|node| node.layout))
+                    .collect::<Result<Vec<_>, _>>()?;
+                self.layout.set_children(self.node(id)?.layout, &layouts)?;
+                self.node_mut(id).children = children;
+                self.layout_dirty = true;
+                result.routes.push((id, UpdatePath::ReconcileStructure));
+            }
+            if style_changed {
+                let style = entry.style.expect("changed style");
+                self.layout
+                    .set_style(self.node(id)?.layout, style.clone())?;
+                self.node_mut(id).style = style;
+                self.layout_dirty = true;
+                result.routes.push((id, UpdatePath::Relayout));
+            }
+            if color_changed {
+                let node = self.node_mut(id);
+                node.color = entry.color.expect("changed color");
+                node.chunk = None;
+                result.routes.push((
+                    id,
+                    if capabilities.solid_color_patch {
+                        UpdatePath::InstancePatch
+                    } else {
+                        UpdatePath::RepaintChunks
+                    },
+                ));
+            }
+            if property_changed {
+                self.node_mut(id).translation = entry.translation.expect("changed property");
+                result.routes.push((id, UpdatePath::PropertyPatch));
+            }
+        }
+        Ok(result)
+    }
+
+    pub fn frame(&mut self, viewport: [f32; 2]) -> Result<FramePacket, Error> {
+        if viewport.iter().any(|n| !n.is_finite() || *n < 0.0) {
+            return Err(Error::InvalidViewport);
+        }
+        if self.viewport != Some(viewport) {
+            self.advance()?;
+            self.layout_dirty = true;
+            self.viewport = Some(viewport);
+        }
+        if !self.dirty {
+            let mut cached = self.frame.as_ref().expect("prepared frame").clone();
+            cached.layout_runs = 0;
+            cached.recorded_chunks = 0;
+            return Ok(cached);
+        }
+        let layout_runs = u64::from(self.layout_dirty);
+        if self.layout_dirty {
+            self.layout.compute_layout(
+                self.node(self.root)?.layout,
+                Size {
+                    width: AvailableSpace::Definite(viewport[0]),
+                    height: AvailableSpace::Definite(viewport[1]),
+                },
+            )?;
+        }
+        let mut items = Vec::new();
+        let mut stack = vec![(self.root, [0.0, 0.0])];
+        let mut recorded_chunks = 0;
+        while let Some((id, origin)) = stack.pop() {
+            let node = self.node(id)?;
+            let layout = *self.layout.layout(node.layout)?;
+            let x = origin[0] + layout.location.x + node.translation[0];
+            let y = origin[1] + layout.location.y + node.translation[1];
+            for child in node.children.iter().rev() {
+                stack.push((*child, [x, y]));
+            }
+            let node = self.node_mut(id);
+            let commands = node
+                .chunk
+                .get_or_insert_with(|| {
+                    recorded_chunks += 1;
+                    Arc::from([DisplayCommand::Fill(node.color)])
+                })
+                .clone();
+            items.push(PaintItem {
+                node: id,
+                bounds: Rect {
+                    x,
+                    y,
+                    width: layout.size.width,
+                    height: layout.size.height,
+                },
+                commands,
+            });
+        }
+        let frame = FramePacket {
+            revision: self.revision,
+            items: items.into(),
+            layout_runs,
+            recorded_chunks,
+        };
+        self.layout_dirty = false;
+        self.dirty = false;
+        self.frame = Some(frame.clone());
+        Ok(frame)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fixture() -> (UiTree, NodeId) {
+        let mut tree = UiTree::new(
+            Style {
+                size: Size {
+                    width: percent(1.0),
+                    height: percent(1.0),
+                },
+                ..Style::default()
+            },
+            0xff0000ff,
+        )
+        .unwrap();
+        let child = tree
+            .append(
+                tree.root(),
+                Style {
+                    size: Size {
+                        width: length(40.0),
+                        height: length(20.0),
+                    },
+                    ..Style::default()
+                },
+                0x0000ffff,
+            )
+            .unwrap();
+        (tree, child)
+    }
+
+    #[test]
+    fn child_reorder_is_atomic_preserves_identity_and_reuses_paint() {
+        let (mut tree, a) = fixture();
+        let b = tree
+            .append(tree.root(), tree.style(a).unwrap().clone(), 0x00ff00ff)
+            .unwrap();
+        let before = tree.frame([100.0, 100.0]).unwrap();
+        let mut invalid = Transaction::default();
+        invalid.color(a, 0);
+        invalid.reorder(tree.root(), vec![a, a]);
+        assert_eq!(
+            tree.commit(invalid, BackendCapabilities::default())
+                .unwrap_err(),
+            Error::InvalidChildren
+        );
+        let mut tx = Transaction::default();
+        tx.reorder(tree.root(), vec![b, a]);
+        let commit = tree.commit(tx, BackendCapabilities::default()).unwrap();
+        assert_eq!(
+            commit.routes,
+            vec![(tree.root(), UpdatePath::ReconcileStructure)]
+        );
+        let after = tree.frame([100.0, 100.0]).unwrap();
+        assert_eq!((after.layout_runs, after.recorded_chunks), (1, 0));
+        assert_eq!(after.items[1].node, b);
+        assert_eq!(after.items[2].node, a);
+        assert!(Arc::ptr_eq(
+            &before.items[1].commands,
+            &after.items[2].commands
+        ));
+        assert_eq!(after.items[2].commands[0], DisplayCommand::Fill(0x0000ffff));
+    }
+
+    #[test]
+    fn final_values_skip_layout_recording_and_frame_requests() {
+        let (mut tree, child) = fixture();
+        let before = tree.frame([100.0, 100.0]).unwrap();
+        let mut tx = Transaction::default();
+        tx.color(child, 0xffffffff);
+        tx.color(child, 0x0000ffff);
+        tx.style(child, tree.style(child).unwrap().clone());
+        let commit = tree.commit(tx, BackendCapabilities::default()).unwrap();
+        assert!(!commit.request_frame);
+        assert_eq!(commit.changed_nodes, 0);
+        let after = tree.frame([100.0, 100.0]).unwrap();
+        assert_eq!(before.revision, after.revision);
+        assert!(Arc::ptr_eq(&before.items, &after.items));
+        assert_eq!((after.layout_runs, after.recorded_chunks), (0, 0));
+    }
+
+    #[test]
+    fn invalid_batch_preserves_all_earlier_values() {
+        let (mut tree, child) = fixture();
+        let foreign = fixture().1;
+        let before = tree.frame([100.0, 100.0]).unwrap();
+        let mut tx = Transaction::default();
+        tx.color(child, 0x00ff00ff);
+        tx.translation(foreign, [10.0, 0.0]);
+        assert_eq!(
+            tree.commit(tx, BackendCapabilities::default()).unwrap_err(),
+            Error::InvalidNode
+        );
+        let after = tree.frame([100.0, 100.0]).unwrap();
+        assert_eq!(before.revision, after.revision);
+        assert!(Arc::ptr_eq(&before.items, &after.items));
+    }
+
+    #[test]
+    fn color_and_translation_keep_independent_routes_and_share_other_chunks() {
+        let (mut tree, child) = fixture();
+        let before = tree.frame([100.0, 100.0]).unwrap();
+        let mut tx = Transaction::default();
+        tx.color(child, 0x00ff00ff);
+        tx.translation(child, [50.0, 10.0]);
+        let commit = tree.commit(tx, BackendCapabilities::default()).unwrap();
+        assert_eq!(
+            commit.routes,
+            vec![
+                (child, UpdatePath::RepaintChunks),
+                (child, UpdatePath::PropertyPatch)
+            ]
+        );
+        let after = tree.frame([100.0, 100.0]).unwrap();
+        assert_eq!((after.layout_runs, after.recorded_chunks), (0, 1));
+        assert!(Arc::ptr_eq(
+            &before.items[0].commands,
+            &after.items[0].commands
+        ));
+        assert_eq!(
+            after.items[1].bounds,
+            Rect {
+                x: 50.0,
+                y: 10.0,
+                width: 40.0,
+                height: 20.0
+            }
+        );
+        assert_eq!(after.hit_test(55.0, 15.0), Some(child));
+        assert_eq!(after.hit_test(5.0, 5.0), Some(tree.root()));
+        assert_eq!(
+            before.items[1].commands[0],
+            DisplayCommand::Fill(0x0000ffff)
+        );
+    }
+
+    #[test]
+    fn parent_translation_reuses_commands_and_updates_descendant_hit_geometry() {
+        let (mut tree, child) = fixture();
+        let before = tree.frame([100.0, 100.0]).unwrap();
+        let mut tx = Transaction::default();
+        tx.translation(tree.root(), [20.0, 30.0]);
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+        let after = tree.frame([100.0, 100.0]).unwrap();
+        assert_eq!((after.layout_runs, after.recorded_chunks), (0, 0));
+        assert!(Arc::ptr_eq(
+            &before.items[1].commands,
+            &after.items[1].commands
+        ));
+        assert_eq!(after.hit_test(25.0, 35.0), Some(child));
+    }
+
+    #[test]
+    fn resized_persistent_flex_matches_a_fresh_tree() {
+        let (mut retained, child) = fixture();
+        retained.frame([100.0, 100.0]).unwrap();
+        let mut tx = Transaction::default();
+        let mut style = retained.style(child).unwrap().clone();
+        style.flex_grow = 1.0;
+        tx.style(child, style.clone());
+        retained.commit(tx, BackendCapabilities::default()).unwrap();
+        for viewport in [[180.0, 80.0], [80.0, 100.0], [0.0, 0.0]] {
+            let a = retained.frame(viewport).unwrap();
+            let (mut fresh, fresh_child) = fixture();
+            let mut tx = Transaction::default();
+            tx.style(fresh_child, style.clone());
+            fresh.commit(tx, BackendCapabilities::default()).unwrap();
+            let b = fresh.frame(viewport).unwrap();
+            assert_eq!(
+                a.items.iter().map(|item| item.bounds).collect::<Vec<_>>(),
+                b.items.iter().map(|item| item.bounds).collect::<Vec<_>>()
+            );
+            assert_eq!(a.items[1].node, child);
+        }
+    }
+
+    #[test]
+    fn removal_invalidates_descendants_and_reused_slots_preserve_old_snapshots() {
+        let (mut tree, child) = fixture();
+        let grandchild = tree.append(child, Style::default(), 0xffffffff).unwrap();
+        let before = tree.frame([100.0, 100.0]).unwrap();
+        tree.remove(child).unwrap();
+        let replacement = tree
+            .append(tree.root(), Style::default(), 0xff00ffff)
+            .unwrap();
+        assert_ne!(child, replacement);
+        for old in [child, grandchild] {
+            let mut tx = Transaction::default();
+            tx.color(old, 0);
+            assert_eq!(
+                tree.commit(tx, BackendCapabilities::default()).unwrap_err(),
+                Error::InvalidNode
+            );
+        }
+        let after = tree.frame([100.0, 100.0]).unwrap();
+        assert_eq!((before.items.len(), after.items.len()), (3, 2));
+        assert_eq!(before.items[1].node, child);
+        assert_eq!(tree.remove(tree.root()), Err(Error::CannotRemoveRoot));
+    }
+
+    #[test]
+    fn invalid_property_does_not_commit_and_invalid_viewport_can_be_retried() {
+        let (mut tree, child) = fixture();
+        let mut tx = Transaction::default();
+        tx.color(child, 0);
+        tx.translation(child, [f32::NAN, 0.0]);
+        assert_eq!(
+            tree.commit(tx, BackendCapabilities::default()).unwrap_err(),
+            Error::InvalidTranslation
+        );
+        assert_eq!(
+            tree.frame([-1.0, 100.0]).unwrap_err(),
+            Error::InvalidViewport
+        );
+        let frame = tree.frame([100.0, 100.0]).unwrap();
+        assert_eq!(frame.items[1].commands[0], DisplayCommand::Fill(0x0000ffff));
+    }
+}

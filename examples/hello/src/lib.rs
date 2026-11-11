@@ -1,5 +1,6 @@
 //! One Rust page shared by the desktop executable and Android native library.
 mod input;
+mod retained_demo;
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 
@@ -82,5 +83,14 @@ pub fn open(cx: &mut App) {
         },
     )
     .expect("open shared example");
+    cx.activate(true);
+}
+
+/// Opens the retained-state integration gallery through the normal GPUI runtime.
+pub fn open_retained(cx: &mut App) {
+    cx.open_window(WindowOptions::default(), |_, cx| {
+        cx.new(retained_demo::RetainedDemo::new)
+    })
+    .expect("open retained UI example");
     cx.activate(true);
 }
