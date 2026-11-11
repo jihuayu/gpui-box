@@ -87,7 +87,19 @@ fn execute(arguments: &[String]) -> Result<Value, CliError> {
                 .map_err(|error| CliError::new("GENERATION_PLAN_FAILED", error.to_string()));
         }
         [command] if command == "doctor" => {
-            workflow::doctor(&root).map_err(|e| CliError::new("DIAGNOSTICS_FAILED", e))?
+            let report = workflow::doctor(&root)
+                .map_err(|error| CliError::new("DIAGNOSTICS_FAILED", error))?;
+            let ready = report.ready;
+            let value = serde_json::to_value(report)
+                .map_err(|error| CliError::new("DIAGNOSTICS_FAILED", error.to_string()))?;
+            if !ready {
+                return Err(CliError::new(
+                    "DIAGNOSTICS_FAILED",
+                    "Missing prerequisites listed above",
+                )
+                .with_details(value));
+            }
+            return Ok(value);
         }
         [command, platform, option]
             if command == "package" && platform == "android" && option == "--release" =>

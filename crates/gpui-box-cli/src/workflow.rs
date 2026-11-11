@@ -245,7 +245,58 @@ pub fn logs(root: &Path, serial: Option<&str>) -> Result<(), String> {
     }
     run(connected(Some(&serial))?.args(["logcat", &format!("--pid={pid}")]))
 }
-pub fn doctor(root: &Path) -> Result<(), String> {
+#[derive(Debug, Serialize)]
+pub struct DoctorCheck {
+    pub id: String,
+    pub passed: bool,
+    pub required: bool,
+    pub message: String,
+    pub corrective_action: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DoctorReport {
+    pub schema_version: u32,
+    pub completed: bool,
+    pub ready: bool,
+    pub readiness_scope: &'static str,
+    pub host: String,
+    pub targets: Vec<String>,
+    pub project_schema_version: u32,
+    pub service_schema_version: u32,
+    pub update_channel: String,
+    pub checks: Vec<DoctorCheck>,
+}
+
+impl DoctorReport {
+    fn check(
+        &mut self,
+        id: impl Into<String>,
+        passed: bool,
+        required: bool,
+        message: impl Into<String>,
+        fix: &str,
+    ) {
+        let message = message.into();
+        if passed {
+            crate::outputln!("OK {message}");
+        } else if required {
+            self.ready = false;
+            eprintln!("MISSING {message}. {fix}");
+        } else {
+            crate::outputln!("RELEASE prerequisite {message}. {fix}");
+        }
+        self.checks.push(DoctorCheck {
+            id: id.into(),
+            passed,
+            required,
+            message,
+            corrective_action: (!passed).then(|| fix.to_string()),
+        });
+    }
+}
+
+pub fn doctor(root: &Path) -> Result<DoctorReport, String> {
     let config = AppConfig::load(root)?;
     let distribution = config.distribution(root)?;
     crate::outputln!(
@@ -255,7 +306,18 @@ pub fn doctor(root: &Path) -> Result<(), String> {
         config.update_channel
     );
     crate::outputln!("Distribution {}", distribution.display());
-    let mut missing = false;
+    let mut report = DoctorReport {
+        schema_version: 1,
+        completed: true,
+        ready: true,
+        readiness_scope: "declared_prerequisites",
+        host: format!("{}-{}", env::consts::ARCH, env::consts::OS),
+        targets: config.targets.clone(),
+        project_schema_version: config.schema_version,
+        service_schema_version: config.services.schema_version,
+        update_channel: config.update_channel.clone(),
+        checks: Vec::new(),
+    };
     crate::outputln!(
         "Service declaration schema {}",
         config.services.schema_version
@@ -271,14 +333,14 @@ pub fn doctor(root: &Path) -> Result<(), String> {
             "CONFIGURED Android custom URL scheme {scheme}. Validate host routing through the packaged application."
         );
     }
-    for asset in &config.assets {
-        if !root.join(asset).exists() {
-            missing = true;
-            eprintln!(
-                "MISSING asset {}. Create it or update assets in gpui-box.json.",
-                asset.display()
-            );
-        }
+    for (index, asset) in config.assets.iter().enumerate() {
+        report.check(
+            format!("asset.{index}"),
+            root.join(asset).exists(),
+            true,
+            format!("asset {}", asset.display()),
+            "Create it or update assets in gpui-box.json.",
+        );
     }
     for (program, args, fix) in [
         (
@@ -293,43 +355,48 @@ pub fn doctor(root: &Path) -> Result<(), String> {
         let mut command = Command::new("mise");
         command
             .current_dir(root)
+            .stdin(Stdio::null())
             .args(["exec", "--", program])
             .args(args);
-        match command.output() {
-            Ok(result) if result.status.success() => {
-                crate::outputln!("OK {}", String::from_utf8_lossy(&result.stdout).trim())
-            }
-            _ => {
-                eprintln!("MISSING {program}. {fix}");
-                missing = true;
-            }
-        }
+        let result = command.output();
+        let available = result.as_ref().is_ok_and(|result| result.status.success());
+        let message = match result {
+            Ok(result) if available => format!(
+                "{program} {}",
+                String::from_utf8_lossy(&result.stdout).trim()
+            ),
+            _ => program.into(),
+        };
+        report.check(format!("tool.{program}"), available, true, message, fix);
     }
     if config.targets.iter().any(|t| t == "android") {
-        match crate::package::verify_wrapper(&root.join("android-host")) {
-            Ok(()) => crate::outputln!("OK Gradle Wrapper JAR and distribution SHA-256 pins"),
-            Err(error) => {
-                missing = true;
-                eprintln!("INVALID Gradle Wrapper. {error}. Run gpui-box generate.");
-            }
-        }
-        match crate::package::bundletool() {
-            Ok(_) => crate::outputln!("OK optional release bundletool 1.18.3 checksum"),
-            Err(error) => crate::outputln!("RELEASE prerequisite {error}"),
-        }
+        let wrapper = crate::package::verify_wrapper(&root.join("android-host"));
+        let wrapper_message = match &wrapper {
+            Ok(()) => "Gradle Wrapper JAR and distribution SHA-256 pins".to_string(),
+            Err(error) => format!("Gradle Wrapper. {error}"),
+        };
+        report.check(
+            "android.wrapper",
+            wrapper.is_ok(),
+            true,
+            wrapper_message,
+            "Run gpui-box generate.",
+        );
+        report.check("release.bundletool", crate::package::bundletool().is_ok(), false,
+            "optional release bundletool 1.18.3 checksum",
+            "Set GPUI_BOX_BUNDLETOOL to the checksum-pinned bundletool-all-1.18.3.jar. See docs/M4_ANDROID_PACKAGING.md.");
         for name in [
             "GPUI_BOX_ANDROID_KEYSTORE",
             "GPUI_BOX_ANDROID_STORE_PASSWORD",
             "GPUI_BOX_ANDROID_KEY_ALIAS",
             "GPUI_BOX_ANDROID_KEY_PASSWORD",
         ] {
-            crate::outputln!(
-                "RELEASE {name} {}",
-                if env::var_os(name).is_some_and(|value| !value.is_empty()) {
-                    "configured"
-                } else {
-                    "unset"
-                }
+            report.check(
+                format!("release.{name}"),
+                env::var_os(name).is_some_and(|value| !value.is_empty()),
+                false,
+                format!("{name} configured"),
+                "Configure release signing before release packaging.",
             );
         }
         for (args, expected, fix) in [
@@ -351,45 +418,46 @@ pub fn doctor(root: &Path) -> Result<(), String> {
         ] {
             let result = Command::new("mise")
                 .current_dir(root)
+                .stdin(Stdio::null())
                 .args(["-E", "android", "exec", "--"])
                 .args(&args)
                 .output();
-            match result {
-                Ok(output)
-                    if output.status.success()
-                        && format!(
-                            "{}{}",
-                            String::from_utf8_lossy(&output.stdout),
-                            String::from_utf8_lossy(&output.stderr)
-                        )
-                        .contains(expected) =>
-                {
-                    crate::outputln!("OK {} {expected}", args[0])
-                }
-                _ => {
-                    missing = true;
-                    eprintln!("MISSING pinned {} {expected}. Run {fix}.", args[0]);
-                }
-            }
+            let available = result.is_ok_and(|output| {
+                output.status.success()
+                    && format!(
+                        "{}{}",
+                        String::from_utf8_lossy(&output.stdout),
+                        String::from_utf8_lossy(&output.stderr)
+                    )
+                    .contains(expected)
+            });
+            report.check(
+                format!("android.tool.{}", args[0]),
+                available,
+                true,
+                format!("pinned {} {expected}", args[0]),
+                &format!("Run {fix}."),
+            );
         }
         let installed = Command::new("mise")
             .current_dir(root)
+            .stdin(Stdio::null())
             .args(["exec", "--", "rustup", "target", "list", "--installed"])
             .output();
         for target in ["aarch64-linux-android", "x86_64-linux-android"] {
-            if installed.as_ref().is_ok_and(|output| {
+            let available = installed.as_ref().is_ok_and(|output| {
                 output.status.success()
                     && String::from_utf8_lossy(&output.stdout)
                         .lines()
                         .any(|line| line == target)
-            }) {
-                crate::outputln!("OK Rust target {target}");
-            } else {
-                missing = true;
-                eprintln!(
-                    "MISSING Rust target {target}. Run mise exec -- rustup target add {target}."
-                );
-            }
+            });
+            report.check(
+                format!("android.rust.{target}"),
+                available,
+                true,
+                format!("Rust target {target}"),
+                &format!("Run mise exec -- rustup target add {target}."),
+            );
         }
         match sdk() {
             Ok(sdk) => {
@@ -404,19 +472,17 @@ pub fn doctor(root: &Path) -> Result<(), String> {
                     "ndk/30.0.16248370",
                     "licenses/android-sdk-license",
                 ] {
-                    if sdk.join(path).exists() {
-                        crate::outputln!("OK Android {path}");
-                    } else {
-                        missing = true;
-                        eprintln!(
-                            "MISSING Android {path}. Install the pinned SDK packages and run sdkmanager --licenses."
-                        );
-                    }
+                    report.check(
+                        format!("android.sdk.{path}"),
+                        sdk.join(path).exists(),
+                        true,
+                        format!("Android {path}"),
+                        "Install the pinned SDK packages and run sdkmanager --licenses.",
+                    );
                 }
             }
             Err(error) => {
-                eprintln!("{error}");
-                missing = true;
+                report.check("android.sdk", false, true, "Android SDK", &error);
             }
         }
         crate::outputln!(
@@ -428,16 +494,45 @@ pub fn doctor(root: &Path) -> Result<(), String> {
             "Desktop requires MSVC C++ Build Tools and a Windows SDK. The build command validates linking."
         );
     }
-    if missing {
-        Err("Missing prerequisites listed above".into())
-    } else {
-        Ok(())
-    }
+    Ok(report)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn doctor_optional_checks_preserve_readiness_and_required_failures_clear_it() {
+        let mut report = DoctorReport {
+            schema_version: 1,
+            completed: true,
+            ready: true,
+            readiness_scope: "declared_prerequisites",
+            host: "test-host".into(),
+            targets: vec!["android".into()],
+            project_schema_version: 1,
+            service_schema_version: 1,
+            update_channel: "development".into(),
+            checks: Vec::new(),
+        };
+        report.check(
+            "optional",
+            false,
+            false,
+            "optional release input",
+            "Configure release input",
+        );
+        assert!(report.ready);
+        report.check("required", false, true, "required tool", "Install tool");
+        assert!(!report.ready);
+        report.check("later", true, true, "later passing check", "unused");
+        assert!(!report.ready);
+        assert_eq!(
+            report.checks[0].corrective_action.as_deref(),
+            Some("Configure release input")
+        );
+        assert!(report.checks[2].corrective_action.is_none());
+    }
 
     const INVENTORY: &str = "List of devices attached\r\n\
         emulator-5556 offline transport_id:2\r\n\

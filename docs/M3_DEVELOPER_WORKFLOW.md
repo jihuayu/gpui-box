@@ -384,3 +384,46 @@ and a live process. Integrated `mise run check` passes 191 host tests plus six
 compile-fail doctests and two nested child reports. Broader structured doctor checks,
 platform add/list, SDK closure and additional backend qualification remain open
 under #61/#62/#73.
+
+## Structured prerequisite diagnostics
+
+`gpui-box doctor --json` returns a schema-v1 DoctorReport with `completed`,
+`ready`, `readiness_scope`, host architecture/OS, selected project targets,
+project/service schema versions, update channel and an ordered `checks` array.
+Every check has a stable `id`, `passed`, `required`, a message and nullable
+`corrective_action`. Tool messages include detected versions. Current checks
+cover declared assets, mise/Rust/Cargo/Git, Android wrapper pins, pinned native
+tools, Rust Android targets, SDK packages/license record and optional release
+bundletool/signing environment presence.
+
+Required-check failures set `ready` false and preserve exit status 1 with
+`DIAGNOSTICS_FAILED`. Their complete report is available in `error.details`,
+while `result` remains null in the existing failure envelope. Successful
+diagnostics return the report in `result`. Invalid configuration or inaccessible
+distribution fails before a report is produced. Other command errors keep their
+existing code/message shape. The optional `details` property is additive.
+
+Optional release prerequisites appear as checks with `required` false and do
+not block development readiness. Signing checks report presence only. Keystore
+paths, aliases and password values are excluded from both JSON and human
+diagnostics. Child diagnostic probes receive closed stdin. Human diagnostics
+remain available and JSON mode reserves stdout for the final response.
+
+`readiness_scope` is `declared_prerequisites`. Runtime provider qualification,
+desktop linker validation, Android device availability and release credential
+validity retain their owning build/runtime/package gates. Service declarations
+still produce contextual human guidance, while per-operation capability maturity
+remains in each service's evidence matrix. Doctor starts local tool-version
+probes and reads wrapper/config/assets/SDK metadata. It preserves project files.
+
+The Windows CLI suite passes 41 tests. New coverage verifies a complete failed
+report and corrective actions with missing tools/assets/SDK, original-file
+preservation, signing-value exclusion and optional/required readiness aggregation.
+On this host, the existing Android/desktop generated app returns a failed report
+whose only required failure is the missing Android SDK license record. Optional
+release inputs are also absent. A separate desktop-only generated application
+returns a successful report with the detected mise/Rust/Cargo/Git versions.
+Integrated `mise run check` passes 194 host tests plus six compile-fail doctests
+and two nested child reports. Physical-device testing remains deferred. SDK
+closure, canonical schema/migrations, platform add/list and broader host/backend
+qualification retain the open #61/#62/#73/M3 gates.
