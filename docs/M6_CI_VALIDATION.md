@@ -99,3 +99,36 @@ Android cross-build/emulator CI and macOS qualification remain separate work.
 [Passing Windows qualification](https://github.com/jihuayu/gpui-box/actions/runs/43047699123)
 
 [Linux CI implementation and evidence](https://github.com/jihuayu/gpui-box/pull/91)
+
+## Android hosted build gate
+
+`.github/workflows/android.yml` uses Ubuntu24.04 and the existing pinned mise
+Android environment. Rust1.98.1, Temurin17.0.21+9, cargo-ndk4.1.2 and the
+checksum-configured Gradle8.13 Wrapper build native platform35 for ARM64/x86_64.
+The hosted image supplies Android platform36, build-tools36.0.0 and NDK30.0.16248370.
+The job requires those exact packages and records their source.properties plus
+Rust/Cargo/Java/cargo-ndk identities. A missing image prerequisite fails setup.
+Hosted image/platform-tools/command-line-tools revisions follow runner updates.
+Their qualification applies to the recorded image/package tuple.
+
+The job runs strict native Clippy for backend/example on both ABIs, builds the
+debug application and instrumentation APKs, runs Android lint and verifies both
+native libraries exist in the APK. It retains logs/lint reports for14days with
+read-only repository permissions, immutable action revisions, discarded checkout
+credentials and superseded-run cancellation. Hosted execution evidence remains
+in the implementation PR until qualification completes. Instrumentation APK
+compilation is a build gate. Emulator runtime CI, signing/install/update/release,
+16KB runtime, GPU/performance and physical-device acceptance retain separate
+gates. Physical-device testing remains deferred.
+
+The first complete hosted Android qualification on source head274a6f2 passed all
+steps in7minutes36seconds. Both native targets passed strict Clippy. Gradle ran
+all72tasks, built both APKs and completed lint. APK inspection found the ARM64
+and x86_64 libraries. The33441-byte validation/report artifact uploaded
+successfully. GitHub forced pinned Node20 actions onto Node24 and their steps
+passed. The same source head also passes Linux shared/component/gallery/desktop
+checks. Final documentation-head checks are recorded in the implementation PR.
+
+[Hosted Android qualification](https://github.com/jihuayu/gpui-box/actions/runs/43057400731)
+
+[Android validation reports](https://github.com/jihuayu/gpui-box/actions/runs/43057400731/artifacts/13872052434)
