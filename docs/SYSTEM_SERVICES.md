@@ -128,6 +128,21 @@ permission contract build on these primitives in `crates/gpui-permissions`.
 See [`SYSTEM_PERMISSIONS.md`](SYSTEM_PERMISSIONS.md). That crate keeps
 file-picker grants resource-scoped under #23 and installs no native provider.
 
+Application lifecycle, system preferences, foreground-use accounting and
+versioned UI restoration build on these primitives in `crates/gpui-lifecycle`.
+See [`SYSTEM_LIFECYCLE.md`](SYSTEM_LIFECYCLE.md). That crate installs no native
+lifecycle provider and keeps persistence behind the `SnapshotStore` trait.
+
+Validated URL opening, durable activation inboxes and at-least-once routing
+build on these primitives in `crates/gpui-activation`. See
+[`SYSTEM_ACTIVATION.md`](SYSTEM_ACTIVATION.md). Native host, Intent and Scene
+callbacks remain platform-owned.
+
+Account-scoped secure credential storage builds on these primitives in
+`crates/gpui-secrets`. See [`SYSTEM_SECRETS.md`](SYSTEM_SECRETS.md). A missing
+secure provider returns `Unavailable`; credentials never fall back to private
+settings, files or logs.
+
 ## Verification and remaining platform work
 
 Initial evidence was collected on Windows x86_64 on November 11, 2026 using the
@@ -153,8 +168,8 @@ Validation commands:
 
 ```sh
 cargo +1.98.1 fmt --all -- --check
-cargo +1.98.1 test --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions
-cargo +1.98.1 clippy --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions --all-targets -- -D warnings
+cargo +1.98.1 test --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-activation -p gpui-secrets -p gpui-lifecycle
+cargo +1.98.1 clippy --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-activation -p gpui-secrets -p gpui-lifecycle --all-targets -- -D warnings
 cargo +1.98.1 check --locked -p gpui-box --features system-gpui
 cargo +1.98.1 check --locked -p gpui-box --features system --target aarch64-linux-android
 cargo +1.98.1 run --locked -p gpui-system --example fake_service

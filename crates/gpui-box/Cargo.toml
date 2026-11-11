@@ -13,6 +13,8 @@ default = []
 system = ["dep:gpui-system"]
 secrets = ["system", "dep:gpui-secrets"]
 app-data = ["system", "dep:gpui-app-data"]
+lifecycle = ["system", "dep:gpui-lifecycle"]
+lifecycle-gpui = ["lifecycle", "system-gpui", "gpui-lifecycle/gpui"]
 system-gpui = ["system", "gpui-system/gpui"]
 activation = ["system", "dep:gpui-activation"]
 activation-gpui = ["activation", "system-gpui", "gpui-activation/gpui"]
@@ -25,6 +27,7 @@ desktop = ["dep:gpui", "dep:gpui_platform", "gpui_platform/font-kit", "gpui_plat
 gpui-secrets = { workspace = true, optional = true }
 gpui-activation = { workspace = true, optional = true }
 gpui-app-data = { workspace = true, optional = true }
+gpui-lifecycle = { workspace = true, optional = true }
 gpui-system = { workspace = true, optional = true }
 gpui-permissions = { workspace = true, optional = true }
 

@@ -13,6 +13,10 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 #[cfg(feature = "system")]
 pub use gpui_system as system;
 
+/// Lifecycle, preference, restoration and foreground-use contracts.
+#[cfg(feature = "lifecycle")]
+pub use gpui_lifecycle as lifecycle;
+
 /// Permission status, contextual requests and settings recovery.
 #[cfg(feature = "permissions")]
 pub use gpui_permissions as permissions;
