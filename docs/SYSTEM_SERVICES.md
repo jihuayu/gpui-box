@@ -151,6 +151,14 @@ Account-scoped secure credential storage builds on these primitives in
 secure provider returns `Unavailable`; credentials never fall back to private
 settings, files or logs.
 
+Local user verification, authentication-bound protected-secret release and
+protected-key signing build on the same primitives in `crates/gpui-local-auth`.
+See [`SYSTEM_LOCAL_AUTH.md`](SYSTEM_LOCAL_AUTH.md). The crate keeps
+non-interactive readiness queries separate from interactive verification and
+protected-key operations, serializes prompts, rejects stale native callbacks and
+installs no native provider. It is not remote account, Passkey or WebAuthn
+authentication.
+
 Immediate local notification submission, replacement, withdrawal and cold/warm
 activation reconstruction build on these primitives in
 `crates/gpui-notifications`. See
@@ -187,7 +195,7 @@ cargo +1.98.1 test --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-
 cargo +1.98.1 clippy --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-activation -p gpui-secrets -p gpui-lifecycle -p gpui-files --all-targets -- -D warnings
 cargo +1.98.1 check --locked -p gpui-box --features system-gpui
 cargo +1.98.1 check --locked -p gpui-files --features gpui --all-targets
-cargo +1.98.1 check --locked -p gpui-box --features "app-data permissions-gpui lifecycle-gpui activation-gpui secrets files-gpui"
+cargo +1.98.1 check --locked -p gpui-box --features "system,system-gpui,app-data,permissions,permissions-gpui,lifecycle,lifecycle-gpui,activation,activation-gpui,files,files-gpui,clipboard,sharing,secrets,notifications,notifications-gpui,local-auth,local-auth-gpui"
 cargo +1.98.1 check --locked -p gpui-box --features system --target aarch64-linux-android
 cargo +1.98.1 run --locked -p gpui-system --example fake_service
 ```

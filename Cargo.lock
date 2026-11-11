@@ -2075,6 +2075,7 @@ dependencies = [
  "gpui-clipboard",
  "gpui-files",
  "gpui-lifecycle",
+ "gpui-local-auth",
  "gpui-notifications",
  "gpui-permissions",
  "gpui-secrets",
@@ -2157,6 +2158,17 @@ version = "0.1.0-dev"
 dependencies = [
  "gpui",
  "gpui-system",
+]
+
+[[package]]
+name = "gpui-local-auth"
+version = "0.1.0-dev"
+dependencies = [
+ "gpui",
+ "gpui-lifecycle",
+ "gpui-secrets",
+ "gpui-system",
+ "zeroize",
 ]
 
 [[package]]
