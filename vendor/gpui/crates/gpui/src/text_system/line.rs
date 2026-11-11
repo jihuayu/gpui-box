@@ -50,6 +50,17 @@ pub struct ShapedLine {
 }
 
 impl ShapedLine {
+    /// Wrap owned shaping output without App/Window access or additional shaping.
+    /// The caller supplies a finite, nonnegative width when wrapping is enabled.
+    pub fn wrap_owned(&self, wrap_width: Option<Pixels>) -> WrappedLine {
+        assert!(wrap_width.is_none_or(|width| f32::from(width).is_finite() && width >= px(0.0)));
+        assert_eq!(self.layout.len, self.text.len());
+        WrappedLine {
+            layout: self.layout.wrap_owned(&self.text, wrap_width),
+            text: self.text.clone(),
+            decoration_runs: self.decoration_runs.to_vec(),
+        }
+    }
     /// Returns a forward-only cursor for this shaped line.
     pub fn cursor(&self) -> ShapedLineCursor<'_> {
         assert_eq!(

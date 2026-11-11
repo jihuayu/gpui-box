@@ -11,6 +11,7 @@ publish.workspace = true
 [features]
 default = []
 retained = ["dep:taffy"]
+retained-text = ["retained", "dep:gpui"]
 retained-wgpu = ["retained", "dep:gpui", "dep:gpui_wgpu"]
 android = ["dep:gpui", "dep:gpui-android"]
 desktop = ["dep:gpui", "dep:gpui_platform", "gpui_platform/font-kit", "gpui_platform/wayland", "gpui_platform/x11"]

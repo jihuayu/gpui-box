@@ -10,7 +10,7 @@ retained-wgpu = ["gpui-box/retained-wgpu"]
 
 [dependencies]
 gpui.workspace = true
-gpui-box = { workspace = true, features = ["retained"] }
+gpui-box = { workspace = true, features = ["retained", "retained-text"] }
 unicode-segmentation = "1.12"
 image = { version = "0.25.10", default-features = false }
 
@@ -19,3 +19,4 @@ workspace = true
 
 [dev-dependencies]
 gpui = { workspace = true, features = ["test-support"] }
+gpui_wgpu = { path = "../../vendor/gpui/crates/gpui_wgpu" }

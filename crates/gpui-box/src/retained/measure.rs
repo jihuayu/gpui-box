@@ -23,6 +23,8 @@ pub struct CustomMeasureSnapshot {
 pub enum MeasureSnapshot {
     Image(ImageIntrinsicSize),
     Fixed(CustomMeasureSnapshot),
+    #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+    Paragraph(paragraph::ParagraphSnapshot),
 }
 
 /// Counts only callbacks actually reached by Taffy, after its internal cache.
@@ -38,6 +40,12 @@ impl MeasureSnapshot {
         let (width, height, baseline) = match self {
             Self::Image(image) => (image.width, image.height, None),
             Self::Fixed(value) => (value.width, value.height, value.baseline),
+            #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+            Self::Paragraph(value) => (
+                value.max_content_width(),
+                value.line_height() * value.hard_line_count() as f32,
+                Some(value.first_baseline()),
+            ),
         };
         if [width, height]
             .iter()
@@ -49,7 +57,7 @@ impl MeasureSnapshot {
         Ok(())
     }
 
-    fn size(&self, known: Size<Option<f32>>) -> Size<f32> {
+    fn size(&self, known: Size<Option<f32>>, _available: Size<AvailableSpace>) -> Size<f32> {
         match self {
             Self::Image(image) => match (known.width, known.height) {
                 (Some(width), Some(height)) => Size { width, height },
@@ -70,6 +78,8 @@ impl MeasureSnapshot {
                 width: known.width.unwrap_or(value.width),
                 height: known.height.unwrap_or(value.height),
             },
+            #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+            Self::Paragraph(value) => value.measure(_available.width),
         }
     }
 
@@ -77,6 +87,8 @@ impl MeasureSnapshot {
         match self {
             Self::Fixed(value) => value.baseline,
             Self::Image(_) => None,
+            #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+            Self::Paragraph(value) => Some(value.first_baseline()),
         }
     }
 }
@@ -94,13 +106,13 @@ pub(super) fn layout_leaf(
         inputs,
         style,
         |_, _| 0.0,
-        |known, _| {
+        |known, available| {
             let Some(snapshot) = snapshot else {
                 return Size::ZERO;
             };
             stats.measure_calls += 1;
             // Available space alone is not a known content dimension.
-            snapshot.size(known)
+            snapshot.size(known, available)
         },
     );
     let resolve = |value: taffy::LengthPercentage| {

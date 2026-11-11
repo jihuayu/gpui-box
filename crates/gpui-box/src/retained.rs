@@ -18,6 +18,8 @@ mod image;
 pub mod logical;
 pub use image::ImageResource;
 mod measure;
+#[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+pub mod paragraph;
 pub use measure::{CustomMeasureSnapshot, ImageIntrinsicSize, LayoutStats, MeasureSnapshot};
 mod primitive;
 mod properties;
@@ -254,6 +256,8 @@ pub enum Error {
     InvalidPrimitive,
     FrameQueuePoisoned,
     InvalidImage,
+    UnsupportedText,
+    ParagraphCachePoisoned,
 }
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

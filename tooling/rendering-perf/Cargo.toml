@@ -16,6 +16,7 @@ gpu-backend = ["gpui-scene", "dep:gpui_wgpu"]
 gpu-prototype = ["gpu-backend", "gpui_wgpu/quad-patch-prototype", "dep:serde_json"]
 retained-gpu = ["dep:gpui-box", "gpui-box/retained-wgpu", "dep:serde_json"]
 retained-runtime = ["dep:gpui-box", "gpui-box/retained", "dep:serde_json"]
+retained-text = ["retained-runtime", "gpui-box/retained-text", "gpu-backend"]
 
 [dependencies]
 gpui = { workspace = true, optional = true }
@@ -48,3 +49,8 @@ required-features = ["retained-runtime"]
 name = "measure-runtime-perf"
 path = "src/measure.rs"
 required-features = ["retained-runtime"]
+
+[[bin]]
+name = "paragraph-runtime-perf"
+path = "src/paragraph.rs"
+required-features = ["retained-text"]

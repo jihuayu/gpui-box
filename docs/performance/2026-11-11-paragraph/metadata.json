@@ -1,0 +1,59 @@
+{
+  "started_at": "2026-11-11T20:35:14.3722285+08:00",
+  "base_commit": "bc5dd0a21f83445a0f4d96394fb80247e86ebbc4",
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.1\nLLVM version: 22.1.8",
+  "source_hashes": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "769E6577FD28A97F045051C683B610C5D064805BBC623F08B29D914273250BC0"
+    },
+    {
+      "path": "crates/gpui-box/Cargo.toml",
+      "sha256": "4F13B6D16070F45087C5EDA52288987053EF1BC561D81C3EE0E4572F7B609564"
+    },
+    {
+      "path": "crates/gpui-box/src/retained.rs",
+      "sha256": "9CBA2935989253EAADE5D7AE5E7075C05E9BB6FA5DBDE8827CD8EADD23ECFFA8"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/measure.rs",
+      "sha256": "B61D50011149C6490AAEC2722D0DA4E8167E35710FFAABF833952D3A494DF1B0"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/paragraph.rs",
+      "sha256": "A096ACB3F58734BD41DD1945855CE5E1A9D654C149F745831744CA73F0601181"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui/src/text_system.rs",
+      "sha256": "D0DDF9448874E958EBF6535B5A986F693C67A5799F5D20BA8A7857176D994A73"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui/src/text_system/line.rs",
+      "sha256": "AE962FDEC63CA8B107FAE18EE6AA6335CD7C23C8A1573516350C71DCADD63DC8"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui/src/text_system/line_layout.rs",
+      "sha256": "BF5C37F8B3F4523CE1D9B5892D26A22BBA4864F2070C21A99778EF546C439A1D"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/cosmic_text_system.rs",
+      "sha256": "D2AA5BA630E17613676715EA8C24CCCE1A27BFA10A2C78BB68F91E1E120B9566"
+    },
+    {
+      "path": "examples/hello/assets/NotoSansSC-Regular.otf",
+      "sha256": "2C76254F6FC379FDDFCE0A7E84FB5385BB135D3E399294F6EEB6680D0365B74B"
+    },
+    {
+      "path": "examples/hello/src/retained_paragraph_tests.rs",
+      "sha256": "D6A9BC535513ADEBEA870C318B44FA97EF7AC53BBA70C24BFAC907A023AE4C55"
+    },
+    {
+      "path": "tooling/rendering-perf/Cargo.toml",
+      "sha256": "7B80C98D371DA5688EF349B961A4E637D85C13030CB949F1589BC12FF9A5DCE2"
+    },
+    {
+      "path": "tooling/rendering-perf/src/paragraph.rs",
+      "sha256": "D8E5356A544F14848EDF276F7795C08C6B83F425384F7BB73493B0325008A9A7"
+    }
+  ]
+}

@@ -248,6 +248,11 @@ enum CachedFont {
 }
 
 impl TextSystem {
+    /// Epoch of the currently registered font database. Owned shaping snapshots
+    /// can retain this value and request reshaping after fonts are installed.
+    pub fn font_epoch(&self) -> usize {
+        self.font_generation.load(Ordering::Acquire)
+    }
     /// Create a new TextSystem with the given platform text system.
     pub fn new(platform_text_system: Arc<dyn PlatformTextSystem>) -> Self {
         let (sender, receiver) = async_channel::bounded(MAX_REPORTED_MISSING_GLYPHS);

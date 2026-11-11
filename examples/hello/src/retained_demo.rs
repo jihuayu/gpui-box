@@ -18,6 +18,8 @@ pub struct RetainedDemo {
     measure: Signal<Option<MeasureSnapshot>>,
     decoration: Signal<QuadDecoration>,
     image: Signal<Option<ImageResource>>,
+    paragraph_measure: Signal<Option<MeasureSnapshot>>,
+    paragraph_long: bool,
     image_options: [ImageResource; 2],
     image_cache: Rc<RefCell<std::collections::BTreeMap<u64, std::sync::Arc<RenderImage>>>>,
     last_commit: String,
@@ -254,6 +256,32 @@ impl RetainedDemo {
             )
             .unwrap();
         tree.bind(image, Property::image(image_node)).unwrap();
+        let paragraph_measure = tree
+            .state(root_scope, 7, || None::<MeasureSnapshot>)
+            .unwrap();
+        let paragraph_node = tree
+            .append_render(
+                root_scope,
+                tree.root_render(),
+                Style {
+                    position: taffy::Position::Absolute,
+                    inset: taffy::Rect {
+                        left: length(260.0),
+                        top: length(4.0),
+                        right: taffy::LengthPercentageAuto::auto(),
+                        bottom: taffy::LengthPercentageAuto::auto(),
+                    },
+                    size: taffy::Size {
+                        width: length(120.0),
+                        height: taffy::Dimension::auto(),
+                    },
+                    ..Default::default()
+                },
+                0x8877bbff,
+            )
+            .unwrap();
+        tree.bind(paragraph_measure, Property::measure(paragraph_node))
+            .unwrap();
         Self {
             tree: Rc::new(RefCell::new(tree)),
             responsive: Rc::new(RefCell::new(responsive)),
@@ -262,6 +290,8 @@ impl RetainedDemo {
             measure,
             decoration,
             image,
+            paragraph_measure,
+            paragraph_long: false,
             image_options,
             image_cache: Rc::new(RefCell::new(std::collections::BTreeMap::new())),
             last_commit: "Ready".into(),
@@ -438,6 +468,20 @@ impl Render for RetainedDemo {
                         tx.set(signal,Some(next.clone()))?;
                         Ok(())
                     }).expect("replace image resource");
+                    if result.commit.request_frame {cx.notify();}
+                })))
+            .child(div()
+                .id("retained-paragraph-measure")
+                .debug_selector(|| "retained-paragraph-measure".into())
+                .cursor_pointer()
+                .child("Measure owned shaped paragraph (colored geometry)")
+                .on_click(cx.listener(|this,_,window,cx| {
+                    let next = !this.paragraph_long;
+                    let text = if next {"owned paragraph wraps when its available width becomes smaller"} else {"short"};
+                    let snapshot = gpui_box::retained::paragraph::ParagraphSnapshot::shape(window.text_system(),text,window.text_style().font(),16.0,32.0).expect("shape owned paragraph");
+                    let signal = this.paragraph_measure;
+                    let result = this.tree.borrow_mut().transaction(|tx| {tx.set(signal,Some(MeasureSnapshot::Paragraph(snapshot)))?;Ok(())}).expect("commit paragraph measurement");
+                    this.paragraph_long = next;
                     if result.commit.request_frame {cx.notify();}
                 })))
             .child(div()
@@ -795,6 +839,19 @@ mod tests {
     #[gpui::test]
     #[ignore = "requires a hardware WGPU adapter"]
     fn normal_click_reaches_gpu_and_matches_reference_pixels(cx: &mut TestAppContext) {
+        let platform = std::sync::Arc::new(gpui_wgpu::CosmicTextSystem::new_without_system_fonts(
+            "Noto Sans CJK SC",
+        ));
+        let mut real_cx =
+            TestAppContext::build_with_text_system(cx.dispatcher.clone(), None, platform);
+        real_cx.update(|cx| {
+            cx.text_system()
+                .add_fonts(vec![std::borrow::Cow::Borrowed(include_bytes!(
+                    "../assets/NotoSansSC-Regular.otf"
+                ))])
+                .unwrap()
+        });
+        let cx = &mut real_cx;
         let (view, cx) = cx.add_window_view(|_, cx| RetainedDemo::with_gpu(cx));
         let gpu = view.read_with(cx, |view, _| view.gpu.clone().unwrap());
         let before = gpu.borrow_mut().image().unwrap();
@@ -984,5 +1041,26 @@ mod tests {
             .reference_image(&frame, [replaced.width(), replaced.height()], scale)
             .unwrap();
         assert_eq!(replaced.as_raw(), reference.as_raw());
+        let button = cx.debug_bounds("retained-paragraph-measure").unwrap();
+        cx.simulate_click(button.center(), Modifiers::default());
+        cx.run_until_parked();
+        let frame = view.read_with(cx, |view, _| {
+            assert!(matches!(
+                view.tree.borrow().read(view.paragraph_measure).unwrap(),
+                Some(MeasureSnapshot::Paragraph(_))
+            ));
+            view.tree.borrow().published_frame().unwrap().clone()
+        });
+        assert_eq!((frame.layout_runs, frame.recorded_chunks), (1, 0));
+        let measured = gpu.borrow_mut().image().unwrap();
+        let reference = gpu
+            .borrow_mut()
+            .reference_image(&frame, [measured.width(), measured.height()], scale)
+            .unwrap();
+        assert_eq!(
+            measured.as_raw(),
+            reference.as_raw(),
+            "normal paragraph measurement updates GPU geometry"
+        );
     }
 }

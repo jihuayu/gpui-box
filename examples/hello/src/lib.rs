@@ -1,6 +1,8 @@
 //! One Rust page shared by the desktop executable and Android native library.
 mod input;
 mod retained_demo;
+#[cfg(test)]
+mod retained_paragraph_tests;
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 

@@ -58,6 +58,22 @@ pub struct ShapedGlyph {
 }
 
 impl LineLayout {
+    /// Wrap already-shaped immutable glyphs without using a window layout cache.
+    /// The text must be the original, single-line shaping input.
+    pub(crate) fn wrap_owned(
+        self: &Arc<Self>,
+        text: &str,
+        wrap_width: Option<Pixels>,
+    ) -> Arc<WrappedLineLayout> {
+        let wrap_boundaries = wrap_width.map_or_else(SmallVec::new, |width| {
+            self.compute_wrap_boundaries(text, width, None, &mut WrapScratch::default())
+        });
+        Arc::new(WrappedLineLayout {
+            unwrapped_layout: self.clone(),
+            wrap_boundaries,
+            wrap_width,
+        })
+    }
     /// The index for the character at the given x coordinate
     pub fn index_for_x(&self, x: Pixels) -> Option<usize> {
         if x >= self.width {
