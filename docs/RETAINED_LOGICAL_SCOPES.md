@@ -70,11 +70,11 @@ validation result, source hashes, device identity and six new images.
 ## Remaining boundaries
 
 Reconciliation currently scans scopes/hosts and sorts affected render siblings;
-it is not a sublinear structure-update implementation. Render insertion/removal
-may create multiple internal revisions. Existing-scope reorders and portal moves
+it is not a sublinear structure-update implementation. Render insertion remains
+explicit. Existing-scope reorders, batched subtree removal and portal moves
 now use the [atomic final-topology API](RETAINED_STRUCTURE_TRANSACTIONS.md),
-including multi-host order changes in one revision. Atomic lifecycle batches
-combining creation/removal with properties still remain open.
+including mixed-key retirement and multi-host order changes in one revision.
+Atomic lifecycle batches combining construction with properties still remain open.
 Returned validation errors for duplicate keys, dependent hosts and surviving
 source observers are checked before mutation. Reconciliation now invokes
 registered effect cleanup after that preflight; cleanup must be infallible and

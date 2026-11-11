@@ -29,6 +29,17 @@ validate before logical child lists publish. `reparent_render` is the single
 move convenience API. `sync_render_order` and reorder-only `reconcile_keys`
 now use one atomic render commit across every affected host.
 
+The removal follow-up adds `StructureTransaction::remove(node)` for current
+subtree disposal. Duplicate/overlapping roots coalesce. Omitted parent lists
+retain surviving children; explicit lists cannot include a removed node, and
+reparenting cannot rescue a descendant from a removed current subtree. Reactive
+commit detaches dead bindings after the validated topology publishes. Mixed key
+reconciliation now prepares removal plus final surviving host order before
+running any effect cleanup. It then publishes one render revision, releases
+removed dependencies, advances scope generations and creates empty scopes for
+new keys. Surviving source/effect dependencies and portal hosts still reject
+before preparation/cleanup. Cleanups remain infallible and non-reentrant.
+
 The gallery's normal "Move retained portal" button uses the same logical API.
 Its output retains a named color source and owner while moving between two
 visible hosts. Ordinary and hardware click tests check one revision, changed
@@ -51,11 +62,13 @@ rounds contain ten warmups plus one hundred measured samples per mode/round.
 Timing includes transaction construction/list clones/commit, excludes layout,
 extraction and GPU. [Frozen evidence](performance/2026-11-12-structure/README.md)
 records samples and hardware validation without attributing unrelated controls.
+[Removal evidence](performance/2026-11-12-structure-removal/README.md) freezes the
+subsequent mixed-key retirement cases and regenerated timing controls.
 
-This API operates on existing nodes and existing sibling scope sets. Render and
-scope creation/removal, source registration/disposal, property writes and cleanup
-are not combined into this transaction. Mixed key insertion/removal still uses
-the earlier lifecycle path and can advance several internal revisions. Atomic
-construction/removal/property batches, event/focus/semantics lifetime, legacy
+This API operates on existing nodes and existing sibling scope sets. Render
+construction, source registration and property writes are not combined into
+this transaction. Mixed key removal/insertion now uses one preflighted render
+commit; new scopes start empty and later output construction is still explicit.
+Atomic construction/property/lifecycle batches, event/focus/semantics lifetime, legacy
 islands, indexed planning and other RFC requirements remain in the
 [active goal](RETAINED_IMPLEMENTATION_PROGRESS.md).

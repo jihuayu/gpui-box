@@ -224,3 +224,92 @@ fn logical_permutations_and_portal_moves_publish_once_and_failed_cycle_keeps_sou
     assert_eq!(*ui.read(color).unwrap(), 0x4488ffff);
     assert!(!ui.reparent_render(a, host_b).unwrap().request_frame);
 }
+
+#[test]
+fn removals_coalesce_validate_before_retirement_and_preserve_new_generations() {
+    let mut tree = fixture();
+    let root = tree.root();
+    let a = leaf(&mut tree, root, 1);
+    let b = leaf(&mut tree, a, 2);
+    let c = leaf(&mut tree, root, 3);
+    let old = tree.frame([160.0, 80.0]).unwrap();
+    let mut invalid = StructureTransaction::default();
+    invalid.remove(a);
+    invalid.children(c, vec![b]);
+    assert!(tree.commit_structure(invalid).is_err());
+    assert_eq!(tree.frame([160.0, 80.0]).unwrap().revision, old.revision);
+    let mut tx = StructureTransaction::default();
+    tx.remove(b);
+    tx.remove(a);
+    tx.remove(b);
+    let result = tree.commit_structure(tx).unwrap();
+    assert_eq!(result.revision, old.revision + 1);
+    assert!(tree.node(a).is_err() && tree.node(b).is_err());
+    assert_eq!(tree.node(root).unwrap().children, vec![c]);
+    let after = tree.frame([160.0, 80.0]).unwrap();
+    assert_eq!(after.removed.as_ref(), &[a, b]);
+    assert_eq!(old.items.len(), 4);
+    let new = leaf(&mut tree, root, 4);
+    assert_ne!(new, a);
+    assert_ne!(new, b);
+    let mut stale = StructureTransaction::default();
+    stale.remove(a);
+    assert!(tree.commit_structure(stale).is_err());
+    assert!(tree.node(new).is_ok());
+    tree.revision = u64::MAX;
+    let mut exhausted = StructureTransaction::default();
+    exhausted.remove(new);
+    assert!(matches!(
+        tree.commit_structure(exhausted),
+        Err(Error::RevisionExhausted)
+    ));
+    assert!(tree.node(new).is_ok());
+}
+
+#[test]
+fn keyed_mixed_removal_preflights_before_cleanup_and_commits_one_revision() {
+    use super::super::logical::LogicalUi;
+    use super::super::reactive::Property;
+    use std::{cell::Cell, rc::Rc};
+    let mut ui = LogicalUi::from_tree(fixture(), BackendCapabilities::default()).unwrap();
+    let root = ui.root_scope();
+    let scopes = ui.reconcile_keys(root, &[1, 2, 3]).unwrap().order;
+    let hosts = [
+        ui.append_render(root, ui.root_render(), Style::default(), 0)
+            .unwrap(),
+        ui.append_render(root, ui.root_render(), Style::default(), 0)
+            .unwrap(),
+    ];
+    let source = ui.state(scopes[0], 0, || 0x112233ffu32).unwrap();
+    for host in hosts {
+        for scope in &scopes {
+            let node = ui.append_render(*scope, host, Style::default(), 0).unwrap();
+            if *scope == scopes[0] {
+                ui.bind(source, Property::color(node)).unwrap();
+            }
+        }
+    }
+    let cleanups = Rc::new(Cell::new(0));
+    let log = cleanups.clone();
+    ui.effect(scopes[0], 0, &[source.dependency()], move |_| {
+        let log = log.clone();
+        Some(Box::new(move || log.set(log.get() + 1)))
+    })
+    .unwrap();
+    let before = ui.frame([160.0, 80.0]).unwrap();
+    assert!(matches!(
+        ui.reconcile_keys(root, &[3, 3, 4]),
+        Err(Error::DuplicateKey)
+    ));
+    assert_eq!(cleanups.get(), 0);
+    assert_eq!(ui.children(root).unwrap(), scopes);
+    assert!(ui.read(source).is_ok());
+    let changes = ui.reconcile_keys(root, &[3, 2, 4]).unwrap();
+    assert_eq!(changes.inserted.len(), 1);
+    assert_eq!(cleanups.get(), 1);
+    assert!(ui.read(source).is_err());
+    assert_eq!(ui.reactive().binding_count(), 0);
+    let after = ui.frame([160.0, 80.0]).unwrap();
+    assert_eq!(after.revision, before.revision + 1);
+    assert_eq!(after.recorded_chunks, 0);
+}

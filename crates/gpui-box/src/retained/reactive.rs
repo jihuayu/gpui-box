@@ -450,12 +450,32 @@ impl ReactiveUi {
     }
 
     pub fn commit_structure(&mut self, tx: StructureTransaction) -> Result<Commit, Error> {
-        self.tree.commit_structure(tx)
+        let prepared = self.prepare_structure(tx)?;
+        Ok(self.apply_structure(prepared))
+    }
+    pub(super) fn prepare_structure(
+        &self,
+        tx: StructureTransaction,
+    ) -> Result<structure::PreparedStructure, Error> {
+        self.tree.prepare_structure(tx)
+    }
+    pub(super) fn apply_structure(&mut self, prepared: structure::PreparedStructure) -> Commit {
+        let removes = prepared.has_removals();
+        let commit = self.tree.apply_structure(prepared);
+        if removes {
+            self.retire_dead_bindings();
+        }
+        commit
     }
 
     /// Retire every endpoint in a removed subtree, including invisible descendants.
     pub fn remove(&mut self, node: NodeId) -> Result<(), Error> {
-        self.tree.remove(node)?;
+        let mut tx = StructureTransaction::default();
+        tx.remove(node);
+        self.commit_structure(tx)?;
+        Ok(())
+    }
+    fn retire_dead_bindings(&mut self) {
         let dead: Vec<_> = self
             .bindings
             .iter()
@@ -463,9 +483,8 @@ impl ReactiveUi {
             .map(|(id, _)| *id)
             .collect();
         for id in dead {
-            self.unbind(id)?;
+            self.unbind(id).expect("live retired endpoint");
         }
-        Ok(())
     }
 
     /// Collect final source values, validate the complete sink batch and publish

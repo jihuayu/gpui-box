@@ -366,15 +366,58 @@ impl LogicalUi {
                 roots.push(*node);
             }
         }
-        let mut request_frame = !roots.is_empty();
+        // Plan the complete surviving render order and all removals before
+        // invoking user cleanup or changing logical generations/source state.
+        let surviving_order: Vec<_> = keys
+            .iter()
+            .filter_map(|key| old.get(key).copied())
+            .collect();
+        let mut ranks = BTreeMap::new();
+        let mut stack = vec![self.root];
+        while let Some(id) = stack.pop() {
+            if removed.contains(&id) {
+                continue;
+            }
+            ranks.insert(id, ranks.len());
+            let children = if id == parent {
+                &surviving_order
+            } else {
+                &self.scope(id)?.children
+            };
+            stack.extend(children.iter().rev());
+        }
+        let mut render_tx = StructureTransaction::default();
+        for node in roots {
+            render_tx.remove(node);
+        }
+        let mut hosts = BTreeSet::new();
+        for (node, owner) in &self.render_owners {
+            if !removed.contains(owner)
+                && let Some(host) = self.ui.tree().node(*node)?.parent
+            {
+                hosts.insert(host);
+            }
+        }
+        for host in hosts {
+            let mut children: Vec<_> = self
+                .ui
+                .tree()
+                .node(host)?
+                .children
+                .iter()
+                .filter(|child| !removed.contains(&self.render_owners[child]))
+                .copied()
+                .collect();
+            children.sort_by_key(|node| ranks[&self.render_owners[node]]);
+            render_tx.children(host, children);
+        }
+        let prepared = self.ui.prepare_structure(render_tx)?;
         // Cleanup observers before retiring any of their dependencies, including
         // inputs owned by other scopes in the same removal set.
         for effect in dead_effects.iter().rev() {
             self.ui.dispose_effect(*effect)?;
         }
-        for node in roots {
-            self.ui.remove(node)?;
-        }
+        let request_frame = self.ui.apply_structure(prepared).request_frame;
         self.render_owners
             .retain(|_, owner| !removed.contains(owner));
         let mut dead_sources = vec![];
@@ -420,7 +463,6 @@ impl LogicalUi {
             inserted.push(id);
         }
         self.scope_mut(parent).children = order.clone();
-        request_frame |= self.sync_render_order()?;
         Ok(ScopeChanges {
             order,
             inserted,

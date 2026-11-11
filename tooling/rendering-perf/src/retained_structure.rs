@@ -64,6 +64,12 @@ pub(super) fn run(
     )?;
     let color = ui.state(scopes[0], 0, || 0xff440080u32)?;
     ui.bind(color, Property::color(a))?;
+    let cleanups = std::rc::Rc::new(std::cell::Cell::new(0));
+    let log = cleanups.clone();
+    ui.effect(scopes[0], 0, &[color.dependency()], move |_| {
+        let log = log.clone();
+        Some(Box::new(move || log.set(log.get() + 1)))
+    })?;
     let translation = ui.state(root, 0, || [0.0, 0.0])?;
     ui.bind(translation, Property::translation(host_b))?;
     ui.sync_render_order()?;
@@ -136,6 +142,29 @@ pub(super) fn run(
         output,
         results,
     )?;
+    let revision = frame.revision;
+    let cleaned = cleanups.get();
+    let changed = ui.reconcile_keys(root, &[2, 4])?;
+    assert_eq!(changed.inserted.len(), 1);
+    assert!(ui.read(color).is_err());
+    assert_eq!(cleanups.get(), cleaned + 1);
+    let final_frame = ui.frame([160.0, 96.0])?;
+    assert_eq!(final_frame.revision, revision + 1);
+    assert!(!final_frame.items.iter().any(|i| i.node == a || i.node == c));
+    renderer.submit(&final_frame, [160, 96], 1.0)?;
+    compare(
+        renderer,
+        &final_frame,
+        [160, 96],
+        1.0,
+        "structure-keyed-remove-batch",
+        output,
+        results,
+    )?;
+    assert!(matches!(
+        renderer.submit(&frame, [160, 96], 1.0),
+        Err(gpui_box::retained::Error::StaleFrame)
+    ));
     Ok(())
 }
 
