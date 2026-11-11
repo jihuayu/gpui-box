@@ -61,6 +61,7 @@ pub enum Template {
     Starter,
     Adaptive,
     Component,
+    Workbench,
 }
 impl Template {
     pub fn parse(value: &str) -> Result<Self, String> {
@@ -68,7 +69,8 @@ impl Template {
             "starter" => Ok(Self::Starter),
             "adaptive" => Ok(Self::Adaptive),
             "component" => Ok(Self::Component),
-            _ => Err("--template supports starter, adaptive and component".into()),
+            "workbench" => Ok(Self::Workbench),
+            _ => Err("--template supports starter, adaptive, component and workbench".into()),
         }
     }
     pub fn id(self) -> &'static str {
@@ -76,6 +78,7 @@ impl Template {
             Self::Starter => "starter",
             Self::Adaptive => "adaptive",
             Self::Component => "component",
+            Self::Workbench => "workbench",
         }
     }
 }
@@ -344,7 +347,7 @@ pub fn plan(root: &Path) -> Result<ChangePlan, String> {
     if lock.exists() {
         return Err("Another generator owns this project or left a stale lock".into());
     }
-    let prepared = prepare(root)?;
+    let prepared = prepare(root, None)?;
     if lock.exists() {
         return Err("Another generator started during the snapshot; retry the dry run".into());
     }
@@ -408,7 +411,37 @@ fn file_change(root: &Path, path: &str, content: &[u8]) -> Result<FileChange, St
     })
 }
 
-fn prepare(root: &Path) -> Result<PreparedGeneration, String> {
+fn prepare(root: &Path, initial: Option<Template>) -> Result<PreparedGeneration, String> {
+    let template = match initial {
+        Some(template) => template,
+        None => {
+            let path = managed_path(root, ".gpui-box/template.json")?;
+            match fs::File::open(path) {
+                Ok(file) => {
+                    use std::io::Read;
+                    let mut bytes = Vec::new();
+                    file.take(16 * 1024 + 1)
+                        .read_to_end(&mut bytes)
+                        .map_err(|error| format!("Read template provenance: {error}"))?;
+                    if bytes.len() > 16 * 1024 {
+                        return Err("Template provenance exceeds 16 KiB".into());
+                    }
+                    let provenance: serde_json::Value = serde_json::from_slice(&bytes)
+                        .map_err(|error| format!("Invalid template provenance: {error}"))?;
+                    if provenance["schema_version"] != 1 || provenance["template_version"] != 1 {
+                        return Err("Unsupported template provenance version".into());
+                    }
+                    Template::parse(
+                        provenance["template"]
+                            .as_str()
+                            .ok_or("Missing template identity")?,
+                    )?
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Template::Starter,
+                Err(error) => return Err(format!("Read template provenance: {error}")),
+            }
+        }
+    };
     let config_bytes = fs::read(managed_path(root, "gpui-box.json")?)
         .map_err(|error| format!("Read gpui-box.json: {error}"))?;
     let config: AppConfig = serde_json::from_slice(&config_bytes)
@@ -456,6 +489,9 @@ debug = "limited"
         ),
     );
     let mut app = "[package]\nname = \"box-app\"\nversion = \"0.1.0\"\nedition = \"2024\"\nlicense = \"Apache-2.0\"\n[dependencies]\ngpui.workspace = true\ngpui-box-components.workspace = true\n".to_string();
+    if matches!(template, Template::Workbench) {
+        app += "gpui-box = { workspace = true, features = [\"menus\"] }\n";
+    }
     if android {
         app += "[target.'cfg(target_os = \"android\")'.dependencies]\ngpui-box = { workspace = true, features = [\"android\"] }\n";
     }
@@ -718,7 +754,7 @@ fn generate_inner(
         .map_err(|e| format!("Cannot acquire generation lock {}: {e}. Check for another generator before removing a stale lock.", lock_path.display()))?;
     let _guard = GenerationLock(lock_path);
     drop(lock);
-    let prepared = prepare(root)?;
+    let prepared = prepare(root, initial)?;
     if expected.is_some_and(|expected| *expected != prepared.plan) {
         return Err(
             "Saved generation plan is stale or incompatible; run generate --dry-run again".into(),
@@ -810,8 +846,31 @@ fn generate_inner(
                 Template::Starter => include_bytes!("../../../templates/app.rs").as_slice(),
                 Template::Adaptive => include_bytes!("../../../templates/adaptive.rs").as_slice(),
                 Template::Component => include_bytes!("../../../templates/component.rs").as_slice(),
+                Template::Workbench => include_bytes!("../../../templates/workbench.rs").as_slice(),
             },
         )?;
+        if matches!(template, Template::Workbench) {
+            for (path, bytes) in [
+                (
+                    "contracts.rs",
+                    include_bytes!("../../../templates/workbench/contracts.rs").as_slice(),
+                ),
+                (
+                    "providers.rs",
+                    include_bytes!("../../../templates/workbench/providers.rs").as_slice(),
+                ),
+                (
+                    "documents.rs",
+                    include_bytes!("../../../templates/workbench/documents.rs").as_slice(),
+                ),
+                (
+                    "search.rs",
+                    include_bytes!("../../../templates/workbench/search.rs").as_slice(),
+                ),
+            ] {
+                write(&root.join("app/src").join(path), bytes)?;
+            }
+        }
         if config.targets.iter().any(|target| target == "desktop") {
             write(
                 &root.join("desktop/src/main.rs"),
@@ -854,6 +913,7 @@ fn generate_inner(
         write(
             &root.join("README.md"),
             format!("Template {} v1. Configured targets are {}. Platform commands below apply when their target is enabled.\n\n{}{}", template.id(), config.targets.join(", "), include_str!("../../../templates/README.md"), match template {
+                Template::Workbench => "\n## Workbench example\n\nThe composition root in app/src/lib.rs wires document and search contributions through narrow contracts and an explicit in-memory fake provider. Search results open the shared document editor. Save changes the fake catalog for this process. Scoped command registrations are revoked with the owning view. Run mise exec -- cargo test -p box-app --lib for provider, collaboration and cleanup checks. Replace providers.rs with an application service and keep feature dependencies pointed at contracts.rs. Native menus, durable storage, arbitrary module generation and dev --module require their separate integrations.\n",
                 Template::Starter => "",
                 Template::Adaptive => "\n## Adaptive example\n\nThe shared application retains its selected item and input entity across compact/wide layout changes. Compact navigation opens one detail page with Back, Escape and Android back handling. Wide layouts show both panes. Change the window width or rotate Android to exercise the 720 logical-pixel breakpoint. Keep business persistence in an application service. Process-death restoration requires the documented snapshot hooks.\n",
                 Template::Component => "\n## Component author preview\n\nEdit the specimen in app/src/lib.rs while retaining shared input/focus/semantic behavior in gpui-box-components. The preview exposes dark/light, high contrast, reduced motion and large-text states, an editable field, checkbox and activation counter. Resize across 720 logical pixels or rotate Android for compact/wide layout. Use Tab/Shift+Tab, Enter/Space and Escape to inspect keyboard behavior. Confirm labels and checked states with the platform accessibility tree, then run an actual screen reader separately. Preview state survives window resizing and Android Activity recreation. Process-death persistence and registry publication require their own integration.\n",

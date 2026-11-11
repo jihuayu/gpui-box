@@ -1504,3 +1504,132 @@ fn dry_run_and_apply_reject_managed_output_and_metadata_symlinks() {
         }
     }
 }
+
+#[test]
+fn workbench_template_preserves_feature_sources_and_selected_dependencies() {
+    let temporary = tempfile::tempdir().unwrap();
+    for targets in ["desktop", "android", "desktop,android"] {
+        let app = temporary
+            .path()
+            .join(format!("Workbench {targets} 有 空格"));
+        let output = cli(
+            temporary.path(),
+            &[
+                "new",
+                app.to_str().unwrap(),
+                "--distribution",
+                distribution().to_str().unwrap(),
+                "--template",
+                "workbench",
+                "--targets",
+                targets,
+                "--json",
+            ],
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        let provenance = fs::read(app.join(".gpui-box/template.json")).unwrap();
+        let metadata: serde_json::Value = serde_json::from_slice(&provenance).unwrap();
+        assert_eq!(metadata["template"], "workbench");
+        assert_eq!(metadata["template_version"], 1);
+        let manifest = fs::read_to_string(app.join("app/Cargo.toml")).unwrap();
+        assert!(manifest.contains("features = [\"menus\"]"));
+        let mut customized = Vec::new();
+        for name in [
+            "lib.rs",
+            "contracts.rs",
+            "documents.rs",
+            "search.rs",
+            "providers.rs",
+        ] {
+            let path = app.join("app/src").join(name);
+            let source = fs::read_to_string(&path).unwrap();
+            if name == "contracts.rs" {
+                assert!(!source.contains("gpui"));
+            }
+            if name == "documents.rs" {
+                assert!(!source.contains("crate::search"));
+            }
+            if name == "search.rs" {
+                assert!(!source.contains("crate::documents"));
+            }
+            let source = format!("{source}\n// Application-owned customization\n");
+            fs::write(&path, &source).unwrap();
+            customized.push((path, source));
+        }
+        let output = cli(&app, &["generate", "--json"]);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        let receipt: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(receipt["result"]["files_written"], serde_json::json!([]));
+        for (path, source) in customized {
+            assert_eq!(fs::read_to_string(path).unwrap(), source);
+        }
+        assert_eq!(
+            fs::read(app.join(".gpui-box/template.json")).unwrap(),
+            provenance
+        );
+        assert_eq!(app.join("desktop").exists(), targets.contains("desktop"));
+        assert_eq!(app.join("android").exists(), targets.contains("android"));
+    }
+    let existing = temporary.path().join("Existing workbench");
+    fs::create_dir(&existing).unwrap();
+    fs::write(existing.join("README.md"), "Existing docs").unwrap();
+    let output = cli(
+        temporary.path(),
+        &[
+            "init",
+            existing.to_str().unwrap(),
+            "--distribution",
+            distribution().to_str().unwrap(),
+            "--template",
+            "workbench",
+        ],
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        fs::read_to_string(existing.join("README.md")).unwrap(),
+        "Existing docs"
+    );
+    assert!(existing.join("app/src/search.rs").is_file());
+}
+
+#[test]
+fn template_provenance_failures_are_read_only_and_legacy_apps_remain_compatible() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create(temporary.path());
+    let provenance = app.join(".gpui-box/template.json");
+    let original = fs::read(&provenance).unwrap();
+    let manifest = fs::read(app.join("app/Cargo.toml")).unwrap();
+    for invalid in [
+        b"invalid".to_vec(),
+        vec![b' '; 16385],
+        br#"{"schema_version":2,"template_version":1,"template":"starter"}"#.to_vec(),
+        br#"{"schema_version":1,"template_version":1,"template":"unknown"}"#.to_vec(),
+    ] {
+        fs::write(&provenance, &invalid).unwrap();
+        for args in [
+            vec!["generate", "--dry-run", "--json"],
+            vec!["generate", "--json"],
+        ] {
+            assert!(!cli(&app, &args).status.success());
+            assert_eq!(fs::read(&provenance).unwrap(), invalid);
+            assert_eq!(fs::read(app.join("app/Cargo.toml")).unwrap(), manifest);
+        }
+    }
+    fs::write(&provenance, original).unwrap();
+    assert!(cli(&app, &["generate"]).status.success());
+    fs::remove_file(provenance).unwrap();
+    assert!(cli(&app, &["generate"]).status.success());
+    assert_eq!(fs::read(app.join("app/Cargo.toml")).unwrap(), manifest);
+}
