@@ -360,6 +360,263 @@ fn dry_run(app: &Path) -> serde_json::Value {
     response["result"].clone()
 }
 
+fn save_plan(root: &Path, plan: &serde_json::Value) -> PathBuf {
+    let path = root.join("Saved generation plan.json");
+    fs::write(&path, serde_json::to_vec_pretty(plan).unwrap()).unwrap();
+    path
+}
+
+fn apply_plan(app: &Path, plan: &Path, success: bool) -> serde_json::Value {
+    let output = cli(
+        app,
+        &["generate", "--plan", plan.to_str().unwrap(), "--json"],
+    );
+    assert_eq!(
+        output.status.success(),
+        success,
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(response["success"], success);
+    if !success {
+        assert_eq!(response["error"]["code"], "GENERATION_FAILED");
+    }
+    response
+}
+
+#[test]
+fn saved_plan_apply_reports_exact_writes_and_preserves_unchanged_files() {
+    use sha2::{Digest, Sha256};
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create(temporary.path());
+    let config_file = app.join("gpui-box.json");
+    let mut config: serde_json::Value =
+        serde_json::from_slice(&fs::read(&config_file).unwrap()).unwrap();
+    config["version"] = "2.0.0".into();
+    fs::write(config_file, serde_json::to_vec(&config).unwrap()).unwrap();
+    fs::remove_file(app.join("android-host/gradle.properties")).unwrap();
+    let plan = dry_run(&app);
+    let saved = save_plan(temporary.path(), &plan);
+    // Application-owned edits do not invalidate managed-output preconditions.
+    fs::write(app.join("app/src/lib.rs"), "// updated application\n").unwrap();
+    let before = snapshot(&app);
+    let receipt = apply_plan(&app, &saved, true)["result"].clone();
+    assert_eq!(receipt["schema_version"], 1);
+    assert_eq!(receipt["completed"], true);
+    assert_eq!(receipt["recovered_pending_journal"], false);
+    assert_eq!(receipt["plan_sha256"].as_str().unwrap().len(), 64);
+    let after = snapshot(&app);
+    let mut written = Vec::new();
+    let mut unchanged = Vec::new();
+    for change in plan["files"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .chain(std::iter::once(&plan["metadata"]))
+    {
+        let path = change["path"].as_str().unwrap();
+        assert_eq!(
+            format!("{:x}", Sha256::digest(fs::read(app.join(path)).unwrap())),
+            change["after_sha256"].as_str().unwrap()
+        );
+        if change["action"] == "unchanged" {
+            unchanged.push(path);
+            assert_eq!(before[Path::new(path)], after[Path::new(path)]);
+        } else {
+            written.push(path);
+        }
+    }
+    assert_eq!(receipt["files_written"], serde_json::json!(written));
+    assert_eq!(receipt["files_unchanged"], serde_json::json!(unchanged));
+    assert_eq!(
+        fs::read_to_string(app.join("app/src/lib.rs")).unwrap(),
+        "// updated application\n"
+    );
+    let before = snapshot(&app);
+    apply_plan(&app, &saved, false);
+    assert_eq!(before, snapshot(&app));
+}
+
+#[test]
+fn no_op_receipts_are_deterministic_and_do_not_rewrite_project_files() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create(temporary.path());
+    let saved = save_plan(temporary.path(), &dry_run(&app));
+    let before = snapshot(&app);
+    let receipt = apply_plan(&app, &saved, true)["result"].clone();
+    assert_eq!(receipt["files_written"], serde_json::json!([]));
+    assert_eq!(receipt["files_unchanged"].as_array().unwrap().len(), 16);
+    assert_eq!(receipt["recovered_pending_journal"], false);
+    assert_eq!(before, snapshot(&app));
+    assert_eq!(receipt, apply_plan(&app, &saved, true)["result"]);
+    let output = cli(&app, &["generate", "--json"]);
+    assert!(output.status.success());
+    let ordinary: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(receipt, ordinary["result"]);
+    assert_eq!(before, snapshot(&app));
+}
+
+#[test]
+fn saved_plan_rejects_stale_inputs_preserving_current_project() {
+    for changed in [
+        "config", "managed", "missing", "metadata", "journal", "lock",
+    ] {
+        let temporary = tempfile::tempdir().unwrap();
+        let app = create(temporary.path());
+        let saved = save_plan(temporary.path(), &dry_run(&app));
+        match changed {
+            "config" => {
+                let path = app.join("gpui-box.json");
+                let mut bytes = fs::read(&path).unwrap();
+                bytes.push(b'\n');
+                fs::write(path, bytes).unwrap();
+            }
+            "managed" => fs::write(app.join("Cargo.toml"), "// concurrent edit\n").unwrap(),
+            "missing" => fs::remove_file(app.join("Cargo.toml")).unwrap(),
+            "metadata" => {
+                let path = app.join(".gpui-box/generated.json");
+                let mut bytes = fs::read(&path).unwrap();
+                bytes.push(b'\n');
+                fs::write(path, bytes).unwrap();
+            }
+            "journal" => fs::write(app.join(".gpui-box/pending.json"), b"{}").unwrap(),
+            "lock" => fs::write(app.join(".gpui-box/generate.lock"), b"owner").unwrap(),
+            _ => unreachable!(),
+        }
+        let before = snapshot(&app);
+        apply_plan(&app, &saved, false);
+        assert_eq!(before, snapshot(&app), "preserve {changed}");
+    }
+}
+
+#[test]
+fn saved_plan_rejects_unknown_malformed_oversized_and_incompatible_inputs() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create(temporary.path());
+    let original = dry_run(&app);
+    for field in [
+        "schema_version",
+        "cli_version",
+        "upstream_revision",
+        "path",
+        "unknown",
+        "nested",
+    ] {
+        let mut plan = original.clone();
+        match field {
+            "schema_version" => plan[field] = 999.into(),
+            "cli_version" | "upstream_revision" => plan[field] = "different".into(),
+            "path" => plan["files"][0]["path"] = "../outside".into(),
+            "unknown" => plan[field] = true.into(),
+            "nested" => plan["metadata"]["extra"] = true.into(),
+            _ => unreachable!(),
+        }
+        let saved = save_plan(temporary.path(), &plan);
+        let before = snapshot(&app);
+        apply_plan(&app, &saved, false);
+        assert_eq!(before, snapshot(&app));
+    }
+    let saved = save_plan(temporary.path(), &original);
+    for bytes in [
+        b"{broken".to_vec(),
+        vec![b' '; 1024 * 1024 + 1],
+        b"{\"result\":{}}".to_vec(),
+    ] {
+        fs::write(&saved, bytes).unwrap();
+        let before = snapshot(&app);
+        apply_plan(&app, &saved, false);
+        assert_eq!(before, snapshot(&app));
+    }
+}
+
+#[test]
+fn recovery_plan_binds_journal_bytes_and_reports_recovery_without_output_rewrites() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create(temporary.path());
+    let journal = app.join(".gpui-box/pending.json");
+    fs::write(&journal, b"{}").unwrap();
+    let plan = dry_run(&app);
+    assert_eq!(plan["recovering_pending_journal"], true);
+    assert_eq!(plan["pending_journal_sha256"].as_str().unwrap().len(), 64);
+    let saved = save_plan(temporary.path(), &plan);
+    fs::write(&journal, b"{}\n").unwrap();
+    let before = snapshot(&app);
+    apply_plan(&app, &saved, false);
+    assert_eq!(before, snapshot(&app));
+    fs::write(&journal, b"{}").unwrap();
+    let mut expected = snapshot(&app);
+    expected.remove(Path::new(".gpui-box/pending.json"));
+    let receipt = apply_plan(&app, &saved, true)["result"].clone();
+    assert_eq!(receipt["recovered_pending_journal"], true);
+    assert_eq!(receipt["files_written"], serde_json::json!([]));
+    assert_eq!(expected, snapshot(&app));
+}
+
+#[cfg(windows)]
+#[test]
+fn interrupted_plan_apply_requires_new_preview_and_ordinary_generate_recovers() {
+    use std::os::windows::fs::OpenOptionsExt;
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create(temporary.path());
+    let config_path = app.join("gpui-box.json");
+    let mut config: serde_json::Value =
+        serde_json::from_slice(&fs::read(&config_path).unwrap()).unwrap();
+    config["version"] = "3.0.0".into();
+    fs::write(config_path, serde_json::to_vec(&config).unwrap()).unwrap();
+    let saved = save_plan(temporary.path(), &dry_run(&app));
+    let state_path = app.join(".gpui-box/generated.json");
+    let state = fs::read(&state_path).unwrap();
+    // Allow preflight reads but deny replacement of a later managed output.
+    let held = fs::OpenOptions::new()
+        .read(true)
+        .share_mode(1)
+        .open(app.join("desktop/Cargo.toml"))
+        .unwrap();
+    let old_manifest = fs::read(app.join("desktop/Cargo.toml")).unwrap();
+    let response = apply_plan(&app, &saved, false);
+    assert!(
+        response["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("Write")
+    );
+    assert!(app.join(".gpui-box/pending.json").is_file());
+    assert!(!app.join(".gpui-box/generate.lock").exists());
+    assert_eq!(fs::read(&state_path).unwrap(), state);
+    assert_eq!(
+        fs::read(app.join("desktop/Cargo.toml")).unwrap(),
+        old_manifest
+    );
+    assert!(
+        fs::read_to_string(app.join("app/Cargo.toml"))
+            .unwrap()
+            .contains("3.0.0")
+    );
+    drop(held);
+    let before = snapshot(&app);
+    apply_plan(&app, &saved, false);
+    assert_eq!(before, snapshot(&app));
+    let output = cli(&app, &["generate", "--json"]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(response["result"]["recovered_pending_journal"], true);
+    assert_eq!(
+        response["result"]["files_written"],
+        serde_json::json!(["desktop/Cargo.toml", ".gpui-box/generated.json"])
+    );
+    assert!(!app.join(".gpui-box/pending.json").exists());
+    assert!(
+        fs::read_to_string(app.join("desktop/Cargo.toml"))
+            .unwrap()
+            .contains("3.0.0")
+    );
+}
+
 #[test]
 fn dry_run_is_deterministic_and_preserves_file_bytes_names_and_modification_times() {
     let temporary = tempfile::tempdir().unwrap();

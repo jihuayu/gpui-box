@@ -269,8 +269,8 @@ An existing generator lock makes planning fail. A second lock check detects a
 generator that started while planning. The result is a read-only snapshot and
 has no filesystem transaction isolation. Ordinary `generate` recomputes current
 inputs and preconditions under its existing lock. Editing a managed file after a
-preview still fails before managed-file writes. Persisted plan application and
-atomic multi-file transactions remain #65 follow-ups.
+preview still fails before managed-file writes. Saved-plan replay is described
+below. Isolated multi-file transactions remain a #65 follow-up.
 
 Both planning and generation reject symbolic links and Windows reparse points
 in existing managed-output/metadata path components. Project roots remain
@@ -287,3 +287,63 @@ are excluded from those assertions. A real space-containing generated project
 reports 15 unchanged managed files and preserves its file hashes/timestamps.
 An actual Windows junction in a managed path is rejected. A Unix symlink
 regression is included and awaits a Unix runner.
+
+## Saved generation plans and apply receipts
+
+`gpui-box generate --plan PATH [--json]` replays the bare ChangePlan from a
+preview's `result`. Save that object as UTF-8 JSON. In PowerShell, for example
+
+```powershell
+$preview = gpui-box generate --dry-run --json | ConvertFrom-Json
+$planJson = $preview.result | ConvertTo-Json -Depth 20
+[IO.File]::WriteAllText((Join-Path $PWD "generation-plan.json"), $planJson,
+    [Text.UTF8Encoding]::new($false))
+gpui-box generate --plan generation-plan.json --json
+```
+
+The parser accepts at most 1 MiB and rejects unknown fields, malformed JSON and
+the enclosing CLI response. Plans supply preconditions. Output bytes are rendered
+again from the current distribution. Apply acquires the existing project lock,
+recomputes the plan and requires exact equality, including CLI/upstream identity,
+configuration bytes, managed-file hashes, metadata and pending-journal state.
+The additive `pending_journal_sha256` field binds the exact existing journal
+bytes, or is null when no recovery is pending. Application-owned source and
+native customization changes remain outside those preconditions.
+
+Generation rechecks current configuration, outputs, metadata and journal before
+applying. It checks each managed output again before replacement, checks final
+output hashes before committing generated state, and checks its journal before
+removal. A detected edit stops the operation and retains the recovery journal.
+Individual writes use synced sibling files and rename. A failure can leave a
+prefix of outputs updated. `generate` resumes using the retained journal, while
+an old saved plan requires a fresh preview because its preconditions changed.
+Project-directory ownership during execution remains required. External edits
+between a check and rename, parent-directory durability and all-or-nothing
+multi-file isolation retain their existing qualification boundaries. Build and
+package commands have separate side effects and keep their existing contracts.
+
+Both ordinary generation and saved-plan replay return a schema-v1 ApplyReceipt
+in JSON mode. It includes `completed`, `plan_sha256`, ordered `files_written`
+and `files_unchanged`, and `recovered_pending_journal`. The lists cover managed
+outputs followed by generated-state metadata. Transient locks and journals are
+excluded. `plan_sha256` hashes the CLI's compact UTF-8 serialization of the
+validated ChangePlan in its declared field order. It is stable for the same
+plan and independent of whitespace/key ordering in the saved file. A failed
+apply returns `GENERATION_FAILED` and exit status 1. Receipts are emitted only
+after completion. Human commands retain their existing messages.
+
+Unchanged managed files and metadata retain their bytes and modification times.
+A fully unchanged generation skips the journal and output writes while still
+using the operation lock. Recovery can remove a pending journal without
+rewriting already-correct outputs.
+
+The Windows CLI suite passes 33 tests. Six replay regressions cover exact
+write/hash correspondence, deterministic no-op receipts and timestamps,
+application-owned edits, stale configuration/output/metadata/journal/lock state,
+bounded strict parsing, and Windows file-lock interruption followed by ordinary
+generation recovery. That interruption test denies replacement of a later
+managed file, verifies the earlier writes and original state/journal, rejects
+the old plan, then completes recovery after releasing the handle. Physical-device
+testing remains deferred. Registry installation, archive extraction, broader
+SDK/offline/migration policy and non-Windows qualification remain tracked by
+#61/#65 and their related issues.
