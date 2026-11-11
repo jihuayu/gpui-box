@@ -1,7 +1,8 @@
 //! Component scopes have identities and source lifetimes independent of render nodes.
 use super::{
     reactive::{
-        BindingId, Property, ReactiveCommit, ReactiveTransaction, ReactiveUi, ScopedSource, Signal,
+        BindingId, ComputedInputs, Dependency, Property, ReactiveCommit, ReactiveTransaction,
+        ReactiveUi, ScopedSource, Signal,
     },
     *,
 };
@@ -158,15 +159,40 @@ impl LogicalUi {
         init: impl FnOnce() -> T,
     ) -> Result<Signal<T>, Error> {
         if let Some(source) = self.scope(scope)?.sources.get(&key) {
-            return source
+            let signal = source
                 .as_any()
                 .downcast_ref::<Signal<T>>()
                 .copied()
-                .ok_or(Error::InvalidSignal);
+                .ok_or(Error::InvalidSignal)?;
+            self.ui.validate_scoped_source(signal, None)?;
+            return Ok(signal);
         }
         let source = self.ui.signal(init());
         self.scope_mut(scope).sources.insert(key, Box::new(source));
         Ok(source)
+    }
+
+    /// A keyed derived source keeps its original pure computation for the
+    /// scope lifetime. Reuse requires the same type and dependency identities.
+    pub fn computed<T: PartialEq + 'static>(
+        &mut self,
+        scope: ScopeId,
+        key: u64,
+        dependencies: &[Dependency],
+        evaluate: impl Fn(&ComputedInputs<'_>) -> Result<T, Error> + 'static,
+    ) -> Result<Signal<T>, Error> {
+        if let Some(source) = self.scope(scope)?.sources.get(&key) {
+            let signal = source
+                .as_any()
+                .downcast_ref::<Signal<T>>()
+                .copied()
+                .ok_or(Error::InvalidSignal)?;
+            self.ui.validate_scoped_source(signal, Some(dependencies))?;
+            return Ok(signal);
+        }
+        let signal = self.ui.computed(dependencies, evaluate)?;
+        self.scope_mut(scope).sources.insert(key, Box::new(signal));
+        Ok(signal)
     }
 
     pub fn read<T: 'static>(&self, source: Signal<T>) -> Result<&T, Error> {
@@ -227,6 +253,17 @@ impl LogicalUi {
                 self.subtree(*id, &mut removed)?;
             }
         }
+        let dead_sources = removed
+            .iter()
+            .flat_map(|id| {
+                self.scope(*id)
+                    .unwrap()
+                    .sources
+                    .values()
+                    .map(|source| source.dependency())
+            })
+            .collect();
+        self.ui.validate_scope_disposal(&dead_sources)?;
         // A surviving portal cannot retain a host which is about to be destroyed.
         // Reject before modifying logical state, bindings or render topology.
         for (node, owner) in &self.render_owners {
@@ -265,16 +302,17 @@ impl LogicalUi {
         }
         self.render_owners
             .retain(|_, owner| !removed.contains(owner));
+        let mut dead_sources = vec![];
         for id in &removed {
             let scope = self.scopes[id.slot].scope.take().expect("removed scope");
-            self.ui
-                .dispose_scope_sources(scope.sources.into_values().collect());
+            dead_sources.extend(scope.sources.into_values());
             let slot = &mut self.scopes[id.slot];
             if let Some(next) = slot.generation.checked_add(1) {
                 slot.generation = next;
                 self.free.push(id.slot);
             }
         }
+        self.ui.dispose_scope_sources(dead_sources);
         let mut inserted = vec![];
         let mut order = vec![];
         for key in keys {
@@ -357,6 +395,70 @@ mod tests {
             BackendCapabilities::default(),
         )
         .unwrap()
+    }
+
+    #[test]
+    fn keyed_computed_sources_retain_edges_and_dispose_in_dependency_order() {
+        let mut ui = fixture();
+        let root = ui.root_scope();
+        let scopes = ui.reconcile_keys(root, &[1, 2]).unwrap().order;
+        let input = ui.state(scopes[0], 99, || 1u32).unwrap();
+        let derived = ui
+            .computed(scopes[1], 0, &[input.dependency()], move |i| {
+                Ok(*i.read(input)? * 2)
+            })
+            .unwrap();
+        let leaf = ui
+            .computed(scopes[1], 1, &[derived.dependency()], move |i| {
+                Ok(*i.read(derived)? + 1)
+            })
+            .unwrap();
+        let node = ui
+            .append_render(scopes[1], ui.root_render(), Style::default(), 0)
+            .unwrap();
+        ui.bind(leaf, Property::color(node)).unwrap();
+        let before = ui.frame([160.0, 80.0]).unwrap();
+        assert!(matches!(
+            ui.reconcile_keys(root, &[2]),
+            Err(Error::SignalInUse)
+        ));
+        assert_eq!(ui.children(root).unwrap(), scopes);
+        assert_eq!(ui.reactive().source_count(), 3);
+        assert_eq!(ui.reactive().binding_count(), 1);
+        assert_eq!(ui.frame([160.0, 80.0]).unwrap().revision, before.revision);
+        ui.reconcile_keys(root, &[2, 1]).unwrap();
+        assert_eq!(
+            ui.computed(scopes[1], 0, &[input.dependency()], |_| panic!(
+                "must retain original callback"
+            ))
+            .unwrap(),
+            derived
+        );
+        assert!(matches!(
+            ui.state(scopes[1], 0, || 0u32),
+            Err(Error::InvalidSignal)
+        ));
+        assert!(matches!(
+            ui.computed(scopes[0], 99, &[], |_| Ok(0u32)),
+            Err(Error::InvalidSignal)
+        ));
+        assert!(matches!(
+            ui.computed(scopes[1], 0, &[leaf.dependency()], |_| Ok(0u32)),
+            Err(Error::InvalidSignal)
+        ));
+        ui.transaction(|tx| {
+            tx.set(input, 4)?;
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(*ui.read(leaf).unwrap(), 9);
+        // All removed scopes are disposed as one topologically sorted set.
+        ui.reconcile_keys(root, &[]).unwrap();
+        assert_eq!(ui.reactive().source_count(), 0);
+        assert_eq!(ui.reactive().binding_count(), 0);
+        assert_eq!(ui.read(input), Err(Error::InvalidSignal));
+        assert_eq!(ui.read(derived), Err(Error::InvalidSignal));
+        assert_eq!(ui.read(leaf), Err(Error::InvalidSignal));
     }
 
     #[test]

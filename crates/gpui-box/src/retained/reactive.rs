@@ -1,6 +1,8 @@
 //! UI-owner signals and typed property sinks. Only the outer transaction publishes.
 use super::*;
 use std::{any::Any, collections::BTreeSet, marker::PhantomData, rc::Rc};
+mod computed;
+pub use computed::{ComputedInputs, Dependency};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct SourceId {
@@ -9,7 +11,8 @@ struct SourceId {
     generation: u64,
 }
 
-/// A signal belongs to one runtime and one lifetime of a source slot.
+/// A signal belongs to one runtime and one lifetime of a source slot. Computed
+/// signals share typed read/bind APIs, but `set` returns `ReadonlySignal`.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Signal<T> {
     id: SourceId,
@@ -158,6 +161,9 @@ impl<T: PartialEq + 'static> Value for T {
 struct Source {
     value: Rc<dyn Value>,
     bindings: BTreeSet<BindingId>,
+    dependents: BTreeSet<SourceId>,
+    computation: Option<computed::Computation>,
+    rank: u64,
 }
 struct SourceSlot {
     generation: u64,
@@ -172,6 +178,9 @@ struct Binding {
 }
 
 /// Counters describe successfully published outer transactions, excluding setup.
+/// Derived evaluations include successful read-triggered settlements, excluding
+/// failed propagation attempts and rolled-back nested scopes. Changed sources
+/// include both writable and derived final values.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ReactiveStats {
     pub transactions: u64,
@@ -180,6 +189,8 @@ pub struct ReactiveStats {
     pub changed_sources: u64,
     pub sink_writes: u64,
     pub frame_requests: u64,
+    pub computed_evaluations: u64,
+    pub computed_equal: u64,
 }
 
 pub struct ReactiveCommit<R> {
@@ -187,6 +198,8 @@ pub struct ReactiveCommit<R> {
     pub commit: Commit,
     pub changed_sources: usize,
     pub sink_writes: usize,
+    pub computed_evaluations: u64,
+    pub computed_equal: u64,
 }
 
 /// Signals, sinks and render nodes have one UI-thread owner. A transaction is a
@@ -264,6 +277,16 @@ impl ReactiveUi {
     }
 
     pub fn signal<T: PartialEq + 'static>(&mut self, value: T) -> Signal<T> {
+        self.insert_source(Source {
+            value: Rc::new(value),
+            bindings: BTreeSet::new(),
+            dependents: BTreeSet::new(),
+            computation: None,
+            rank: 0,
+        })
+    }
+
+    fn insert_source<T>(&mut self, source: Source) -> Signal<T> {
         let slot = self.free.pop().unwrap_or(self.sources.len());
         if slot == self.sources.len() {
             self.sources.push(SourceSlot {
@@ -272,10 +295,7 @@ impl ReactiveUi {
             });
         }
         let entry = &mut self.sources[slot];
-        entry.source = Some(Source {
-            value: Rc::new(value),
-            bindings: BTreeSet::new(),
-        });
+        entry.source = Some(source);
         Signal {
             id: SourceId {
                 owner: self.identity,
@@ -363,9 +383,27 @@ impl ReactiveUi {
     }
 
     fn dispose_source(&mut self, source: SourceId) -> Result<(), Error> {
+        if !self.source(source)?.dependents.is_empty() {
+            return Err(Error::SignalInUse);
+        }
+        let dependencies = self
+            .source(source)?
+            .computation
+            .as_ref()
+            .map(|c| c.dependencies.clone());
         let bindings: Vec<_> = self.source(source)?.bindings.iter().copied().collect();
         for binding in bindings {
             self.unbind(binding)?;
+        }
+        if let Some(dependencies) = dependencies {
+            for id in dependencies {
+                self.sources[id.slot]
+                    .source
+                    .as_mut()
+                    .unwrap()
+                    .dependents
+                    .remove(&source);
+            }
         }
         let slot = &mut self.sources[source.slot];
         slot.source = None;
@@ -381,8 +419,11 @@ impl ReactiveUi {
     }
 
     pub(super) fn dispose_scope_sources(&mut self, sources: Vec<Box<dyn ScopedSource>>) {
-        for source in sources {
-            source.dispose(self);
+        let mut ids: Vec<_> = sources.iter().map(|source| source.dependency().0).collect();
+        ids.sort_by_key(|id| std::cmp::Reverse(self.source(*id).unwrap().rank));
+        for id in ids {
+            self.dispose_source(id)
+                .expect("prevalidated scope source disposal");
         }
     }
 
@@ -418,12 +459,18 @@ impl ReactiveUi {
             values: BTreeMap::new(),
             writes: 0,
             equal: 0,
+            dirty_roots: BTreeMap::new(),
+            computed_evaluations: 0,
+            computed_equal: 0,
         };
         let value = update(&mut tx)?;
+        tx.settle()?;
         let ReactiveTransaction {
             values,
             writes,
             equal,
+            computed_evaluations,
+            computed_equal,
             ..
         } = tx;
         let mut properties = Transaction::default();
@@ -445,11 +492,15 @@ impl ReactiveUi {
         self.stats.changed_sources += changed_sources as u64;
         self.stats.sink_writes += sink_writes as u64;
         self.stats.frame_requests += u64::from(commit.request_frame);
+        self.stats.computed_evaluations += computed_evaluations;
+        self.stats.computed_equal += computed_equal;
         Ok(ReactiveCommit {
             value,
             commit,
             changed_sources,
             sink_writes,
+            computed_evaluations,
+            computed_equal,
         })
     }
 }
@@ -461,22 +512,31 @@ pub struct ReactiveTransaction<'a> {
     values: BTreeMap<SourceId, Rc<dyn Value>>,
     writes: u64,
     equal: u64,
+    dirty_roots: BTreeMap<SourceId, Rc<dyn Value>>,
+    computed_evaluations: u64,
+    computed_equal: u64,
 }
 
 pub(super) trait ScopedSource {
     fn as_any(&self) -> &dyn Any;
-    fn dispose(&self, ui: &mut ReactiveUi);
+    fn dependency(&self) -> Dependency;
 }
 impl<T: 'static> ScopedSource for Signal<T> {
     fn as_any(&self) -> &dyn Any {
         self
     }
-    fn dispose(&self, ui: &mut ReactiveUi) {
-        let _ = ui.dispose_signal(*self);
+    fn dependency(&self) -> Dependency {
+        (*self).dependency()
     }
 }
 impl ReactiveTransaction<'_> {
-    pub fn read<T: 'static>(&self, signal: Signal<T>) -> Result<&T, Error> {
+    /// Reads of a derived source settle all pending graph work at this batch
+    /// boundary. Further writes may trigger a new settlement; sinks publish once.
+    pub fn read<T: 'static>(&mut self, signal: Signal<T>) -> Result<&T, Error> {
+        let source = self.runtime.source(signal.id)?;
+        if source.computation.is_some() {
+            self.settle()?;
+        }
         let source = self.runtime.source(signal.id)?;
         self.values
             .get(&signal.id)
@@ -493,12 +553,25 @@ impl ReactiveTransaction<'_> {
         value: T,
     ) -> Result<bool, Error> {
         let source = self.runtime.source(signal.id)?;
+        if source.computation.is_some() {
+            return Err(Error::ReadonlySignal);
+        }
         self.writes += 1;
-        if *self.read(signal)? == value {
+        let current = self.values.get(&signal.id).unwrap_or(&source.value);
+        if current.equal(&value) {
             self.equal += 1;
             return Ok(false);
         }
         let value: Rc<dyn Value> = Rc::new(value);
+        if !source.dependents.is_empty() {
+            let baseline = self
+                .dirty_roots
+                .entry(signal.id)
+                .or_insert_with(|| current.clone());
+            if baseline.equal(value.as_ref()) {
+                self.dirty_roots.remove(&signal.id);
+            }
+        }
         if source.value.equal(value.as_ref()) {
             self.values.remove(&signal.id);
         } else {
@@ -511,11 +584,25 @@ impl ReactiveTransaction<'_> {
         &mut self,
         update: impl FnOnce(&mut Self) -> Result<R, Error>,
     ) -> Result<R, Error> {
-        let checkpoint = (self.values.clone(), self.writes, self.equal);
+        let checkpoint = (
+            self.values.clone(),
+            self.dirty_roots.clone(),
+            self.writes,
+            self.equal,
+            self.computed_evaluations,
+            self.computed_equal,
+        );
         match update(self) {
             Ok(value) => Ok(value),
             Err(error) => {
-                (self.values, self.writes, self.equal) = checkpoint;
+                (
+                    self.values,
+                    self.dirty_roots,
+                    self.writes,
+                    self.equal,
+                    self.computed_evaluations,
+                    self.computed_equal,
+                ) = checkpoint;
                 Err(error)
             }
         }
@@ -526,7 +613,7 @@ impl ReactiveTransaction<'_> {
 mod tests {
     use super::*;
 
-    fn fixture() -> (ReactiveUi, NodeId) {
+    pub(super) fn fixture() -> (ReactiveUi, NodeId) {
         let mut tree = UiTree::new(Style::default(), 0xff0000ff).unwrap();
         let child = tree
             .append(tree.root(), Style::default(), 0x0000ffff)

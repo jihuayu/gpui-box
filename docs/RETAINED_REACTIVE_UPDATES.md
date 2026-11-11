@@ -24,9 +24,14 @@ at most one render revision and frame-request intent. There are no callbacks
 while source publication is in progress. The host calls `notify` once when
 `commit.request_frame` is true.
 
+The [computed DAG follow-up](RETAINED_COMPUTED_DAG.md) adds explicit derived
+dependencies, rank-ordered propagation, equality cutoff, consistent staged reads
+and keyed scope lifetime checks. The gallery color sink now consumes a derived
+source through the ordinary click and paint path. General effect scheduling and
+asynchronous cross-thread source delivery remain future work.
+
 The synchronous transaction boundary is explicit. Separate host events are not
-implicitly merged, and computed/effect graphs and asynchronous cross-thread
-source delivery remain future work. Savepoints currently clone the map of
+implicitly merged. Savepoints currently clone the maps of
 staged shared values, so deep nesting with a large dirty set has a CPU cost.
 Rollback covers returned errors; arbitrary external side effects and caught
 panics within a transaction callback are outside the transaction contract.
@@ -43,8 +48,9 @@ disposed, so a shared source can outlive one consuming subtree.
 
 `ReactiveUi` exposes immutable tree access and controlled append/remove APIs,
 preventing callers from bypassing binding cleanup with direct tree mutation.
-Automatic logical component scopes and event/semantics ownership are still
-pending. The gallery's GPU mode declares the actual solid-color patch capability.
+[Logical scopes](RETAINED_LOGICAL_SCOPES.md) now own both writable and computed
+source lifetimes. Event/semantics ownership remains pending. The gallery's GPU
+mode declares the actual solid-color patch capability.
 
 ## Event and hardware validation
 

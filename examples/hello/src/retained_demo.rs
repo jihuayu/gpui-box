@@ -105,7 +105,15 @@ impl RetainedDemo {
         let root_scope = tree.root_scope();
         let color = tree.state(root_scope, 0, || 0x245fc7ff).unwrap();
         let scroll = tree.state(root_scope, 1, || [0.0; 2]).unwrap();
-        tree.bind(color, Property::color(tile)).expect("bind color");
+        // Normal mouse events now travel through a read-only derived source
+        // before the typed sink, while preserving the gallery's color contract.
+        let material = tree
+            .computed(root_scope, 9, &[color.dependency()], move |inputs| {
+                Ok(*inputs.read(color)?)
+            })
+            .expect("create computed material");
+        tree.bind(material, Property::color(tile))
+            .expect("bind computed color");
         let decoration = tree.state(root_scope, 5, QuadDecoration::default).unwrap();
         tree.bind(decoration, Property::decoration(tile))
             .expect("bind decoration");
@@ -755,8 +763,9 @@ mod tests {
                 stats.sink_writes,
                 stats.frame_requests
             ),
-            (3, 2, 2, 2)
+            (3, 3, 2, 2)
         );
+        assert_eq!(stats.computed_evaluations, 1);
         let scroll = cx.debug_bounds("retained-scroll").unwrap();
         cx.simulate_click(scroll.center(), Modifiers::default());
         cx.run_until_parked();

@@ -25,6 +25,14 @@ ancestor remains alive. Render removal also detaches consumers of that output.
 Reused scope/source slots have a different generation. Already published frames
 keep their owned data after those live identities have retired.
 
+The [computed DAG follow-up](RETAINED_COMPUTED_DAG.md) adds
+`computed(scope, key, dependencies, evaluate)`. Reordering keeps the original
+pure callback and requires the same type and dependency identities for key
+reuse. Before removal, the union of owned sources is checked for dependents in
+surviving scopes (`SignalInUse`); no scope, binding or render state changes on
+that rejection. Removed derived sources are disposed in reverse dependency
+rank across all removed scopes, followed by their writable inputs.
+
 Logical and render parentage are separate. `append_render` takes both an owner
 scope and an explicit render parent, allowing fragments and portals. Logical
 preorder controls sibling painting and hit order within each render host;
