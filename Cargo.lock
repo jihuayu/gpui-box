@@ -1840,6 +1840,7 @@ dependencies = [
  "gpui-lifecycle",
  "gpui-permissions",
  "gpui-secrets",
+ "gpui-sharing",
  "gpui-system",
  "gpui_platform",
 ]
@@ -1931,6 +1932,23 @@ dependencies = [
  "gpui-system",
  "windows-sys 0.61.2",
  "zeroize",
+]
+
+[[package]]
+name = "gpui-sharing"
+version = "0.1.0-dev"
+dependencies = [
+ "gpui",
+ "gpui-activation",
+ "gpui-app-data",
+ "gpui-clipboard",
+ "gpui-files",
+ "gpui-system",
+ "gpui_platform",
+ "raw-window-handle",
+ "serde_json",
+ "tempfile",
+ "windows 0.62.2",
 ]
 
 [[package]]
