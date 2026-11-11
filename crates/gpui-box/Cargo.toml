@@ -13,6 +13,8 @@ default = []
 updates = ["system", "app-data", "dep:gpui-updates"]
 diagnostics = ["system", "app-data", "files", "dep:gpui-diagnostics"]
 diagnostics-gpui = ["diagnostics", "system-gpui", "files-gpui", "gpui-diagnostics/gpui"]
+menus = ["system", "permissions", "activation", "dep:gpui-menus"]
+menus-gpui = ["menus", "system-gpui", "permissions-gpui", "activation-gpui", "gpui-menus/gpui"]
 sharing = ["system", "dep:gpui-sharing"]
 
 clipboard = ["system", "dep:gpui-clipboard"]
@@ -53,6 +55,7 @@ gpui-files = { workspace = true, optional = true }
 gpui-local-auth = { workspace = true, optional = true }
 gpui-updates = { workspace = true, optional = true }
 gpui-diagnostics = { workspace = true, optional = true }
+gpui-menus = { workspace = true, optional = true }
 
 [target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
 gpui = { workspace = true, optional = true }
