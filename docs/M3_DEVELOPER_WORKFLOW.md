@@ -599,6 +599,64 @@ Windows is locked. Workbench/component templates, broader assistive-reader and
 host qualification remain #63/#3 acceptance gates. Physical-device testing
 remains deferred.
 
+## Reproducible external template qualification
+
+`mise run check:templates` runs the opt-in real-tool qualification test. Set
+`GPUI_BOX_QUALIFICATION_TARGET` to `desktop` or `android` and optionally set
+`GPUI_BOX_QUALIFICATION_REPORT_DIR` to a fresh absolute report directory. The
+default is `target/ci/template-qualification`. Existing reports are preserved
+by rejecting reuse. Install and trust the repository's pinned mise environment
+and the selected host's native build prerequisites first. Android additionally
+requires the documented SDK/NDK packages and `ANDROID_HOME`.
+
+```powershell
+$env:GPUI_BOX_QUALIFICATION_TARGET = 'desktop'
+$env:GPUI_BOX_QUALIFICATION_REPORT_DIR = 'D:\qualification-reports\run-1'
+mise run check:templates
+```
+
+```sh
+GPUI_BOX_QUALIFICATION_TARGET=android \
+GPUI_BOX_QUALIFICATION_REPORT_DIR="$PWD/target/ci/template-qualification" \
+mise -E android run check:templates
+```
+
+The harness exports the checkout's committed HEAD through the actual CLI and
+verifies the complete SDK before and after qualification. It creates six
+applications from starter/adaptive-v1 crossed with desktop, Android and combined
+target sets. The fresh external workspace, SDK and application paths include
+spaces and Chinese characters. Each application receives an application-source
+customization and, when enabled, a native Gradle customization. No-op generation,
+unchanged template provenance and preserved customizations are asserted. A build
+plan must reject the selected host target when disabled. Four enabled cases
+run the normal `gpui-box build TARGET` entry point and produce a nonempty desktop
+executable or APK containing both ARM64/x86_64 native libraries.
+
+Only freshly generated mise configurations from this checkout's templates are
+trusted by the harness. Cargo build outputs use an isolated workspace directory
+passed to child processes. Dependencies and tool downloads follow normal
+Cargo/mise/Gradle cache and network configuration. The SDK export uses committed
+content, so commit template/SDK changes before qualifying that source revision.
+The SDK includes its available license originals and provenance inventory.
+Outstanding license-source review remains documented under tooling/licenses.
+
+The report contains CLI/SDK/upstream identities, host/target, template provenance,
+commands with separated argument boundaries, exit codes, durations, artifact
+SHA-256 values and explicit `runtime_executed: false`. Each child has separate
+stdout/stderr logs. The receipt is written on a qualification error as well.
+Logs inherit the tools' normal diagnostic behavior and should use development
+credentials only. The workspace and all application/SDK content remain available
+at the path in receipt.json for inspection. Clean that exact workspace after
+inspection when no child process is using it. The harness performs no recursive
+caller-tree cleanup.
+
+Linux and Windows hosted jobs select desktop. The Android hosted job selects
+Android. Their existing validation artifacts retain the reports for14days.
+These checks qualify generated builds and customization preservation. Interactive
+desktop/emulator sessions, signing/install/update journeys, offline dependency
+provisioning, registry combinations, native CLI publication, workbench/component
+templates and physical-device acceptance retain their operation-specific gates.
+
 ## Read-only build plans
 
 Use `gpui-box build desktop --dry-run --json` or `gpui-box build android

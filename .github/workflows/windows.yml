@@ -64,6 +64,13 @@ jobs:
         run: |
           mise run check:desktop 2>&1 | Tee-Object -FilePath target/ci/desktop.log
           exit $LASTEXITCODE
+      - name: Qualify external SDK and project templates
+        env:
+          GPUI_BOX_QUALIFICATION_TARGET: desktop
+          GPUI_BOX_QUALIFICATION_REPORT_DIR: ${{ github.workspace }}/target/ci/template-qualification
+        run: |
+          mise run check:templates 2>&1 | Tee-Object -FilePath target/ci/templates.log
+          exit $LASTEXITCODE
       - name: Upload validation logs
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

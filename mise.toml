@@ -69,6 +69,10 @@ run = "cargo run --locked -p gpui-box-example-desktop"
 description = "Show the distribution CLI information"
 run = "cargo run --locked -p gpui-box-cli -- info"
 
+[tasks."check:templates"]
+description = "Build external committed-SDK templates (set GPUI_BOX_QUALIFICATION_TARGET)"
+run = "cargo test --locked -p gpui-box-cli --test qualification -- --ignored --nocapture --test-threads=1"
+
 [tasks.check]
 description = "Validate configuration, Rust formatting, tests, and lints"
 run = [
