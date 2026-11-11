@@ -86,6 +86,10 @@ pub use gpui_updates as updates;
 #[cfg(feature = "diagnostics")]
 pub use gpui_diagnostics as diagnostics;
 
+/// Typed command contributions and native menu projection.
+#[cfg(feature = "menus")]
+pub use gpui_menus as menus;
+
 #[cfg(test)]
 mod tests {
     #[cfg(feature = "diagnostics")]
