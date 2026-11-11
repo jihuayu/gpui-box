@@ -1,4 +1,4 @@
-//! Packed R8 glyph pages and persistent batched 64-byte instance records.
+//! Packed R8 pages, 48-byte local glyph records and independent node properties.
 use super::*;
 use std::collections::{BTreeMap, BTreeSet};
 pub type GlyphDrawId = [u64; 3];
@@ -6,19 +6,21 @@ pub struct RetainedGlyph {
     pub resource: u64,
     pub size: [u32; 2],
     pub mask: Arc<[u8]>,
-    pub bounds: [f32; 4],
+    pub origin: [f32; 2],
+    pub offset: [i32; 2],
 }
 pub struct GlyphBatch {
     pub id: GlyphDrawId,
     pub clip: [f32; 4],
     pub color: u32,
+    pub origin: [f32; 2],
+    pub scale: f32,
     pub glyphs: Vec<RetainedGlyph>,
 }
 #[derive(Clone, Copy, Debug, Default, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 #[repr(C)]
 struct Instance {
     bounds: [f32; 4],
-    clip: [f32; 4],
     tile: [u32; 4],
     material: [u32; 4],
 }
@@ -46,6 +48,7 @@ pub(super) type GlyphLease = (
     wgpu::Buffer,
     wgpu::Buffer,
     wgpu::Buffer,
+    wgpu::Buffer,
     Vec<(wgpu::Texture, wgpu::BindGroup)>,
 );
 #[derive(Default)]
@@ -56,6 +59,8 @@ pub(super) struct GlyphStats {
     pub ranges: usize,
     pub material_bytes: u64,
     pub material_ranges: usize,
+    pub property_bytes: u64,
+    pub property_ranges: usize,
     pub changed: BTreeSet<GlyphDrawId>,
 }
 pub(super) struct GlyphCache {
@@ -66,6 +71,8 @@ pub(super) struct GlyphCache {
     materials: wgpu::Buffer,
     colors: Vec<[f32; 4]>,
     free_materials: Vec<u32>,
+    properties: wgpu::Buffer,
+    property_records: Vec<[f32; 8]>,
     viewport: wgpu::Buffer,
     mirror: Vec<Instance>,
     free: Vec<Range<u32>>,
@@ -87,7 +94,7 @@ impl GlyphCache {
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Storage { read_only: true },
                         has_dynamic_offset: false,
-                        min_binding_size: NonZeroU64::new(64),
+                        min_binding_size: NonZeroU64::new(48),
                     },
                     count: None,
                 },
@@ -118,6 +125,16 @@ impl GlyphCache {
                         ty: wgpu::BufferBindingType::Storage { read_only: true },
                         has_dynamic_offset: false,
                         min_binding_size: NonZeroU64::new(16),
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 4,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: NonZeroU64::new(32),
                     },
                     count: None,
                 },
@@ -159,6 +176,7 @@ impl GlyphCache {
         });
         let buffer = Self::buffer(device, 1);
         let materials = Self::material_buffer(device, 1);
+        let properties = Self::property_buffer(device, 1);
         let viewport = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("retained_glyph_viewport"),
             size: 16,
@@ -173,6 +191,8 @@ impl GlyphCache {
             materials,
             colors: vec![[0.0; 4]],
             free_materials: vec![],
+            properties,
+            property_records: vec![[0.0; 8]],
             viewport,
             mirror: vec![Instance::default()],
             free: vec![],
@@ -185,7 +205,7 @@ impl GlyphCache {
     fn buffer(device: &wgpu::Device, capacity: usize) -> wgpu::Buffer {
         device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("retained_glyph_slots"),
-            size: capacity as u64 * 64,
+            size: capacity as u64 * 48,
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         })
@@ -198,12 +218,21 @@ impl GlyphCache {
             mapped_at_creation: false,
         })
     }
+    fn property_buffer(device: &wgpu::Device, capacity: usize) -> wgpu::Buffer {
+        device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("retained_glyph_properties"),
+            size: capacity as u64 * 32,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        })
+    }
     fn binding(
         device: &wgpu::Device,
         layout: &wgpu::BindGroupLayout,
         buffer: &wgpu::Buffer,
         viewport: &wgpu::Buffer,
         materials: &wgpu::Buffer,
+        properties: &wgpu::Buffer,
         view: &wgpu::TextureView,
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -226,6 +255,10 @@ impl GlyphCache {
                     binding: 3,
                     resource: materials.as_entire_binding(),
                 },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: properties.as_entire_binding(),
+                },
             ],
         })
     }
@@ -240,6 +273,12 @@ impl GlyphCache {
         for batch in batches {
             anyhow::ensure!(ids.insert(batch.id), "duplicate glyph draw");
             anyhow::ensure!(valid_rect(batch.clip), "invalid glyph clip");
+            anyhow::ensure!(
+                batch.origin.iter().all(|value| value.is_finite())
+                    && batch.scale.is_finite()
+                    && batch.scale > 0.0,
+                "invalid glyph properties"
+            );
             count += batch.glyphs.len() as u64;
             for glyph in &batch.glyphs {
                 anyhow::ensure!(
@@ -251,9 +290,11 @@ impl GlyphCache {
                     "invalid gray glyph bytes"
                 );
                 anyhow::ensure!(
-                    valid_rect(glyph.bounds)
-                        && glyph.bounds[2] == glyph.size[0] as f32
-                        && glyph.bounds[3] == glyph.size[1] as f32,
+                    glyph.origin.iter().zip(batch.origin).zip(glyph.offset).all(
+                        |((local, origin), offset)| (((local + origin) * batch.scale).round()
+                            + offset as f32)
+                            .is_finite()
+                    ),
                     "invalid glyph bounds"
                 );
                 if let Some(old) = unique.insert(glyph.resource, glyph) {
@@ -271,11 +312,11 @@ impl GlyphCache {
             }
         }
         anyhow::ensure!(
-            count * 64 <= max_bytes / 2,
+            count * 48 <= max_bytes / 2,
             "glyph instance budget exceeded"
         );
         anyhow::ensure!(
-            batches.len() as u64 * 16 <= max_bytes / 2,
+            batches.len() as u64 * 32 <= max_bytes / 2,
             "glyph material budget exceeded"
         );
         anyhow::ensure!(
@@ -333,6 +374,7 @@ impl GlyphCache {
                 &self.buffer,
                 &self.viewport,
                 &self.materials,
+                &self.properties,
                 &view,
             );
             let mut allocator =
@@ -445,6 +487,7 @@ impl GlyphCache {
         }
         let mut dirty = vec![];
         let mut material_dirty = vec![];
+        let mut property_dirty = vec![];
         for batch in batches {
             for glyph in &batch.glyphs {
                 self.tile(renderer, glyph, &mut stats)?;
@@ -457,6 +500,7 @@ impl GlyphCache {
                     self.free_materials.pop().unwrap_or_else(|| {
                         let slot = self.colors.len() as u32;
                         self.colors.push([0.0; 4]);
+                        self.property_records.push([0.0; 8]);
                         slot
                     })
                 },
@@ -473,12 +517,31 @@ impl GlyphCache {
                 material_dirty.push(material..material + 1);
                 stats.changed.insert(batch.id);
             }
+            let properties = [
+                batch.origin[0],
+                batch.origin[1],
+                batch.scale,
+                0.0,
+                batch.clip[0],
+                batch.clip[1],
+                batch.clip[2],
+                batch.clip[3],
+            ];
+            if previous.is_none() || self.property_records[material as usize] != properties {
+                self.property_records[material as usize] = properties;
+                property_dirty.push(material..material + 1);
+                stats.changed.insert(batch.id);
+            }
             for glyph in &batch.glyphs {
                 let tile = &self.tiles[&glyph.resource];
                 let index = instances.len() as u32;
                 instances.push(Instance {
-                    bounds: glyph.bounds,
-                    clip: batch.clip,
+                    bounds: [
+                        glyph.origin[0],
+                        glyph.origin[1],
+                        glyph.offset[0] as f32,
+                        glyph.offset[1] as f32,
+                    ],
                     tile: tile.bounds,
                     material: [material, 0, 0, 0],
                 });
@@ -531,11 +594,11 @@ impl GlyphCache {
                 },
             );
         }
-        let grow_instances = self.mirror.len() as u64 * 64 > self.buffer.size();
+        let grow_instances = self.mirror.len() as u64 * 48 > self.buffer.size();
         let grow_materials = self.colors.len() as u64 * 16 > self.materials.size();
         if grow_instances {
             anyhow::ensure!(
-                self.mirror.len() as u64 * 64
+                self.mirror.len() as u64 * 48
                     <= u64::from(
                         renderer
                             .context
@@ -551,7 +614,7 @@ impl GlyphCache {
         if grow_materials {
             let capacity = self.colors.len().next_power_of_two();
             anyhow::ensure!(
-                capacity as u64 * 16
+                capacity as u64 * 32
                     <= u64::from(
                         renderer
                             .context
@@ -562,7 +625,9 @@ impl GlyphCache {
                 "fragmented glyph material limit"
             );
             self.materials = Self::material_buffer(&renderer.context.device, capacity);
+            self.properties = Self::property_buffer(&renderer.context.device, capacity);
             material_dirty = vec![0..self.colors.len() as u32];
+            property_dirty = vec![0..self.property_records.len() as u32];
         }
         if grow_instances || grow_materials {
             for page in self.pages.iter_mut().flatten() {
@@ -572,6 +637,7 @@ impl GlyphCache {
                     &self.buffer,
                     &self.viewport,
                     &self.materials,
+                    &self.properties,
                     &page.view,
                 );
             }
@@ -579,10 +645,10 @@ impl GlyphCache {
         for range in merge_ranges(dirty) {
             renderer.context.queue.write_buffer(
                 &self.buffer,
-                u64::from(range.start) * 64,
+                u64::from(range.start) * 48,
                 bytemuck::cast_slice(&self.mirror[range.start as usize..range.end as usize]),
             );
-            stats.instance_bytes += u64::from(range.end - range.start) * 64;
+            stats.instance_bytes += u64::from(range.end - range.start) * 48;
             stats.ranges += 1;
         }
         for range in merge_ranges(material_dirty) {
@@ -593,6 +659,17 @@ impl GlyphCache {
             );
             stats.material_bytes += u64::from(range.end - range.start) * 16;
             stats.material_ranges += 1;
+        }
+        for range in merge_ranges(property_dirty) {
+            renderer.context.queue.write_buffer(
+                &self.properties,
+                u64::from(range.start) * 32,
+                bytemuck::cast_slice(
+                    &self.property_records[range.start as usize..range.end as usize],
+                ),
+            );
+            stats.property_bytes += u64::from(range.end - range.start) * 32;
+            stats.property_ranges += 1;
         }
         if self.size != Some(size) {
             renderer.context.queue.write_buffer(
@@ -659,6 +736,7 @@ impl GlyphCache {
             self.buffer.clone(),
             self.viewport.clone(),
             self.materials.clone(),
+            self.properties.clone(),
             self.pages
                 .iter()
                 .flatten()

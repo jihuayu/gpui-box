@@ -1,0 +1,1091 @@
+[
+  {
+    "case": "initial",
+    "pixel_equal": true,
+    "revision": 9,
+    "layout_runs": 1,
+    "recorded_chunks": 9,
+    "leaf_layouts": 16,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "color",
+    "pixel_equal": true,
+    "revision": 10,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "batch",
+    "pixel_equal": true,
+    "revision": 11,
+    "layout_runs": 0,
+    "recorded_chunks": 3,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "translation",
+    "pixel_equal": true,
+    "revision": 12,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "reorder",
+    "pixel_equal": true,
+    "revision": 13,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "replace",
+    "pixel_equal": true,
+    "revision": 15,
+    "layout_runs": 1,
+    "recorded_chunks": 1,
+    "leaf_layouts": 2,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "in-flight-reuse",
+    "pixel_equal": true,
+    "revision": 62,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "dropped-base",
+    "pixel_equal": true,
+    "revision": 64,
+    "layout_runs": 0,
+    "recorded_chunks": 1,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "reset",
+    "pixel_equal": true,
+    "revision": 64,
+    "layout_runs": 0,
+    "recorded_chunks": 1,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "resize-scale",
+    "pixel_equal": true,
+    "revision": 65,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 8,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "growth",
+    "pixel_equal": true,
+    "revision": 105,
+    "layout_runs": 1,
+    "recorded_chunks": 40,
+    "leaf_layouts": 80,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "new-tree",
+    "pixel_equal": true,
+    "revision": 1,
+    "layout_runs": 1,
+    "recorded_chunks": 1,
+    "leaf_layouts": 1,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "transparent-overlap",
+    "pixel_equal": true,
+    "revision": 3,
+    "layout_runs": 1,
+    "recorded_chunks": 2,
+    "leaf_layouts": 2,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "transparent-reorder",
+    "pixel_equal": true,
+    "revision": 4,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "alpha-update",
+    "pixel_equal": true,
+    "revision": 5,
+    "layout_runs": 0,
+    "recorded_chunks": 1,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "batch-10000",
+    "pixel_equal": true,
+    "revision": 10002,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "clip-initial",
+    "pixel_equal": true,
+    "revision": 5,
+    "layout_runs": 1,
+    "recorded_chunks": 4,
+    "leaf_layouts": 4,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "damage-color",
+    "pixel_equal": true,
+    "revision": 6,
+    "layout_runs": 0,
+    "recorded_chunks": 1,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "damage-scroll",
+    "pixel_equal": true,
+    "revision": 7,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "damage-clip-shrink",
+    "pixel_equal": true,
+    "revision": 8,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "damage-layout-shrink",
+    "pixel_equal": true,
+    "revision": 9,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 2,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "damage-old-new",
+    "pixel_equal": true,
+    "revision": 10,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "damage-no-visible-change",
+    "pixel_equal": true,
+    "revision": 11,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "damage-fractional",
+    "pixel_equal": true,
+    "revision": 12,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "adaptive-full",
+    "pixel_equal": true,
+    "revision": 13,
+    "layout_runs": 0,
+    "recorded_chunks": 1,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "adaptive-damage",
+    "pixel_equal": true,
+    "revision": 14,
+    "layout_runs": 0,
+    "recorded_chunks": 1,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "group-isolation",
+    "pixel_equal": true,
+    "revision": 5,
+    "layout_runs": 1,
+    "recorded_chunks": 4,
+    "leaf_layouts": 2,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "group-opacity-cache",
+    "pixel_equal": true,
+    "revision": 6,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "group-content-invalidation",
+    "pixel_equal": true,
+    "revision": 7,
+    "layout_runs": 0,
+    "recorded_chunks": 1,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "group-nested",
+    "pixel_equal": true,
+    "revision": 8,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "group-nested-opacity-invalidation",
+    "pixel_equal": true,
+    "revision": 9,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "group-zero",
+    "pixel_equal": true,
+    "revision": 10,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "group-hidden-content",
+    "pixel_equal": true,
+    "revision": 11,
+    "layout_runs": 0,
+    "recorded_chunks": 1,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "group-remove-isolation",
+    "pixel_equal": true,
+    "revision": 12,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "group-restore-isolation",
+    "pixel_equal": true,
+    "revision": 13,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "group-scale",
+    "pixel_equal": true,
+    "revision": 13,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "group-move",
+    "pixel_equal": true,
+    "revision": 14,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "group-reset",
+    "pixel_equal": true,
+    "revision": 14,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "group-in-flight",
+    "pixel_equal": true,
+    "revision": 46,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "group-clip",
+    "pixel_equal": true,
+    "revision": 47,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "group-remove-nested",
+    "pixel_equal": true,
+    "revision": 48,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "group-remove-subtree",
+    "pixel_equal": true,
+    "revision": 49,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 1,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "group-budget-recovery",
+    "pixel_equal": true,
+    "revision": 11,
+    "layout_runs": 1,
+    "recorded_chunks": 10,
+    "leaf_layouts": 9,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache",
+    "oversized_layer_budget_rejected": true
+  },
+  {
+    "case": "reactive-batch-10000",
+    "pixel_equal": true,
+    "revision": 10002,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer",
+    "sink_writes": 10000,
+    "frame_requests": 1,
+    "restore_schedules_no_gpu_work": true
+  },
+  {
+    "case": "logical-portal-fragment",
+    "pixel_equal": true,
+    "revision": 6,
+    "layout_runs": 1,
+    "recorded_chunks": 5,
+    "leaf_layouts": 3,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "logical-keyed-order",
+    "pixel_equal": true,
+    "revision": 7,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "logical-retained-state",
+    "pixel_equal": true,
+    "revision": 8,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "logical-retire-portal",
+    "pixel_equal": true,
+    "revision": 10,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "logical-reuse-generation",
+    "pixel_equal": true,
+    "revision": 11,
+    "layout_runs": 1,
+    "recorded_chunks": 1,
+    "leaf_layouts": 1,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "logical-queued-order",
+    "pixel_equal": true,
+    "revision": 43,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "measure-initial",
+    "pixel_equal": true,
+    "revision": 7,
+    "layout_runs": 1,
+    "recorded_chunks": 4,
+    "leaf_layouts": 12,
+    "measure_calls": 12,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "measure-resize-dependents",
+    "pixel_equal": true,
+    "revision": 8,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 4,
+    "measure_calls": 4,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "measure-fractional-scale",
+    "pixel_equal": true,
+    "revision": 9,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 12,
+    "measure_calls": 12,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "measure-queued-inputs",
+    "pixel_equal": true,
+    "revision": 41,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "responsive-compact",
+    "pixel_equal": true,
+    "revision": 6,
+    "layout_runs": 1,
+    "recorded_chunks": 5,
+    "leaf_layouts": 9,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "responsive-threshold",
+    "pixel_equal": true,
+    "revision": 8,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 6,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "responsive-fluid",
+    "pixel_equal": true,
+    "revision": 9,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "responsive-rtl",
+    "pixel_equal": true,
+    "revision": 10,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "responsive-retire",
+    "pixel_equal": true,
+    "revision": 11,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 1,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "responsive-content-box",
+    "pixel_equal": true,
+    "revision": 16,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 6,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "responsive-hidden-subtree",
+    "pixel_equal": true,
+    "revision": 17,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "primitive-rounded-border",
+    "pixel_equal": true,
+    "revision": 3,
+    "layout_runs": 1,
+    "recorded_chunks": 2,
+    "leaf_layouts": 2,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "primitive-color-patch",
+    "pixel_equal": true,
+    "revision": 4,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "primitive-transparent-border",
+    "pixel_equal": true,
+    "revision": 5,
+    "layout_runs": 0,
+    "recorded_chunks": 1,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "primitive-clamped-decoration",
+    "pixel_equal": true,
+    "revision": 6,
+    "layout_runs": 0,
+    "recorded_chunks": 1,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "primitive-remove-decoration",
+    "pixel_equal": true,
+    "revision": 7,
+    "layout_runs": 0,
+    "recorded_chunks": 1,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer"
+  },
+  {
+    "case": "queue-latest-resync",
+    "pixel_equal": true,
+    "revision": 65,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer",
+    "producer_coalesced": 63,
+    "producer_wakes": 1
+  },
+  {
+    "case": "image-shared-rgba",
+    "pixel_equal": true,
+    "revision": 5,
+    "layout_runs": 1,
+    "recorded_chunks": 3,
+    "leaf_layouts": 2,
+    "measure_calls": 2,
+    "reference": "fresh full retained renderer; no reused cache",
+    "texture_upload_bytes": 16
+  },
+  {
+    "case": "image-transform-reuse",
+    "pixel_equal": true,
+    "revision": 6,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "image-clip",
+    "pixel_equal": true,
+    "revision": 7,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "image-replace-same-size",
+    "pixel_equal": true,
+    "revision": 8,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "image-isolated",
+    "pixel_equal": true,
+    "revision": 9,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "image-opacity-cache",
+    "pixel_equal": true,
+    "revision": 10,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "image-resource-invalidates-layer",
+    "pixel_equal": true,
+    "revision": 11,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "image-intrinsic-change",
+    "pixel_equal": true,
+    "revision": 12,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 1,
+    "measure_calls": 1,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "image-detach",
+    "pixel_equal": true,
+    "revision": 13,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 1,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "image-in-flight-replacement",
+    "pixel_equal": true,
+    "revision": 37,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "image-skipped-base",
+    "pixel_equal": true,
+    "revision": 39,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 1,
+    "measure_calls": 1,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "image-device-epoch-scale",
+    "pixel_equal": true,
+    "revision": 39,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 1,
+    "measure_calls": 1,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "image-content-insets",
+    "pixel_equal": true,
+    "revision": 40,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 1,
+    "measure_calls": 1,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "image-mixed-paint-order",
+    "pixel_equal": true,
+    "revision": 41,
+    "layout_runs": 1,
+    "recorded_chunks": 1,
+    "leaf_layouts": 1,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "image-display-none",
+    "pixel_equal": true,
+    "revision": 43,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "image-display-restore",
+    "pixel_equal": true,
+    "revision": 44,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 1,
+    "measure_calls": 1,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "text-initial-unicode",
+    "pixel_equal": true,
+    "revision": 3,
+    "layout_runs": 1,
+    "recorded_chunks": 2,
+    "leaf_layouts": 2,
+    "measure_calls": 2,
+    "reference": "fresh full retained renderer; no reused cache",
+    "glyph_atlas_bytes": 3842,
+    "draw_calls": 2
+  },
+  {
+    "case": "text-color-material",
+    "pixel_equal": true,
+    "revision": 4,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache",
+    "glyph_material_bytes": 16,
+    "glyph_instance_bytes": 0
+  },
+  {
+    "case": "text-translation-damage",
+    "pixel_equal": true,
+    "revision": 5,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "text-clip",
+    "pixel_equal": true,
+    "revision": 6,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "text-rewrap",
+    "pixel_equal": true,
+    "revision": 7,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 2,
+    "measure_calls": 2,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "text-shared-atlas",
+    "pixel_equal": true,
+    "revision": 9,
+    "layout_runs": 1,
+    "recorded_chunks": 1,
+    "leaf_layouts": 2,
+    "measure_calls": 2,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "text-isolated-opacity",
+    "pixel_equal": true,
+    "revision": 10,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "text-opacity-cache",
+    "pixel_equal": true,
+    "revision": 11,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "text-material-invalidates-layer",
+    "pixel_equal": true,
+    "revision": 12,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "text-property-invalidates-layer",
+    "pixel_equal": true,
+    "revision": 13,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "text-resource-replacement",
+    "pixel_equal": true,
+    "revision": 14,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 2,
+    "measure_calls": 2,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "text-skipped-base",
+    "pixel_equal": true,
+    "revision": 16,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 2,
+    "measure_calls": 2,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "text-device-reset",
+    "pixel_equal": true,
+    "revision": 16,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 2,
+    "measure_calls": 2,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "text-device-scale",
+    "pixel_equal": true,
+    "revision": 19,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 4,
+    "measure_calls": 4,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "text-mixed-paint-order",
+    "pixel_equal": true,
+    "revision": 20,
+    "layout_runs": 1,
+    "recorded_chunks": 1,
+    "leaf_layouts": 1,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "text-removal-retirement",
+    "pixel_equal": true,
+    "revision": 23,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "text-in-flight-replacement",
+    "pixel_equal": true,
+    "revision": 35,
+    "layout_runs": 1,
+    "recorded_chunks": 0,
+    "leaf_layouts": 2,
+    "measure_calls": 2,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "text-multiple-atlas-pages",
+    "pixel_equal": true,
+    "revision": 3,
+    "layout_runs": 1,
+    "recorded_chunks": 2,
+    "leaf_layouts": 2,
+    "measure_calls": 2,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "text-batched-color-merge",
+    "pixel_equal": true,
+    "revision": 12,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache",
+    "glyph_material_bytes": 80,
+    "glyph_material_ranges": 1,
+    "glyph_instance_bytes": 0
+  },
+  {
+    "case": "text-batched-property-merge",
+    "pixel_equal": true,
+    "revision": 13,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache",
+    "glyph_property_bytes": 160,
+    "glyph_property_ranges": 1
+  },
+  {
+    "case": "text-material-slot-reuse",
+    "pixel_equal": true,
+    "revision": 20,
+    "layout_runs": 1,
+    "recorded_chunks": 1,
+    "leaf_layouts": 2,
+    "measure_calls": 2,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "text-property-negative-half",
+    "pixel_equal": true,
+    "revision": 21,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache",
+    "glyph_property_bytes": 32
+  },
+  {
+    "case": "text-property-positive-half",
+    "pixel_equal": true,
+    "revision": 22,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache",
+    "glyph_property_bytes": 32
+  },
+  {
+    "case": "text-property-fractional",
+    "pixel_equal": true,
+    "revision": 23,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache",
+    "glyph_property_bytes": 32
+  }
+]

@@ -5,6 +5,8 @@ text painting for the [RFC](https://app.notion.com/p/415d83088d4e818290cddca2f10
 The subsequent [glyph material update](performance/2026-11-11-glyph-materials/README.md)
 separates node colors from glyph geometry. The full implementation goal remains open in the
 [acceptance table](RETAINED_IMPLEMENTATION_PROGRESS.md).
+The [glyph property update](performance/2026-11-11-glyph-properties/README.md)
+also separates node origin/scale/clip, reusing local geometry on translation.
 
 `GlyphRasterizer` captures the real platform `TextSystem`. It prepares immutable
 `TextResource` values from a `ParagraphSnapshot`, rasterizing the actual shaped
@@ -45,7 +47,7 @@ writes a 16-byte per-node material record without rewriting glyph geometry.
 The initial frozen evidence retains its earlier inline-color upload counts.
 
 The WGPU backend packs unique masks into 1024-square R8 atlas pages and uses one
-64-byte instance per visible bitmap. Per-node ranges persist, grow geometrically
+48-byte local instance per visible bitmap (initially 64 bytes). Per-node ranges persist, grow geometrically
 and return to a coalescing free list when no longer live. Adjacent dirty ranges
 merge before buffer upload. Consecutive glyphs on the same atlas page use one
 instanced draw; switching pages preserves glyph paint order. Node glyph draws
@@ -64,8 +66,12 @@ Instances reference stable per-node color slots in a separate storage buffer.
 Color writes merge adjacent material ranges and independently invalidate layer
 contents. Slot reuse is queue ordered, and old material buffers/bindings remain
 leased through completion after growth. Color-only changes write no geometry;
-clip/translation/rewrap continue to write affected geometry instances. This
-separation reduces upload size while full CPU glyph planning still remains.
+clip/translation write independent 32-byte node property records. The shader
+resolves integer device-pixel baseline placement using the same halfway-away-from-zero
+rounding as the CPU oracle, including negative coordinates. Rewrap writes affected
+local geometry. Property changes independently invalidate raster content and merge
+adjacent writes; property buffers/bindings also remain leased through completion.
+This separation reduces upload size while full CPU glyph planning still remains.
 
 Live guards cover 32 MiB of unique bitmap data, 64 atlas pages and the device
 storage-buffer limit. They do not form a physical cross-frame budget. Packing
@@ -81,14 +87,16 @@ is separate and is not claimed pixel-identical to the retained integer-origin
 contract. Direct GPU texture import/presentation remains required.
 
 Validation includes 44 core tests, ten shared-example tests including real click
-dispatch and real Cosmic/Noto shaping/rasterization, plus 102 hardware pixel
-scenarios. Nineteen hardware cases cover text: Unicode/combining characters,
+dispatch and real Cosmic/Noto shaping/rasterization, plus 107 hardware pixel
+scenarios. Twenty-four hardware cases cover text: Unicode/combining characters,
 color/alpha, damage translation, clip, rewrap, shared masks, isolated opacity and
 cache reuse, resource replacement, skipped base, explicit reset, device scale,
 quad occlusion, removal/retirement, overlapping in-flight replacements, multiple
 atlas pages, material cache invalidation, material slot reuse and five-node
-adjacent upload merging. The latter now writes 80 material bytes in one range,
-with zero geometry/atlas upload; initial inline colors wrote 2,560 bytes.
+adjacent upload merging, signed half-pixel/fractional placement and independent
+property invalidation. Five-node color writes 80 material bytes in one range,
+five-node movement writes 160 property bytes, both with zero geometry/atlas upload;
+initial inline colors wrote 2,560 instance bytes.
 
 The incremental/full comparison uses a fresh retained renderer and the same
 glyph shader. A separate CPU full-mask blender verifies supported non-effect
@@ -108,6 +116,6 @@ scan the packet. No sublinear text-update or end-to-end FPS claim follows.
 Remaining text acceptance includes rich text/font runs and decorations, full
 bidi and alignment contracts, editing/selection/caret/IME, color glyphs, LCD and
 subpixel variants, automatic font subscriptions, async preparation/cancellation,
-property indirection, general/rich-text materials, indexed chunk deltas, robust pressure handling,
+general shared GPU property trees, general/rich-text materials, indexed chunk deltas, robust pressure handling,
 cross-backend validation and native presentation. Paths and shadows remain
 separate unimplemented primitive classes.

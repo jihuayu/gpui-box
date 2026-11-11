@@ -225,6 +225,14 @@ pub(super) fn run(
     frame = tree.frame([400.0, 220.0])?;
     let moved = renderer.submit(&frame, [400, 220], 1.0)?.unwrap();
     assert_eq!(moved.gpu.glyph_atlas_bytes, 0);
+    assert_eq!(
+        (
+            moved.gpu.glyph_instance_bytes,
+            moved.gpu.glyph_material_bytes,
+            moved.gpu.glyph_property_bytes
+        ),
+        (0, 0, 32)
+    );
     cpu_oracle(&frame, [400, 220], 1.0, &renderer.image()?);
     compare(
         renderer,
@@ -247,7 +255,14 @@ pub(super) fn run(
     );
     tree.commit(tx, BackendCapabilities::default())?;
     frame = tree.frame([400.0, 220.0])?;
-    renderer.submit(&frame, [400, 220], 1.0)?;
+    let clipped = renderer.submit(&frame, [400, 220], 1.0)?.unwrap();
+    assert_eq!(
+        (
+            clipped.gpu.glyph_instance_bytes,
+            clipped.gpu.glyph_property_bytes
+        ),
+        (0, 32)
+    );
     cpu_oracle(&frame, [400, 220], 1.0, &renderer.image()?);
     compare(
         renderer,
@@ -321,9 +336,10 @@ pub(super) fn run(
             opacity.gpu.glyph_atlas_bytes,
             opacity.gpu.glyph_instance_bytes,
             opacity.gpu.glyph_material_bytes,
+            opacity.gpu.glyph_property_bytes,
             opacity.gpu.rasterized_layers
         ),
-        (0, 0, 0, 0)
+        (0, 0, 0, 0, 0)
     );
     compare(
         renderer,
@@ -351,6 +367,28 @@ pub(super) fn run(
         [400, 220],
         1.0,
         "text-material-invalidates-layer",
+        output,
+        results,
+    )?;
+    let mut tx = Transaction::default();
+    tx.translation(node, [4.5, 4.5]);
+    tree.commit(tx, BackendCapabilities::default())?;
+    frame = tree.frame([400.0, 220.0])?;
+    let property_layer = renderer.submit(&frame, [400, 220], 1.0)?.unwrap();
+    assert_eq!(
+        (
+            property_layer.gpu.rasterized_layers,
+            property_layer.gpu.glyph_instance_bytes,
+            property_layer.gpu.glyph_property_bytes
+        ),
+        (1, 0, 32)
+    );
+    compare(
+        renderer,
+        &frame,
+        [400, 220],
+        1.0,
+        "text-property-invalidates-layer",
         output,
         results,
     )?;
@@ -577,6 +615,35 @@ pub(super) fn run(
     results.last_mut().unwrap()["glyph_material_bytes"] = batched.gpu.glyph_material_bytes.into();
     results.last_mut().unwrap()["glyph_material_ranges"] = batched.gpu.glyph_material_ranges.into();
     results.last_mut().unwrap()["glyph_instance_bytes"] = batched.gpu.glyph_instance_bytes.into();
+    let mut tx = Transaction::default();
+    for node in &nodes {
+        tx.translation(*node, [0.5, 0.5]);
+    }
+    batch.commit(tx, BackendCapabilities::default())?;
+    let property_frame = batch.frame([400.0, 220.0])?;
+    let properties = renderer.submit(&property_frame, [400, 220], 1.0)?.unwrap();
+    assert_eq!(
+        (
+            properties.gpu.glyph_atlas_bytes,
+            properties.gpu.glyph_instance_bytes,
+            properties.gpu.glyph_material_bytes,
+            properties.gpu.glyph_property_bytes,
+            properties.gpu.glyph_property_ranges
+        ),
+        (0, 0, 0, 160, 1)
+    );
+    cpu_oracle(&property_frame, [400, 220], 1.0, &renderer.image()?);
+    compare(
+        renderer,
+        &property_frame,
+        [400, 220],
+        1.0,
+        "text-batched-property-merge",
+        output,
+        results,
+    )?;
+    results.last_mut().unwrap()["glyph_property_bytes"] = 160.into();
+    results.last_mut().unwrap()["glyph_property_ranges"] = 1.into();
     for node in nodes {
         batch.remove(node)?;
     }
@@ -596,6 +663,28 @@ pub(super) fn run(
         output,
         results,
     )?;
+    for (name, offset) in [
+        ("text-property-negative-half", [-8.5, -0.5]),
+        ("text-property-positive-half", [0.5, 0.5]),
+        ("text-property-fractional", [0.49, 0.51]),
+    ] {
+        let mut tx = Transaction::default();
+        tx.translation(node, offset);
+        batch.commit(tx, BackendCapabilities::default())?;
+        let frame = batch.frame([400.0, 220.0])?;
+        let submit = renderer.submit(&frame, [400, 220], 1.0)?.unwrap();
+        assert_eq!(
+            (
+                submit.gpu.glyph_instance_bytes,
+                submit.gpu.glyph_material_bytes,
+                submit.gpu.glyph_property_bytes
+            ),
+            (0, 0, 32)
+        );
+        cpu_oracle(&frame, [400, 220], 1.0, &renderer.image()?);
+        compare(renderer, &frame, [400, 220], 1.0, name, output, results)?;
+        results.last_mut().unwrap()["glyph_property_bytes"] = 32.into();
+    }
     Ok(())
 }
 
@@ -615,6 +704,7 @@ pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
     let mut atlas_bytes = [vec![], vec![], vec![]];
     let mut instance_bytes = [vec![], vec![], vec![]];
     let mut material_bytes = [vec![], vec![], vec![]];
+    let mut property_bytes = [vec![], vec![], vec![]];
     let mut baseline_pixels = None;
     for round in 0..3 {
         for mode in (0..3).map(|index| (index + round) % 3) {
@@ -626,9 +716,8 @@ pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
                     &resource,
                     if i % 2 == 0 { 0x88ddffff } else { 0xffdd88ff },
                 )?;
-                // Identical visible pixels: vary a clip edge beyond the text ink solely
-                // in mode 1 to exercise full instance rewrites with a warm atlas.
-                // This is an upload-path diagnostic, not the old inline-color shader.
+                // Identical visible pixels: mode 1 also varies a clip edge
+                // beyond the text ink, exercising the separate property path.
                 let edge = if mode == 1 { (i % 2) as f32 } else { 0.0 };
                 let mut tx = Transaction::default();
                 tx.clip(
@@ -655,6 +744,7 @@ pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
                     atlas_bytes[mode].push(submit.gpu.glyph_atlas_bytes);
                     instance_bytes[mode].push(submit.gpu.glyph_instance_bytes);
                     material_bytes[mode].push(submit.gpu.glyph_material_bytes);
+                    property_bytes[mode].push(submit.gpu.glyph_property_bytes);
                 }
             }
             round_samples.sort_by(f64::total_cmp);
@@ -690,14 +780,24 @@ pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
             assert_eq!((instance_bytes[mode][0], material_bytes[mode][0]), (0, 16));
         }
         if mode == 1 {
-            assert_eq!(
-                (instance_bytes[mode][0], material_bytes[mode][0]),
-                (450 * 64, 16)
-            );
+            assert_eq!((instance_bytes[mode][0], material_bytes[mode][0]), (0, 16));
         }
-        cases.push(serde_json::json!({"mode":match mode {0=>"reuse glyph atlas and instances; material-only color",1=>"warm atlas; outside-ink clip alternation rewrites instances",_=>"cold renderer uploads same glyph masks"},"samples":samples[mode].len(),"median_us":samples[mode][samples[mode].len()/2],"p95_us":samples[mode][samples[mode].len()*95/100],"atlas_bytes_per_frame":atlas_bytes[mode][0],"instance_bytes_per_frame":instance_bytes[mode][0],"material_bytes_per_frame":material_bytes[mode][0],"sorted_samples_us":samples[mode],"round_medians_us":round_medians[mode],"pixel_equal":true}));
+        assert!(
+            property_bytes[mode]
+                .iter()
+                .all(|bytes| *bytes == property_bytes[mode][0])
+        );
+        assert_eq!(
+            property_bytes[mode][0],
+            match mode {
+                0 => 0,
+                1 => 32,
+                _ => 64,
+            }
+        );
+        cases.push(serde_json::json!({"mode":match mode {0=>"reuse glyph atlas and instances; material-only color",1=>"warm atlas; material and outside-ink clip properties",_=>"cold renderer uploads same glyph masks"},"samples":samples[mode].len(),"median_us":samples[mode][samples[mode].len()/2],"p95_us":samples[mode][samples[mode].len()*95/100],"atlas_bytes_per_frame":atlas_bytes[mode][0],"instance_bytes_per_frame":instance_bytes[mode][0],"material_bytes_per_frame":material_bytes[mode][0],"property_bytes_per_frame":property_bytes[mode][0],"sorted_samples_us":samples[mode],"round_medians_us":round_medians[mode],"pixel_equal":true}));
     }
     Ok(
-        serde_json::json!({"scope":"Full-redraw FramePacket submit + GPU completion for text color changes. Warm instance-rewrite diagnostic varies a clip edge beyond the text ink with identical output and same material shader; it is not a reconstruction of the previous inline-color shader. Resources, shaping, rasterization, snapshot extraction and renderer reset construction outside timing. Cold mode starts with empty GPU atlas/instances, including GPU allocation/binding and buffer growth. No readback/presentation. 3 rotating rounds, 6 warmups + 20 samples per mode per round.","glyphs":resource.chunk(780.0)?.glyphs.len(),"rasterized_glyphs":raster.rasterized_glyphs(),"cases":cases}),
+        serde_json::json!({"scope":"Full-redraw FramePacket submit + GPU completion for text color changes. Second warm mode also changes a clip edge beyond text ink with identical output, exercising property-only writes. Resources, shaping, rasterization, snapshot extraction and renderer reset construction outside timing. Cold mode starts with empty GPU atlas/instances, including GPU allocation/binding and buffer growth. No readback/presentation. 3 rotating rounds, 6 warmups + 20 samples per mode per round.","glyphs":resource.chunk(780.0)?.glyphs.len(),"rasterized_glyphs":raster.rasterized_glyphs(),"cases":cases}),
     )
 }

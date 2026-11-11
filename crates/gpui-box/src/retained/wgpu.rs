@@ -498,17 +498,17 @@ fn glyph_batches(frame: &FramePacket, scale: f32) -> Result<Vec<gpui_wgpu::Glyph
                     clip.height * scale,
                 ],
                 color: text.color,
+                origin: [item.content_bounds.x, item.content_bounds.y],
+                scale,
                 glyphs: chunk
                     .glyphs
                     .iter()
-                    .map(|glyph| {
-                        let bounds = item.glyph_bounds(glyph, scale);
-                        gpui_wgpu::RetainedGlyph {
-                            resource: glyph.bitmap.id(),
-                            size: glyph.bitmap.size,
-                            mask: glyph.bitmap.mask().clone(),
-                            bounds: [bounds.x, bounds.y, bounds.width, bounds.height],
-                        }
+                    .map(|glyph| gpui_wgpu::RetainedGlyph {
+                        resource: glyph.bitmap.id(),
+                        size: glyph.bitmap.size,
+                        mask: glyph.bitmap.mask().clone(),
+                        origin: glyph.origin,
+                        offset: glyph.bitmap.offset,
                     })
                     .collect(),
             });
