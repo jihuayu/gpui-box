@@ -9,6 +9,10 @@ pub const UPSTREAM_REVISION: &str = "f8cfc7ed9e57503def9479138894f3139f5400cc";
 /// The gpui-box package version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// Typed system-service contracts, independent of native provider dependencies.
+#[cfg(feature = "system")]
+pub use gpui_system as system;
+
 /// GPUI types from the distribution's coordinated source tree.
 #[cfg(any(
     all(
