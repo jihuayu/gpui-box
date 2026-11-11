@@ -2041,6 +2041,7 @@ dependencies = [
  "anyhow",
  "futures",
  "gpui",
+ "gpui-lifecycle",
  "gpui_wgpu",
  "jni",
  "log",
@@ -2123,7 +2124,10 @@ version = "0.1.0-dev"
 dependencies = [
  "accesskit",
  "gpui",
+ "gpui-android",
  "gpui-box-components",
+ "gpui-lifecycle",
+ "gpui-system",
 ]
 
 [[package]]

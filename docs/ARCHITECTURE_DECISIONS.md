@@ -257,3 +257,80 @@ release work. Keep physical-test status explicit in milestone reports.
 The host can directly use modern WindowInsets and system-back APIs. Emulator
 evidence supports continued platform development. Hardware qualification remains
 a separate prerequisite for declaring supported release devices.
+
+## ADR-012 — Prototype explicit Entity-backed state and application-owned caches
+
+### Context
+
+The component layer needs retained input drafts, selective subscriptions and
+stale-response protection while desktop and Android share one GPUI identity.
+
+### Decision
+
+Implement Signal, Memo, Store selectors, Binding and ReactiveScope directly over
+GPUI Entity/observe/notify. Scopes batch owner notifications and release retained
+subscriptions on clear/drop. Input controllers own draft, composition and directed
+selection. A Binding updates a separate committed value explicitly. One QueryClient
+owns each account's cache. Requests carry client identity, cancellation and request
+IDs. Mutations reconcile against the captured cache revision and account epoch.
+Account changes cancel requests and clear cached data. Applications select their
+executor and transport. The public API remains a prototype pending wider cases.
+
+```mermaid
+flowchart LR
+    Input[Retained TextInput draft] --> Commit[Explicit commit]
+    Commit --> Signal[Entity-backed committed Signal]
+    Signal --> Memo[Equality-filtered Memo]
+    Memo --> Scope[ReactiveScope subscription]
+    Scope --> View[GPUI owner notification]
+    Provider[Application service] --> Request[Client-scoped request]
+    Request --> Cache[Account-owned QueryClient]
+    Cache --> View
+```
+
+### Reference comparison
+
+Web query/store patterns motivate separating server data ownership from local UI
+state and revision-based mutation conflict handling. Android Repository/ViewModel
+patterns motivate screen-owned lifetime and explicit cancellation. SwiftUI
+Observation/Binding motivates projected values and explicit field bindings.
+Riverpod motivates scoped disposal and testable service boundaries. The prototype
+uses GPUI's existing scheduling and explicit subscriptions. It has eager memos,
+no implicit read tracking, no background transport and no automatic refetch.
+
+### Consequences
+
+Real GPUI context tests can measure notification batching and selector filtering.
+Render counters in the gallery describe render calls only. Layout/paint counts,
+input latency, virtualized lists, multiwindow lifetimes and production service
+overrides remain separate acceptance work. Conflicting mutations require refetch.
+
+## ADR-013 — Share native lifecycle observations and bounded transient restoration
+
+### Context
+
+The merged lifecycle crate provides application contracts and deterministic
+restoration. Android supplies platform observations and Bundle-based recreation.
+
+### Decision
+
+The main-Looper Android host owns one LifecycleService and installs its cloned
+handle in GPUI SystemServices before application launch. Surface generation gates
+visibility/focus/preference observations. Activity started/resumed and window focus
+remain separate inputs. Report OS appearance, font scale, locale, animation-disabled
+preference, keyguard and memory warnings. Unsupported observations stay unavailable.
+
+Applications register a save callback and consume pending bytes through their
+launch App context. Android stores at most 128 KiB in saved-instance state. The
+example uses gpui-lifecycle VersionedSnapshot for route/preferences/counter,
+committed value, drafts, directed selections and focus. Restore finishes composition
+from the old IME connection. Activity recreation retains authoritative live Rust
+state. Process recreation consumes the saved Bundle once.
+
+### Consequences
+
+Bundle snapshots are transient UI state. Business data and durable activation use
+private storage and the activation inbox. Pending URL IDs survive Activity
+recreation with a 16-entry host queue and a 256-ID process duplicate window.
+Applications requiring durable routing must accept into their own persisted inbox.
+GPU recovery and physical qualification retain independent gates.

@@ -9,6 +9,11 @@ publish.workspace = true
 gpui.workspace = true
 accesskit = "0.24.0"
 gpui-box-components = { path = "../../components/gpui-box-components" }
+gpui-system.workspace = true
+
+[target.'cfg(target_os = "android")'.dependencies]
+gpui-android.workspace = true
+gpui-lifecycle.workspace = true
 
 [lints]
 workspace = true

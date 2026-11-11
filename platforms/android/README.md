@@ -112,10 +112,16 @@ configuration remains unverified.
 
 This is a single-window platform skeleton. The display reports a provisional
 60 Hz refresh interval. Background timers use individual sleeping threads.
-Credentials, file pickers, URL intents, TalkBack qualification, virtual-node
-hover/text-selection, GPU device-loss recovery, process-death persistence and
-advanced IME cases remain platform work. Runtime state survives Activity recreation within a live
-process. A new process starts with the example's initial state.
+Credentials, file pickers, TalkBack speech/traversal qualification, GPU device-loss
+recovery and advanced IME cases remain platform work. The AccessKit adapter maps
+physical-pixel/transformed geometry, hover, virtual focus and UTF-16 selections.
+UiAutomation exercises native provider actions. Custom URL intents use generated
+declarations and bounded application-owned acceptance. Lifecycle observations share
+the installed LifecycleService. Runtime state survives Activity recreation within a
+live process. Applications may register versioned transient saved-state hooks. The
+example restores route, preferences, counter, committed values, field drafts,
+selection and focus after background process reclamation. Business persistence
+uses private storage separately. See ADR-012/013 and the M1 continuation report.
 
 See [M0 validation](../../docs/M0_ANDROID_VALIDATION.md) for commands, results,
 renderer decision, and deferred device qualification. See

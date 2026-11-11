@@ -12,5 +12,8 @@ gpui-system.workspace = true
 accesskit = "0.24.0"
 unicode-segmentation = "1.12"
 
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }
+
 [lints]
 workspace = true

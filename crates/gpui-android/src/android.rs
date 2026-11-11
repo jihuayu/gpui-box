@@ -2,14 +2,17 @@ mod accessibility;
 mod bridge;
 mod dispatcher;
 mod entrypoint;
+mod host;
 mod platform;
 mod window;
 
 pub use bridge::{
     attach, back, back_enabled, back_gesture, caret_bounds, clipboard_action, detach, edit,
     editor_action, editor_info, frame, initialize, input_session, insets, key, lifecycle,
-    memory_warning, resize, text, text_state, touch,
+    memory_warning, on_activation, on_saved_state, open_url_event, resize, restore_state,
+    save_state, take_saved_state, text, text_state, touch,
 };
+pub use host::{host_snapshot, host_state, lifecycle_service};
 pub use platform::AndroidPlatform;
 
 use std::cell::{Cell, RefCell};

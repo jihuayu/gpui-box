@@ -78,6 +78,10 @@ pub fn create(root: &Path, distribution: PathBuf) -> Result<(), String> {
         update_channel: "development".into(),
         permissions: vec![],
         assets: vec![PathBuf::from("assets")],
+        services: crate::config::Services {
+            schema_version: 1,
+            ..Default::default()
+        },
     };
     config.validate()?;
     // Build a sibling directory, then publish the complete project in one rename.
@@ -163,7 +167,7 @@ debug = "limited"
             components = quoted(&format!("{distribution}/components/gpui-box-components"))
         ),
     );
-    add("app/Cargo.toml", "[package]\nname = \"box-app\"\nversion = \"0.1.0\"\nedition = \"2024\"\nlicense = \"Apache-2.0\"\n[dependencies]\ngpui.workspace = true\ngpui-box-components.workspace = true\n".into());
+    add("app/Cargo.toml", "[package]\nname = \"box-app\"\nversion = \"0.1.0\"\nedition = \"2024\"\nlicense = \"Apache-2.0\"\n[dependencies]\ngpui.workspace = true\ngpui-box-components.workspace = true\n[target.'cfg(target_os = \"android\")'.dependencies]\ngpui-box = { workspace = true, features = [\"android\"] }\n".into());
     add("desktop/Cargo.toml", "[package]\nname = \"box-desktop\"\nversion = \"0.1.0\"\nedition = \"2024\"\nlicense = \"Apache-2.0\"\n[dependencies]\ngpui-box = { workspace = true, features = [\"desktop\"] }\nbox-app = { path = \"../app\" }\n".into());
     add("android/Cargo.toml", "[package]\nname = \"box-android\"\nversion = \"0.1.0\"\nedition = \"2024\"\nlicense = \"Apache-2.0\"\n[lib]\nname = \"gpui_box_android\"\ncrate-type = [\"cdylib\"]\n[target.'cfg(target_os = \"android\")'.dependencies]\ngpui-box = { workspace = true, features = [\"android\"] }\nbox-app = { path = \"../app\" }\n".into());
     add(
@@ -220,15 +224,30 @@ include(":app")
         );
     }
     add("android-host/app/build.gradle.kts", host);
-    let permission = if config
+    let mut permission = if config
         .permissions
         .iter()
         .any(|permission| permission == "internet")
     {
-        "<uses-permission android:name=\"android.permission.INTERNET\" />"
+        "<uses-permission android:name=\"android.permission.INTERNET\" />".to_string()
     } else {
-        ""
+        String::new()
     };
+    for declaration in &config.services.permissions {
+        for name in declaration.kind.android_permissions() {
+            permission += &format!("\n<uses-permission android:name=\"{name}\" />");
+        }
+    }
+    let mut registrations = String::new();
+    for scheme in &config.services.url_schemes {
+        registrations += &format!(
+            "<intent-filter><action android:name=\"android.intent.action.VIEW\"/><category android:name=\"android.intent.category.DEFAULT\"/><category android:name=\"android.intent.category.BROWSABLE\"/><data android:scheme=\"{scheme}\"/></intent-filter>\n"
+        );
+    }
+    add(
+        "android-host/app/src/main/assets/gpui-box-services.json",
+        serde_json::to_string_pretty(&config.services).map_err(|error| error.to_string())?,
+    );
     let name = config
         .name
         .replace('\\', "\\\\")
@@ -247,7 +266,7 @@ include(":app")
             r#"<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 {permission}<uses-feature android:name="android.hardware.vulkan.level" android:version="1" android:required="true" />
 <application android:label="@string/app_name" android:theme="@android:style/Theme.Material.NoActionBar" android:allowBackup="false" android:enableOnBackInvokedCallback="true">
-<activity android:name="dev.gpui.box.MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity>
+<activity android:name="dev.gpui.box.MainActivity" android:exported="true" android:launchMode="singleTop" android:windowSoftInputMode="adjustResize"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>{registrations}</activity>
 </application></manifest>
 "#
         ),

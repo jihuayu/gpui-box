@@ -183,3 +183,72 @@ fn version_and_assets_are_validated_and_propagated() {
     fs::write(file, serde_json::to_vec(&config).unwrap()).unwrap();
     assert!(!cli(&app, &["generate"]).status.success());
 }
+
+#[test]
+fn typed_services_generate_requested_declarations_and_remove_obsolete_entries() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create(temporary.path());
+    let file = app.join("gpui-box.json");
+    let mut config: serde_json::Value = serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();
+    config["services"] = serde_json::json!({
+        "schema_version": 1,
+        "permissions": [{ "kind": "camera", "purpose": "Scan a document after selecting Scan" }],
+        "url_schemes": ["gpui-box-test"]
+    });
+    fs::write(&file, serde_json::to_vec(&config).unwrap()).unwrap();
+    fs::write(
+        app.join("android-custom.gradle.kts"),
+        "// app customization\n",
+    )
+    .unwrap();
+    assert!(cli(&app, &["generate"]).status.success());
+    let manifest =
+        fs::read_to_string(app.join("android-host/app/src/main/AndroidManifest.xml")).unwrap();
+    assert!(manifest.contains("android.permission.CAMERA"));
+    assert!(!manifest.contains("android.permission.RECORD_AUDIO"));
+    assert!(manifest.contains("android:scheme=\"gpui-box-test\""));
+    let declarations =
+        fs::read_to_string(app.join("android-host/app/src/main/assets/gpui-box-services.json"))
+            .unwrap();
+    assert!(declarations.contains("Scan a document"));
+    assert_eq!(
+        fs::read_to_string(app.join("android-custom.gradle.kts")).unwrap(),
+        "// app customization\n"
+    );
+    config["services"]["permissions"] = serde_json::json!([]);
+    config["services"]["url_schemes"] = serde_json::json!([]);
+    fs::write(&file, serde_json::to_vec(&config).unwrap()).unwrap();
+    assert!(cli(&app, &["generate"]).status.success());
+    let manifest =
+        fs::read_to_string(app.join("android-host/app/src/main/AndroidManifest.xml")).unwrap();
+    assert!(!manifest.contains("android.permission.CAMERA"));
+    assert!(!manifest.contains("gpui-box-test"));
+}
+
+#[test]
+fn typed_services_reject_unknown_ambiguous_or_incomplete_configuration() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create(temporary.path());
+    let file = app.join("gpui-box.json");
+    let original: serde_json::Value = serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();
+    for services in [
+        serde_json::json!({"schema_version": 0}),
+        serde_json::json!({"schema_version": 2}),
+        serde_json::json!({"notifications": true}),
+        serde_json::json!({"permissions": [{"kind": "camera", "purpose": ""}]}),
+        serde_json::json!({"permissions": [{"kind": "photos", "purpose": "Pick photos"}]}),
+        serde_json::json!({"permissions": [{"kind": "camera", "purpose": "Scan"}, {"kind": "camera", "purpose": "Again"}]}),
+        serde_json::json!({"url_schemes": ["https"]}),
+        serde_json::json!({"url_schemes": ["content"]}),
+        serde_json::json!({"url_schemes": ["Bad\"Scheme"]}),
+        serde_json::json!({"url_schemes": ["test", "test"]}),
+    ] {
+        let mut config = original.clone();
+        config["services"] = services;
+        fs::write(&file, serde_json::to_vec(&config).unwrap()).unwrap();
+        assert!(
+            !cli(&app, &["generate"]).status.success(),
+            "should reject {config}"
+        );
+    }
+}

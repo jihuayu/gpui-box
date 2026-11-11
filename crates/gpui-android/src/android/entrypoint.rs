@@ -4,8 +4,8 @@ macro_rules! android_entrypoint {
     ($launch:path) => {
         use $crate::jni::{
             JNIEnv,
-            objects::{JClass, JObject, JString},
-            sys::{jboolean, jfloatArray, jint, jintArray, jlong, jstring},
+            objects::{JByteArray, JClass, JObject, JString},
+            sys::{jboolean, jbyteArray, jfloatArray, jint, jintArray, jlong, jstring},
         };
 
         fn report(env: &mut JNIEnv, result: Result<(), String>) {
@@ -83,6 +83,70 @@ macro_rules! android_entrypoint {
         ) {
             boundary(&mut env, |_env| {
                 $crate::lifecycle(generation as u64, resumed != 0);
+            })
+        }
+        #[unsafe(no_mangle)]
+        pub unsafe extern "system" fn Java_dev_gpui_box_NativeBridge_saveState(
+            mut env: JNIEnv,
+            _: JClass,
+        ) -> jbyteArray {
+            boundary(&mut env, |env| {
+                env.byte_array_from_slice(&$crate::save_state())
+                    .map(|s| s.into_raw())
+                    .unwrap_or_default()
+            })
+        }
+        #[unsafe(no_mangle)]
+        pub unsafe extern "system" fn Java_dev_gpui_box_NativeBridge_restoreState(
+            mut env: JNIEnv,
+            _: JClass,
+            state: JByteArray,
+        ) {
+            boundary(&mut env, |env| {
+                if let Ok(value) = env.convert_byte_array(&state) {
+                    $crate::restore_state(value);
+                }
+            })
+        }
+        #[unsafe(no_mangle)]
+        pub unsafe extern "system" fn Java_dev_gpui_box_NativeBridge_hostState(
+            mut env: JNIEnv,
+            _: JClass,
+            generation: jlong,
+            resumed: jboolean,
+            focused: jboolean,
+            locked: jboolean,
+            dark: jboolean,
+            text_scale: f32,
+            locale: JString,
+            reduced_motion: jboolean,
+        ) {
+            boundary(&mut env, |env| {
+                let locale: String = match env.get_string(&locale) {
+                    Ok(value) => value.into(),
+                    Err(_) => return,
+                };
+                $crate::host_state(
+                    generation as u64,
+                    resumed != 0,
+                    focused != 0,
+                    locked != 0,
+                    dark != 0,
+                    text_scale,
+                    &locale,
+                    reduced_motion != 0,
+                );
+            })
+        }
+        #[unsafe(no_mangle)]
+        pub unsafe extern "system" fn Java_dev_gpui_box_NativeBridge_hostSnapshot(
+            mut env: JNIEnv,
+            _: JClass,
+        ) -> jstring {
+            boundary(&mut env, |env| {
+                env.new_string($crate::host_snapshot())
+                    .map(|s| s.into_raw())
+                    .unwrap_or_default()
             })
         }
         #[unsafe(no_mangle)]
@@ -281,6 +345,24 @@ macro_rules! android_entrypoint {
         }
         static NATIVE_FAILED: std::sync::atomic::AtomicBool =
             std::sync::atomic::AtomicBool::new(false);
+        #[unsafe(no_mangle)]
+        pub unsafe extern "system" fn Java_dev_gpui_box_NativeBridge_openUrlEvent(
+            mut env: JNIEnv,
+            _: JClass,
+            generation: jlong,
+            id: JString,
+            url: JString,
+        ) -> jboolean {
+            boundary(&mut env, |env| {
+                let Ok(id) = env.get_string(&id).map(String::from) else {
+                    return 0;
+                };
+                let Ok(url) = env.get_string(&url).map(String::from) else {
+                    return 0;
+                };
+                $crate::open_url_event(generation as u64, &id, &url) as jboolean
+            })
+        }
         #[unsafe(no_mangle)]
         pub unsafe extern "system" fn Java_dev_gpui_box_NativeBridge_caretBounds(
             mut env: JNIEnv,

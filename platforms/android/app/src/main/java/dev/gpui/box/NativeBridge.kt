@@ -42,6 +42,10 @@ object NativeBridge {
     fun nextGeneration(): Long = generations.incrementAndGet()
     fun nextContact(): Long = contacts.incrementAndGet()
     fun checkMain() { check(Looper.myLooper() === Looper.getMainLooper()) }
+    @JvmStatic fun openUrl(value: String): Boolean {
+        checkMain()
+        return (view.get()?.context as? MainActivity)?.openUrl(value) ?: false
+    }
 
     @JvmStatic fun request(command: Int) {
         val attachment = attachments.get()
@@ -85,6 +89,11 @@ object NativeBridge {
     @JvmStatic external fun resize(generation: Long, width: Int, height: Int, density: Float)
     @JvmStatic external fun frame(generation: Long)
     @JvmStatic external fun lifecycle(generation: Long, resumed: Boolean)
+    @JvmStatic external fun hostState(generation: Long, resumed: Boolean, focused: Boolean,
+        locked: Boolean, dark: Boolean, textScale: Float, locale: String, reducedMotion: Boolean)
+    @JvmStatic external fun hostSnapshot(): String
+    @JvmStatic external fun saveState(): ByteArray
+    @JvmStatic external fun restoreState(state: ByteArray)
     @JvmStatic external fun touch(generation: Long, id: Long, phase: Int, x: Float, y: Float)
     @JvmStatic external fun text(generation: Long): String
     @JvmStatic external fun textState(generation: Long): IntArray
@@ -95,5 +104,6 @@ object NativeBridge {
     @JvmStatic external fun backGesture(generation: Long, phase: Int, x: Float, y: Float, progress: Float): Boolean
     @JvmStatic external fun key(generation: Long, key: String, modifiers: Int, down: Boolean, held: Boolean): Boolean
     @JvmStatic external fun memoryWarning()
+    @JvmStatic external fun openUrlEvent(generation: Long, id: String, url: String): Boolean
     @JvmStatic external fun clipboardAction(generation: Long, session: Long, operation: Int): Boolean
 }

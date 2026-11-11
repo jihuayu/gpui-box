@@ -27,8 +27,22 @@ class AccessibilityGalleryTest {
             var nodes = JSONArray(NativeBridge.accessibilitySnapshot(generation, true))
             val fields = (0 until nodes.length()).map { nodes.getJSONObject(it) }.filter { it.getString("class") == "android.widget.EditText" }
             assertEquals(2, fields.size)
-            assertTrue(NativeBridge.accessibilityAction(generation, fields[0].getString("id").toULong().toLong(), 2, "Accessible draft"))
+            val initialPrimary = fields.single { it.optString("label") == "Primary draft" }
+            assertTrue(NativeBridge.accessibilityAction(generation, initialPrimary.getString("id").toULong().toLong(), 2, "Accessible draft"))
             NativeBridge.frame(generation)
+            nodes = JSONArray(NativeBridge.accessibilitySnapshot(generation, true))
+            val primary = (0 until nodes.length()).map { nodes.getJSONObject(it) }
+                .single { it.optString("label") == "Primary draft" }
+            assertTrue(primary.optBoolean("selectable"))
+            val primaryId = primary.getString("id").toULong().toLong()
+            assertTrue(NativeBridge.accessibilityAction(generation, primaryId, 3, "[2,7]"))
+            NativeBridge.frame(generation)
+            assertEquals(2, NativeBridge.textState(generation)[0])
+            assertEquals(7, NativeBridge.textState(generation)[1])
+            assertFalse(NativeBridge.accessibilityAction(generation, primaryId, 3, "[-1,7]"))
+            assertFalse(NativeBridge.accessibilityAction(generation, primaryId, 3, "[0,999999]"))
+            val bounds = primary.getJSONArray("bounds")
+            assertTrue("AccessKit bounds are physical pixels within the viewport", bounds.getDouble(2) <= view.width)
             val gallery = (0 until nodes.length()).map { nodes.getJSONObject(it) }
                 .single { it.optString("label") == "Open component gallery" }
             assertTrue(NativeBridge.accessibilityAction(generation, gallery.getString("id").toULong().toLong(), 0, ""))

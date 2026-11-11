@@ -103,6 +103,21 @@ pub fn doctor(root: &Path) -> Result<(), String> {
     );
     println!("Distribution {}", distribution.display());
     let mut missing = false;
+    println!(
+        "Service declaration schema {}",
+        config.services.schema_version
+    );
+    for declaration in &config.services.permissions {
+        println!(
+            "CONFIGURED Android {:?} permission. Native provider runtime evidence remains pending in #20/#2.",
+            declaration.kind
+        );
+    }
+    for scheme in &config.services.url_schemes {
+        println!(
+            "CONFIGURED Android custom URL scheme {scheme}. Validate host routing through the packaged application."
+        );
+    }
     for asset in &config.assets {
         if !root.join(asset).exists() {
             missing = true;

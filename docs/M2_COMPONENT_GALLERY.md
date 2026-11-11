@@ -88,3 +88,33 @@ issues and gallery integration gates.
 
 The model prototypes establish ownership and stale-result behavior. Their API
 and performance need further testing before a stable application-model contract.
+
+## State and data prototype continuation
+
+`reactive` supplies Entity-backed Signal/Memo/Binding/Store and ReactiveScope.
+The owning view retains its scope. Equality filters selector notifications,
+multiple changes batch one scoped notification, and clear/drop releases subscriptions.
+The shared gallery commits its retained TextInput draft explicitly and displays
+separate scoped-notification and render-call counters. These counters do not
+measure layout, paint or input latency.
+
+`query` supplies a local application-owned QueryClient. Requests are cancelled on
+drop/replacement/account change. Stale, duplicate, foreign-client and cancelled
+completions are rejected. Refresh errors retain the last successful value.
+Mutation reconciliation uses client identity, account epoch and cache revision.
+Conflicts require application-driven refetch. The gallery uses controlled fake
+completions to exercise loading/data/logout behavior. Transport, automatic refetch,
+production ScreenModel service overrides and realtime/master-detail remain open.
+
+The Android host now installs the shared lifecycle service and exposes transient
+saved-state hooks. The gallery serializes a versioned route/preferences/counter,
+committed value and field drafts with directed selections/focus. Composition from
+an old process is finished. See ADR-012/013 and the Android validation continuation.
+
+Five model tests and two real GPUI context tests cover navigation/resource/query,
+request cancellation, refresh error retention, duplicate/stale/foreign-client
+rejection, account cleanup, mutation conflicts, selector filtering, batching and
+subscription disposal. Native-provider and gallery instrumentation add end-to-end
+checks for text selection, draft/commit isolation and retained text scaling.
+The earlier remaining checklist is historical. Implemented prototypes above
+supersede its state/query entries while wider acceptance remains open in #3.
