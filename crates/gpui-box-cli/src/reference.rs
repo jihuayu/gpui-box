@@ -27,7 +27,7 @@ pub struct ErrorReference {
 
 const COMMANDS: &[CommandReference] = &[
     CommandReference {
-        syntax: "new PATH --distribution PATH [--targets desktop,android] [--template starter|adaptive|component|workbench|workbench]",
+        syntax: "new PATH --distribution PATH [--targets desktop,android] [--template starter|adaptive|component|workbench]",
         summary: "Create a version-1 application in a new directory",
         result: "Destination and template identity",
         effects: "Publish a staged project. A failed staging tree is retained",
@@ -35,7 +35,7 @@ const COMMANDS: &[CommandReference] = &[
         json: true,
     },
     CommandReference {
-        syntax: "init PATH --distribution PATH [--targets desktop,android] [--template starter|adaptive|component|workbench|workbench]",
+        syntax: "init PATH --distribution PATH [--targets desktop,android] [--template starter|adaptive|component|workbench]",
         summary: "Initialize an existing directory with ownership conflict checks",
         result: "Destination and template identity",
         effects: "Lock, stage and publish files. Configuration is published last",
