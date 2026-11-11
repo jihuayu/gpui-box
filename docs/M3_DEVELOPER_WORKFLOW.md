@@ -156,3 +156,9 @@ Android ABIs with a camera declaration and custom `gpui-box-wave2` scheme. APK
 inspection confirms both native libraries and the exact managed service asset.
 Doctor reports configured services and the host's missing SDK license record.
 The starter installs an explicit activation callback with a visible event count.
+
+The generated APK installed and handled cold `gpui-box-wave2://open/cold` and
+warm `gpui-box-wave2://open/warm` Intents through its generated manifest and
+managed asset. Native semantics confirmed activation counts 1 then 2. The starter
+status uses a semantic Label. A no-change repeat build reports all 36 tasks
+UP-TO-DATE. Both Windows and Android builds pass after finalizing the starter.

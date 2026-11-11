@@ -240,3 +240,9 @@ Clippy, Gradle lint and the full connected suite. Lint reports 0 errors and
 8 warnings. Upstream linker messages and Android deprecation warnings remain
 visible. A Windows files test now explicitly closes its verified reader before
 atomic replacement, coordinated in #23. This restores portability of that test.
+
+Final continuation verification passed the connected suite 11/11 in two
+consecutive runs. The expanded `mise run check` after PR #40 integration passes
+115 host tests and 3 compile-fail doctests, with one additional child-process
+test invocation. Components pass 5 model tests and 2 real GPUI context tests.
+Windows desktop build and Android x86_64 strict Clippy pass.
