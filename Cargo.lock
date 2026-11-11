@@ -1787,6 +1787,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpui-activation"
+version = "0.1.0-dev"
+dependencies = [
+ "gpui",
+ "gpui-app-data",
+ "gpui-system",
+ "serde",
+ "tempfile",
+ "url",
+]
+
+[[package]]
 name = "gpui-android"
 version = "0.1.0-dev"
 dependencies = [
@@ -1820,6 +1832,7 @@ name = "gpui-box"
 version = "0.1.0-dev"
 dependencies = [
  "gpui",
+ "gpui-activation",
  "gpui-android",
  "gpui-app-data",
  "gpui-permissions",
