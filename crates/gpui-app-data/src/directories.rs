@@ -122,7 +122,13 @@ impl AppDirectory {
     /// Rejects existing symlink children; this is not a race-proof sandbox boundary.
     pub fn child(&self, relative: impl AsRef<Path>) -> Result<PathBuf, SystemError> {
         let relative = relative.as_ref();
+        let spelling = relative.as_os_str().as_encoded_bytes();
+        // Unix treats Windows roots as ordinary names. Keep the shared API's
+        // relative-path contract consistent when persisted paths cross hosts.
+        let windows_root = spelling.starts_with(b"\\")
+            || (spelling.len() >= 2 && spelling[0].is_ascii_alphabetic() && spelling[1] == b':');
         if relative.as_os_str().is_empty()
+            || windows_root
             || relative
                 .components()
                 .any(|part| !matches!(part, Component::Normal(_)))

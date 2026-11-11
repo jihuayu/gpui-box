@@ -131,11 +131,28 @@ fn reject_overlap_escape_and_cancellation() {
         AppData::open(overlap).err().unwrap().code,
         ErrorCode::InvalidConfiguration
     );
-    assert!(app.location(DataLocation::Data).child("../config").is_err());
-    assert!(
+    for path in [
+        "../config",
+        "/outside",
+        "C:/outside",
+        "c:\\outside",
+        "C:outside",
+        "\\outside",
+        "\\\\server\\share",
+        "\\\\?\\C:\\outside",
+    ] {
+        assert!(
+            app.location(DataLocation::Data).child(path).is_err(),
+            "accepted rooted path {path:?}"
+        );
+    }
+    assert_eq!(
         app.location(DataLocation::Data)
-            .child("C:/outside")
-            .is_err()
+            .child("nested/config")
+            .unwrap(),
+        app.location(DataLocation::Data)
+            .path()
+            .join("nested/config")
     );
     assert!(
         app.settings(DataScope::Account("a".repeat(97)), "prefs", 1, 500)
