@@ -71,14 +71,16 @@ validation result, source hashes, device identity and six new images.
 
 Reconciliation currently scans scopes/hosts and sorts affected render siblings;
 it is not a sublinear structure-update implementation. Render insertion/removal
-and host reorder may create multiple internal revisions. The host requests one
-frame after its event, but a fully atomic structural transaction remains open.
+may create multiple internal revisions. Existing-scope reorders and portal moves
+now use the [atomic final-topology API](RETAINED_STRUCTURE_TRANSACTIONS.md),
+including multi-host order changes in one revision. Atomic lifecycle batches
+combining creation/removal with properties still remain open.
 Returned validation errors for duplicate keys, dependent hosts and surviving
 source observers are checked before mutation. Reconciliation now invokes
 registered effect cleanup after that preflight; cleanup must be infallible and
 must not reenter the runtime.
 
-Events, focus, accessibility ownership, legacy islands and portal reparenting
+Events, focus, accessibility ownership and legacy islands
 are still pending. Scopes have explicit keyed effect setup/cleanup; automatic
 component construction and asynchronous effect execution remain open.
 The retained primitive remains a rectangle, and the existing native GPU

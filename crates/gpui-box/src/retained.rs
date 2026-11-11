@@ -33,7 +33,9 @@ mod properties;
 pub use primitive::QuadDecoration;
 pub mod reactive;
 pub mod responsive;
+mod structure;
 pub use properties::{Damage, PropertyNode, PropertyState, PropertyTrees};
+pub use structure::StructureTransaction;
 #[cfg(all(feature = "retained-wgpu", not(target_family = "wasm")))]
 pub mod wgpu;
 
@@ -141,6 +143,7 @@ pub enum RouteReason {
     PrimitivePaintChanged,
     LayoutInputsChanged,
     ChildOrderChanged,
+    RenderTopologyChanged,
     SharedPropertiesChanged,
     ResourcePixelsChanged,
 }

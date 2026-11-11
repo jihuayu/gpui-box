@@ -22,6 +22,7 @@ mod retained_primitive;
 mod retained_queue;
 mod retained_reactive;
 mod retained_responsive;
+mod retained_structure;
 mod retained_text;
 mod retained_validation;
 
@@ -664,6 +665,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_computed::run(&mut renderer, &output, &mut results)?;
     retained_delivery::run(&mut renderer, &output, &mut results)?;
     retained_logical::run(&mut renderer, &output, &mut results)?;
+    retained_structure::run(&mut renderer, &output, &mut results)?;
     retained_measure::run(&mut renderer, &output, &mut results)?;
     retained_responsive::run(&mut renderer, &output, &mut results)?;
     retained_primitive::run(&mut renderer, &output, &mut results)?;
@@ -685,6 +687,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         results.len()
     );
     let benchmark = retained_bench::run()?;
+    fs::write(
+        output.join("structure-benchmark.json"),
+        serde_json::to_vec_pretty(&retained_structure::benchmark()?)?,
+    )?;
     fs::write(
         output.join("completion-benchmark.json"),
         serde_json::to_vec_pretty(&retained_completion::benchmark()?)?,

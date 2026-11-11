@@ -449,10 +449,8 @@ impl ReactiveUi {
         }
     }
 
-    pub(super) fn reorder(&mut self, node: NodeId, children: Vec<NodeId>) -> Result<Commit, Error> {
-        let mut tx = Transaction::default();
-        tx.reorder(node, children);
-        self.tree.commit(tx, self.capabilities)
+    pub fn commit_structure(&mut self, tx: StructureTransaction) -> Result<Commit, Error> {
+        self.tree.commit_structure(tx)
     }
 
     /// Retire every endpoint in a removed subtree, including invisible descendants.

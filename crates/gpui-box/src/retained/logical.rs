@@ -35,6 +35,22 @@ pub struct ScopeChanges {
     pub request_frame: bool,
 }
 
+/// Atomic existing-scope sibling reorders and final render-host moves. Scope
+/// lifetime/ownership stays stable; creation and disposal are separate APIs.
+#[derive(Default)]
+pub struct LogicalStructureTransaction {
+    scopes: BTreeMap<ScopeId, Vec<ScopeId>>,
+    hosts: BTreeMap<NodeId, NodeId>,
+}
+impl LogicalStructureTransaction {
+    pub fn reorder(&mut self, parent: ScopeId, children: Vec<ScopeId>) {
+        self.scopes.insert(parent, children);
+    }
+    pub fn reparent(&mut self, node: NodeId, host: NodeId) {
+        self.hosts.insert(node, host);
+    }
+}
+
 /// Logical ownership can contain zero or several render nodes. Render parentage
 /// is explicit: rendering into another host is a portal, without changing scope
 /// parentage or source ownership. Keys identify direct children of one scope.
@@ -284,6 +300,18 @@ impl LogicalUi {
             .iter()
             .map(|id| (self.scope(*id).unwrap().key, *id))
             .collect();
+        if old.len() == keys.len() && keys.iter().all(|key| old.contains_key(key)) {
+            let order: Vec<_> = keys.iter().map(|key| old[key]).collect();
+            let mut tx = LogicalStructureTransaction::default();
+            tx.reorder(parent, order.clone());
+            let commit = self.commit_structure(tx)?;
+            return Ok(ScopeChanges {
+                order,
+                inserted: vec![],
+                removed: vec![],
+                request_frame: commit.request_frame,
+            });
+        }
         let mut removed = BTreeSet::new();
         for (key, id) in &old {
             if !unique.contains(key) {
@@ -404,25 +432,81 @@ impl LogicalUi {
     /// Sort owned siblings by logical preorder, preserving each scope's render
     /// insertion order. Portal nodes keep their explicit render host.
     pub fn sync_render_order(&mut self) -> Result<bool, Error> {
+        Ok(self
+            .commit_structure(LogicalStructureTransaction::default())?
+            .request_frame)
+    }
+
+    pub fn reparent_render(&mut self, node: NodeId, host: NodeId) -> Result<Commit, Error> {
+        let mut tx = LogicalStructureTransaction::default();
+        tx.reparent(node, host);
+        self.commit_structure(tx)
+    }
+
+    /// Commit sibling scope permutations and portal moves together. Logical
+    /// identity/source/effect ownership survives. A failed final render graph
+    /// publishes neither logical order nor render parentage.
+    pub fn commit_structure(&mut self, tx: LogicalStructureTransaction) -> Result<Commit, Error> {
+        for (parent, children) in &tx.scopes {
+            let current = &self.scope(*parent)?.children;
+            let mut a = current.clone();
+            let mut b = children.clone();
+            for id in children {
+                self.scope(*id)?;
+            }
+            a.sort_unstable();
+            b.sort_unstable();
+            if a != b {
+                return Err(Error::InvalidChildren);
+            }
+        }
         let mut ranks = BTreeMap::new();
         let mut stack = vec![self.root];
         while let Some(id) = stack.pop() {
             ranks.insert(id, ranks.len());
-            stack.extend(self.scope(id)?.children.iter().rev());
+            stack.extend(
+                tx.scopes
+                    .get(&id)
+                    .unwrap_or(&self.scope(id)?.children)
+                    .iter()
+                    .rev(),
+            );
         }
-        let mut hosts = BTreeSet::new();
+        let mut hosts = BTreeMap::new();
         for node in self.render_owners.keys() {
             if let Some(parent) = self.ui.tree().node(*node)?.parent {
-                hosts.insert(parent);
+                hosts
+                    .entry(parent)
+                    .or_insert_with(|| self.ui.tree().node(parent).unwrap().children.clone());
             }
         }
-        let mut requested = false;
-        for host in hosts {
-            let mut children = self.ui.tree().node(host)?.children.clone();
-            children.sort_by_key(|node| ranks[&self.render_owners[node]]);
-            requested |= self.ui.reorder(host, children)?.request_frame;
+        for (node, host) in &tx.hosts {
+            self.ui.tree().node(*host)?;
+            let previous = self
+                .ui
+                .tree()
+                .node(*node)?
+                .parent
+                .ok_or(Error::CannotRemoveRoot)?;
+            if previous == *host {
+                continue;
+            }
+            hosts
+                .get_mut(&previous)
+                .expect("existing render host")
+                .retain(|id| id != node);
+            hosts.entry(*host).or_default().push(*node);
         }
-        Ok(requested)
+        let mut render_tx = StructureTransaction::default();
+        for (host, mut children) in hosts {
+            children.sort_by_key(|node| ranks[&self.render_owners[node]]);
+            render_tx.children(host, children);
+        }
+        let commit = self.ui.commit_structure(render_tx)?;
+        for (parent, children) in tx.scopes {
+            self.scope_mut(parent).children = children;
+        }
+        Ok(commit)
     }
 }
 

@@ -31,6 +31,8 @@ pub struct RetainedDemo {
     image_cache: Rc<RefCell<std::collections::BTreeMap<u64, std::sync::Arc<RenderImage>>>>,
     last_commit: String,
     reversed: bool,
+    portal: (gpui_box::retained::NodeId, [gpui_box::retained::NodeId; 2]),
+    portal_moved: bool,
     render_count: usize,
     #[cfg(feature = "retained-wgpu")]
     gpu: Option<Rc<RefCell<gpui_box::retained::wgpu::WgpuFrameRenderer>>>,
@@ -170,6 +172,7 @@ impl RetainedDemo {
         let keyed = tree
             .reconcile_keys(root_scope, &[1, 2, 3])
             .expect("create keyed scopes");
+        let portal_scope = keyed.order[0];
         for scope in keyed.order {
             let key = tree.key(scope).unwrap();
             let color = tree
@@ -197,6 +200,48 @@ impl RetainedDemo {
                 .expect("create keyed render output");
             tree.bind(color, Property::color(node)).unwrap();
         }
+        let mut hosts = vec![];
+        for x in [112.0, 152.0] {
+            hosts.push(
+                tree.append_render(
+                    root_scope,
+                    tree.root_render(),
+                    Style {
+                        position: taffy::Position::Absolute,
+                        inset: taffy::Rect {
+                            left: length(x),
+                            top: length(4.0),
+                            right: taffy::LengthPercentageAuto::auto(),
+                            bottom: taffy::LengthPercentageAuto::auto(),
+                        },
+                        size: taffy::Size {
+                            width: length(32.0),
+                            height: length(24.0),
+                        },
+                        ..Default::default()
+                    },
+                    0x223344ff,
+                )
+                .unwrap(),
+            );
+        }
+        let portal = tree
+            .append_render(
+                portal_scope,
+                hosts[0],
+                Style {
+                    size: taffy::Size {
+                        width: length(16.0),
+                        height: length(16.0),
+                    },
+                    ..Default::default()
+                },
+                0x245fc7ff,
+            )
+            .unwrap();
+        let portal_color = tree.state(portal_scope, 0, || 0xeeaa44ff).unwrap();
+        tree.bind(portal_color, Property::color(portal)).unwrap();
+        let portal = (portal, [hosts[0], hosts[1]]);
         let responsive_node = tree
             .append_render(root_scope, tree.root_render(), Style::default(), 0)
             .unwrap();
@@ -400,6 +445,8 @@ impl RetainedDemo {
             image_cache: Rc::new(RefCell::new(std::collections::BTreeMap::new())),
             last_commit: "Ready".into(),
             reversed: false,
+            portal,
+            portal_moved: false,
             render_count: 0,
             #[cfg(feature = "retained-wgpu")]
             gpu: None,
@@ -682,6 +729,16 @@ impl Render for RetainedDemo {
                         if change.request_frame {
                             cx.notify();
                         }
+                    })),
+            )
+            .child(
+                div().id("retained-portal").debug_selector(|| "retained-portal".into()).cursor_pointer()
+                    .child("Move retained portal")
+                    .on_click(cx.listener(|this,_,_,cx| {
+                        let moved=!this.portal_moved;
+                        let commit=this.tree.borrow_mut().reparent_render(this.portal.0,this.portal.1[usize::from(moved)]).expect("move portal atomically");
+                        this.portal_moved=moved;
+                        if commit.request_frame {cx.notify();}
                     })),
             )
             .child(
@@ -1052,6 +1109,40 @@ mod tests {
             );
             assert_eq!(output.recorded_chunks, 0);
         });
+        let (portal, old_portal, owner) = view.read_with(cx, |view, _| {
+            let tree = view.tree.borrow();
+            let frame = tree.published_frame().unwrap();
+            let item = frame
+                .items
+                .iter()
+                .find(|i| i.node == view.portal.0)
+                .unwrap()
+                .clone();
+            let owner = tree
+                .children(tree.root_scope())
+                .unwrap()
+                .iter()
+                .copied()
+                .find(|scope| tree.renders(*scope).unwrap().contains(&view.portal.0))
+                .unwrap();
+            (view.portal.0, (frame.revision, item), owner)
+        });
+        let button = cx.debug_bounds("retained-portal").unwrap();
+        cx.simulate_click(button.center(), Modifiers::default());
+        cx.run_until_parked();
+        view.read_with(cx, |view, _| {
+            let tree = view.tree.borrow();
+            let frame = tree.published_frame().unwrap();
+            let item = frame.items.iter().find(|i| i.node == portal).unwrap();
+            assert_eq!(frame.revision, old_portal.0 + 1);
+            assert_eq!(frame.recorded_chunks, 0);
+            assert!(std::sync::Arc::ptr_eq(
+                &item.commands,
+                &old_portal.1.commands
+            ));
+            assert_ne!(item.bounds.x, old_portal.1.bounds.x);
+            assert!(tree.renders(owner).unwrap().contains(&portal));
+        });
         let measured = cx.debug_bounds("retained-measure").unwrap();
         cx.simulate_click(measured.center(), Modifiers::default());
         cx.run_until_parked();
@@ -1351,5 +1442,27 @@ mod tests {
             .reference_image(&frame, [changed.width(), changed.height()], scale)
             .unwrap();
         assert_eq!(changed.as_raw(), reference.as_raw());
+        let revision = frame.revision;
+        let button = cx.debug_bounds("retained-portal").unwrap();
+        cx.simulate_click(button.center(), Modifiers::default());
+        cx.run_until_parked();
+        let frame = view.read_with(cx, |view, _| {
+            view.tree.borrow().published_frame().unwrap().clone()
+        });
+        assert_eq!(frame.revision, revision + 1);
+        assert_eq!(frame.recorded_chunks, 0);
+        let moved = gpu.borrow_mut().image().unwrap();
+        assert!(
+            moved.as_raw() != changed.as_raw(),
+            "visible portal move changes GPU pixels"
+        );
+        let reference = gpu
+            .borrow_mut()
+            .reference_image(&frame, [moved.width(), moved.height()], scale)
+            .unwrap();
+        assert!(
+            moved.as_raw() == reference.as_raw(),
+            "portal move matches full reference pixels"
+        );
     }
 }
