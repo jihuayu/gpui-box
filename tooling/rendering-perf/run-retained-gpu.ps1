@@ -46,6 +46,7 @@ try {
         'tooling/rendering-perf/src/retained_responsive.rs','tooling/rendering-perf/src/retained_primitive.rs',
         'tooling/rendering-perf/src/retained_queue.rs',
         'tooling/rendering-perf/src/retained_image.rs',
+        'tooling/rendering-perf/src/retained_image_deltas.rs',
         'tooling/rendering-perf/src/retained_text.rs',
         'tooling/rendering-perf/src/retained_glyph_bench.rs',
         'tooling/rendering-perf/src/retained_paint_store.rs',

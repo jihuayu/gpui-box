@@ -9,6 +9,7 @@ mod retained_extraction;
 mod retained_glyph_bench;
 mod retained_hit_index;
 mod retained_image;
+mod retained_image_deltas;
 mod retained_layers;
 mod retained_logical;
 mod retained_measure;
@@ -666,6 +667,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_paint_store::run(&mut renderer, &output, &mut results)?;
     retained_extraction::run(&mut renderer, &output, &mut results)?;
     retained_validation::run(&mut renderer, &output, &mut results)?;
+    retained_image_deltas::run(&mut renderer, &output, &mut results)?;
     fs::write(
         output.join("validation.json"),
         serde_json::to_vec_pretty(&results)?,
@@ -710,6 +712,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     fs::write(
         output.join("hit-index-benchmark.json"),
         serde_json::to_vec_pretty(&retained_hit_index::benchmark()?)?,
+    )?;
+    fs::write(
+        output.join("image-delta-benchmark.json"),
+        serde_json::to_vec_pretty(&retained_image_deltas::benchmark()?)?,
     )?;
     Ok(())
 }

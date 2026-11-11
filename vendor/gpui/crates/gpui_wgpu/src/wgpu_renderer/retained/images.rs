@@ -3,6 +3,7 @@ use super::*;
 use std::collections::{BTreeMap, BTreeSet};
 
 pub type QuadImageId = [u64; 3];
+#[derive(Clone)]
 pub struct QuadImage {
     pub id: QuadImageId,
     /// Unique immutable identity; reusing it requires the same Arc allocation.
@@ -12,11 +13,19 @@ pub struct QuadImage {
     pub bounds: [f32; 4],
     pub clip: [f32; 4],
 }
+/// Sequential updates preserve all unmentioned draws. Reset supplies the full set.
+#[derive(Default)]
+pub struct ImageUpdates {
+    pub reset: bool,
+    pub removed: Vec<QuadImageId>,
+    pub images: Vec<QuadImage>,
+}
 struct Texture {
     texture: wgpu::Texture,
     view: wgpu::TextureView,
     pixels: Arc<[u8]>,
     size: [u32; 2],
+    references: usize,
 }
 struct Draw {
     resource: u64,
@@ -31,10 +40,13 @@ pub(super) struct ImageStats {
     pub uploads: usize,
     pub geometry_bytes: u64,
     pub changed: BTreeSet<QuadImageId>,
+    pub batch_updates: usize,
 }
 pub(super) struct ImageCache {
     textures: BTreeMap<u64, Texture>,
     draws: BTreeMap<QuadImageId, Draw>,
+    live_bytes: u64,
+    viewport: Option<Size<DevicePixels>>,
     layout: wgpu::BindGroupLayout,
     pipeline: wgpu::RenderPipeline,
 }
@@ -103,19 +115,58 @@ impl ImageCache {
         Self {
             textures: BTreeMap::new(),
             draws: BTreeMap::new(),
+            live_bytes: 0,
+            viewport: None,
             layout,
             pipeline,
         }
     }
+    fn removals(&self, updates: &ImageUpdates) -> BTreeSet<QuadImageId> {
+        if updates.reset {
+            let live: BTreeSet<_> = updates.images.iter().map(|image| image.id).collect();
+            self.draws
+                .keys()
+                .filter(|id| !live.contains(*id))
+                .copied()
+                .collect()
+        } else {
+            updates.removed.iter().copied().collect()
+        }
+    }
     pub fn validate(
         &self,
-        images: &[QuadImage],
+        updates: &ImageUpdates,
         max_dimension: u32,
     ) -> Result<BTreeSet<QuadImageId>> {
-        let mut ids = BTreeSet::new();
+        anyhow::ensure!(
+            !updates.reset || updates.removed.is_empty(),
+            "reset with explicit image removals"
+        );
+        let removals = self.removals(updates);
+        anyhow::ensure!(
+            updates.reset || removals.len() == updates.removed.len(),
+            "duplicate image removal"
+        );
+        let mut ids: BTreeSet<_> = self
+            .draws
+            .keys()
+            .filter(|id| !removals.contains(*id))
+            .copied()
+            .collect();
+        let mut writes = BTreeSet::new();
         let mut resources = BTreeMap::<u64, &QuadImage>::new();
-        for image in images {
-            anyhow::ensure!(ids.insert(image.id), "duplicate image draw");
+        let mut changes = BTreeMap::<u64, i64>::new();
+        for id in &removals {
+            if let Some(draw) = self.draws.get(id) {
+                *changes.entry(draw.resource).or_default() -= 1;
+            }
+        }
+        for image in &updates.images {
+            anyhow::ensure!(
+                writes.insert(image.id) && !removals.contains(&image.id),
+                "duplicate/conflicting image update"
+            );
+            ids.insert(image.id);
             anyhow::ensure!(
                 image.size.iter().all(|n| *n > 0 && *n <= max_dimension),
                 "invalid image dimensions"
@@ -147,28 +198,77 @@ impl ImageCache {
                     "mutable cached image identity"
                 );
             }
+            if let Some(previous) = self.draws.get(&image.id) {
+                if previous.resource == image.resource {
+                    continue;
+                }
+                *changes.entry(previous.resource).or_default() -= 1;
+            }
+            *changes.entry(image.resource).or_default() += 1;
         }
-        let bytes: u64 = resources
-            .values()
-            .map(|image| image.rgba.len() as u64)
-            .sum();
-        anyhow::ensure!(bytes <= 256 * 1024 * 1024, "live image budget exceeded");
+        let mut bytes = self.live_bytes as i64;
+        for (id, change) in changes {
+            let old = self.textures.get(&id);
+            let before = old.map_or(0, |texture| texture.references as i64);
+            let after = before + change;
+            anyhow::ensure!(after >= 0, "image resource reference underflow");
+            if before == 0 && after > 0 {
+                bytes += resources[&id].rgba.len() as i64;
+            }
+            if before > 0 && after == 0 {
+                bytes -= old.unwrap().pixels.len() as i64;
+            }
+        }
+        anyhow::ensure!(
+            (0..=256 * 1024 * 1024).contains(&bytes),
+            "live image budget exceeded"
+        );
         Ok(ids)
     }
     pub fn prepare(
         &mut self,
         renderer: &WgpuHeadlessRenderer,
-        images: Vec<QuadImage>,
+        updates: ImageUpdates,
         size: Size<DevicePixels>,
     ) -> ImageStats {
-        let mut stats = ImageStats::default();
-        let live: BTreeSet<_> = images.iter().map(|image| image.resource).collect();
-        let ids: BTreeSet<_> = images.iter().map(|image| image.id).collect();
-        self.textures.retain(|id, _| live.contains(id));
-        self.draws.retain(|id, _| ids.contains(id));
+        let mut stats = ImageStats {
+            batch_updates: updates.images.len(),
+            ..Default::default()
+        };
+        let mut changes = BTreeMap::<u64, i64>::new();
+        for id in self.removals(&updates) {
+            if let Some(draw) = self.draws.remove(&id) {
+                *changes.entry(draw.resource).or_default() -= 1;
+            }
+        }
+        for image in &updates.images {
+            if let Some(old) = self.draws.get(&image.id) {
+                if old.resource == image.resource {
+                    continue;
+                }
+                *changes.entry(old.resource).or_default() -= 1;
+            }
+            *changes.entry(image.resource).or_default() += 1;
+        }
+        // Apply the net ownership delta before eviction. Swaps and shared-owner
+        // replacement must retain existing textures until all incoming owners count.
+        for (id, change) in &changes {
+            if let Some(texture) = self.textures.get_mut(id) {
+                texture.references = (texture.references as i64 + change) as usize;
+            }
+        }
+        for id in changes.keys() {
+            if self
+                .textures
+                .get(id)
+                .is_some_and(|texture| texture.references == 0)
+            {
+                self.live_bytes -= self.textures.remove(id).unwrap().pixels.len() as u64;
+            }
+        }
         let device = &renderer.context.device;
         let queue = &renderer.context.queue;
-        for image in images {
+        for image in updates.images {
             self.textures.entry(image.resource).or_insert_with(|| {
                 let texture = device.create_texture(&wgpu::TextureDescriptor {
                     label: Some("retained_rgba8"),
@@ -205,12 +305,14 @@ impl ImageCache {
                 );
                 stats.bytes += image.rgba.len() as u64;
                 stats.uploads += 1;
+                self.live_bytes += image.rgba.len() as u64;
                 let view = texture.create_view(&Default::default());
                 Texture {
                     texture,
                     view,
                     pixels: image.rgba.clone(),
                     size: image.size,
+                    references: changes[&image.resource] as usize,
                 }
             });
             let geometry = [
@@ -271,6 +373,22 @@ impl ImageCache {
                 stats.changed.insert(image.id);
             }
         }
+        // A surface-only resize has no item delta. Retained geometry uniforms
+        // still require the new viewport; updated draws already contain it.
+        if self.viewport != Some(size) {
+            for (id, draw) in &mut self.draws {
+                if draw.geometry[8] != size.width.0 as f32
+                    || draw.geometry[9] != size.height.0 as f32
+                {
+                    draw.geometry[8] = size.width.0 as f32;
+                    draw.geometry[9] = size.height.0 as f32;
+                    queue.write_buffer(&draw.buffer, 0, bytemuck::cast_slice(&draw.geometry));
+                    stats.geometry_bytes += 48;
+                    stats.changed.insert(*id);
+                }
+            }
+        }
+        self.viewport = Some(size);
         stats
     }
     pub fn draw(&self, id: QuadImageId, pass: &mut wgpu::RenderPass<'_>) -> Result<()> {

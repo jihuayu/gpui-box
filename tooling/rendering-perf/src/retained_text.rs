@@ -169,7 +169,7 @@ fn backend_delta_validation() -> Result<(), Box<dyn Error>> {
             QuadDraw::Glyphs([9, 1, 0]),
         ]),
         layers: vec![],
-        images: vec![],
+        images: Default::default(),
         glyphs: updates,
         cache_layers: true,
         size: gpui::size(gpui::DevicePixels(32), gpui::DevicePixels(16)),

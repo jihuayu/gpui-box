@@ -11,7 +11,7 @@ mod glyphs;
 mod images;
 pub use glyphs::{GlyphBatch, GlyphDrawId, GlyphGeometry, GlyphUpdates, RetainedGlyph};
 mod layers;
-pub use images::{QuadImage, QuadImageId};
+pub use images::{ImageUpdates, QuadImage, QuadImageId};
 use layers::LayerCache;
 pub use layers::{QuadDraw, QuadLayer, QuadLayerId};
 
@@ -24,7 +24,7 @@ pub struct QuadBatch {
     pub writes: Vec<QuadWrite>,
     pub order: Option<Vec<QuadDraw>>,
     pub layers: Vec<QuadLayer>,
-    pub images: Vec<QuadImage>,
+    pub images: ImageUpdates,
     pub glyphs: GlyphUpdates,
     pub cache_layers: bool,
     pub size: Size<DevicePixels>,
@@ -60,6 +60,7 @@ pub struct QuadSubmission {
     pub image_upload_bytes: u64,
     pub image_uploads: usize,
     pub image_geometry_bytes: u64,
+    pub image_batch_updates: usize,
     pub glyph_atlas_bytes: u64,
     pub glyph_atlas_uploads: usize,
     pub glyph_instance_bytes: u64,
@@ -456,6 +457,7 @@ impl RetainedQuadRenderer {
             image_upload_bytes: image_stats.bytes,
             image_uploads: image_stats.uploads,
             image_geometry_bytes: image_stats.geometry_bytes,
+            image_batch_updates: image_stats.batch_updates,
             glyph_atlas_bytes: glyph_stats.atlas_bytes,
             glyph_atlas_uploads: glyph_stats.atlas_uploads,
             glyph_instance_bytes: glyph_stats.instance_bytes,

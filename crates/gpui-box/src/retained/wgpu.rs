@@ -5,7 +5,7 @@ use super::{
 };
 use gpui::{Bounds, ContentMask, DevicePixels, Quad, ScaledPixels, Scene, point, rgba, size};
 use gpui_wgpu::{
-    QuadBatch, QuadImage, QuadRedraw, QuadSubmission, QuadWrite, RetainedImage,
+    ImageUpdates, QuadBatch, QuadImage, QuadRedraw, QuadSubmission, QuadWrite, RetainedImage,
     RetainedQuadRenderer,
 };
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -161,6 +161,7 @@ pub struct WgpuFrameRenderer {
     window_image: Option<(u64, Arc<gpui::RenderImage>)>,
     validation_cache: validation::ValidationCache,
     cache_validation: bool,
+    resource_deltas: bool,
 }
 
 impl WgpuFrameRenderer {
@@ -186,6 +187,7 @@ impl WgpuFrameRenderer {
             window_image: None,
             validation_cache: validation::ValidationCache::default(),
             cache_validation: true,
+            resource_deltas: true,
         })
     }
 
@@ -211,6 +213,11 @@ impl WgpuFrameRenderer {
     /// Disable only packet validation reuse for a same-renderer performance control.
     pub fn set_validation_cache_enabled(&mut self, enabled: bool) {
         self.cache_validation = enabled;
+    }
+
+    /// Force complete resource input for a same-consumer performance control.
+    pub fn set_resource_deltas_enabled(&mut self, enabled: bool) {
+        self.resource_deltas = enabled;
     }
 
     pub fn set_raster_cache_enabled(&mut self, enabled: bool) {
@@ -345,23 +352,7 @@ impl WgpuFrameRenderer {
                 writes,
                 order,
                 layers,
-                images: frame
-                    .items
-                    .iter()
-                    .filter_map(|item| {
-                        let image = item.image.as_ref()?;
-                        let rect =
-                            |r: Rect| [r.x * scale, r.y * scale, r.width * scale, r.height * scale];
-                        Some(QuadImage {
-                            id: [item.node.tree, item.node.slot as u64, item.node.generation],
-                            resource: image.id(),
-                            size: image.size(),
-                            rgba: image.pixels().clone(),
-                            bounds: rect(item.content_bounds),
-                            clip: rect(item.clip.unwrap_or(item.bounds)),
-                        })
-                    })
-                    .collect(),
+                images: image_updates(frame, scale, full_resync || !self.resource_deltas),
                 cache_layers: self.cache_layers,
                 glyphs: glyph_updates(frame, scale, full_resync)?,
                 size: size(
@@ -478,9 +469,48 @@ impl WgpuFrameRenderer {
         replacement.policy = self.policy;
         replacement.cache_layers = self.cache_layers;
         replacement.cache_validation = self.cache_validation;
+        replacement.resource_deltas = self.resource_deltas;
         *self = replacement;
         Ok(())
     }
+}
+
+fn image_updates(frame: &FramePacket, scale: f32, reset: bool) -> ImageUpdates {
+    let mut updates = ImageUpdates {
+        reset,
+        ..Default::default()
+    };
+    if !reset {
+        updates.removed = frame
+            .removed
+            .iter()
+            .map(|node| [node.tree, node.slot as u64, node.generation])
+            .collect();
+    }
+    let items: Box<dyn Iterator<Item = &PaintItem> + '_> = if reset {
+        Box::new(frame.items.iter())
+    } else {
+        Box::new(frame.updates.iter())
+    };
+    for item in items {
+        let id = [item.node.tree, item.node.slot as u64, item.node.generation];
+        let Some(image) = &item.image else {
+            if !reset {
+                updates.removed.push(id);
+            }
+            continue;
+        };
+        let rect = |r: Rect| [r.x * scale, r.y * scale, r.width * scale, r.height * scale];
+        updates.images.push(QuadImage {
+            id,
+            resource: image.id(),
+            size: image.size(),
+            rgba: image.pixels().clone(),
+            bounds: rect(item.content_bounds),
+            clip: rect(item.clip.unwrap_or(item.bounds)),
+        });
+    }
+    updates
 }
 
 fn has_text(frame: &FramePacket) -> bool {

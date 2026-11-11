@@ -39,7 +39,7 @@ pub(super) fn run() -> Result<serde_json::Value, Box<dyn Error>> {
             writes: vec![],
             order: Some(vec![QuadDraw::Glyphs([1, 0, 0])]),
             layers: vec![],
-            images: vec![],
+            images: Default::default(),
             glyphs: GlyphUpdates {
                 reset: false,
                 removed: vec![],
