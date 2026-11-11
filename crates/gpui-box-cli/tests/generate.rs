@@ -599,6 +599,102 @@ fn android_install_and_dev_check_devices_before_regenerating_or_building() {
     assert_eq!(before, snapshot(&app));
 }
 
+#[test]
+fn doctor_reports_failed_checks_and_fixes_without_mutating_project() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create(temporary.path());
+    let config_path = app.join("gpui-box.json");
+    let mut config: serde_json::Value =
+        serde_json::from_slice(&fs::read(&config_path).unwrap()).unwrap();
+    config["assets"] = serde_json::json!(["missing-assets"]);
+    fs::write(config_path, serde_json::to_vec(&config).unwrap()).unwrap();
+    let before = snapshot(&app);
+    let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+        .current_dir(&app)
+        .args(["doctor", "--json"])
+        .env("PATH", temporary.path().join("empty-tool-path"))
+        .env("ANDROID_HOME", temporary.path().join("missing-sdk"))
+        .env_remove("GPUI_BOX_BUNDLETOOL")
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(response["result"].is_null());
+    assert_eq!(response["error"]["code"], "DIAGNOSTICS_FAILED");
+    let report = &response["error"]["details"];
+    assert_eq!(report["schema_version"], 1);
+    assert_eq!(report["completed"], true);
+    assert_eq!(report["ready"], false);
+    assert_eq!(report["project_schema_version"], 1);
+    assert_eq!(report["service_schema_version"], 1);
+    assert_eq!(report["update_channel"], "development");
+    let checks = report["checks"].as_array().unwrap();
+    let ids = checks
+        .iter()
+        .map(|check| check["id"].as_str().unwrap())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(ids.len(), checks.len());
+    for id in [
+        "asset.0",
+        "tool.mise",
+        "tool.rustc",
+        "tool.cargo",
+        "tool.git",
+        "android.sdk.licenses/android-sdk-license",
+    ] {
+        let check = checks.iter().find(|check| check["id"] == id).unwrap();
+        assert_eq!(check["passed"], false, "{id}");
+        assert_eq!(check["required"], true);
+        assert!(!check["corrective_action"].as_str().unwrap().is_empty());
+    }
+    let wrapper = checks
+        .iter()
+        .find(|check| check["id"] == "android.wrapper")
+        .unwrap();
+    assert_eq!(wrapper["passed"], true);
+    assert!(wrapper["corrective_action"].is_null());
+    let optional = checks
+        .iter()
+        .find(|check| check["id"] == "release.bundletool")
+        .unwrap();
+    assert_eq!(optional["required"], false);
+    assert_eq!(before, snapshot(&app));
+}
+
+#[test]
+fn doctor_signing_checks_expose_presence_without_environment_values() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create(temporary.path());
+    let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+        .current_dir(&app)
+        .args(["doctor", "--json"])
+        .env("PATH", temporary.path().join("empty-tool-path"))
+        .env("ANDROID_HOME", temporary.path().join("missing-sdk"))
+        .env(
+            "GPUI_BOX_ANDROID_KEYSTORE",
+            "SENSITIVE_KEYSTORE_PATH_SENTINEL",
+        )
+        .env(
+            "GPUI_BOX_ANDROID_STORE_PASSWORD",
+            "SENSITIVE_PASSWORD_SENTINEL",
+        )
+        .env("GPUI_BOX_ANDROID_KEY_ALIAS", "SENSITIVE_ALIAS_SENTINEL")
+        .env("GPUI_BOX_ANDROID_KEY_PASSWORD", "")
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("SENSITIVE_"));
+    assert!(!String::from_utf8_lossy(&output.stderr).contains("SENSITIVE_"));
+    let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let checks = response["error"]["details"]["checks"].as_array().unwrap();
+    for name in ["KEYSTORE", "STORE_PASSWORD", "KEY_ALIAS", "KEY_PASSWORD"] {
+        let id = format!("release.GPUI_BOX_ANDROID_{name}");
+        let check = checks.iter().find(|check| check["id"] == id).unwrap();
+        assert_eq!(check["passed"], name != "KEY_PASSWORD");
+        assert_eq!(check["required"], false);
+    }
+}
+
 #[cfg(windows)]
 #[test]
 fn interrupted_plan_apply_requires_new_preview_and_ordinary_generate_recovers() {

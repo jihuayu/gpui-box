@@ -28,6 +28,8 @@ pub fn message(arguments: fmt::Arguments<'_>) {
 pub struct CliError {
     pub code: &'static str,
     pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<serde_json::Value>,
 }
 
 impl CliError {
@@ -35,7 +37,13 @@ impl CliError {
         Self {
             code,
             message: message.into(),
+            details: None,
         }
+    }
+
+    pub fn with_details(mut self, details: serde_json::Value) -> Self {
+        self.details = Some(details);
+        self
     }
 }
 
