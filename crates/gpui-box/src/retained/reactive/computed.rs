@@ -17,14 +17,14 @@ impl<T> Signal<T> {
 type Evaluate = dyn Fn(&ComputedInputs<'_>) -> Result<Rc<dyn Value>, Error>;
 pub(super) struct Computation {
     pub(super) dependencies: BTreeSet<SourceId>,
-    evaluate: Box<Evaluate>,
+    pub(super) evaluate: Box<Evaluate>,
 }
 
 /// Read-only view of declared dependencies at one consistent transaction point.
 /// Computations must be pure: returned errors roll back UI state, but cannot
 /// undo arbitrary external side effects performed by a callback.
 pub struct ComputedInputs<'a> {
-    pub(super) runtime: &'a ReactiveUi,
+    pub(super) context: SourceContext<'a>,
     pub(super) dependencies: &'a BTreeSet<SourceId>,
     pub(super) values: &'a BTreeMap<SourceId, Rc<dyn Value>>,
 }
@@ -33,7 +33,7 @@ impl ComputedInputs<'_> {
         if !self.dependencies.contains(&signal.id) {
             return Err(Error::UndeclaredDependency);
         }
-        let source = self.runtime.source(signal.id)?;
+        let source = self.context.source(signal.id)?;
         self.values
             .get(&signal.id)
             .unwrap_or(&source.value)
@@ -65,7 +65,7 @@ impl ReactiveUi {
         }
         let empty = BTreeMap::new();
         let value = evaluate(&ComputedInputs {
-            runtime: self,
+            context: SourceContext::Runtime(self),
             dependencies: &dependencies,
             values: &empty,
         })?;
@@ -81,7 +81,7 @@ impl ReactiveUi {
             rank,
             scheduled_epoch: Cell::new(0),
             delivery_lifetime: None,
-        });
+        })?;
         for id in dependencies {
             self.sources[id.slot]
                 .source
@@ -168,7 +168,7 @@ impl ReactiveTransaction<'_> {
             let source = self.runtime.source(id)?;
             let computation = source.computation.as_ref().expect("derived dependent");
             let value = match (computation.evaluate)(&ComputedInputs {
-                runtime: self.runtime,
+                context: SourceContext::Runtime(self.runtime),
                 dependencies: &computation.dependencies,
                 values: &self.values,
             }) {

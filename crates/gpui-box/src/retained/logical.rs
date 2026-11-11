@@ -63,6 +63,7 @@ pub struct LogicalUi {
     free: Vec<usize>,
     root: ScopeId,
     render_owners: BTreeMap<NodeId, ScopeId>,
+    next_scope_generation: u64,
 }
 
 impl LogicalUi {
@@ -133,6 +134,7 @@ impl LogicalUi {
             free: vec![],
             root,
             render_owners,
+            next_scope_generation: 1,
         })
     }
 
@@ -204,7 +206,7 @@ impl LogicalUi {
             self.ui.validate_scoped_source(signal, None)?;
             return Ok(signal);
         }
-        let source = self.ui.signal(init());
+        let source = self.ui.try_signal(init())?;
         self.scope_mut(scope).sources.insert(key, Box::new(source));
         Ok(source)
     }
@@ -413,6 +415,11 @@ impl LogicalUi {
             children.sort_by_key(|node| ranks[&self.render_owners[node]]);
             render_tx.children(host, children);
         }
+        let count = keys.iter().filter(|key| !old.contains_key(key)).count() as u64;
+        let generation_end = self
+            .next_scope_generation
+            .checked_add(count)
+            .ok_or(Error::RevisionExhausted)?;
         let prepared = self.ui.prepare_structure(render_tx)?;
         // Cleanup observers before retiring any of their dependencies, including
         // inputs owned by other scopes in the same removal set.
@@ -448,6 +455,9 @@ impl LogicalUi {
                 });
             }
             let entry = &mut self.scopes[slot];
+            let generation = self.next_scope_generation;
+            self.next_scope_generation += 1;
+            entry.generation = generation;
             let id = ScopeId {
                 owner: self.identity,
                 slot,
@@ -464,6 +474,7 @@ impl LogicalUi {
             order.push(id);
             inserted.push(id);
         }
+        debug_assert_eq!(self.next_scope_generation, generation_end);
         self.scope_mut(parent).children = order.clone();
         Ok(ScopeChanges {
             order,

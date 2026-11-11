@@ -34,6 +34,9 @@ pub struct RetainedDemo {
     portal: (gpui_box::retained::NodeId, [gpui_box::retained::NodeId; 2]),
     portal_moved: bool,
     draft_output: Option<gpui_box::retained::NodeId>,
+    draft_parent: gpui_box::retained::logical::ScopeId,
+    draft_effects: Rc<std::cell::Cell<usize>>,
+    draft_cleanups: Rc<std::cell::Cell<usize>>,
     render_count: usize,
     #[cfg(feature = "retained-wgpu")]
     gpu: Option<Rc<RefCell<gpui_box::retained::wgpu::WgpuFrameRenderer>>>,
@@ -449,6 +452,9 @@ impl RetainedDemo {
             portal,
             portal_moved: false,
             draft_output: None,
+            draft_parent: portal_scope,
+            draft_effects: Rc::new(std::cell::Cell::new(0)),
+            draft_cleanups: Rc::new(std::cell::Cell::new(0)),
             render_count: 0,
             #[cfg(feature = "retained-wgpu")]
             gpu: None,
@@ -748,16 +754,28 @@ impl Render for RetainedDemo {
                     .child("Toggle output in one transaction")
                     .on_click(cx.listener(|this, _, _, cx| {
                         let mut tree = this.tree.borrow_mut();
-                        let owner = tree.root_scope();
+                        let parent = this.draft_parent;
                         let root = tree.root_render();
                         let previous = this.draft_output;
+                        let runs = this.draft_effects.clone();
+                        let cleanups = this.draft_cleanups.clone();
                         let source = this.color;
                         let next_color = if *tree.read(source).unwrap() == 0x66aa88ff { 0x245fc7ff } else { 0x66aa88ff };
                         let result = tree.edit(|tx| { tx.set(source, next_color)?; Ok(()) }, |(), edit| {
-                            if let Some(node) = previous {
-                                edit.remove(node)?;
+                            if previous.is_some() {
+                                edit.reconcile_keys(parent, &[])?;
                                 Ok(None)
                             } else {
+                                let owner = edit.reconcile_keys(parent, &[100])?[0];
+                                let state = edit.state(owner, 0, || 0u32)?;
+                                let material = edit.computed(owner, 1, &[source.dependency(), state.dependency()], move |i| {
+                                    Ok(*i.read(source)? + *i.read(state)?)
+                                })?;
+                                edit.effect(owner, 0, &[material.dependency()], move |_| {
+                                    runs.set(runs.get() + 1);
+                                    let cleanups = cleanups.clone();
+                                    Some(Box::new(move || cleanups.set(cleanups.get() + 1)))
+                                })?;
                                 let node = edit.append(owner, root, Style {
                                     position: taffy::Position::Absolute,
                                     inset: taffy::Rect { left: length(192.0), top: length(4.0),
@@ -765,7 +783,7 @@ impl Render for RetainedDemo {
                                     size: taffy::Size { width: length(24.0), height: length(24.0) },
                                     ..Default::default()
                                 }, 0)?;
-                                edit.bind(source, Property::color(node))?;
+                                edit.bind(material, Property::color(node))?;
                                 edit.properties().decoration(node, QuadDecoration::default());
                                 Ok(Some(node))
                             }
@@ -1201,7 +1219,14 @@ mod tests {
                     let frame = tree.published_frame().unwrap();
                     let item = frame.items.iter().find(|i| i.node == node).unwrap();
                     assert_eq!(item.fill_color, *tree.read(view.color).unwrap());
-                    assert!(tree.renders(tree.root_scope()).unwrap().contains(&node));
+                    let owner = tree.children(view.draft_parent).unwrap()[0];
+                    assert!(tree.renders(owner).unwrap().contains(&node));
+                    assert_eq!(view.draft_effects.get(), 1);
+                    assert_eq!(view.draft_cleanups.get(), 0);
+                } else {
+                    assert!(tree.children(view.draft_parent).unwrap().is_empty());
+                    assert_eq!(view.draft_effects.get(), 1);
+                    assert_eq!(view.draft_cleanups.get(), 1);
                 }
             });
         }

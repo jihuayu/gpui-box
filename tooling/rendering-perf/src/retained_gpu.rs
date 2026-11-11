@@ -16,6 +16,7 @@ mod retained_hit_index;
 mod retained_image;
 mod retained_image_deltas;
 mod retained_layers;
+mod retained_lifecycle;
 mod retained_logical;
 mod retained_measure;
 mod retained_paint_store;
@@ -668,6 +669,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_logical::run(&mut renderer, &output, &mut results)?;
     retained_structure::run(&mut renderer, &output, &mut results)?;
     retained_edit::run(&mut renderer, &output, &mut results)?;
+    retained_lifecycle::run(&mut renderer, &output, &mut results)?;
     retained_measure::run(&mut renderer, &output, &mut results)?;
     retained_responsive::run(&mut renderer, &output, &mut results)?;
     retained_primitive::run(&mut renderer, &output, &mut results)?;
@@ -689,6 +691,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         results.len()
     );
     let benchmark = retained_bench::run()?;
+    fs::write(
+        output.join("lifecycle-benchmark.json"),
+        serde_json::to_vec_pretty(&retained_lifecycle::benchmark()?)?,
+    )?;
     fs::write(
         output.join("edit-benchmark.json"),
         serde_json::to_vec_pretty(&retained_edit::benchmark()?)?,

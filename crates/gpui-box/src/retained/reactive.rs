@@ -178,6 +178,40 @@ struct SourceSlot {
     generation: u64,
     source: Option<Source>,
 }
+#[derive(Clone, Copy)]
+enum SourceContext<'a> {
+    Runtime(&'a ReactiveUi),
+    Draft {
+        identity: u64,
+        sources: &'a [SourceSlot],
+        created: &'a BTreeMap<SourceId, Source>,
+    },
+}
+impl SourceContext<'_> {
+    fn source(&self, id: SourceId) -> Result<&Source, Error> {
+        match self {
+            Self::Runtime(runtime) => runtime.source(id),
+            Self::Draft {
+                identity,
+                sources,
+                created,
+            } => {
+                if id.owner != *identity {
+                    return Err(Error::InvalidSignal);
+                }
+                created
+                    .get(&id)
+                    .or_else(|| {
+                        sources
+                            .get(id.slot)
+                            .filter(|slot| slot.generation == id.generation)
+                            .and_then(|slot| slot.source.as_ref())
+                    })
+                    .ok_or(Error::InvalidSignal)
+            }
+        }
+    }
+}
 type SinkWrite = dyn Fn(&dyn Value, &mut Transaction);
 struct Binding {
     source: SourceId,
@@ -226,6 +260,7 @@ pub struct ReactiveUi {
     bindings: BTreeMap<BindingId, Binding>,
     endpoints: BTreeMap<(NodeId, Field), BindingId>,
     next_binding: u64,
+    next_source_generation: u64,
     effects: BTreeMap<EffectId, effects::Effect>,
     next_effect: u64,
     schedule_epoch: Cell<u64>,
@@ -248,6 +283,7 @@ impl ReactiveUi {
             bindings: BTreeMap::new(),
             endpoints: BTreeMap::new(),
             next_binding: 0,
+            next_source_generation: 1,
             effects: BTreeMap::new(),
             next_effect: 0,
             schedule_epoch: Cell::new(0),
@@ -298,6 +334,10 @@ impl ReactiveUi {
     }
 
     pub fn signal<T: PartialEq + 'static>(&mut self, value: T) -> Signal<T> {
+        self.try_signal(value).expect("signal generation exhausted")
+    }
+
+    pub fn try_signal<T: PartialEq + 'static>(&mut self, value: T) -> Result<Signal<T>, Error> {
         self.insert_source(Source {
             value: Rc::new(value),
             bindings: BTreeSet::new(),
@@ -310,7 +350,9 @@ impl ReactiveUi {
         })
     }
 
-    fn insert_source<T>(&mut self, source: Source) -> Signal<T> {
+    fn insert_source<T>(&mut self, source: Source) -> Result<Signal<T>, Error> {
+        let generation = self.next_source_generation;
+        self.next_source_generation = generation.checked_add(1).ok_or(Error::RevisionExhausted)?;
         let slot = self.free.pop().unwrap_or(self.sources.len());
         if slot == self.sources.len() {
             self.sources.push(SourceSlot {
@@ -319,15 +361,16 @@ impl ReactiveUi {
             });
         }
         let entry = &mut self.sources[slot];
+        entry.generation = generation;
         entry.source = Some(source);
-        Signal {
+        Ok(Signal {
             id: SourceId {
                 owner: self.identity,
                 slot,
                 generation: entry.generation,
             },
             marker: PhantomData,
-        }
+        })
     }
 
     pub fn read<T: 'static>(&self, signal: Signal<T>) -> Result<&T, Error> {

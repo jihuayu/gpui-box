@@ -3,8 +3,8 @@ use super::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct EffectId {
-    owner: u64,
-    serial: u64,
+    pub(super) owner: u64,
+    pub(super) serial: u64,
 }
 /// A post-commit callback sees only declared, successfully published values.
 pub type EffectInputs<'a> = ComputedInputs<'a>;
@@ -13,9 +13,9 @@ pub type EffectCleanup = Box<dyn FnOnce()>;
 type Observe = dyn Fn(&EffectInputs<'_>) -> Option<EffectCleanup>;
 
 pub(super) struct Effect {
-    dependencies: BTreeSet<SourceId>,
-    observe: Box<Observe>,
-    cleanup: Option<EffectCleanup>,
+    pub(super) dependencies: BTreeSet<SourceId>,
+    pub(super) observe: Box<Observe>,
+    pub(super) cleanup: Option<EffectCleanup>,
 }
 
 impl ReactiveUi {
@@ -67,6 +67,12 @@ impl ReactiveUi {
     }
 
     pub fn dispose_effect(&mut self, id: EffectId) -> Result<(), Error> {
+        if let Some(cleanup) = self.detach_effect(id)? {
+            cleanup();
+        }
+        Ok(())
+    }
+    pub(super) fn detach_effect(&mut self, id: EffectId) -> Result<Option<EffectCleanup>, Error> {
         let effect = self.effects.remove(&id).ok_or(Error::InvalidEffect)?;
         for source in effect.dependencies {
             self.sources[source.slot]
@@ -76,10 +82,7 @@ impl ReactiveUi {
                 .effects
                 .remove(&id);
         }
-        if let Some(cleanup) = effect.cleanup {
-            cleanup();
-        }
-        Ok(())
+        Ok(effect.cleanup)
     }
 
     pub(in crate::retained) fn validate_scoped_effect(
@@ -105,7 +108,7 @@ impl ReactiveUi {
         let effect = &self.effects[&id];
         let values = BTreeMap::new();
         let cleanup = (effect.observe)(&EffectInputs {
-            runtime: self,
+            context: SourceContext::Runtime(self),
             dependencies: &effect.dependencies,
             values: &values,
         });

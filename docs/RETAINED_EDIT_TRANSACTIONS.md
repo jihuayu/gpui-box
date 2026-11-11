@@ -82,7 +82,7 @@ render revision or requesting a frame. Duplicate/stale/foreign unbinds reject.
 [Frozen follow-up evidence](performance/2026-11-12-edit-rebind/README.md) records
 the atomic replacement tests and an independent hardware final-writer case.
 
-`LogicalEdit` requires a live existing owner for every new output. Reparenting
+`LogicalEdit` requires a live existing or provisional owner for every new output. Reparenting
 retains logical ownership. Removing a host with another scope's descendants
 rejects unless those descendants are moved out or explicitly removed in the
 same edit. Explicit removal of a separate output of that foreign owner does
@@ -124,7 +124,8 @@ container. Hardware cases cover mixed source/construction/portal/image/opacity
 output against both a fresh full consumer and a separately built final scene,
 rejected edits causing no submit, old snapshots and final output retirement.
 
-Scope/source/effect registration or disposal, keyed scope creation/reorder
-inside this edit, asynchronous effects,
+The [lifecycle extension](RETAINED_LIFECYCLE_EDITS.md) now adds keyed scope
+creation/reorder/retirement and named source/computed/effect lifetimes to the same
+draft. General asynchronous effects, dynamic dependency changes,
 focus/events/semantics lifetime and legacy islands remain outside this API.
 The complete [RFC acceptance goal](RETAINED_IMPLEMENTATION_PROGRESS.md) stays open.

@@ -23,11 +23,14 @@ fn observers_see_only_final_published_values_run_once_and_cleanup_before_rerun()
             move |i| {
                 let value = *i.read(bucket).unwrap();
                 assert_eq!(*i.read(color).unwrap(), value << 8 | 255);
-                let published = i.runtime.tree.published_frame();
+                let SourceContext::Runtime(runtime) = i.context else {
+                    panic!("committed effect context")
+                };
+                let published = runtime.tree.published_frame();
                 // The tree revision changes before observation; an owned output packet
                 // is still generated later by the host's ordinary prepaint phase.
                 if value == 2 {
-                    assert!(i.runtime.tree.revision > published.unwrap().revision);
+                    assert!(runtime.tree.revision > published.unwrap().revision);
                 }
                 log.borrow_mut().push(("run", value));
                 let log = log.clone();

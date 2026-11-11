@@ -305,3 +305,94 @@ fn cancelled_binding_and_equal_rebinding_change_lifetime_without_requesting_a_fr
     .unwrap();
     assert_eq!(ui.tree.node(child).unwrap().color, 2);
 }
+
+#[test]
+fn source_disposal_can_replace_endpoint_and_new_effects_validate_before_observation() {
+    let (mut ui, child) = super::super::tests::fixture();
+    let old = ui.signal(0x0000ffffu32);
+    ui.bind(old, Property::color(child)).unwrap();
+    let runs = Rc::new(Cell::new(0));
+    let log = runs.clone();
+    let result = ui
+        .edit(
+            |_| Ok(()),
+            |(), edit| {
+                edit.dispose_signal(old)?;
+                let source = edit.signal(0x4488ffffu32)?;
+                edit.bind(source, Property::color(child))?;
+                edit.effect(&[source.dependency()], move |_| {
+                    log.set(log.get() + 1);
+                    None
+                })?;
+                Ok(source)
+            },
+        )
+        .unwrap();
+    assert_eq!(runs.get(), 1);
+    assert!(ui.read(old).is_err());
+    assert_eq!(ui.binding_count(), 1);
+    assert_eq!(ui.tree.node(child).unwrap().color, 0x4488ffff);
+    ui.transaction(|tx| {
+        tx.set(result.result.value, 7)?;
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(runs.get(), 2);
+    assert!(matches!(
+        ui.edit(
+            |_| Ok(()),
+            |(), edit| {
+                edit.dispose_signal(result.result.value)?;
+                Ok(())
+            }
+        ),
+        Err(Error::SignalInUse)
+    ));
+}
+
+#[test]
+fn lifetime_reservation_and_revision_exhaustion_reject_before_callbacks() {
+    let (mut ui, child) = super::super::tests::fixture();
+    let before = ui.frame([100.0, 100.0]).unwrap();
+    ui.next_source_generation = u64::MAX;
+    assert!(matches!(
+        ui.edit(|_| Ok(()), |(), edit| edit.signal(1u32)),
+        Err(Error::RevisionExhausted)
+    ));
+    assert_eq!(ui.source_count(), 0);
+    ui.next_source_generation = 1;
+    ui.next_effect = u64::MAX;
+    assert!(matches!(
+        ui.edit(|_| Ok(()), |(), edit| edit.effect(&[], |_| None)),
+        Err(Error::RevisionExhausted)
+    ));
+    assert_eq!(ui.effect_count(), 0);
+    ui.next_effect = 0;
+    ui.tree.revision = u64::MAX;
+    let runs = Rc::new(Cell::new(0));
+    let log = runs.clone();
+    assert!(matches!(
+        ui.edit(
+            |_| Ok(()),
+            |(), edit| {
+                let signal = edit.signal(7u32)?;
+                edit.bind(signal, Property::color(child))?;
+                edit.effect(&[signal.dependency()], move |_| {
+                    log.set(log.get() + 1);
+                    None
+                })?;
+                Ok(())
+            }
+        ),
+        Err(Error::RevisionExhausted)
+    ));
+    assert_eq!(runs.get(), 0);
+    assert_eq!(ui.source_count(), 0);
+    assert_eq!(ui.binding_count(), 0);
+    assert_eq!(ui.effect_count(), 0);
+    ui.tree.revision = before.revision;
+    assert!(Arc::ptr_eq(
+        &before.items,
+        &ui.frame([100.0, 100.0]).unwrap().items
+    ));
+}

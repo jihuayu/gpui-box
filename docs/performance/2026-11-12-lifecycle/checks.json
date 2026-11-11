@@ -1,0 +1,20 @@
+{
+  "base_commit": "b0cd826",
+  "core_and_gallery": {
+    "command": "mise exec -- cargo test --locked --offline -p gpui-box -p gpui-box-example-hello --features gpui-box/retained-text,gpui-box/retained-wgpu,gpui-box-example-hello/retained-wgpu -- --include-ignored",
+    "core_passed": 104,
+    "gallery_passed": 12,
+    "ignored": 0
+  },
+  "clippy": {
+    "command": "mise exec -- cargo clippy --locked --offline -p gpui-box -p gpui-box-example-hello -p gpui-box-rendering-perf --features gpui-box-example-hello/retained-wgpu,gpui-box-rendering-perf/retained-gpu --all-targets -- -D warnings",
+    "passed": true
+  },
+  "hardware": {
+    "command": "./tooling/rendering-perf/run-retained-gpu.ps1 -Output target/retained-lifecycle-20261112",
+    "pixel_cases_passed": 157,
+    "matching_source_hashes": 81,
+    "source_hash_mismatches": 0
+  },
+  "scope": "Windows GTX 1650 Ti Vulkan only; owner lifecycle atomicity and CPU timing. No native-surface/cadence/input-to-present/energy qualification. Compilation checked absent during timing."
+}
