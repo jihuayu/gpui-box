@@ -87,10 +87,18 @@ class GpuiInputConnection(
         }
         return NativeBridge.clipboardAction(surface, session, operation)
     }
+    override fun performEditorAction(actionCode: Int): Boolean {
+        if (!valid()) return false
+        return NativeBridge.editorAction(surface, session)
+    }
+    override fun requestCursorUpdates(cursorUpdateMode: Int): Boolean =
+        valid() && view.requestCursorUpdates(cursorUpdateMode)
+    override fun requestCursorUpdates(cursorUpdateMode: Int, cursorUpdateFilter: Int): Boolean =
+        cursorUpdateFilter == 0 && requestCursorUpdates(cursorUpdateMode)
     override fun sendKeyEvent(event: KeyEvent): Boolean {
         if (!valid()) return false
         if (event.action == KeyEvent.ACTION_DOWN) return view.onKeyDown(event.keyCode, event)
-        return true
+        return view.onKeyUp(event.keyCode, event)
     }
     override fun beginBatchEdit(): Boolean {
         if (!valid()) return false

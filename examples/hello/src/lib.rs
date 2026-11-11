@@ -1,19 +1,40 @@
 //! One Rust page shared by the desktop executable and Android native library.
-mod input;
 use gpui::prelude::FluentBuilder;
 use gpui::*;
+use gpui_box_components::input;
 
 struct Hello {
     count: usize,
     input: Entity<input::TextInput>,
     secondary_input: Entity<input::TextInput>,
+    gallery_open: bool,
+    dark: bool,
+    checked: bool,
+    large_text: bool,
+    modal_open: bool,
+    modal_focus: FocusHandle,
+    modal_trigger: FocusHandle,
 }
 impl Render for Hello {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if self.gallery_open {
+            return self.render_gallery(window, cx).into_any_element();
+        }
         div()
             .size_full()
             .flex()
             .flex_col()
+            .tab_group()
+            .on_key_down(|event, window, cx| {
+                if event.keystroke.key == "tab" {
+                    if event.keystroke.modifiers.shift {
+                        window.focus_prev(cx);
+                    } else {
+                        window.focus_next(cx);
+                    }
+                    cx.stop_propagation();
+                }
+            })
             .gap_4()
             .p_6()
             .bg(rgb(0x171d28))
@@ -50,11 +71,246 @@ impl Render for Hello {
             .child(self.input.clone())
             .child("Second input · Check focus isolation")
             .child(self.secondary_input.clone())
+            .child(gpui_box_components::button(
+                "open-gallery",
+                "Open component gallery",
+                gpui_box_components::Theme::DARK,
+                {
+                    let entity = cx.entity().downgrade();
+                    move |window, cx| {
+                        window.blur(cx);
+                        window.dismiss_virtual_keyboard();
+                        let _ = entity.update(cx, |this, cx| {
+                            this.gallery_open = true;
+                            cx.notify();
+                        });
+                    }
+                },
+            ))
             .child(
                 div().text_sm().child(
                     "Rotate to test surface replacement. Back decrements a positive counter.",
                 ),
             )
+            .into_any_element()
+    }
+}
+
+impl Hello {
+    fn render_gallery(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        use gpui_box_components::{Layout, Status, Theme, button, checkbox, label, status, switch};
+        let mut theme = if self.dark { Theme::DARK } else { Theme::LIGHT };
+        theme.text_scale = if self.large_text { 1.5 } else { 1.0 };
+        if self.modal_open {
+            return div()
+                .id("modal-layer")
+                .size_full()
+                .p_6()
+                .flex()
+                .items_center()
+                .justify_center()
+                .bg(rgb(theme.background))
+                .font_family("Noto Sans CJK SC")
+                .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
+                    if event.keystroke.key == "escape" {
+                        this.close_modal(window, cx);
+                    }
+                    if matches!(event.keystroke.key.as_str(), "escape" | "tab") {
+                        cx.stop_propagation();
+                        window.prevent_default();
+                    }
+                }))
+                .on_back_gesture(cx.listener(|this, event: &BackGestureEvent, window, cx| {
+                    if event.phase == BackGesturePhase::Committed {
+                        this.close_modal(window, cx);
+                    }
+                }))
+                .child(
+                    div()
+                        .id("settings-dialog")
+                        .role(accesskit::Role::Dialog)
+                        .aria_label("Review settings")
+                        .p_6()
+                        .gap_4()
+                        .flex()
+                        .flex_col()
+                        .bg(rgb(theme.surface))
+                        .rounded_lg()
+                        .child(label(
+                            "review-message",
+                            "Drafts and preferences remain in the screen model.",
+                            theme,
+                        ))
+                        .child(
+                            button("dismiss", "Close", theme, {
+                                let entity = cx.entity().downgrade();
+                                move |window, cx| {
+                                    let _ =
+                                        entity.update(cx, |this, cx| this.close_modal(window, cx));
+                                }
+                            })
+                            .track_focus(&self.modal_focus),
+                        ),
+                )
+                .into_any_element();
+        }
+        let wide = Layout::for_width(f32::from(window.viewport_size().width)) == Layout::Wide;
+        let toggle = |field: fn(&mut Hello) -> &mut bool| {
+            let entity = cx.entity().downgrade();
+            move |_: &mut Window, cx: &mut App| {
+                let _ = entity.update(cx, |this, cx| {
+                    let value = field(this);
+                    *value = !*value;
+                    let mut theme = if this.dark {
+                        gpui_box_components::Theme::DARK
+                    } else {
+                        gpui_box_components::Theme::LIGHT
+                    };
+                    theme.text_scale = if this.large_text { 1.5 } else { 1.0 };
+                    this.input
+                        .update(cx, |input, cx| input.set_theme(theme, cx));
+                    this.secondary_input
+                        .update(cx, |input, cx| input.set_theme(theme, cx));
+                    cx.notify();
+                });
+            }
+        };
+        div()
+            .id("component-gallery")
+            .tab_group()
+            .on_key_down(|event, window, cx| {
+                if event.keystroke.key == "tab" {
+                    if event.keystroke.modifiers.shift {
+                        window.focus_prev(cx);
+                    } else {
+                        window.focus_next(cx);
+                    }
+                    cx.stop_propagation();
+                }
+            })
+            .on_back_gesture(cx.listener(|this, event: &BackGestureEvent, window, cx| {
+                if event.phase == BackGesturePhase::Committed {
+                    window.blur(cx);
+                    window.dismiss_virtual_keyboard();
+                    this.gallery_open = false;
+                    cx.notify();
+                }
+            }))
+            .size_full()
+            .overflow_y_scroll()
+            .p_6()
+            .gap_4()
+            .flex()
+            .flex_col()
+            .bg(rgb(theme.background))
+            .text_color(rgb(theme.text))
+            .font_family("Noto Sans CJK SC")
+            .child(label("gallery-title", "Component workbench", theme).text_3xl())
+            .child(label(
+                "gallery-layout",
+                if wide {
+                    "Wide workspace · Controllers retained"
+                } else {
+                    "Compact workspace · Controllers retained"
+                },
+                theme,
+            ))
+            .child(button(
+                "gallery-home",
+                "Back to platform checks",
+                theme,
+                toggle(|this| &mut this.gallery_open),
+            ))
+            .child(
+                div()
+                    .flex()
+                    .gap_4()
+                    .when(!wide, |element| element.flex_col())
+                    .child(switch(
+                        "theme",
+                        "Dark appearance",
+                        self.dark,
+                        theme,
+                        toggle(|this| &mut this.dark),
+                    ))
+                    .child(checkbox(
+                        "large-text",
+                        "Large text",
+                        self.large_text,
+                        theme,
+                        toggle(|this| &mut this.large_text),
+                    ))
+                    .child(checkbox(
+                        "consent",
+                        "Enable notifications",
+                        self.checked,
+                        theme,
+                        toggle(|this| &mut this.checked),
+                    )),
+            )
+            .child(
+                button("show-dialog", "Review settings", theme, {
+                    let entity = cx.entity().downgrade();
+                    move |window, cx| {
+                        let _ = entity.update(cx, |this, cx| {
+                            this.modal_open = true;
+                            window.dismiss_virtual_keyboard();
+                            this.modal_focus.focus(window, cx);
+                            cx.notify();
+                        });
+                    }
+                })
+                .track_focus(&self.modal_trigger),
+            )
+            .child(label(
+                "form-label",
+                "Drafts stay with their Rust controllers",
+                theme,
+            ))
+            .child(self.input.clone())
+            .child(self.secondary_input.clone())
+            .children(
+                [
+                    Status::Loading,
+                    Status::Empty,
+                    Status::Error,
+                    Status::Offline,
+                    Status::Ready,
+                ]
+                .into_iter()
+                .enumerate()
+                .map(|(index, state)| status(("status", index), state, theme)),
+            )
+            .child(
+                div()
+                    .id("sample-list")
+                    .role(accesskit::Role::List)
+                    .flex()
+                    .flex_col()
+                    .gap_2()
+                    .children(
+                        [
+                            "Inspect the native host",
+                            "Edit a Chinese draft",
+                            "Resize without losing state",
+                        ]
+                        .into_iter()
+                        .enumerate()
+                        .map(|(index, text)| {
+                            label(("list-item", index), text, theme)
+                                .role(accesskit::Role::ListItem)
+                                .p_3()
+                                .bg(rgb(theme.surface))
+                        }),
+                    ),
+            )
+            .into_any_element()
+    }
+
+    fn close_modal(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.modal_open = false;
+        self.modal_trigger.focus(window, cx);
+        cx.notify();
     }
 }
 
@@ -74,10 +330,19 @@ pub fn open(cx: &mut App) {
         |_, cx| {
             let input = cx.new(input::TextInput::new);
             let secondary_input = cx.new(input::TextInput::new);
-            cx.new(|_| Hello {
+            input.update(cx, |input, cx| input.set_label("Primary draft", cx));
+            secondary_input.update(cx, |input, cx| input.set_label("Secondary draft", cx));
+            cx.new(|cx| Hello {
                 count: 0,
                 input,
                 secondary_input,
+                gallery_open: false,
+                dark: true,
+                checked: false,
+                large_text: false,
+                modal_open: false,
+                modal_focus: cx.focus_handle(),
+                modal_trigger: cx.focus_handle(),
             })
         },
     )

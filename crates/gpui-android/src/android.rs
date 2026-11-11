@@ -1,11 +1,14 @@
+mod accessibility;
 mod bridge;
 mod dispatcher;
+mod entrypoint;
 mod platform;
 mod window;
 
 pub use bridge::{
-    attach, back, back_enabled, clipboard_action, detach, edit, frame, initialize, input_session,
-    lifecycle, memory_warning, resize, text, text_state, touch,
+    attach, back, back_enabled, back_gesture, caret_bounds, clipboard_action, detach, edit,
+    editor_action, editor_info, frame, initialize, input_session, insets, key, lifecycle,
+    memory_warning, resize, text, text_state, touch,
 };
 pub use platform::AndroidPlatform;
 
@@ -48,3 +51,8 @@ impl<T> CallbackSlot<T> {
         Some(result)
     }
 }
+
+/// JNI types used by the Android application entrypoint macro.
+pub use jni;
+
+pub use accessibility::{accessibility_action, accessibility_snapshot};

@@ -45,12 +45,17 @@ pub(super) struct WindowState {
     pub gpu: GpuContext,
     pub size: Cell<Size<Pixels>>,
     pub scale: Cell<f32>,
+    pub insets: RefCell<WindowInsets>,
+    pub insets_changed: CallbackSlot<Box<dyn FnMut(WindowInsets)>>,
     pub handle: Cell<Option<AnyWindowHandle>>,
     pub visible: Cell<bool>,
     pub input_handler: CallbackSlot<PlatformInputHandler>,
     input_focus: Cell<Option<FocusId>>,
     pub input_epoch: Cell<u64>,
+    pub accessibility: RefCell<super::accessibility::Accessibility>,
+    pub text_configuration: RefCell<TextInputConfiguration>,
     pub back_enabled: Cell<bool>,
+    pub back_gesture: RefCell<Option<(BackGestureEvent, bool)>>,
     pub back: CallbackSlot<Box<dyn FnMut()>>,
     pub request_frame: CallbackSlot<Box<dyn FnMut(RequestFrameOptions)>>,
     pub input: CallbackSlot<Box<dyn FnMut(PlatformInput) -> DispatchEventResult>>,
@@ -107,12 +112,17 @@ impl WindowState {
             gpu,
             size: Cell::new(size(px(width as f32 / scale), px(height as f32 / scale))),
             scale: Cell::new(scale),
+            insets: RefCell::default(),
+            insets_changed: CallbackSlot::default(),
             handle: Cell::new(None),
             visible: Cell::new(true),
             input_handler: CallbackSlot::default(),
             input_focus: Cell::new(None),
             input_epoch: Cell::new(1),
+            accessibility: RefCell::default(),
+            text_configuration: RefCell::default(),
             back_enabled: Cell::new(false),
+            back_gesture: RefCell::default(),
             back: CallbackSlot::default(),
             request_frame: CallbackSlot::default(),
             input: CallbackSlot::default(),
@@ -397,6 +407,24 @@ impl PlatformWindow for AndroidWindow {
             self.0.invalidate_input();
         }
         post(4);
+    }
+    fn set_text_input_configuration(&mut self, configuration: TextInputConfiguration) {
+        self.0.text_configuration.replace(configuration);
+        self.0.invalidate_input();
+    }
+    fn a11y_init(&self, callbacks: A11yCallbacks) {
+        self.0.accessibility.borrow_mut().callbacks = Some(Rc::new(callbacks));
+        post(7);
+    }
+    fn a11y_tree_update(&self, update: accesskit::TreeUpdate) {
+        self.0.accessibility.borrow_mut().update(update);
+        post(7);
+    }
+    fn insets(&self) -> WindowInsets {
+        self.0.insets.borrow().clone()
+    }
+    fn on_insets_changed(&self, callback: Box<dyn FnMut(WindowInsets)>) {
+        self.0.insets_changed.set(callback);
     }
     fn set_back_handler(&self, callback: Box<dyn FnMut()>) {
         self.0.back.set(callback);

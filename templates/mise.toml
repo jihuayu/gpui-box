@@ -1,0 +1,6 @@
+[tools]
+rust = "1.98.1"
+[tasks."dev:desktop"]
+run = "cargo run -p box-desktop"
+[tasks."build:desktop"]
+run = "cargo build -p box-desktop"
