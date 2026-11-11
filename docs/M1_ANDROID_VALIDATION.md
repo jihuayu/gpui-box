@@ -342,3 +342,40 @@ This slice adds contact-stream stress. Long-press claims, full scrolling physics
 GPU device loss, combined IME/predictive animation, TalkBack speech, ARM64 hardware
 and real Chinese keyboard candidate UI retain their independent acceptance gates.
 Physical-device testing remains deferred.
+
+## Actual screen sleep and wake lifecycle
+
+ScreenLifecycleTest exercises three real OS sleep/wake cycles through UiAutomation
+shell commands on the existing API35 x86_64 emulator. It uses the emulator's
+current keyguard configuration and restores the awake state in cleanup. The
+emulator has no secure-lock credential, so secure authentication remains a
+separate gate.
+
+Each cycle verifies that the screen becomes non-interactive, the Activity leaves
+RESUMED, the lifecycle service reports Background without focus, and the old
+surface input session is unavailable. The service lock observation is compared
+to KeyguardManager.isDeviceLocked. Old InputConnections reject both writes and
+queries while asleep and reject resumed writes. Active-use time stays unchanged
+during a measured screen-off interval. Wake/dismiss restores a focused eligible
+surface, retains Chinese/emoji text, and permits fresh editing with an explicit
+UTF-16 end selection. The resulting text is checked after every cycle.
+
+The focused test passes all three cycles in 42.93 seconds. An initial test
+incorrectly assumed a tap leaves the caret at the end. The corrected test
+explicitly selects the end before checking append behavior. Existing production
+host, component and text-input code required no changes for this slice. A first
+full-suite attempt stalled in the existing rotation case before reaching this
+new test. The emulator subsequently stopped responding to basic adb shell
+commands and diagnostic collection. That attempt is recorded as interrupted.
+The same AVD was restarted with its existing host-GPU configuration. The combined
+adaptive-shell and screen-lifecycle cases then passed 4/4 in 14.128 seconds, and
+the full suite passed 21/21 in 41.479 seconds.
+
+Both Android ABIs rebuild at native platform35. The full API35 emulator suite
+passes 21/21 after application-data reset. Integrated `mise run check` passes
+196 host tests plus six compile-fail doctests and two nested child reports.
+Windows component tests pass 16 cases with strict component/gallery Clippy.
+The emulator uses the same Android15/Vulkan/4096-byte-page environment described
+above. Hardware secure lock/unlock, GPU loss, combined IME/back animation,
+TalkBack speech, real Chinese keyboard candidate UI and physical-device
+qualification retain their independent acceptance gates.
