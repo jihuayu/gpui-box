@@ -220,6 +220,7 @@ and streaming progress events remain future schema additions.
 | DISTRIBUTION_UNAVAILABLE | New project's distribution path cannot be resolved |
 | PROJECT_CREATION_FAILED | App creation failed, including destination conflicts |
 | GENERATION_FAILED | Configuration, managed-file conflict or generation failed |
+| GENERATION_PLAN_FAILED | Read-only generation snapshot or preflight failed |
 | DIAGNOSTICS_FAILED | Doctor configuration or prerequisite checks failed |
 | DEVICE_QUERY_FAILED | SDK/adb discovery or device enumeration failed |
 | WORKFLOW_FAILED | Build/install/debug-package workflow failed |
@@ -246,3 +247,43 @@ space-containing Wave Two Service App completes `build android --json` with
 Gradle/native output stays on stderr. `doctor --json` returns DIAGNOSTICS_FAILED
 with exit code 1 for this host's missing Android SDK license record, retaining
 the corrective diagnostic on stderr. No physical device was used.
+
+## Read-only generation plans
+
+Run `gpui-box generate --dry-run` for a human summary, or add `--json` for a
+schema-v1 ChangePlan in the response's result. Planning uses the same generated
+bytes, managed-file ownership checks and pending-journal recovery preflight as
+ordinary generation. It reads local configuration/distribution files and starts
+no build tool or network request. It creates no metadata directories, locks,
+journals or temporary files, including on failures and uninitialized projects.
+
+The plan records CLI/upstream revision, the exact project-config SHA-256, pending
+recovery status, path-sorted managed files and the generated-state metadata file.
+Each FileChange contains `path`, `action` (`create`, `update`, `unchanged`),
+nullable `before_sha256` and required `after_sha256`. Paths use project-relative
+forward slashes. The state file is listed separately as `metadata`. Application
+source/native customizations remain outside managed outputs. Transient journal
+and lock writes are lifecycle operations for actual generation.
+
+An existing generator lock makes planning fail. A second lock check detects a
+generator that started while planning. The result is a read-only snapshot and
+has no filesystem transaction isolation. Ordinary `generate` recomputes current
+inputs and preconditions under its existing lock. Editing a managed file after a
+preview still fails before managed-file writes. Persisted plan application and
+atomic multi-file transactions remain #65 follow-ups.
+
+Both planning and generation reject symbolic links and Windows reparse points
+in existing managed-output/metadata path components. Project roots remain
+application-owned while tools run. This validation retains that trusted-directory
+boundary. Unknown files remain untouched. Corrupt state/journals, edited managed
+files and invalid configuration fail with their originals preserved. A pending
+journal is reported by planning and completed only by actual generation.
+
+The Windows CLI suite passes 27 tests, with five new plan regressions covering
+determinism, exact hashes and apply correspondence, absent metadata, failure
+preservation and pending recovery. Read-only tests compare directory/file names,
+file digests and file modification times. Delayed Windows directory timestamps
+are excluded from those assertions. A real space-containing generated project
+reports 15 unchanged managed files and preserves its file hashes/timestamps.
+An actual Windows junction in a managed path is rejected. A Unix symlink
+regression is included and awaits a Unix runner.

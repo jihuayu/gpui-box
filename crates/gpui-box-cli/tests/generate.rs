@@ -309,3 +309,225 @@ fn typed_services_reject_unknown_ambiguous_or_incomplete_configuration() {
         );
     }
 }
+
+type TreeSnapshot = std::collections::BTreeMap<PathBuf, (bool, String, std::time::SystemTime)>;
+
+fn snapshot(root: &Path) -> TreeSnapshot {
+    fn visit(root: &Path, path: &Path, files: &mut TreeSnapshot) {
+        use sha2::{Digest, Sha256};
+        for entry in fs::read_dir(path).unwrap() {
+            let entry = entry.unwrap();
+            let metadata = entry.metadata().unwrap();
+            let directory = metadata.is_dir();
+            files.insert(
+                entry.path().strip_prefix(root).unwrap().to_path_buf(),
+                (
+                    directory,
+                    if directory {
+                        String::new()
+                    } else {
+                        format!("{:x}", Sha256::digest(fs::read(entry.path()).unwrap()))
+                    },
+                    // Windows can publish delayed directory timestamps from
+                    // initial creation. File modification times remain exact.
+                    if directory {
+                        std::time::UNIX_EPOCH
+                    } else {
+                        metadata.modified().unwrap()
+                    },
+                ),
+            );
+            if directory {
+                visit(root, &entry.path(), files);
+            }
+        }
+    }
+    let mut files = TreeSnapshot::new();
+    visit(root, root, &mut files);
+    files
+}
+
+fn dry_run(app: &Path) -> serde_json::Value {
+    let output = cli(app, &["generate", "--dry-run", "--json"]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(response["success"], true);
+    assert_eq!(response["result"]["schema_version"], 1);
+    response["result"].clone()
+}
+
+#[test]
+fn dry_run_is_deterministic_and_preserves_file_bytes_names_and_modification_times() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create(temporary.path());
+    fs::write(app.join("app/src/lib.rs"), "// customized application\n").unwrap();
+    let before = snapshot(&app);
+    let plan = dry_run(&app);
+    assert_eq!(plan, dry_run(&app));
+    assert_eq!(before, snapshot(&app));
+    assert!(
+        plan["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|file| file["action"] == "unchanged")
+    );
+    assert_eq!(plan["metadata"]["action"], "unchanged");
+    assert_eq!(plan["recovering_pending_journal"], false);
+    assert!(
+        !plan["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|file| file["path"] == "app/src/lib.rs")
+    );
+    let human = cli(&app, &["generate", "--dry-run"]);
+    assert!(human.status.success());
+    assert!(String::from_utf8_lossy(&human.stdout).contains("Unchanged Cargo.toml"));
+    assert_eq!(before, snapshot(&app));
+}
+
+#[test]
+fn dry_run_reports_exact_hashes_and_creation_then_apply_matches_plan() {
+    use sha2::{Digest, Sha256};
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create(temporary.path());
+    let file = app.join("gpui-box.json");
+    let mut config: serde_json::Value = serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();
+    config["version"] = "1.2.3".into();
+    config["version_code"] = 42.into();
+    fs::write(file, serde_json::to_vec(&config).unwrap()).unwrap();
+    fs::remove_file(app.join("android-host/gradle.properties")).unwrap();
+    let before = snapshot(&app);
+    let plan = dry_run(&app);
+    assert_eq!(before, snapshot(&app));
+    let files = plan["files"].as_array().unwrap();
+    assert!(
+        files
+            .windows(2)
+            .all(|pair| pair[0]["path"].as_str() < pair[1]["path"].as_str())
+    );
+    let created = files
+        .iter()
+        .find(|file| file["path"] == "android-host/gradle.properties")
+        .unwrap();
+    assert_eq!(created["action"], "create");
+    assert!(created["before_sha256"].is_null());
+    assert!(files.iter().any(|file| file["action"] == "update"));
+    for file in files {
+        let path = app.join(file["path"].as_str().unwrap());
+        if let Some(before) = file["before_sha256"].as_str() {
+            assert_eq!(
+                format!("{:x}", Sha256::digest(fs::read(path).unwrap())),
+                before
+            );
+        }
+    }
+    assert!(cli(&app, &["generate"]).status.success());
+    for file in files.iter().chain(std::iter::once(&plan["metadata"])) {
+        let bytes = fs::read(app.join(file["path"].as_str().unwrap())).unwrap();
+        assert_eq!(
+            format!("{:x}", Sha256::digest(bytes)),
+            file["after_sha256"].as_str().unwrap()
+        );
+    }
+}
+
+#[test]
+fn dry_run_without_metadata_creates_no_directories_or_locks() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = temporary.path().join("Uninitialized App");
+    fs::create_dir(&app).unwrap();
+    let seed = create(temporary.path());
+    fs::copy(seed.join("gpui-box.json"), app.join("gpui-box.json")).unwrap();
+    let before = snapshot(&app);
+    let plan = dry_run(&app);
+    assert!(
+        plan["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|file| file["action"] == "create")
+    );
+    assert_eq!(plan["metadata"]["action"], "create");
+    assert_eq!(before, snapshot(&app));
+    assert!(!app.join(".gpui-box").exists());
+}
+
+#[test]
+fn dry_run_conflicts_corruption_and_active_lock_preserve_the_project() {
+    for failure in ["edited", "state", "journal", "lock", "config"] {
+        let temporary = tempfile::tempdir().unwrap();
+        let app = create(temporary.path());
+        let path = match failure {
+            "edited" => "Cargo.toml",
+            "state" => ".gpui-box/generated.json",
+            "journal" => ".gpui-box/pending.json",
+            "lock" => ".gpui-box/generate.lock",
+            _ => "gpui-box.json",
+        };
+        fs::write(app.join(path), b"preserve original failure").unwrap();
+        let before = snapshot(&app);
+        let output = cli(&app, &["generate", "--dry-run", "--json"]);
+        assert!(!output.status.success(), "must fail for {failure}");
+        let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(response["error"]["code"], "GENERATION_PLAN_FAILED");
+        assert_eq!(before, snapshot(&app));
+    }
+}
+
+#[test]
+fn dry_run_reuses_pending_journal_preflight_without_finishing_recovery() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create(temporary.path());
+    let state: std::collections::BTreeMap<String, String> =
+        serde_json::from_slice(&fs::read(app.join(".gpui-box/generated.json")).unwrap()).unwrap();
+    let journal: std::collections::BTreeMap<_, _> = state
+        .iter()
+        .map(|(path, digest)| (path, vec![digest]))
+        .collect();
+    fs::write(
+        app.join(".gpui-box/pending.json"),
+        serde_json::to_vec(&journal).unwrap(),
+    )
+    .unwrap();
+    fs::write(app.join(".gpui-box/generated.json"), b"{}").unwrap();
+    let before = snapshot(&app);
+    let plan = dry_run(&app);
+    assert_eq!(plan["recovering_pending_journal"], true);
+    assert_eq!(plan["metadata"]["action"], "update");
+    assert_eq!(before, snapshot(&app));
+    assert!(cli(&app, &["generate"]).status.success());
+    assert!(!app.join(".gpui-box/pending.json").exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn dry_run_and_apply_reject_managed_output_and_metadata_symlinks() {
+    for relative in ["Cargo.toml", ".gpui-box/generated.json", "android-host/app"] {
+        let temporary = tempfile::tempdir().unwrap();
+        let app = create(temporary.path());
+        let original = app.join(relative);
+        let outside = temporary.path().join("outside");
+        fs::rename(&original, &outside).unwrap();
+        std::os::unix::fs::symlink(&outside, &original).unwrap();
+        for arguments in [
+            vec!["generate", "--dry-run", "--json"],
+            vec!["generate", "--json"],
+        ] {
+            let output = cli(&app, &arguments);
+            assert!(!output.status.success());
+            let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+            assert!(
+                response["error"]["message"]
+                    .as_str()
+                    .unwrap()
+                    .contains("links")
+            );
+        }
+    }
+}

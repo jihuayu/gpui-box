@@ -1,4 +1,5 @@
 use crate::config::AppConfig;
+use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
@@ -129,14 +130,118 @@ impl Drop for GenerationLock {
         let _ = fs::remove_file(&self.0);
     }
 }
-pub fn generate(root: &Path, initial: bool) -> Result<(), String> {
-    fs::create_dir_all(root.join(".gpui-box")).map_err(|e| e.to_string())?;
-    let lock_path = root.join(".gpui-box/generate.lock");
-    let lock = fs::OpenOptions::new().write(true).create_new(true).open(&lock_path)
-        .map_err(|e| format!("Cannot acquire generation lock {}: {e}. Check for another generator before removing a stale lock.", lock_path.display()))?;
-    let _guard = GenerationLock(lock_path);
-    drop(lock);
-    let config = AppConfig::load(root)?;
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ChangeAction {
+    Create,
+    Update,
+    Unchanged,
+}
+
+#[derive(Debug, Serialize)]
+pub struct FileChange {
+    pub path: String,
+    pub action: ChangeAction,
+    pub before_sha256: Option<String>,
+    pub after_sha256: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ChangePlan {
+    pub schema_version: u32,
+    pub cli_version: &'static str,
+    pub upstream_revision: &'static str,
+    pub config_sha256: String,
+    pub recovering_pending_journal: bool,
+    pub files: Vec<FileChange>,
+    pub metadata: FileChange,
+}
+
+struct PreparedGeneration {
+    files: BTreeMap<String, Vec<u8>>,
+    state: Vec<u8>,
+    journal: Vec<u8>,
+    plan: ChangePlan,
+}
+
+/// A read-only snapshot. Apply always recomputes preconditions under its lock.
+pub fn plan(root: &Path) -> Result<ChangePlan, String> {
+    let lock = managed_path(root, ".gpui-box/generate.lock")?;
+    if lock.exists() {
+        return Err("Another generator owns this project or left a stale lock".into());
+    }
+    let prepared = prepare(root)?;
+    if lock.exists() {
+        return Err("Another generator started during the snapshot; retry the dry run".into());
+    }
+    Ok(prepared.plan)
+}
+
+// All managed paths are known relative names. Reject existing links at every
+// component before both planning and writing. Private project ownership remains
+// required while running the generator; this is not a hostile-directory sandbox.
+fn managed_path(root: &Path, relative: &str) -> Result<PathBuf, String> {
+    let mut current = root.to_path_buf();
+    let relative = Path::new(relative);
+    for component in relative.components() {
+        if !matches!(component, std::path::Component::Normal(_)) {
+            return Err("Managed output requires a normal relative path".into());
+        }
+        current.push(component);
+        match fs::symlink_metadata(&current) {
+            Ok(metadata) if redirected(&metadata) => {
+                return Err(
+                    "Managed output and metadata paths must not traverse links or reparse points"
+                        .into(),
+                );
+            }
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(format!("Inspect managed path: {error}")),
+        }
+    }
+    Ok(current)
+}
+
+fn redirected(metadata: &fs::Metadata) -> bool {
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        metadata.file_attributes() & 0x400 != 0
+    }
+    #[cfg(not(windows))]
+    metadata.file_type().is_symlink()
+}
+
+fn file_change(root: &Path, path: &str, content: &[u8]) -> Result<FileChange, String> {
+    let target = managed_path(root, path)?;
+    let before = match fs::read(target) {
+        Ok(content) => Some(hash(&content)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => return Err(format!("Read planned file: {error}")),
+    };
+    let after = hash(content);
+    let action = match &before {
+        None => ChangeAction::Create,
+        Some(before) if *before == after => ChangeAction::Unchanged,
+        Some(_) => ChangeAction::Update,
+    };
+    Ok(FileChange {
+        path: path.into(),
+        action,
+        before_sha256: before,
+        after_sha256: after,
+    })
+}
+
+fn prepare(root: &Path) -> Result<PreparedGeneration, String> {
+    let config_bytes = fs::read(managed_path(root, "gpui-box.json")?)
+        .map_err(|error| format!("Read gpui-box.json: {error}"))?;
+    let config: AppConfig = serde_json::from_slice(&config_bytes)
+        .map_err(|error| format!("Invalid gpui-box.json: {error}"))?;
+    config.validate()?;
+    let config_sha256 = hash(&config_bytes);
     let distribution = config.distribution(root)?;
     let distribution = portable_path(
         distribution
@@ -337,8 +442,8 @@ include(":app")
             )
             .into_bytes();
     }
-    let state_path = root.join(".gpui-box/generated.json");
-    let journal_path = root.join(".gpui-box/pending.json");
+    let state_path = managed_path(root, ".gpui-box/generated.json")?;
+    let journal_path = managed_path(root, ".gpui-box/pending.json")?;
     // A journal permits safe retries after interruption between individual renames.
     let pending: BTreeMap<String, Vec<String>> = if journal_path.exists() {
         serde_json::from_slice(&fs::read(&journal_path).map_err(|e| e.to_string())?)
@@ -354,40 +459,69 @@ include(":app")
     };
     // Preflight every managed path before writing any file.
     let mut journal: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut changes = Vec::new();
     for (path, content) in &files {
         let hashes = journal.entry(path.clone()).or_default();
         hashes.push(hash(content));
-        let target = root.join(path);
-        if target.exists() {
-            let current = hash(&fs::read(&target).map_err(|e| e.to_string())?);
-            if previous.get(path) != Some(&current)
+        let change = file_change(root, path, content)?;
+        if let Some(current) = &change.before_sha256 {
+            if previous.get(path) != Some(current)
                 && !pending
                     .get(path)
-                    .is_some_and(|hashes| hashes.contains(&current))
+                    .is_some_and(|hashes| hashes.contains(current))
             {
                 return Err(format!(
                     "Managed file {path} was edited. Move customizations to app/src or android-custom.gradle.kts before generating."
                 ));
             }
-            hashes.push(current);
+            hashes.push(current.clone());
         }
+        changes.push(change);
     }
     let state: BTreeMap<_, _> = files
         .iter()
         .map(|(path, content)| (path.clone(), hash(content)))
         .collect();
+    let state = serde_json::to_vec_pretty(&state).map_err(|e| e.to_string())?;
+    let metadata = file_change(root, ".gpui-box/generated.json", &state)?;
+    Ok(PreparedGeneration {
+        files,
+        state,
+        journal: serde_json::to_vec_pretty(&journal).map_err(|e| e.to_string())?,
+        plan: ChangePlan {
+            schema_version: 1,
+            cli_version: gpui_box::VERSION,
+            upstream_revision: gpui_box::UPSTREAM_REVISION,
+            config_sha256,
+            recovering_pending_journal: journal_path.exists(),
+            files: changes,
+            metadata,
+        },
+    })
+}
+
+pub fn generate(root: &Path, initial: bool) -> Result<(), String> {
+    let metadata = managed_path(root, ".gpui-box")?;
+    fs::create_dir_all(metadata).map_err(|e| e.to_string())?;
+    let lock_path = managed_path(root, ".gpui-box/generate.lock")?;
+    let lock = fs::OpenOptions::new().write(true).create_new(true).open(&lock_path)
+        .map_err(|e| format!("Cannot acquire generation lock {}: {e}. Check for another generator before removing a stale lock.", lock_path.display()))?;
+    let _guard = GenerationLock(lock_path);
+    drop(lock);
+    let prepared = prepare(root)?;
     write(
-        &journal_path,
-        &serde_json::to_vec_pretty(&journal).map_err(|e| e.to_string())?,
+        &managed_path(root, ".gpui-box/pending.json")?,
+        &prepared.journal,
     )?;
-    for (path, content) in files {
-        write(&root.join(&path), &content)?;
+    for (path, content) in prepared.files {
+        write(&managed_path(root, &path)?, &content)?;
     }
     write(
-        &state_path,
-        &serde_json::to_vec_pretty(&state).map_err(|e| e.to_string())?,
+        &managed_path(root, ".gpui-box/generated.json")?,
+        &prepared.state,
     )?;
-    fs::remove_file(journal_path).map_err(|e| format!("Complete generation journal: {e}"))?;
+    fs::remove_file(managed_path(root, ".gpui-box/pending.json")?)
+        .map_err(|e| format!("Complete generation journal: {e}"))?;
     if initial {
         write(
             &root.join("app/src/lib.rs"),
