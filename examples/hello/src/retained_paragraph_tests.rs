@@ -21,6 +21,55 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 }
 
 #[test]
+fn draft_constructed_text_measures_like_fresh_and_can_become_a_container() {
+    let system = text_system();
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let paint = TextPaint {
+        resource: raster.prepare(shape(&system, "draft 中文"), 1.0).unwrap(),
+        color: 0xffffffff,
+    };
+    let mut tree = UiTree::new(Style::default(), 0).unwrap();
+    let root = tree.root();
+    let node = tree
+        .edit(BackendCapabilities::default(), |edit| {
+            let node = edit.append(root, Style::default(), 0)?;
+            edit.properties().text(node, Some(paint.clone()));
+            Ok(node)
+        })
+        .unwrap()
+        .value;
+    let frame = tree.frame([200.0, 100.0]).unwrap();
+    let mut fresh = UiTree::new(Style::default(), 0).unwrap();
+    let leaf = fresh.append(fresh.root(), Style::default(), 0).unwrap();
+    let mut tx = Transaction::default();
+    tx.text(leaf, Some(paint));
+    fresh.commit(tx, BackendCapabilities::default()).unwrap();
+    let expected = fresh.frame([200.0, 100.0]).unwrap();
+    let item = frame.items.iter().find(|i| i.node == node).unwrap();
+    let other = expected.items.iter().find(|i| i.node == leaf).unwrap();
+    assert_eq!(item.bounds, other.bounds);
+    assert!(item.text.is_some());
+    let child = tree
+        .edit(BackendCapabilities::default(), |edit| {
+            edit.properties().text(node, None);
+            edit.append(node, Style::default(), 0x4488ffff)
+        })
+        .unwrap()
+        .value;
+    let next = tree.frame([200.0, 100.0]).unwrap();
+    assert_eq!(next.revision, frame.revision + 1);
+    assert!(next.items.iter().any(|i| i.node == child));
+    assert!(
+        next.items
+            .iter()
+            .find(|i| i.node == node)
+            .unwrap()
+            .text
+            .is_none()
+    );
+}
+
+#[test]
 fn glyph_resources_share_masks_bound_width_cache_and_outlive_the_font_owner() {
     let system = text_system();
     let paragraph = shape(&system, "office a\u{301} 中文\nsecond line");

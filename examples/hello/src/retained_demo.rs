@@ -33,6 +33,7 @@ pub struct RetainedDemo {
     reversed: bool,
     portal: (gpui_box::retained::NodeId, [gpui_box::retained::NodeId; 2]),
     portal_moved: bool,
+    draft_output: Option<gpui_box::retained::NodeId>,
     render_count: usize,
     #[cfg(feature = "retained-wgpu")]
     gpu: Option<Rc<RefCell<gpui_box::retained::wgpu::WgpuFrameRenderer>>>,
@@ -447,6 +448,7 @@ impl RetainedDemo {
             reversed: false,
             portal,
             portal_moved: false,
+            draft_output: None,
             render_count: 0,
             #[cfg(feature = "retained-wgpu")]
             gpu: None,
@@ -742,6 +744,38 @@ impl Render for RetainedDemo {
                     })),
             )
             .child(
+                div().id("retained-edit").debug_selector(|| "retained-edit".into()).cursor_pointer()
+                    .child("Toggle output in one transaction")
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        let mut tree = this.tree.borrow_mut();
+                        let owner = tree.root_scope();
+                        let root = tree.root_render();
+                        let previous = this.draft_output;
+                        let source = this.color;
+                        let next_color = if *tree.read(source).unwrap() == 0x66aa88ff { 0x245fc7ff } else { 0x66aa88ff };
+                        let result = tree.edit(|tx| { tx.set(source, next_color)?; Ok(()) }, |(), edit| {
+                            if let Some(node) = previous {
+                                edit.remove(node)?;
+                                Ok(None)
+                            } else {
+                                let node = edit.append(owner, root, Style {
+                                    position: taffy::Position::Absolute,
+                                    inset: taffy::Rect { left: length(192.0), top: length(4.0),
+                                        right: taffy::LengthPercentageAuto::auto(), bottom: taffy::LengthPercentageAuto::auto() },
+                                    size: taffy::Size { width: length(24.0), height: length(24.0) },
+                                    ..Default::default()
+                                }, 0)?;
+                                edit.bind(source, Property::color(node))?;
+                                edit.properties().decoration(node, QuadDecoration::default());
+                                Ok(Some(node))
+                            }
+                        }).expect("publish source and output draft");
+                        this.draft_output = result.result.value;
+                        this.last_commit = format!("Atomic output: {} inserted, {} removed", result.inserted.len(), result.removed.len());
+                        if result.result.commit.request_frame { cx.notify(); }
+                    })),
+            )
+            .child(
                 div().id("retained-background").debug_selector(|| "retained-background".into()).cursor_pointer()
                     .child("Queue background color burst")
                     .on_click(cx.listener(|this, _, _, _| {
@@ -754,7 +788,7 @@ impl Render for RetainedDemo {
                         });
                     })),
             )
-            .child(format!("{} · material #{:08x}", self.last_commit, self.observed_color.get()))
+            .child(div().h_6().flex_shrink_0().truncate().child(format!("{} · material #{:08x}", self.last_commit, self.observed_color.get())))
             .child(
                 canvas(
                     move |bounds, _window, _| {
@@ -871,6 +905,7 @@ impl Render for RetainedDemo {
                     },
                 )
                 .w_full()
+                .flex_shrink_0()
                 .h_8(),
             )
     }
@@ -1143,6 +1178,33 @@ mod tests {
             assert_ne!(item.bounds.x, old_portal.1.bounds.x);
             assert!(tree.renders(owner).unwrap().contains(&portal));
         });
+        for inserted in [true, false] {
+            let (revision, bindings) = view.read_with(cx, |view, _| {
+                let tree = view.tree.borrow();
+                (
+                    tree.published_frame().unwrap().revision,
+                    tree.reactive().binding_count(),
+                )
+            });
+            let button = cx.debug_bounds("retained-edit").unwrap();
+            cx.simulate_click(button.center(), Modifiers::default());
+            cx.run_until_parked();
+            view.read_with(cx, |view, _| {
+                let tree = view.tree.borrow();
+                assert_eq!(tree.published_frame().unwrap().revision, revision + 1);
+                assert_eq!(view.draft_output.is_some(), inserted);
+                assert_eq!(
+                    tree.reactive().binding_count(),
+                    if inserted { bindings + 1 } else { bindings - 1 }
+                );
+                if let Some(node) = view.draft_output {
+                    let frame = tree.published_frame().unwrap();
+                    let item = frame.items.iter().find(|i| i.node == node).unwrap();
+                    assert_eq!(item.fill_color, *tree.read(view.color).unwrap());
+                    assert!(tree.renders(tree.root_scope()).unwrap().contains(&node));
+                }
+            });
+        }
         let measured = cx.debug_bounds("retained-measure").unwrap();
         cx.simulate_click(measured.center(), Modifiers::default());
         cx.run_until_parked();
@@ -1464,5 +1526,32 @@ mod tests {
             moved.as_raw() == reference.as_raw(),
             "portal move matches full reference pixels"
         );
+        let mut pixels = moved;
+        for _ in 0..2 {
+            let revision = view.read_with(cx, |view, _| {
+                view.tree.borrow().published_frame().unwrap().revision
+            });
+            let button = cx.debug_bounds("retained-edit").unwrap();
+            cx.simulate_click(button.center(), Modifiers::default());
+            cx.run_until_parked();
+            let frame = view.read_with(cx, |view, _| {
+                view.tree.borrow().published_frame().unwrap().clone()
+            });
+            assert_eq!(frame.revision, revision + 1);
+            let next = gpu.borrow_mut().image().unwrap();
+            assert!(
+                next.as_raw() != pixels.as_raw(),
+                "atomic output toggle changes pixels"
+            );
+            let reference = gpu
+                .borrow_mut()
+                .reference_image(&frame, [next.width(), next.height()], scale)
+                .unwrap();
+            assert!(
+                next.as_raw() == reference.as_raw(),
+                "atomic output toggle matches full reference"
+            );
+            pixels = next;
+        }
     }
 }

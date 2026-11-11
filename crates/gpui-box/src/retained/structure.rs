@@ -7,8 +7,8 @@ use super::*;
 /// constructing nodes still uses the separate append API.
 #[derive(Default)]
 pub struct StructureTransaction {
-    children: BTreeMap<NodeId, Vec<NodeId>>,
-    removed: Vec<NodeId>,
+    pub(super) children: BTreeMap<NodeId, Vec<NodeId>>,
+    pub(super) removed: Vec<NodeId>,
 }
 impl StructureTransaction {
     /// Remove the current subtree. Overlapping removal roots coalesce. A node
@@ -21,9 +21,9 @@ impl StructureTransaction {
     }
 }
 pub(super) struct PreparedStructure {
-    changed: Vec<(NodeId, Vec<NodeId>)>,
-    removed: Vec<NodeId>,
-    next: Option<u64>,
+    pub(super) changed: Vec<(NodeId, Vec<NodeId>)>,
+    pub(super) removed: Vec<NodeId>,
+    pub(super) next: Option<u64>,
 }
 impl PreparedStructure {
     pub(super) fn has_removals(&self) -> bool {
@@ -42,13 +42,38 @@ impl UiTree {
     }
     pub(super) fn prepare_structure(
         &self,
-        mut tx: StructureTransaction,
+        tx: StructureTransaction,
     ) -> Result<PreparedStructure, Error> {
-        let mut removed = vec![false; self.slots.len()];
+        Self::prepare_topology(
+            tx,
+            |id| self.node(id),
+            self.slots.iter().enumerate().filter_map(|(slot, entry)| {
+                entry.node.as_ref().map(|_| NodeId {
+                    tree: self.identity,
+                    slot,
+                    generation: entry.generation,
+                })
+            }),
+            self.slots.len(),
+            self.root,
+            self.revision,
+            false,
+        )
+    }
+    pub(super) fn prepare_topology<'a>(
+        mut tx: StructureTransaction,
+        node_for: impl Fn(NodeId) -> Result<&'a Node, Error>,
+        live_ids: impl Iterator<Item = NodeId>,
+        capacity: usize,
+        root_id: NodeId,
+        revision: u64,
+        force_validate: bool,
+    ) -> Result<PreparedStructure, Error> {
+        let mut removed = vec![false; capacity];
         let mut removal_order = vec![];
         for root in &tx.removed {
-            self.node(*root)?;
-            if *root == self.root {
+            node_for(*root)?;
+            if *root == root_id {
                 return Err(Error::CannotRemoveRoot);
             }
             let mut stack = vec![*root];
@@ -57,29 +82,29 @@ impl UiTree {
                     continue;
                 }
                 removal_order.push(id);
-                stack.extend(&self.node(id)?.children);
+                stack.extend(&node_for(id)?.children);
             }
         }
         // Omitted lists retain surviving children. Explicit lists must never
         // refer to a retired generation, including one removed in this batch.
         for (parent, children) in &tx.children {
-            self.node(*parent)?;
+            node_for(*parent)?;
             if removed[parent.slot] {
                 return Err(Error::InvalidChildren);
             }
             for child in children {
-                self.node(*child)?;
+                node_for(*child)?;
                 if removed[child.slot] {
                     return Err(Error::InvalidChildren);
                 }
             }
         }
         for id in &removal_order {
-            if let Some(parent) = self.node(*id)?.parent
+            if let Some(parent) = node_for(*id)?.parent
                 && !removed[parent.slot]
             {
                 tx.children.entry(parent).or_insert_with(|| {
-                    self.node(parent)
+                    node_for(parent)
                         .unwrap()
                         .children
                         .iter()
@@ -90,47 +115,45 @@ impl UiTree {
             }
         }
         for (parent, children) in &tx.children {
-            let node = self.node(*parent)?;
+            let node = node_for(*parent)?;
             if !children.is_empty() && node.measure.is_some() {
                 return Err(Error::MeasuredNodeHasChildren);
             }
             for child in children {
-                self.node(*child)?;
+                node_for(*child)?;
             }
         }
         let changed: Vec<_> = tx
             .children
             .into_iter()
-            .filter(|(id, children)| self.node(*id).unwrap().children != *children)
+            .filter(|(id, children)| node_for(*id).unwrap().children != *children)
             .collect();
-        if changed.is_empty() && removal_order.is_empty() {
+        if !force_validate && changed.is_empty() && removal_order.is_empty() {
             return Ok(PreparedStructure {
                 changed,
                 removed: removal_order,
                 next: None,
             });
         }
-        let mut lists = vec![None; self.slots.len()];
+        let mut lists = vec![None; capacity];
         for (id, children) in &changed {
             lists[id.slot] = Some(children);
         }
-        let mut parents = vec![false; self.slots.len()];
+        let mut parents = vec![false; capacity];
         let mut parent_count = 0;
         let mut live = 0;
-        for (slot, entry) in self.slots.iter().enumerate() {
-            let Some(node) = &entry.node else { continue };
-            if removed[slot] {
+        for id in live_ids {
+            let node = node_for(id)?;
+            if removed[id.slot] {
                 continue;
             }
             live += 1;
-            let id = NodeId {
-                tree: self.identity,
-                slot,
-                generation: entry.generation,
-            };
             let children = lists[id.slot].unwrap_or(&node.children);
+            if node.measure.is_some() && !children.is_empty() {
+                return Err(Error::MeasuredNodeHasChildren);
+            }
             for child in children {
-                if *child == self.root || std::mem::replace(&mut parents[child.slot], true) {
+                if *child == root_id || std::mem::replace(&mut parents[child.slot], true) {
                     return Err(Error::InvalidChildren);
                 }
                 parent_count += 1;
@@ -139,27 +162,28 @@ impl UiTree {
         if parent_count + 1 != live {
             return Err(Error::InvalidChildren);
         }
-        let mut visited = vec![false; self.slots.len()];
+        let mut visited = vec![false; capacity];
         let mut visited_count = 0;
-        let mut stack = vec![self.root];
+        let mut stack = vec![root_id];
         while let Some(id) = stack.pop() {
             if std::mem::replace(&mut visited[id.slot], true) {
                 return Err(Error::InvalidChildren);
             }
             visited_count += 1;
-            stack.extend(lists[id.slot].unwrap_or(&self.node(id)?.children));
+            stack.extend(lists[id.slot].unwrap_or(&node_for(id)?.children));
         }
         if visited_count != live {
             return Err(Error::InvalidChildren);
         }
-        let next = self
-            .revision
-            .checked_add(1)
-            .ok_or(Error::RevisionExhausted)?;
+        let next = if changed.is_empty() && removal_order.is_empty() {
+            None
+        } else {
+            Some(revision.checked_add(1).ok_or(Error::RevisionExhausted)?)
+        };
         Ok(PreparedStructure {
             changed,
             removed: removal_order,
-            next: Some(next),
+            next,
         })
     }
     pub(super) fn apply_structure(&mut self, prepared: PreparedStructure) -> Commit {

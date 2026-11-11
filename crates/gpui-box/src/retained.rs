@@ -31,8 +31,10 @@ pub use measure::{CustomMeasureSnapshot, ImageIntrinsicSize, LayoutStats, Measur
 mod primitive;
 mod properties;
 pub use primitive::QuadDecoration;
+mod edit;
 pub mod reactive;
 pub mod responsive;
+pub use edit::{TreeEdit, TreeEditCommit};
 mod structure;
 pub use properties::{Damage, PropertyNode, PropertyState, PropertyTrees};
 pub use structure::StructureTransaction;
@@ -303,6 +305,7 @@ impl From<taffy::TaffyError> for Error {
     }
 }
 
+#[derive(Clone)]
 struct Node {
     layout: taffy::NodeId,
     children: Vec<NodeId>,
@@ -333,6 +336,7 @@ pub struct UiTree {
     layout: TaffyTree<MeasureSnapshot>,
     root: NodeId,
     revision: u64,
+    next_generation: u64,
     dirty: bool,
     layout_dirty: bool,
     property_dirty: std::collections::BTreeSet<NodeId>,
@@ -359,6 +363,20 @@ struct Pending {
     #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
     text: Option<Option<text::TextPaint>>,
 }
+
+// Final field changes, prepared without touching layout or retained state.
+type PropertyChange = (
+    NodeId,
+    Pending,
+    bool,
+    bool,
+    bool,
+    bool,
+    bool,
+    bool,
+    bool,
+    bool,
+);
 
 impl UiTree {
     pub fn new(style: Style, rgba: u32) -> Result<Self, Error> {
@@ -400,6 +418,7 @@ impl UiTree {
             layout,
             root,
             revision: 0,
+            next_generation: 1,
             dirty: true,
             layout_dirty: true,
             property_dirty: Default::default(),
@@ -454,6 +473,7 @@ impl UiTree {
             .revision
             .checked_add(1)
             .ok_or(Error::RevisionExhausted)?;
+        let generation = self.issue_node_generation()?;
         let layout = self.layout.new_leaf(style.clone())?;
         self.layout.add_child(parent_layout, layout)?;
         let slot = self.free.pop().unwrap_or(self.slots.len());
@@ -466,8 +486,9 @@ impl UiTree {
         let id = NodeId {
             tree: self.identity,
             slot,
-            generation: self.slots[slot].generation,
+            generation,
         };
+        self.slots[slot].generation = generation;
         self.slots[slot].node = Some(Node {
             layout,
             children: vec![],
@@ -520,16 +541,35 @@ impl UiTree {
     /// Writing A→B→A in one transaction produces no UI work.
     pub fn commit(
         &mut self,
-        mut transaction: Transaction,
+        transaction: Transaction,
         capabilities: BackendCapabilities,
     ) -> Result<Commit, Error> {
+        let changed = Self::prepare_properties(transaction, |id| self.node(id))?;
+        if changed.is_empty() {
+            return Ok(Commit {
+                revision: self.revision,
+                ..Default::default()
+            });
+        }
+        self.advance()?;
+        Ok(self.apply_properties(changed, capabilities))
+    }
+    fn issue_node_generation(&mut self) -> Result<u64, Error> {
+        let generation = self.next_generation;
+        self.next_generation = generation.checked_add(1).ok_or(Error::RevisionExhausted)?;
+        Ok(generation)
+    }
+    fn prepare_properties<'a>(
+        mut transaction: Transaction,
+        node_for: impl Fn(NodeId) -> Result<&'a Node, Error>,
+    ) -> Result<Vec<PropertyChange>, Error> {
         // Stable sorting preserves last-writer semantics while avoiding a
         // separately allocated tree entry for every node in a large animation.
         transaction.patches.sort_by_key(Patch::node);
         let mut pending: Vec<(NodeId, Pending)> = Vec::new();
         for patch in transaction.patches {
             let id = patch.node();
-            self.node(id)?;
+            node_for(id)?;
             if pending.last().is_none_or(|(previous, _)| *previous != id) {
                 pending.push((id, Pending::default()));
             }
@@ -567,9 +607,6 @@ impl UiTree {
                 Patch::Measure(_, snapshot) => {
                     if let Some(snapshot) = &snapshot {
                         snapshot.validate()?;
-                        if !self.node(id)?.children.is_empty() {
-                            return Err(Error::MeasuredNodeHasChildren);
-                        }
                     }
                     entry.measure = Some(snapshot);
                 }
@@ -578,20 +615,14 @@ impl UiTree {
                     entry.decoration = Some(decoration);
                 }
                 Patch::Image(_, image) => {
-                    if image.is_some() && !self.node(id)?.children.is_empty() {
-                        return Err(Error::MeasuredNodeHasChildren);
-                    }
                     entry.image = Some(image);
                 }
                 #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
                 Patch::Text(_, text) => {
-                    if text.is_some() && !self.node(id)?.children.is_empty() {
-                        return Err(Error::MeasuredNodeHasChildren);
-                    }
                     entry.text = Some(text);
                 }
                 Patch::Reorder(_, children) => {
-                    let mut previous = self.node(id)?.children.clone();
+                    let mut previous = node_for(id)?.children.clone();
                     let mut proposed = children.clone();
                     previous.sort_unstable();
                     proposed.sort_unstable();
@@ -604,7 +635,7 @@ impl UiTree {
         }
         let mut changed = Vec::new();
         for (id, mut entry) in pending {
-            let node = self.node(id)?;
+            let node = node_for(id)?;
             let final_image = entry.image.as_ref().unwrap_or(&node.image);
             let explicit_measure = entry.measure.is_some();
             #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
@@ -639,6 +670,11 @@ impl UiTree {
                         text.resource.paragraph().clone(),
                     )));
                 }
+            }
+            if entry.measure.as_ref().unwrap_or(&node.measure).is_some()
+                && !node.children.is_empty()
+            {
+                return Err(Error::MeasuredNodeHasChildren);
             }
             let style_changed = entry
                 .style
@@ -685,13 +721,13 @@ impl UiTree {
                 ));
             }
         }
-        if changed.is_empty() {
-            return Ok(Commit {
-                revision: self.revision,
-                ..Default::default()
-            });
-        }
-        self.advance()?;
+        Ok(changed)
+    }
+    fn apply_properties(
+        &mut self,
+        changed: Vec<PropertyChange>,
+        capabilities: BackendCapabilities,
+    ) -> Commit {
         let mut result = Commit {
             revision: self.revision,
             changed_nodes: changed.len(),
@@ -720,9 +756,11 @@ impl UiTree {
                 let children = entry.children.expect("changed children");
                 let layouts = children
                     .iter()
-                    .map(|child| self.node(*child).map(|node| node.layout))
-                    .collect::<Result<Vec<_>, _>>()?;
-                self.layout.set_children(self.node(id)?.layout, &layouts)?;
+                    .map(|child| self.node(*child).expect("prepared child").layout)
+                    .collect::<Vec<_>>();
+                self.layout
+                    .set_children(self.node(id).expect("prepared node").layout, &layouts)
+                    .expect("prepared Taffy children");
                 self.node_mut(id).children = children;
                 self.layout_dirty = true;
                 result.route(
@@ -732,7 +770,7 @@ impl UiTree {
                 );
             }
             if style_changed || measure_changed {
-                let node = self.node(id)?;
+                let node = self.node(id).expect("prepared node");
                 let style = entry
                     .style
                     .map(|style| *style)
@@ -740,9 +778,12 @@ impl UiTree {
                 let snapshot = entry.measure.unwrap_or_else(|| node.measure.clone());
                 let layout = node.layout;
                 self.layout
-                    .set_style(layout, measure::effective_style(&style, snapshot.as_ref()))?;
+                    .set_style(layout, measure::effective_style(&style, snapshot.as_ref()))
+                    .expect("prepared Taffy style");
                 if measure_changed {
-                    self.layout.set_node_context(layout, snapshot.clone())?;
+                    self.layout
+                        .set_node_context(layout, snapshot.clone())
+                        .expect("prepared Taffy context");
                 }
                 self.node_mut(id).style = style;
                 self.node_mut(id).measure = snapshot;
@@ -821,7 +862,7 @@ impl UiTree {
                 );
             }
         }
-        Ok(result)
+        result
     }
 
     pub fn frame(&mut self, viewport: [f32; 2]) -> Result<FramePacket, Error> {

@@ -69,6 +69,8 @@ This API operates on existing nodes and existing sibling scope sets. Render
 construction, source registration and property writes are not combined into
 this transaction. Mixed key removal/insertion now uses one preflighted render
 commit; new scopes start empty and later output construction is still explicit.
-Atomic construction/property/lifecycle batches, event/focus/semantics lifetime, legacy
-islands, indexed planning and other RFC requirements remain in the
+The subsequent [unified edit API](RETAINED_EDIT_TRANSACTIONS.md) combines render
+construction, final-subtree topology/removal and properties with existing source
+updates and new bindings. Scope/source/effect construction and disposal in that
+batch, event/focus/semantics lifetime, legacy islands, indexed planning and other RFC requirements remain in the
 [active goal](RETAINED_IMPLEMENTATION_PROGRESS.md).

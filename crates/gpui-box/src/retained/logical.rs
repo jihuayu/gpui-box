@@ -7,6 +7,8 @@ use super::{
     *,
 };
 use std::collections::BTreeSet;
+mod edit;
+pub use edit::LogicalEdit;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ScopeId {

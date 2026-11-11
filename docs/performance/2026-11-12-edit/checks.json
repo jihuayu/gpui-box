@@ -1,0 +1,23 @@
+{
+  "base_commit": "a0e382b",
+  "commands": [
+    {
+      "command": "mise exec -- cargo test --locked --offline -p gpui-box -p gpui-box-example-hello --features gpui-box/retained-text,gpui-box/retained-wgpu,gpui-box-example-hello/retained-wgpu -- --include-ignored",
+      "core_passed": 90,
+      "gallery_passed": 12,
+      "ignored": 0
+    },
+    {
+      "command": "mise exec -- cargo clippy --locked --offline -p gpui-box -p gpui-box-example-hello -p gpui-box-rendering-perf --features gpui-box-example-hello/retained-wgpu,gpui-box-rendering-perf/retained-gpu --all-targets -- -D warnings",
+      "passed": true,
+      "dependency_linker_messages": "Existing upstream Windows linker import-library diagnostics only."
+    },
+    {
+      "command": "./tooling/rendering-perf/run-retained-gpu.ps1 -Output target/retained-edit-final-20261112",
+      "pixel_cases_passed": 152,
+      "source_hashes_checked": 79,
+      "source_hash_mismatches": 0
+    }
+  ],
+  "scope": "Current Windows machine only. No push/deployment, native-surface presentation, input-to-present latency, sustained cadence or energy qualification."
+}

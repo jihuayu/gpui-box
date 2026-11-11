@@ -9,6 +9,7 @@ mod retained_completion;
 mod retained_composition;
 mod retained_computed;
 mod retained_delivery;
+mod retained_edit;
 mod retained_extraction;
 mod retained_glyph_bench;
 mod retained_hit_index;
@@ -666,6 +667,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_delivery::run(&mut renderer, &output, &mut results)?;
     retained_logical::run(&mut renderer, &output, &mut results)?;
     retained_structure::run(&mut renderer, &output, &mut results)?;
+    retained_edit::run(&mut renderer, &output, &mut results)?;
     retained_measure::run(&mut renderer, &output, &mut results)?;
     retained_responsive::run(&mut renderer, &output, &mut results)?;
     retained_primitive::run(&mut renderer, &output, &mut results)?;
@@ -687,6 +689,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         results.len()
     );
     let benchmark = retained_bench::run()?;
+    fs::write(
+        output.join("edit-benchmark.json"),
+        serde_json::to_vec_pretty(&retained_edit::benchmark()?)?,
+    )?;
     fs::write(
         output.join("structure-benchmark.json"),
         serde_json::to_vec_pretty(&retained_structure::benchmark()?)?,

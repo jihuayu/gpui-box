@@ -5,6 +5,8 @@ mod computed;
 pub use computed::{ComputedInputs, Dependency};
 mod effects;
 pub use effects::{EffectCleanup, EffectId, EffectInputs};
+mod edit;
+pub use edit::{ReactiveEdit, ReactiveEditCommit};
 mod delivery;
 pub use delivery::{UpdateBatch, UpdateQueueStats, UpdateReceiver, UpdateSender};
 
@@ -493,64 +495,10 @@ impl ReactiveUi {
         &mut self,
         update: impl FnOnce(&mut ReactiveTransaction<'_>) -> Result<R, Error>,
     ) -> Result<ReactiveCommit<R>, Error> {
-        let mut tx = ReactiveTransaction {
-            runtime: self,
-            values: BTreeMap::new(),
-            writes: 0,
-            equal: 0,
-            dirty_roots: BTreeMap::new(),
-            computed_evaluations: 0,
-            computed_equal: 0,
-        };
-        let value = update(&mut tx)?;
-        tx.settle()?;
-        let ReactiveTransaction {
-            values,
-            writes,
-            equal,
-            computed_evaluations,
-            computed_equal,
-            ..
-        } = tx;
-        let mut properties = Transaction::default();
-        let mut sink_writes = 0;
-        let mut effects = BTreeSet::new();
-        for (id, value) in &values {
-            effects.extend(&self.source(*id)?.effects);
-            for binding in &self.source(*id)?.bindings {
-                (self.bindings[binding].write)(value.as_ref(), &mut properties);
-                sink_writes += 1;
-            }
-        }
+        let (value, prepared) = self.prepare_update(update)?;
+        let (properties, sink_writes, effects) = self.collect_sinks(&prepared, |_| true);
         let commit = self.tree.commit(properties, self.capabilities)?;
-        let changed_sources = values.len();
-        for (id, value) in values {
-            self.sources[id.slot].source.as_mut().unwrap().value = value;
-        }
-        self.stats.transactions += 1;
-        self.stats.source_writes += writes;
-        self.stats.equal_writes += equal;
-        self.stats.changed_sources += changed_sources as u64;
-        self.stats.sink_writes += sink_writes as u64;
-        self.stats.frame_requests += u64::from(commit.request_frame);
-        self.stats.computed_evaluations += computed_evaluations;
-        self.stats.computed_equal += computed_equal;
-        let mut effect_cleanups = 0;
-        for id in &effects {
-            effect_cleanups += usize::from(self.run_effect(*id));
-        }
-        self.stats.effect_runs += effects.len() as u64;
-        self.stats.effect_cleanups += effect_cleanups as u64;
-        Ok(ReactiveCommit {
-            value,
-            commit,
-            changed_sources,
-            sink_writes,
-            computed_evaluations,
-            computed_equal,
-            effect_runs: effects.len(),
-            effect_cleanups,
-        })
+        Ok(self.publish_update(value, prepared, commit, sink_writes, effects))
     }
 }
 
