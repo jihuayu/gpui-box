@@ -10,6 +10,10 @@ use gpui_wgpu::{
 };
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 mod composition;
+mod validation;
+pub use validation::ValidationStats;
+#[cfg(test)]
+use validation::validate;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct Record {
@@ -133,6 +137,7 @@ fn gpu_error(error: impl std::fmt::Display) -> Error {
 pub struct FrameSubmission {
     pub full_resync: bool,
     pub gpu: QuadSubmission,
+    pub validation: ValidationStats,
 }
 
 pub struct WgpuFrameRenderer {
@@ -154,6 +159,8 @@ pub struct WgpuFrameRenderer {
     had_text: bool,
     cache_layers: bool,
     window_image: Option<(u64, Arc<gpui::RenderImage>)>,
+    validation_cache: validation::ValidationCache,
+    cache_validation: bool,
 }
 
 impl WgpuFrameRenderer {
@@ -177,6 +184,8 @@ impl WgpuFrameRenderer {
             had_text: false,
             cache_layers: true,
             window_image: None,
+            validation_cache: validation::ValidationCache::default(),
+            cache_validation: true,
         })
     }
 
@@ -197,6 +206,11 @@ impl WgpuFrameRenderer {
             self.source = None;
         }
         Ok(())
+    }
+
+    /// Disable only packet validation reuse for a same-renderer performance control.
+    pub fn set_validation_cache_enabled(&mut self, enabled: bool) {
+        self.cache_validation = enabled;
     }
 
     pub fn set_raster_cache_enabled(&mut self, enabled: bool) {
@@ -230,7 +244,9 @@ impl WgpuFrameRenderer {
         if self.failed {
             return Err(Error::Gpu("reset after failed frame submission".into()));
         }
-        validate(frame, surface, scale)?;
+        let validation =
+            self.validation_cache
+                .check(frame, surface, scale, self.cache_validation)?;
         if self.retired_sources.contains(&frame.tree)
             || self
                 .latest
@@ -375,7 +391,11 @@ impl WgpuFrameRenderer {
         self.leases.push_back((gpu.serial, frame.clone()));
         self.collect()?;
         self.failed = false;
-        Ok(Some(FrameSubmission { full_resync, gpu }))
+        Ok(Some(FrameSubmission {
+            full_resync,
+            gpu,
+            validation,
+        }))
     }
 
     pub fn image(&mut self) -> Result<RetainedImage, Error> {
@@ -416,7 +436,7 @@ impl WgpuFrameRenderer {
         surface: [u32; 2],
         scale: f32,
     ) -> Result<RetainedImage, Error> {
-        validate(frame, surface, scale)?;
+        validation::validate(frame, surface, scale)?;
         if !frame.properties.effects.is_empty()
             || has_text(frame)
             || frame.items.iter().any(|item| item.image.is_some())
@@ -457,6 +477,7 @@ impl WgpuFrameRenderer {
         replacement.retired_sources = self.retired_sources.clone();
         replacement.policy = self.policy;
         replacement.cache_layers = self.cache_layers;
+        replacement.cache_validation = self.cache_validation;
         *self = replacement;
         Ok(())
     }
@@ -535,128 +556,6 @@ fn glyph_updates(
         let _ = (items, scale);
         Ok(updates)
     }
-}
-
-fn validate(frame: &FramePacket, surface: [u32; 2], scale: f32) -> Result<(), Error> {
-    if !scale.is_finite()
-        || scale <= 0.0
-        || surface
-            .iter()
-            .any(|size| *size == 0 || *size > i32::MAX as u32)
-    {
-        return Err(Error::InvalidFrame);
-    }
-    let mut nodes = BTreeSet::new();
-    for item in frame.items.iter().chain(frame.updates.iter()) {
-        #[cfg(feature = "retained-text")]
-        if item.text.is_some() != item.glyphs.is_some()
-            || item
-                .text
-                .as_ref()
-                .is_some_and(|text| text.resource.scale() != scale)
-        {
-            return Err(Error::InvalidFrame);
-        }
-        for command in item.commands.iter() {
-            let (_, decoration) = command.quad();
-            if decoration.validate().is_err()
-                || [
-                    decoration.resolved(item.bounds).radius,
-                    decoration.resolved(item.bounds).border_width,
-                ]
-                .iter()
-                .any(|v| !(*v * scale).is_finite())
-            {
-                return Err(Error::InvalidFrame);
-            }
-        }
-        for b in [Some(item.bounds), Some(item.content_bounds), item.clip]
-            .into_iter()
-            .flatten()
-        {
-            if !b.valid()
-                || [b.x, b.y, b.width, b.height, b.x + b.width, b.y + b.height]
-                    .iter()
-                    .any(|v| !(*v * scale).is_finite())
-            {
-                return Err(Error::InvalidFrame);
-            }
-        }
-    }
-    for item in frame.items.iter() {
-        if item.node.tree != frame.tree || !nodes.insert(item.node) {
-            return Err(Error::InvalidFrame);
-        }
-    }
-    for (id, effect) in &frame.properties.effects {
-        if !nodes.contains(id) || !effect.value.is_finite() || !(0.0..=1.0).contains(&effect.value)
-        {
-            return Err(Error::InvalidFrame);
-        }
-        let mut cursor = effect.parent;
-        let mut depth = 0;
-        while let Some(parent) = cursor {
-            depth += 1;
-            if depth > frame.properties.effects.len() {
-                return Err(Error::InvalidFrame);
-            }
-            cursor = frame
-                .properties
-                .effects
-                .get(&parent)
-                .ok_or(Error::InvalidFrame)?
-                .parent;
-        }
-    }
-    if frame.items.iter().any(|item| {
-        item.properties
-            .effect
-            .is_some_and(|id| !frame.properties.effects.contains_key(&id))
-    }) {
-        return Err(Error::InvalidFrame);
-    }
-    if frame
-        .base_revision
-        .is_some_and(|base| base >= frame.revision)
-    {
-        return Err(Error::InvalidFrame);
-    }
-    let current: BTreeMap<_, _> = frame.items.iter().map(|item| (item.node, item)).collect();
-    let mut updates = BTreeSet::new();
-    for item in frame.updates.iter() {
-        if !updates.insert(item.node)
-            || current.get(&item.node).is_none_or(|value| {
-                value.bounds != item.bounds
-                    || value.commands != item.commands
-                    || value.fill_color != item.fill_color
-                    || value.image != item.image
-                    || !value.same_text(item)
-                    || value.content_bounds != item.content_bounds
-                    || value.clip != item.clip
-            })
-        {
-            return Err(Error::InvalidFrame);
-        }
-    }
-    if frame.damage.bounds.is_some_and(|bounds| !bounds.valid()) {
-        return Err(Error::InvalidFrame);
-    }
-    if frame
-        .removed
-        .iter()
-        .any(|id| id.tree != frame.tree || nodes.contains(id))
-    {
-        return Err(Error::InvalidFrame);
-    }
-    if frame.order.as_ref().is_some_and(|order| {
-        !order
-            .iter()
-            .copied()
-            .eq(frame.items.iter().map(|item| item.node))
-    }) {
-        return Err(Error::InvalidFrame);
-    }
-    Ok(())
 }
 
 #[cfg(test)]

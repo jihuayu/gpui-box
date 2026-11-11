@@ -17,6 +17,7 @@ mod retained_queue;
 mod retained_reactive;
 mod retained_responsive;
 mod retained_text;
+mod retained_validation;
 
 fn compare(
     renderer: &mut WgpuFrameRenderer,
@@ -663,6 +664,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_text::run(&mut renderer, &output, &mut results)?;
     retained_paint_store::run(&mut renderer, &output, &mut results)?;
     retained_extraction::run(&mut renderer, &output, &mut results)?;
+    retained_validation::run(&mut renderer, &output, &mut results)?;
     fs::write(
         output.join("validation.json"),
         serde_json::to_vec_pretty(&results)?,
@@ -699,6 +701,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     fs::write(
         output.join("extraction-benchmark.json"),
         serde_json::to_vec_pretty(&retained_extraction::benchmark()?)?,
+    )?;
+    fs::write(
+        output.join("validation-benchmark.json"),
+        serde_json::to_vec_pretty(&retained_validation::benchmark()?)?,
     )?;
     Ok(())
 }

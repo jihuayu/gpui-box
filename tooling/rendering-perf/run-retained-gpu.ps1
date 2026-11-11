@@ -9,6 +9,7 @@ try {
     $sources = @('Cargo.lock', 'crates/gpui-box/Cargo.toml', 'crates/gpui-box/src/retained.rs',
         'examples/hello/src/retained_demo.rs',
         'crates/gpui-box/src/retained/arena.rs', 'crates/gpui-box/src/retained/wgpu.rs', 'crates/gpui-box/src/retained/properties.rs',
+        'crates/gpui-box/src/retained/wgpu/validation.rs',
         'crates/gpui-box/src/retained/reactive.rs',
         'crates/gpui-box/src/retained/logical.rs',
         'crates/gpui-box/src/retained/measure.rs',
@@ -48,6 +49,7 @@ try {
         'tooling/rendering-perf/src/retained_glyph_bench.rs',
         'tooling/rendering-perf/src/retained_paint_store.rs',
         'tooling/rendering-perf/src/retained_extraction.rs',
+        'tooling/rendering-perf/src/retained_validation.rs',
         'tooling/rendering-perf/run-retained-gpu.ps1')
     $hashes = foreach ($source in $sources) {
         [ordered]@{path = $source; sha256 = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash}

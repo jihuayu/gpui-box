@@ -46,6 +46,9 @@ and preserving old frame snapshots.
 The [subtree extraction stage](RETAINED_SUBTREE_EXTRACTION.md) extends this to
 translation, clip, scroll and opacity, using indexed disjoint dirty subtrees and
 the same extractor as full publication.
+The [validation-cache stage](RETAINED_VALIDATION_CACHE.md) reuses consumer checks
+for cache-owned immutable pages and stable node indices, with full fallback for
+identity/order/scale changes and complete effect-reference checks on property edits.
 
 ## Current integrated foundation
 
@@ -85,7 +88,7 @@ click test passed pixel comparison at the actual window scale.
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → paint/persistent WGPU, with hardware pixel checks | Native-surface presentation and complete general routing |
 | P0 equality and transactions | Source equality before fanout, final-value coalescing, atomic sink validation, nested savepoints, one outer frame intent, idle-render assertions | Computed/effect graph, cross-event producer scheduling and real OS idle-wakeup/energy measurements |
-| P0–P5 routing | Solid/decorated-quad color, paint, property, layout, reorder and decoded-image resource intents; reason records; P1 reuses commands with 0 layout/recording and stable instance dispatch | General primitive/material capabilities, semantic channels, general asynchronous resource invalidation and eliminate full snapshot scanning |
+| P0–P5 routing | Solid/decorated-quad color, paint, property, layout, reorder and decoded-image resource intents; reason records; P1 reuses commands with 0 layout/recording and stable instance dispatch; indexed producer patches and immutable-page consumer validation reuse | General primitive/material capabilities, semantic channels, general asynchronous resource invalidation and eliminate remaining full resource/order scanning |
 | Logical / Render Tree | Independent generation-checked scopes, zero/multiple outputs and portals, keyed reorder retaining state/render/chunks, subtree source/binding/output cleanup; gallery and hardware validation | Atomic structural batches, portal reparenting, event/focus/semantics lifetime and legacy islands; eliminate whole-scope/order scans |
 | Persistent Taffy | Long-lived nodes, style/children setters, owned image/fixed/shaped paragraph snapshots, constraint-dependent wrap, baseline/overflow updates, actual leaf/measure-call counts, root cache and resize handling | General constraint-dependent custom inputs, paragraph conformance, independent islands, full node visits/cache-hit counters |
 | Paint chunks / property trees | Shared local fill commands; immutable 64-item paint pages with selective local material and disjoint property-subtree extraction, indexed node patches/subtree ranges; immutable cached glyph geometry and base-relative backend updates preserving unmodified draws; sparse transform/clip/scroll/effect chains with inherited state, clip-aware geometry/hit testing | General stable chunk IDs/store, full affine transforms, selective layout extraction, persistent property-map updates and spatial indices |
@@ -108,8 +111,9 @@ Local material/paint publication extracts dirty visible nodes and copies affecte
 64-item pages plus the N/64 page directory. Visual properties extract disjoint
 dirty subtrees and copy sparse property maps. Layout/visibility/order changes
 still walk all live nodes and rebuild indices. Commands and unchanged pages are
-shared; unchanged input reuses the complete CPU frame. Consumer validation and
-composition scans remain before a sublinear complete scene-update claim.
+shared; unchanged input reuses the complete CPU frame. Consumer item validation
+reuses stable immutable pages; property edits still check full effect references,
+and resource/composition scans remain before a sublinear complete scene-update claim.
 
 The initial style surface exposes the pinned Taffy Style. The full gpui-box Flex
 API and constrained CSS subset remain pending. Geometry currently contains

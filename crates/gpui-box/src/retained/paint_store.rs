@@ -58,6 +58,10 @@ impl PaintItems {
     pub fn page_count(&self) -> usize {
         self.pages.len()
     }
+    #[cfg(all(feature = "retained-wgpu", not(target_family = "wasm")))]
+    pub(super) fn pages(&self) -> &[Arc<Vec<PaintItem>>] {
+        &self.pages
+    }
     pub(super) fn patch(
         &self,
         updates: &[(usize, PaintItem)],
