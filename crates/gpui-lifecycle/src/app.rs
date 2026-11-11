@@ -136,6 +136,69 @@ pub struct LifecycleState {
 }
 
 impl LifecycleState {
+    /// Builds a coherent host snapshot from explicit observations.
+    ///
+    /// Hosts that do not drive [`crate::LifecycleService`] may construct a
+    /// snapshot directly for adapters such as `gpui-power`. The revision is
+    /// non-zero, so consumers can distinguish it from the default state.
+    pub fn from_parts(
+        phase: AppPhase,
+        surfaces: impl IntoIterator<Item = (SurfaceId, SurfaceSnapshot)>,
+        session_lock: SessionLockState,
+        memory_pressure: MemoryPressure,
+    ) -> Self {
+        let mut state = Self {
+            phase,
+            surfaces: HashMap::new(),
+            session_lock,
+            memory_pressure,
+            revision: 0,
+        };
+        for (surface, snapshot) in surfaces {
+            state.surfaces.insert(surface, snapshot);
+        }
+        state.revision = 1;
+        state
+    }
+
+    /// Alias for [`Self::from_parts`] emphasizing a host-provided snapshot.
+    pub fn from_host(
+        phase: AppPhase,
+        surfaces: impl IntoIterator<Item = (SurfaceId, SurfaceSnapshot)>,
+        session_lock: SessionLockState,
+        memory_pressure: MemoryPressure,
+    ) -> Self {
+        Self::from_parts(phase, surfaces, session_lock, memory_pressure)
+    }
+
+    /// Replaces the phase and bumps the revision.
+    pub fn with_phase(mut self, phase: AppPhase) -> Self {
+        self.phase = phase;
+        self.bump();
+        self
+    }
+
+    /// Replaces the device lock state and bumps the revision.
+    pub fn with_session_lock(mut self, session_lock: SessionLockState) -> Self {
+        self.session_lock = session_lock;
+        self.bump();
+        self
+    }
+
+    /// Replaces the memory-pressure signal and bumps the revision.
+    pub fn with_memory_pressure(mut self, memory_pressure: MemoryPressure) -> Self {
+        self.memory_pressure = memory_pressure;
+        self.bump();
+        self
+    }
+
+    /// Inserts or replaces one surface snapshot and bumps the revision.
+    pub fn with_surface(mut self, surface: SurfaceId, snapshot: SurfaceSnapshot) -> Self {
+        self.surfaces.insert(surface, snapshot);
+        self.bump();
+        self
+    }
+
     /// The current application phase.
     pub fn phase(&self) -> AppPhase {
         self.phase
