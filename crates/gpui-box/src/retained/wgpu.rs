@@ -10,6 +10,7 @@ use gpui_wgpu::{
 };
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 mod composition;
+pub use composition::CompositionStats;
 mod validation;
 pub use validation::ValidationStats;
 #[cfg(test)]
@@ -138,6 +139,7 @@ pub struct FrameSubmission {
     pub full_resync: bool,
     pub gpu: QuadSubmission,
     pub validation: ValidationStats,
+    pub composition: CompositionStats,
 }
 
 pub struct WgpuFrameRenderer {
@@ -154,9 +156,8 @@ pub struct WgpuFrameRenderer {
     failed: bool,
     reference: Option<RetainedQuadRenderer>,
     policy: CompositorPolicy,
-    had_effects: bool,
-    had_images: bool,
-    had_text: bool,
+    composition_cache: composition::CompositionCache,
+    cache_composition: bool,
     cache_layers: bool,
     window_image: Option<(u64, Arc<gpui::RenderImage>)>,
     validation_cache: validation::ValidationCache,
@@ -180,9 +181,8 @@ impl WgpuFrameRenderer {
             failed: false,
             reference: None,
             policy: CompositorPolicy::Full,
-            had_effects: false,
-            had_images: false,
-            had_text: false,
+            composition_cache: composition::CompositionCache::default(),
+            cache_composition: true,
             cache_layers: true,
             window_image: None,
             validation_cache: validation::ValidationCache::default(),
@@ -218,6 +218,11 @@ impl WgpuFrameRenderer {
     /// Force complete resource input for a same-consumer performance control.
     pub fn set_resource_deltas_enabled(&mut self, enabled: bool) {
         self.resource_deltas = enabled;
+    }
+
+    /// Force complete CPU composition planning without changing resource deltas.
+    pub fn set_composition_cache_enabled(&mut self, enabled: bool) {
+        self.cache_composition = enabled;
     }
 
     pub fn set_raster_cache_enabled(&mut self, enabled: bool) {
@@ -321,21 +326,11 @@ impl WgpuFrameRenderer {
                 }
             }
         }
-        let rebuild_order = full_resync
-            || frame.order.is_some()
-            || command_count_changed
-            || self.had_effects
-            || self.had_images
-            || self.had_text
-            || has_text(frame)
-            || frame.items.iter().any(|item| item.image.is_some())
-            || !frame.properties.effects.is_empty();
-        let (order, layers) = if rebuild_order {
-            let (order, layers) = composition::plan(frame, &self.instances)?;
-            (Some(order), layers)
-        } else {
-            (None, vec![])
-        };
+        let (order, layers, composition) = self.composition_cache.resolve(
+            frame,
+            &self.instances,
+            full_resync || command_count_changed || !self.cache_composition,
+        )?;
         let writes = self
             .arena
             .writes()
@@ -376,9 +371,6 @@ impl WgpuFrameRenderer {
         self.latest = self.source;
         self.scale = scale;
         self.surface = surface;
-        self.had_effects = !frame.properties.effects.is_empty();
-        self.had_images = frame.items.iter().any(|item| item.image.is_some());
-        self.had_text = has_text(frame);
         self.leases.push_back((gpu.serial, frame.clone()));
         self.collect()?;
         self.failed = false;
@@ -386,6 +378,7 @@ impl WgpuFrameRenderer {
             full_resync,
             gpu,
             validation,
+            composition,
         }))
     }
 
@@ -470,6 +463,7 @@ impl WgpuFrameRenderer {
         replacement.cache_layers = self.cache_layers;
         replacement.cache_validation = self.cache_validation;
         replacement.resource_deltas = self.resource_deltas;
+        replacement.cache_composition = self.cache_composition;
         *self = replacement;
         Ok(())
     }

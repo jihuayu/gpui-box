@@ -15,7 +15,7 @@ pub enum QuadDraw {
 pub struct QuadLayer {
     pub id: QuadLayerId,
     pub opacity: f32,
-    pub draws: Vec<QuadDraw>,
+    pub draws: Arc<[QuadDraw]>,
 }
 
 struct Layer {
@@ -24,7 +24,7 @@ struct Layer {
     opacity_buffer: wgpu::Buffer,
     binding: wgpu::BindGroup,
     opacity: f32,
-    draws: Vec<QuadDraw>,
+    draws: Arc<[QuadDraw]>,
     valid: bool,
 }
 
@@ -211,7 +211,7 @@ impl LayerCache {
             opacity_buffer,
             binding,
             opacity: -1.0,
-            draws: vec![],
+            draws: Arc::from([]),
             valid: false,
         }
     }
@@ -242,7 +242,7 @@ impl LayerCache {
             let opacity_changed = previous.opacity != layer.opacity;
             let dirty = !cache
                 || !previous.valid
-                || previous.draws != layer.draws
+                || (!Arc::ptr_eq(&previous.draws, &layer.draws) && previous.draws != layer.draws)
                 || layer.draws.iter().any(|draw| match draw {
                     QuadDraw::Instances(range) => writes
                         .iter()

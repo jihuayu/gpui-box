@@ -142,7 +142,7 @@ fn backend_checks() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn fixture(count: usize) -> Result<(UiTree, Vec<NodeId>, NodeId), Box<dyn Error>> {
+pub(super) fn fixture(count: usize) -> Result<(UiTree, Vec<NodeId>, NodeId), Box<dyn Error>> {
     let mut tree = UiTree::new(
         Style {
             size: taffy::Size {

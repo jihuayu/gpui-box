@@ -55,6 +55,9 @@ maintenance and explicit linear-scan/cold/overlap performance controls.
 The [image-delta stage](RETAINED_IMAGE_DELTAS.md) retains unmentioned image draws,
 updates shared texture ownership by net reference changes and handles logical
 resync/resize without needless texture upload.
+The [composition-cache stage](RETAINED_COMPOSITION_CACHE.md) retains root draw
+order and shared layer draw arrays for stable mixed primitive/effect topology,
+with current opacity values and unchanged content-invalidation checks.
 
 ## Current integrated foundation
 
@@ -103,7 +106,7 @@ click test passed pixel comparison at the actual window scale.
 | P2 property / composite | Translation/clip/scroll reuse commands and update GPU instances/hit geometry; glyph local geometry uses independent 32-byte node origin/clip records; isolated subtree opacity supports nesting and 16-byte property-only updates | General shared GPU transform/clip trees, affine properties, texture import for window presentation and NativeView geometry |
 | Text / images / complex primitives | Solid/decorated quads; immutable decoded RGBA textures, base-relative image draw updates and reference-counted shared texture ownership; owned uniform-font LTR paragraphs and grayscale glyph masks, four-width chunks, system/font/scale identity, packed R8 pages, persistent 48-byte local glyph ranges, independent 16-byte color / 32-byte property slots and adjacent batch merging; typed normal clicks, clip/opacity, CPU blend and lifecycle pixels | Path/shadow types, automatic font subscriptions, robust glyph pressure/compaction, general/rich-text materials; bidi/rich-text/selection/color/subpixel text; image decoding/fit/filter/color/animation/atlas/batching and physical resource budgets |
 | Flex / responsive contract | Opt-in validated Flex subset, separate layout/scale environment, threshold-equality rules, RTL/actual-window resize, bounded fixed content-box queries with dependency rejection | Broad Flex conformance/rounding, full environment subscriptions, constraint builders, general query dependency graph and adaptive structures; indexed rule dispatch |
-| Damage / cache / compositor | Old/new clipped ink/effect damage; preserved offscreen target, scissored clear/replay; Full/Damage/area-threshold Auto; isolated layer content cache and cached/uncached A/B; live-layer 256 MiB guard | Tight layer bounds, cross-frame physical memory accounting, cache admission/LRU, measured cost model, multiple damage regions, native surface buffer-age contract |
+| Damage / cache / compositor | Old/new clipped ink/effect damage; preserved offscreen target, scissored clear/replay; Full/Damage/area-threshold Auto; isolated layer content cache and cached/uncached A/B; persistent mixed composition topology/shared layer draw arrays; live-layer 256 MiB guard | Tight layer bounds, backend selective validation/invalidation, cross-frame physical memory accounting, cache admission/LRU, measured cost model, multiple damage regions, native surface buffer-age contract |
 | FramePacket / frames in flight | Owned snapshots/base deltas and immutable image resources, skip-frame resync, stale rejection, single-pending producer coalescing and wake intent, bounded GPU queue, completion/weak-reference and texture/binding retirement, poll/finish/reset with resource reupload | Forced device/surface loss, general resource/font epochs, host wake/idle-completion scheduling and deferring superseded snapshot production |
 
 ## Verification and present limits
@@ -119,7 +122,9 @@ dirty subtrees and copy sparse property maps. Layout/visibility/order changes
 still walk all live nodes and rebuild indices. Commands and unchanged pages are
 shared; unchanged input reuses the complete CPU frame. Consumer item validation
 reuses stable immutable pages; property edits still check full effect references,
-and resource/composition scans remain before a sublinear complete scene-update claim.
+and composition topology reuses unchanged pages/layer arrays. Backend resource-ID,
+layer invalidation and completion-lease scans remain before a sublinear complete
+scene-update claim.
 
 The initial style surface exposes the pinned Taffy Style. The full gpui-box Flex
 API and constrained CSS subset remain pending. Geometry currently contains

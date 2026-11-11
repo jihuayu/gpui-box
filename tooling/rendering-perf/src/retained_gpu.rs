@@ -5,6 +5,7 @@ use gpui_box::retained::{
 };
 use std::{error::Error, fs, path::PathBuf};
 mod retained_bench;
+mod retained_composition;
 mod retained_extraction;
 mod retained_glyph_bench;
 mod retained_hit_index;
@@ -668,6 +669,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_extraction::run(&mut renderer, &output, &mut results)?;
     retained_validation::run(&mut renderer, &output, &mut results)?;
     retained_image_deltas::run(&mut renderer, &output, &mut results)?;
+    retained_composition::run(&mut renderer, &output, &mut results)?;
     fs::write(
         output.join("validation.json"),
         serde_json::to_vec_pretty(&results)?,
@@ -716,6 +718,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     fs::write(
         output.join("image-delta-benchmark.json"),
         serde_json::to_vec_pretty(&retained_image_deltas::benchmark()?)?,
+    )?;
+    fs::write(
+        output.join("composition-benchmark.json"),
+        serde_json::to_vec_pretty(&retained_composition::benchmark()?)?,
     )?;
     Ok(())
 }
