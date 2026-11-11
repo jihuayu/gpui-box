@@ -501,7 +501,7 @@ fn artifact_url(text: &str) -> Result<Url, SystemError> {
     Ok(url)
 }
 
-fn hex<const N: usize>(text: &str) -> Result<[u8; N], SystemError> {
+pub(crate) fn hex<const N: usize>(text: &str) -> Result<[u8; N], SystemError> {
     if text.len() != N * 2
         || !text
             .bytes()

@@ -88,6 +88,570 @@ fn setup() -> (tempfile::TempDir, AppData, UpdateVerifier) {
     (directory, app, verifier)
 }
 
+fn cache_path(app: &AppData, name: &str) -> std::path::PathBuf {
+    app.location(gpui_app_data::DataLocation::Data)
+        .child(std::path::Path::new("update-cache").join(name))
+        .unwrap()
+}
+
+#[test]
+fn artifact_cache_resumes_exact_offsets_and_publishes_verified_read_only_bytes() {
+    use std::io::{Read, Write};
+    let (_directory, app, verifier) = setup();
+    let context = OperationContext::default();
+    let update = value(verifier.verify(&envelope(&metadata()), NOW, &context));
+    let mut cache = ArtifactCache::open(&app).unwrap();
+    assert_eq!(
+        ArtifactCache::open(&app).err().unwrap().code,
+        ErrorCode::Busy
+    );
+    let first = value(cache.resume(&verifier, &update, NOW, &context));
+    assert_eq!(first.progress.received, 0);
+    assert_eq!(first.progress.total, ARTIFACT.len() as u64);
+    value(cache.append(first.ticket, 0, &ARTIFACT[..8], &context));
+    let second = value(cache.resume(&verifier, &update, NOW, &context));
+    assert_eq!(second.progress.received, 8);
+    assert_eq!(
+        cache
+            .append(first.ticket, 8, &ARTIFACT[8..], &context)
+            .unwrap_err()
+            .code,
+        ErrorCode::ContextExpired
+    );
+    value(cache.append(second.ticket, 8, &ARTIFACT[8..], &context));
+    let (mut file, receipt, _) =
+        value(cache.publish(second.ticket, &verifier, NOW, &context)).into_parts();
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes).unwrap();
+    assert_eq!(bytes, ARTIFACT);
+    assert!(file.write_all(b"overwrite").is_err());
+    assert_eq!(
+        receipt,
+        value(update.verify_artifact(Cursor::new(ARTIFACT), &context))
+    );
+    assert!(!cache_path(&app, "artifact.part").exists());
+    drop(cache);
+    let mut cache = ArtifactCache::open(&app).unwrap();
+    let resumed = value(cache.resume(&verifier, &update, NOW, &context));
+    assert_eq!(resumed.progress.state, ArtifactCacheState::Published);
+    assert_eq!(resumed.progress.received, ARTIFACT.len() as u64);
+    assert_eq!(
+        cache
+            .publish(second.ticket, &verifier, NOW, &context)
+            .err()
+            .unwrap()
+            .code,
+        ErrorCode::ContextExpired
+    );
+    value(cache.publish(resumed.ticket, &verifier, NOW, &context));
+}
+
+#[test]
+fn duplicate_out_of_order_empty_and_oversize_chunks_preserve_committed_offset() {
+    let (_directory, app, verifier) = setup();
+    let context = OperationContext::default();
+    let update = value(verifier.verify(&envelope(&metadata()), NOW, &context));
+    let mut cache = ArtifactCache::open(&app).unwrap();
+    let transfer = value(cache.resume(&verifier, &update, NOW, &context));
+    value(cache.append(transfer.ticket, 0, &ARTIFACT[..8], &context));
+    for (offset, bytes) in [
+        (0, ARTIFACT),
+        (9, &ARTIFACT[8..]),
+        (8, b"".as_slice()),
+        (8, ARTIFACT),
+    ] {
+        assert_eq!(
+            cache
+                .append(transfer.ticket, offset, bytes, &context)
+                .unwrap_err()
+                .code,
+            ErrorCode::InvalidInput
+        );
+    }
+    assert_eq!(
+        std::fs::read(cache_path(&app, "artifact.part")).unwrap(),
+        &ARTIFACT[..8]
+    );
+    assert_eq!(
+        cache
+            .publish(transfer.ticket, &verifier, NOW, &context)
+            .err()
+            .unwrap()
+            .code,
+        ErrorCode::InvalidInput
+    );
+    value(cache.append(transfer.ticket, 8, &ARTIFACT[8..], &context));
+    value(cache.publish(transfer.ticket, &verifier, NOW, &context));
+}
+
+#[test]
+fn restart_rehashes_committed_prefix_and_adopts_synced_uncommitted_tail() {
+    use std::io::Write;
+    let (_directory, app, verifier) = setup();
+    let context = OperationContext::default();
+    let update = value(verifier.verify(&envelope(&metadata()), NOW, &context));
+    let mut cache = ArtifactCache::open(&app).unwrap();
+    let transfer = value(cache.resume(&verifier, &update, NOW, &context));
+    value(cache.append(transfer.ticket, 0, &ARTIFACT[..8], &context));
+    drop(cache);
+    // Process death after bytes sync, before atomic checkpoint replacement.
+    let mut file = std::fs::OpenOptions::new()
+        .append(true)
+        .open(cache_path(&app, "artifact.part"))
+        .unwrap();
+    file.write_all(&ARTIFACT[8..16]).unwrap();
+    file.sync_all().unwrap();
+    drop(file);
+    let mut cache = ArtifactCache::open(&app).unwrap();
+    let transfer = value(cache.resume(&verifier, &update, NOW, &context));
+    assert_eq!(transfer.progress.received, 16);
+    value(cache.append(transfer.ticket, 16, &ARTIFACT[16..], &context));
+    value(cache.publish(transfer.ticket, &verifier, NOW, &context));
+}
+
+#[test]
+fn crash_after_publication_rename_recovers_without_redownload() {
+    let (_directory, app, verifier) = setup();
+    let context = OperationContext::default();
+    let update = value(verifier.verify(&envelope(&metadata()), NOW, &context));
+    let mut cache = ArtifactCache::open(&app).unwrap();
+    let transfer = value(cache.resume(&verifier, &update, NOW, &context));
+    value(cache.append(transfer.ticket, 0, ARTIFACT, &context));
+    drop(cache);
+    std::fs::rename(
+        cache_path(&app, "artifact.part"),
+        cache_path(&app, "artifact.verified"),
+    )
+    .unwrap();
+    let mut cache = ArtifactCache::open(&app).unwrap();
+    let transfer = value(cache.resume(&verifier, &update, NOW, &context));
+    assert_eq!(transfer.progress.state, ArtifactCacheState::Published);
+    value(cache.publish(transfer.ticket, &verifier, NOW, &context));
+}
+
+#[test]
+fn missing_or_modified_committed_prefix_is_preserved_and_rejected() {
+    for content in [
+        Some(b"tampered".as_slice()),
+        Some(b"short".as_slice()),
+        None,
+    ] {
+        let (_directory, app, verifier) = setup();
+        let context = OperationContext::default();
+        let update = value(verifier.verify(&envelope(&metadata()), NOW, &context));
+        let mut cache = ArtifactCache::open(&app).unwrap();
+        let transfer = value(cache.resume(&verifier, &update, NOW, &context));
+        value(cache.append(transfer.ticket, 0, &ARTIFACT[..8], &context));
+        drop(cache);
+        let path = cache_path(&app, "artifact.part");
+        match content {
+            Some(bytes) => std::fs::write(&path, bytes).unwrap(),
+            None => std::fs::remove_file(&path).unwrap(),
+        }
+        let mut cache = ArtifactCache::open(&app).unwrap();
+        assert_eq!(
+            cache
+                .resume(&verifier, &update, NOW, &context)
+                .unwrap_err()
+                .code,
+            ErrorCode::IntegrityFailure
+        );
+        assert_eq!(std::fs::read(path).ok().as_deref(), content);
+        value(cache.discard(&context));
+        assert_eq!(
+            value(cache.resume(&verifier, &update, NOW, &context))
+                .progress
+                .received,
+            0
+        );
+    }
+}
+
+#[test]
+fn final_digest_catches_bad_tail_and_cache_hit_tampering() {
+    for published in [false, true] {
+        let (_directory, app, verifier) = setup();
+        let context = OperationContext::default();
+        let update = value(verifier.verify(&envelope(&metadata()), NOW, &context));
+        let mut cache = ArtifactCache::open(&app).unwrap();
+        let transfer = value(cache.resume(&verifier, &update, NOW, &context));
+        if published {
+            value(cache.append(transfer.ticket, 0, ARTIFACT, &context));
+            value(cache.publish(transfer.ticket, &verifier, NOW, &context));
+            let bytes = vec![b'x'; ARTIFACT.len()];
+            std::fs::write(cache_path(&app, "artifact.verified"), &bytes).unwrap();
+            assert_eq!(
+                cache
+                    .publish(transfer.ticket, &verifier, NOW, &context)
+                    .err()
+                    .unwrap()
+                    .code,
+                ErrorCode::IntegrityFailure
+            );
+            assert_eq!(
+                std::fs::read(cache_path(&app, "artifact.verified")).unwrap(),
+                bytes
+            );
+        } else {
+            let bytes = vec![b'x'; ARTIFACT.len()];
+            value(cache.append(transfer.ticket, 0, &bytes, &context));
+            assert_eq!(
+                cache
+                    .publish(transfer.ticket, &verifier, NOW, &context)
+                    .err()
+                    .unwrap()
+                    .code,
+                ErrorCode::IntegrityFailure
+            );
+            assert_eq!(
+                std::fs::read(cache_path(&app, "artifact.part")).unwrap(),
+                bytes
+            );
+        }
+    }
+}
+
+#[test]
+fn ordinary_cache_cleanup_does_not_remove_staged_update_and_discard_is_explicit() {
+    let (_directory, app, verifier) = setup();
+    let context = OperationContext::default();
+    let update = value(verifier.verify(&envelope(&metadata()), NOW, &context));
+    let mut cache = ArtifactCache::open(&app).unwrap();
+    let first = value(cache.resume(&verifier, &update, NOW, &context));
+    value(cache.append(first.ticket, 0, &ARTIFACT[..8], &context));
+    value(app.clear_cache(&context));
+    assert_eq!(
+        value(cache.resume(&verifier, &update, NOW, &context))
+            .progress
+            .received,
+        8
+    );
+    std::fs::write(cache_path(&app, "diagnostic.txt"), b"preserve").unwrap();
+    value(cache.discard(&context));
+    assert!(!cache_path(&app, "artifact.part").exists());
+    assert_eq!(
+        std::fs::read(cache_path(&app, "diagnostic.txt")).unwrap(),
+        b"preserve"
+    );
+    drop(cache);
+    let mut cache = ArtifactCache::open(&app).unwrap();
+    let transfer = value(cache.resume(&verifier, &update, NOW, &context));
+    assert_eq!(transfer.progress.received, 0);
+    assert_eq!(
+        cache
+            .append(first.ticket, 0, ARTIFACT, &context)
+            .unwrap_err()
+            .code,
+        ErrorCode::ContextExpired
+    );
+}
+
+#[test]
+fn cache_requires_current_offer_and_explicit_discard_before_switching_offers() {
+    let (_directory, app, verifier) = setup();
+    let context = OperationContext::default();
+    let old = value(verifier.verify(&envelope(&metadata()), NOW, &context));
+    let mut cache = ArtifactCache::open(&app).unwrap();
+    let first = value(cache.resume(&verifier, &old, NOW, &context));
+    value(cache.append(first.ticket, 0, ARTIFACT, &context));
+    let mut next = metadata();
+    next.sequence += 1;
+    next.version_code += 1;
+    let update = value(verifier.verify(&envelope(&next), NOW, &context));
+    assert_eq!(
+        cache
+            .publish(first.ticket, &verifier, NOW, &context)
+            .err()
+            .unwrap()
+            .code,
+        ErrorCode::IntegrityFailure
+    );
+    assert_eq!(
+        cache
+            .resume(&verifier, &old, NOW, &context)
+            .unwrap_err()
+            .code,
+        ErrorCode::IntegrityFailure
+    );
+    assert_eq!(
+        cache
+            .resume(&verifier, &update, NOW, &context)
+            .unwrap_err()
+            .code,
+        ErrorCode::Busy
+    );
+    value(cache.discard(&context));
+    let transfer = value(cache.resume(&verifier, &update, NOW, &context));
+    value(cache.append(transfer.ticket, 0, ARTIFACT, &context));
+    assert_eq!(
+        cache
+            .publish(transfer.ticket, &verifier, NOW + 3600, &context)
+            .err()
+            .unwrap()
+            .code,
+        ErrorCode::IntegrityFailure
+    );
+    value(cache.publish(transfer.ticket, &verifier, NOW, &context));
+}
+
+#[test]
+fn cache_cancellation_deadline_and_ui_context_do_not_mutate_pending_bytes() {
+    let (_directory, app, verifier) = setup();
+    let context = OperationContext::default();
+    let update = value(verifier.verify(&envelope(&metadata()), NOW, &context));
+    let mut cache = ArtifactCache::open(&app).unwrap();
+    let transfer = value(cache.resume(&verifier, &update, NOW, &context));
+    let cancelled = OperationContext::default();
+    cancelled.cancellation.cancel(CancelReason::User);
+    assert!(matches!(
+        cache
+            .append(transfer.ticket, 0, ARTIFACT, &cancelled)
+            .unwrap(),
+        Completion::Cancelled(CancelReason::User)
+    ));
+    assert!(matches!(
+        cache.discard(&cancelled).unwrap(),
+        Completion::Cancelled(CancelReason::User)
+    ));
+    let deadline = OperationContext {
+        deadline: Some(std::time::Instant::now()),
+        ..OperationContext::default()
+    };
+    assert_eq!(
+        cache
+            .append(transfer.ticket, 0, ARTIFACT, &deadline)
+            .unwrap_err()
+            .code,
+        ErrorCode::TimedOut
+    );
+    let owner = UiOwner::new(SurfaceId(4));
+    let ui = OperationContext {
+        ui: Some(owner.context(None).unwrap()),
+        ..OperationContext::default()
+    };
+    assert_eq!(
+        cache
+            .append(transfer.ticket, 0, ARTIFACT, &ui)
+            .unwrap_err()
+            .code,
+        ErrorCode::InvalidInput
+    );
+    assert_eq!(
+        std::fs::metadata(cache_path(&app, "artifact.part"))
+            .unwrap()
+            .len(),
+        0
+    );
+    value(cache.append(transfer.ticket, 0, ARTIFACT, &context));
+    value(cache.publish(transfer.ticket, &verifier, NOW, &context));
+}
+
+#[test]
+fn corrupted_transfer_settings_remain_untouched() {
+    let (_directory, app, _verifier) = setup();
+    let path = app
+        .location(gpui_app_data::DataLocation::Config)
+        .child("application/settings-update-transfer.json")
+        .unwrap();
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(&path, b"corrupted checkpoint").unwrap();
+    assert_eq!(
+        ArtifactCache::open(&app).err().unwrap().code,
+        ErrorCode::IntegrityFailure
+    );
+    assert_eq!(std::fs::read(path).unwrap(), b"corrupted checkpoint");
+}
+
+#[test]
+fn checkpoint_write_failure_invalidates_ticket_and_recovery_adopts_written_bytes() {
+    let (_directory, app, verifier) = setup();
+    let context = OperationContext::default();
+    let update = value(verifier.verify(&envelope(&metadata()), NOW, &context));
+    let mut cache = ArtifactCache::open(&app).unwrap();
+    let transfer = value(cache.resume(&verifier, &update, NOW, &context));
+    let path = app
+        .location(gpui_app_data::DataLocation::Config)
+        .child("application/settings-update-transfer.json")
+        .unwrap();
+    let original = std::fs::read(&path).unwrap();
+    std::fs::write(&path, b"broken checkpoint").unwrap();
+    assert_eq!(
+        cache
+            .append(transfer.ticket, 0, &ARTIFACT[..8], &context)
+            .unwrap_err()
+            .code,
+        ErrorCode::IntegrityFailure
+    );
+    assert_eq!(
+        cache
+            .append(transfer.ticket, 0, ARTIFACT, &context)
+            .unwrap_err()
+            .code,
+        ErrorCode::ContextExpired
+    );
+    assert_eq!(
+        std::fs::read(cache_path(&app, "artifact.part")).unwrap(),
+        &ARTIFACT[..8]
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), b"broken checkpoint");
+    // Simulate an operator restoring the valid old atomic checkpoint.
+    std::fs::write(&path, original).unwrap();
+    drop(cache);
+    let mut cache = ArtifactCache::open(&app).unwrap();
+    let transfer = value(cache.resume(&verifier, &update, NOW, &context));
+    assert_eq!(transfer.progress.received, 8);
+    value(cache.append(transfer.ticket, 8, &ARTIFACT[8..], &context));
+    value(cache.publish(transfer.ticket, &verifier, NOW, &context));
+}
+
+#[test]
+fn publication_checkpoint_failure_recovers_the_published_file() {
+    let (_directory, app, verifier) = setup();
+    let context = OperationContext::default();
+    let update = value(verifier.verify(&envelope(&metadata()), NOW, &context));
+    let mut cache = ArtifactCache::open(&app).unwrap();
+    let transfer = value(cache.resume(&verifier, &update, NOW, &context));
+    value(cache.append(transfer.ticket, 0, ARTIFACT, &context));
+    let path = app
+        .location(gpui_app_data::DataLocation::Config)
+        .child("application/settings-update-transfer.json")
+        .unwrap();
+    let original = std::fs::read(&path).unwrap();
+    std::fs::write(&path, b"broken checkpoint").unwrap();
+    assert_eq!(
+        cache
+            .publish(transfer.ticket, &verifier, NOW, &context)
+            .err()
+            .unwrap()
+            .code,
+        ErrorCode::IntegrityFailure
+    );
+    assert_eq!(
+        std::fs::read(cache_path(&app, "artifact.verified")).unwrap(),
+        ARTIFACT
+    );
+    assert!(!cache_path(&app, "artifact.part").exists());
+    assert_eq!(
+        cache
+            .publish(transfer.ticket, &verifier, NOW, &context)
+            .err()
+            .unwrap()
+            .code,
+        ErrorCode::ContextExpired
+    );
+    std::fs::write(path, original).unwrap();
+    drop(cache);
+    let mut cache = ArtifactCache::open(&app).unwrap();
+    let transfer = value(cache.resume(&verifier, &update, NOW, &context));
+    assert_eq!(transfer.progress.state, ArtifactCacheState::Published);
+    value(cache.publish(transfer.ticket, &verifier, NOW, &context));
+}
+
+#[test]
+fn interrupted_explicit_discard_resumes_its_persisted_deletion_intent() {
+    let (_directory, app, verifier) = setup();
+    let context = OperationContext::default();
+    let update = value(verifier.verify(&envelope(&metadata()), NOW, &context));
+    let mut cache = ArtifactCache::open(&app).unwrap();
+    let transfer = value(cache.resume(&verifier, &update, NOW, &context));
+    value(cache.append(transfer.ticket, 0, ARTIFACT, &context));
+    drop(cache);
+    let path = app
+        .location(gpui_app_data::DataLocation::Config)
+        .child("application/settings-update-transfer.json")
+        .unwrap();
+    let mut checkpoint: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    checkpoint["payload"]["phase"] = "discarding".into();
+    std::fs::write(path, serde_json::to_vec(&checkpoint).unwrap()).unwrap();
+    let mut cache = ArtifactCache::open(&app).unwrap();
+    assert_eq!(
+        cache
+            .resume(&verifier, &update, NOW, &context)
+            .unwrap_err()
+            .code,
+        ErrorCode::Busy
+    );
+    value(cache.discard(&context));
+    value(cache.discard(&context));
+    assert_eq!(
+        value(cache.resume(&verifier, &update, NOW, &context))
+            .progress
+            .received,
+        0
+    );
+}
+
+#[test]
+fn conflicting_files_and_unknown_orphans_are_preserved() {
+    for checkpoint_exists in [false, true] {
+        let (_directory, app, verifier) = setup();
+        let context = OperationContext::default();
+        let update = value(verifier.verify(&envelope(&metadata()), NOW, &context));
+        let mut cache = ArtifactCache::open(&app).unwrap();
+        if checkpoint_exists {
+            let transfer = value(cache.resume(&verifier, &update, NOW, &context));
+            value(cache.append(transfer.ticket, 0, ARTIFACT, &context));
+        } else {
+            std::fs::create_dir_all(cache_path(&app, "artifact.part").parent().unwrap()).unwrap();
+            std::fs::write(cache_path(&app, "artifact.part"), ARTIFACT).unwrap();
+        }
+        std::fs::write(cache_path(&app, "artifact.verified"), ARTIFACT).unwrap();
+        assert_eq!(
+            cache
+                .resume(&verifier, &update, NOW, &context)
+                .unwrap_err()
+                .code,
+            ErrorCode::IntegrityFailure
+        );
+        assert_eq!(
+            std::fs::read(cache_path(&app, "artifact.part")).unwrap(),
+            ARTIFACT
+        );
+        assert_eq!(
+            std::fs::read(cache_path(&app, "artifact.verified")).unwrap(),
+            ARTIFACT
+        );
+    }
+}
+
+#[test]
+fn chunks_are_bounded_independently_of_the_authenticated_total() {
+    let (_directory, app, verifier) = setup();
+    let context = OperationContext::default();
+    let mut policy = policy();
+    policy.maximum_artifact_bytes = (MAX_UPDATE_CHUNK_BYTES + 1) as u64;
+    drop(verifier);
+    let verifier = UpdateVerifier::open(policy, &app).unwrap();
+    let bytes = vec![b'x'; MAX_UPDATE_CHUNK_BYTES + 1];
+    let mut metadata = metadata();
+    metadata.artifact.size = bytes.len() as u64;
+    metadata.artifact.sha256 = format!("{:x}", Sha256::digest(&bytes));
+    let update = value(verifier.verify(&envelope(&metadata), NOW, &context));
+    let mut cache = ArtifactCache::open(&app).unwrap();
+    let transfer = value(cache.resume(&verifier, &update, NOW, &context));
+    assert_eq!(
+        cache
+            .append(transfer.ticket, 0, &bytes, &context)
+            .unwrap_err()
+            .code,
+        ErrorCode::InvalidInput
+    );
+    value(cache.append(
+        transfer.ticket,
+        0,
+        &bytes[..MAX_UPDATE_CHUNK_BYTES],
+        &context,
+    ));
+    value(cache.append(
+        transfer.ticket,
+        MAX_UPDATE_CHUNK_BYTES as u64,
+        &bytes[MAX_UPDATE_CHUNK_BYTES..],
+        &context,
+    ));
+    value(cache.publish(transfer.ticket, &verifier, NOW, &context));
+}
+
 #[test]
 fn exact_signed_payload_and_artifact_digest_are_verified() {
     let (_directory, _app, verifier) = setup();

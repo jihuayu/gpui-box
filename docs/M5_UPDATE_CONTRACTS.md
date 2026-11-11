@@ -100,6 +100,53 @@ version marks Completed. This query also reconciles a handoff whose old UI
 callback was dropped after recreation. Higher unexpected versions require a new
 application reconciliation policy.
 
+## Bounded artifact cache and transfer recovery
+
+ArtifactCache owns one transfer slot per existing AppData owner. Open it on a
+background executor and retain it throughout the transfer. Its independent OS
+lock prevents competing cache writers. Files live under the private Data root's
+`update-cache` directory so ordinary `AppData::clear_cache` cannot remove a
+transfer or a file already used by a native installer. The maximum authenticated
+size remains 2 GiB. The caller explicitly discards a superseded/completed slot to
+reclaim disk space. Unknown files remain available for diagnosis.
+
+Call `resume(verifier, update, now, context)` with a current VerifiedUpdate. It
+returns a fresh opaque CacheTicket and TransferProgress. Use `received` as the
+exact HTTP resume offset. Append accepts nonempty chunks up to 1 MiB, rejects
+out-of-order/duplicate offsets, and bounds the total by the signed artifact size.
+Session/generation tickets reject callbacks from earlier resumes or cache owners.
+The transport must separately enforce HTTPS redirect origins, response status,
+Content-Range, content encoding, server ETag/If-Range and network timeouts.
+
+Each append syncs the file before atomically replacing the bounded AppData
+checkpoint. The checkpoint binds the exact signed payload, artifact digest/size,
+committed offset and prefix SHA-256. On resume the cache rehashes the committed
+prefix. If a process stopped after a write and before checkpoint replacement,
+the bounded tail is hashed, synced and adopted into a new checkpoint. This also
+recovers a partial write. Missing committed bytes, modified prefixes, oversize
+files, conflicting staging/final files and unknown orphan artifacts fail while
+preserving their bytes. A bad adopted tail still fails the final signed digest.
+Corrupt settings require explicit application recovery through SettingsStore.
+
+`publish` checks the complete size/digest and current offer before renaming
+`artifact.part` to `artifact.verified` within the same private directory. Every
+cache hit is reverified. A crash after rename and before the Published checkpoint
+is recovered by verifying the existing final file. CachedArtifact supplies a
+read-only File at offset zero, its ArtifactVerification receipt and durability.
+Directory-sync uncertainty is retained in the receipt. Windows reports FileSynced.
+The native adapter must retain exact byte identity when inspecting/copying this
+file and granting an installer URI. AppData roots must remain application-private.
+The path checks retain AppData's documented lexical containment/trusted-root
+boundary.
+
+I/O/checkpoint failures after a mutation invalidate the active ticket. Resume
+before continuing. Cancellation and deadlines are polled before work, while
+rehashing, and before checkpoint commit. A reported cancellation may leave a
+recoverable uncommitted tail or a renamed artifact. `discard` first persists a
+Discarding intent, removes only the slot's two known regular files, then commits
+an empty slot. Repeat discard after reopening to finish interrupted removal.
+Transfer recovery does not restore UpdateController or native installer attempts.
+
 ## Validation and remaining adapters
 
 Host tests cover signed/byte tampering, wrong key, strict bounds/schema/duplicates,
@@ -115,8 +162,23 @@ compile-fail doctests and two nested child-process reports. Android API 35
 ARM64/x86_64 strict Clippy passes. The facade's dependency-light `updates`
 feature checks independently of native GPUI rendering features.
 
-The next #6 slice owns atomic bounded download/cache writes, durable download and
-installer-attempt recovery, redirect/origin enforcement, Android FileProvider URI
+The cache continuation adds 15 regression tests, bringing update coverage to 27
+tests. It exercises exact-offset and stale callbacks, read-only publication,
+restart/prefix hashing, uncommitted-tail adoption, rename-before-checkpoint
+recovery, injected append/publication checkpoint failures, interrupted discard,
+missing/tampered/conflicting files, orphan preservation, bounded chunks,
+cancellation/deadlines/UI rejection, offer expiry/supersession and cache cleanup
+isolation. Native channel runtime qualification remains pending.
+
+Integrated `mise run check` passes 170 host tests plus six compile-fail doctests
+and two nested child-process reports. All 27 update tests also pass as an Android
+x86_64 native test executable on the Android 15 / API 35 emulator. Both Android
+ARM64/x86_64 API 35 all-target strict Clippy checks pass. This validates the shared
+filesystem/trust/state core on Android. App-private provider wiring and installer
+interaction retain their separate runtime gates.
+
+The next #6 slice owns native HTTP download/redirect-origin enforcement, durable
+installer-attempt recovery, Android FileProvider URI
 grant lifetime, install-source permission, actual APK signature/identity parsing,
 native user cancellation and post-relaunch package probing. Play test-track flow,
 same-signer v1-to-v2 upgrade retaining app data and interrupted channel flows are
