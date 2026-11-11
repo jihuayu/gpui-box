@@ -33,6 +33,11 @@ pub enum MeasureSnapshot {
 pub struct LayoutStats {
     pub leaf_layouts: u64,
     pub measure_calls: u64,
+    /// Actual unrounded-layout writes, including equal and transient writes.
+    pub layout_writes: u64,
+    pub changed_layout_writes: u64,
+    /// Unique nodes whose final result differs from the last published result.
+    pub net_changed_nodes: u64,
 }
 
 impl MeasureSnapshot {

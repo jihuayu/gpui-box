@@ -1,0 +1,26 @@
+[
+  {
+    "exit_code": 0,
+    "binary_sha256": "19780C3C7C6CF88E50CB33E2C0F533AF5CA371AFD40BF08061A7406A60F43DAD",
+    "label": "run-1",
+    "started_at": "2026-11-12T03:48:42.2837795+08:00",
+    "finished_at": "2026-11-12T03:48:46.9985462+08:00",
+    "compile_collisions": []
+  },
+  {
+    "exit_code": 0,
+    "binary_sha256": "19780C3C7C6CF88E50CB33E2C0F533AF5CA371AFD40BF08061A7406A60F43DAD",
+    "label": "run-2",
+    "started_at": "2026-11-12T03:48:47.3104960+08:00",
+    "finished_at": "2026-11-12T03:48:52.1152967+08:00",
+    "compile_collisions": []
+  },
+  {
+    "exit_code": 0,
+    "binary_sha256": "19780C3C7C6CF88E50CB33E2C0F533AF5CA371AFD40BF08061A7406A60F43DAD",
+    "label": "run-3",
+    "started_at": "2026-11-12T03:48:52.3856311+08:00",
+    "finished_at": "2026-11-12T03:48:57.1416768+08:00",
+    "compile_collisions": []
+  }
+]

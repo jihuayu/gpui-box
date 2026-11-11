@@ -1,0 +1,341 @@
+{
+  "scope": "CPU persistent Taffy recomputation plus publication on the same tree; selective actual layout outputs vs complete extraction. Three rotating rounds, six warmups and twenty measured events each; initial construction/layout, transaction construction and GPU/consumer/presentation excluded. Original frame retained; final items/properties/damage/delta compared outside timing. Includes layout write observation, changed-ID deduplication, previous snapshot retirement and paint-page directory copies. Taffy layout is identical in both modes.",
+  "cases": [
+    {
+      "nodes": 1011,
+      "case": "last-leaf-size",
+      "policy": "selective layout output",
+      "extracted_nodes": 1,
+      "copied_items": 64,
+      "layout_writes": 111,
+      "changed_layout_writes": 2,
+      "net_changed_nodes": 2,
+      "leaf_layouts": 2,
+      "measure_calls": 0,
+      "samples": 180,
+      "median_us": 29.3,
+      "p95_us": 38.4,
+      "total_median_us": 30.4,
+      "run_medians_us": [
+        29.200000000000003,
+        29.7,
+        28.900000000000002
+      ]
+    },
+    {
+      "nodes": 1011,
+      "case": "last-leaf-size",
+      "policy": "full extraction",
+      "extracted_nodes": 1011,
+      "copied_items": 0,
+      "layout_writes": 111,
+      "changed_layout_writes": 2,
+      "net_changed_nodes": 2,
+      "leaf_layouts": 2,
+      "measure_calls": 0,
+      "samples": 180,
+      "median_us": 872.5,
+      "p95_us": 1266.9,
+      "total_median_us": 876.7,
+      "run_medians_us": [
+        796.3,
+        1020.9,
+        805.8
+      ]
+    },
+    {
+      "nodes": 1011,
+      "case": "parent-size",
+      "policy": "selective layout output",
+      "extracted_nodes": 1,
+      "copied_items": 64,
+      "layout_writes": 111,
+      "changed_layout_writes": 2,
+      "net_changed_nodes": 2,
+      "leaf_layouts": 100,
+      "measure_calls": 0,
+      "samples": 180,
+      "median_us": 33.699999999999996,
+      "p95_us": 75.9,
+      "total_median_us": 34.7,
+      "run_medians_us": [
+        33.4,
+        33.699999999999996,
+        35.1
+      ]
+    },
+    {
+      "nodes": 1011,
+      "case": "parent-size",
+      "policy": "full extraction",
+      "extracted_nodes": 1011,
+      "copied_items": 0,
+      "layout_writes": 111,
+      "changed_layout_writes": 2,
+      "net_changed_nodes": 2,
+      "leaf_layouts": 100,
+      "measure_calls": 0,
+      "samples": 180,
+      "median_us": 849.9,
+      "p95_us": 1078.8,
+      "total_median_us": 853.9,
+      "run_medians_us": [
+        779.7,
+        914.8,
+        828.8
+      ]
+    },
+    {
+      "nodes": 1011,
+      "case": "first-leaf-dependent-movement",
+      "policy": "selective layout output",
+      "extracted_nodes": 100,
+      "copied_items": 192,
+      "layout_writes": 111,
+      "changed_layout_writes": 101,
+      "net_changed_nodes": 101,
+      "leaf_layouts": 2,
+      "measure_calls": 0,
+      "samples": 180,
+      "median_us": 95.5,
+      "p95_us": 159.1,
+      "total_median_us": 96.60000000000001,
+      "run_medians_us": [
+        95.5,
+        96.5,
+        94.9
+      ]
+    },
+    {
+      "nodes": 1011,
+      "case": "first-leaf-dependent-movement",
+      "policy": "full extraction",
+      "extracted_nodes": 1011,
+      "copied_items": 0,
+      "layout_writes": 111,
+      "changed_layout_writes": 101,
+      "net_changed_nodes": 101,
+      "leaf_layouts": 2,
+      "measure_calls": 0,
+      "samples": 180,
+      "median_us": 903.2,
+      "p95_us": 1231.6,
+      "total_median_us": 906.3,
+      "run_medians_us": [
+        957.3000000000001,
+        869.3000000000001,
+        868.8
+      ]
+    },
+    {
+      "nodes": 1011,
+      "case": "last-leaf-intrinsic",
+      "policy": "selective layout output",
+      "extracted_nodes": 1,
+      "copied_items": 64,
+      "layout_writes": 111,
+      "changed_layout_writes": 2,
+      "net_changed_nodes": 2,
+      "leaf_layouts": 4,
+      "measure_calls": 4,
+      "samples": 180,
+      "median_us": 29.3,
+      "p95_us": 30.2,
+      "total_median_us": 30.2,
+      "run_medians_us": [
+        29.4,
+        29.3,
+        29.0
+      ]
+    },
+    {
+      "nodes": 1011,
+      "case": "last-leaf-intrinsic",
+      "policy": "full extraction",
+      "extracted_nodes": 1011,
+      "copied_items": 0,
+      "layout_writes": 111,
+      "changed_layout_writes": 2,
+      "net_changed_nodes": 2,
+      "leaf_layouts": 4,
+      "measure_calls": 4,
+      "samples": 180,
+      "median_us": 842.9000000000001,
+      "p95_us": 1256.0,
+      "total_median_us": 848.0,
+      "run_medians_us": [
+        895.1,
+        837.8,
+        817.2
+      ]
+    },
+    {
+      "nodes": 10101,
+      "case": "last-leaf-size",
+      "policy": "selective layout output",
+      "extracted_nodes": 1,
+      "copied_items": 64,
+      "layout_writes": 201,
+      "changed_layout_writes": 2,
+      "net_changed_nodes": 2,
+      "leaf_layouts": 2,
+      "measure_calls": 0,
+      "samples": 180,
+      "median_us": 45.9,
+      "p95_us": 56.6,
+      "total_median_us": 46.9,
+      "run_medians_us": [
+        45.800000000000004,
+        46.400000000000006,
+        45.4
+      ]
+    },
+    {
+      "nodes": 10101,
+      "case": "last-leaf-size",
+      "policy": "full extraction",
+      "extracted_nodes": 10101,
+      "copied_items": 0,
+      "layout_writes": 201,
+      "changed_layout_writes": 2,
+      "net_changed_nodes": 2,
+      "leaf_layouts": 2,
+      "measure_calls": 0,
+      "samples": 180,
+      "median_us": 10891.1,
+      "p95_us": 12751.699999999999,
+      "total_median_us": 10899.199999999999,
+      "run_medians_us": [
+        10726.3,
+        10849.599999999999,
+        11069.7
+      ]
+    },
+    {
+      "nodes": 10101,
+      "case": "parent-size",
+      "policy": "selective layout output",
+      "extracted_nodes": 4041,
+      "copied_items": 4149,
+      "layout_writes": 201,
+      "changed_layout_writes": 42,
+      "net_changed_nodes": 42,
+      "leaf_layouts": 100,
+      "measure_calls": 0,
+      "samples": 180,
+      "median_us": 3337.9,
+      "p95_us": 4268.7,
+      "total_median_us": 3348.2,
+      "run_medians_us": [
+        3329.8999999999996,
+        3360.7,
+        3355.0
+      ]
+    },
+    {
+      "nodes": 10101,
+      "case": "parent-size",
+      "policy": "full extraction",
+      "extracted_nodes": 10101,
+      "copied_items": 0,
+      "layout_writes": 201,
+      "changed_layout_writes": 42,
+      "net_changed_nodes": 42,
+      "leaf_layouts": 100,
+      "measure_calls": 0,
+      "samples": 180,
+      "median_us": 11207.3,
+      "p95_us": 13148.0,
+      "total_median_us": 11214.2,
+      "run_medians_us": [
+        11131.800000000001,
+        10950.3,
+        11444.7
+      ]
+    },
+    {
+      "nodes": 10101,
+      "case": "first-leaf-dependent-movement",
+      "policy": "selective layout output",
+      "extracted_nodes": 100,
+      "copied_items": 192,
+      "layout_writes": 201,
+      "changed_layout_writes": 101,
+      "net_changed_nodes": 101,
+      "leaf_layouts": 2,
+      "measure_calls": 0,
+      "samples": 180,
+      "median_us": 119.8,
+      "p95_us": 250.4,
+      "total_median_us": 121.39999999999999,
+      "run_medians_us": [
+        113.0,
+        152.20000000000002,
+        121.10000000000001
+      ]
+    },
+    {
+      "nodes": 10101,
+      "case": "first-leaf-dependent-movement",
+      "policy": "full extraction",
+      "extracted_nodes": 10101,
+      "copied_items": 0,
+      "layout_writes": 201,
+      "changed_layout_writes": 101,
+      "net_changed_nodes": 101,
+      "leaf_layouts": 2,
+      "measure_calls": 0,
+      "samples": 180,
+      "median_us": 10982.300000000001,
+      "p95_us": 14525.6,
+      "total_median_us": 10991.0,
+      "run_medians_us": [
+        10554.900000000001,
+        11939.2,
+        10947.6
+      ]
+    },
+    {
+      "nodes": 10101,
+      "case": "last-leaf-intrinsic",
+      "policy": "selective layout output",
+      "extracted_nodes": 1,
+      "copied_items": 64,
+      "layout_writes": 201,
+      "changed_layout_writes": 2,
+      "net_changed_nodes": 2,
+      "leaf_layouts": 4,
+      "measure_calls": 4,
+      "samples": 180,
+      "median_us": 46.199999999999996,
+      "p95_us": 86.7,
+      "total_median_us": 47.1,
+      "run_medians_us": [
+        45.5,
+        46.1,
+        83.7
+      ]
+    },
+    {
+      "nodes": 10101,
+      "case": "last-leaf-intrinsic",
+      "policy": "full extraction",
+      "extracted_nodes": 10101,
+      "copied_items": 0,
+      "layout_writes": 201,
+      "changed_layout_writes": 2,
+      "net_changed_nodes": 2,
+      "leaf_layouts": 4,
+      "measure_calls": 4,
+      "samples": 180,
+      "median_us": 11755.5,
+      "p95_us": 14924.3,
+      "total_median_us": 11764.9,
+      "run_medians_us": [
+        11297.800000000001,
+        12328.1,
+        12169.1
+      ]
+    }
+  ]
+}

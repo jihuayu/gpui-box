@@ -2,7 +2,7 @@
 resolver = "3"
 members = ["crates/gpui-box", "crates/gpui-box-cli", "crates/gpui-android", "examples/hello", "examples/android", "examples/desktop", "tooling/rendering-perf"]
 default-members = ["crates/gpui-box", "crates/gpui-box-cli"]
-exclude = ["vendor/gpui"]
+exclude = ["vendor/gpui", "vendor/taffy"]
 
 [workspace.package]
 version = "0.1.0-dev"
@@ -29,6 +29,7 @@ todo = "deny"
 # Preserve the upstream async scheduler behavior in downstream builds.
 [patch.crates-io]
 async-task = { git = "https://github.com/zed-industries/async-task.git", rev = "015845a19fc31752c02367567d3b8900a406f9da" }
+taffy = { path = "vendor/taffy" }
 
 [profile.dev]
 debug = "limited"

@@ -1,0 +1,55 @@
+{
+  "scope": "32 translucent full-viewport quads inside one isolated group; group-opacity animation; Full redraw for both paths; completed-work wall clock including CPU update and final GPU completion; no readback or native presentation",
+  "rounds": 3,
+  "warmup": 8,
+  "samples_per_round": 40,
+  "max_in_flight": 3,
+  "cases": [
+    {
+      "surface": [
+        1920,
+        1080
+      ],
+      "uncached_mean_us": 5559.5575,
+      "cached_mean_us": 261.7008333333333,
+      "speedup": 21.243942669906158,
+      "uncached_rounds_us": [
+        6307.6725,
+        5200.09,
+        5170.91
+      ],
+      "cached_rounds_us": [
+        262.885,
+        276.755,
+        245.4625
+      ],
+      "instance_upload_bytes": 0,
+      "property_upload_bytes": 16,
+      "cached_rasterized_layers": 0,
+      "pixel_equal": true
+    },
+    {
+      "surface": [
+        3840,
+        2160
+      ],
+      "uncached_mean_us": 20713.21416666667,
+      "cached_mean_us": 824.3433333333332,
+      "speedup": 25.126926280716372,
+      "uncached_rounds_us": [
+        20693.27,
+        20712.3275,
+        20734.045000000002
+      ],
+      "cached_rounds_us": [
+        825.3025000000001,
+        816.0074999999999,
+        831.72
+      ],
+      "instance_upload_bytes": 0,
+      "property_upload_bytes": 16,
+      "cached_rasterized_layers": 0,
+      "pixel_equal": true
+    }
+  ]
+}

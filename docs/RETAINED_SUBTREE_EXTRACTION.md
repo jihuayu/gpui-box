@@ -5,7 +5,8 @@ instead of rebuilding the complete scene. Full extraction records each visible
 node's preorder index and subtree end. Translation, clip, scroll and opacity
 commits collect dirty roots; sorting their ranges removes nested duplicates.
 Each disjoint affected subtree is extracted once from the persistent Taffy
-layouts, alongside any independent dirty materials. Layout, visibility, viewport
+layouts, alongside any independent dirty materials. The [layout-output follow-up](RETAINED_LAYOUT_PUBLICATION.md) extends selective
+publication to stable-visibility/order layout changes. Visibility, viewport
 and child-order changes still rebuild the complete snapshot and indices.
 
 The full and selective routes share one extractor. A subtree starts with its

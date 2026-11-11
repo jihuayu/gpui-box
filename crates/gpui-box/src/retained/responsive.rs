@@ -444,6 +444,24 @@ impl ResponsiveBindings {
             before.clone()
         };
         let layout_stats = LayoutStats {
+            layout_writes: before.layout_stats.layout_writes
+                + if second > 0 {
+                    frame.layout_stats.layout_writes
+                } else {
+                    0
+                },
+            changed_layout_writes: before.layout_stats.changed_layout_writes
+                + if second > 0 {
+                    frame.layout_stats.changed_layout_writes
+                } else {
+                    0
+                },
+            net_changed_nodes: before.layout_stats.net_changed_nodes
+                + if second > 0 {
+                    frame.layout_stats.net_changed_nodes
+                } else {
+                    0
+                },
             leaf_layouts: before.layout_stats.leaf_layouts
                 + if second > 0 {
                     frame.layout_stats.leaf_layouts

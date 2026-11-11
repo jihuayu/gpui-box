@@ -6,7 +6,10 @@ try {
     & mise exec -- cargo build --release --locked --offline -p gpui-box-rendering-perf --features retained-gpu --bin retained-runtime-gpu
     if ($LASTEXITCODE -ne 0) { throw 'Retained runtime build failed' }
     New-Item -ItemType Directory -Path $Output -Force | Out-Null
-    $sources = @('Cargo.lock', 'crates/gpui-box/Cargo.toml', 'crates/gpui-box/src/retained.rs',
+    $sources = @('Cargo.toml', 'Cargo.lock', 'crates/gpui-box/Cargo.toml', 'crates/gpui-box/src/retained.rs',
+        'vendor/taffy/Cargo.toml', 'vendor/taffy/UPSTREAM.json',
+        'crates/gpui-box/src/retained/layout_publication.rs',
+        'crates/gpui-box/src/retained/layout_publication/tests.rs',
         'examples/hello/src/retained_demo.rs',
         'examples/hello/src/retained_demo/delivery_check.rs',
         'examples/desktop/src/main.rs',
@@ -81,9 +84,14 @@ try {
         'tooling/rendering-perf/src/properties.rs',
         'tooling/rendering-perf/src/retained_properties.rs',
         'tooling/rendering-perf/src/retained_property_gpu.rs',
+        'tooling/rendering-perf/src/layout_publication.rs',
+        'tooling/rendering-perf/src/retained_layout.rs',
+        'tooling/rendering-perf/src/retained_layout_gpu.rs',
         'tooling/rendering-perf/src/retained_validation.rs',
         'tooling/rendering-perf/src/retained_hit_index.rs',
         'tooling/rendering-perf/run-retained-gpu.ps1')
+    $sources += @(Get-ChildItem -LiteralPath (Join-Path $workspace 'vendor/taffy/src') -Recurse -File |
+        Sort-Object FullName | ForEach-Object { [IO.Path]::GetRelativePath($workspace, $_.FullName).Replace('\', '/') })
     $hashes = foreach ($source in $sources) {
         [ordered]@{path = $source; sha256 = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash}
     }

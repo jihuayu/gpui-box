@@ -20,6 +20,7 @@ pub use image::ImageResource;
 mod extraction;
 #[cfg(test)]
 mod extraction_tests;
+mod layout_publication;
 mod measure;
 mod paint_store;
 pub use paint_store::{FrameBuildPolicy, FrameBuildStats, HitTestStats, PaintItems};
@@ -312,6 +313,7 @@ impl From<taffy::TaffyError> for Error {
 #[derive(Clone)]
 struct Node {
     layout: taffy::NodeId,
+    published_layout: taffy::Layout,
     children: Vec<NodeId>,
     parent: Option<NodeId>,
     style: Style,
@@ -343,6 +345,10 @@ pub struct UiTree {
     next_generation: u64,
     dirty: bool,
     layout_dirty: bool,
+    full_extract_required: bool,
+    layout_nodes: std::collections::HashMap<taffy::NodeId, NodeId>,
+    layout_written: std::collections::BTreeSet<NodeId>,
+    geometry_dirty: std::collections::BTreeSet<NodeId>,
     property_dirty: std::collections::BTreeSet<NodeId>,
     paint_subtree_ends: BTreeMap<NodeId, usize>,
     paint_dirty: std::collections::BTreeSet<NodeId>,
@@ -402,6 +408,7 @@ impl UiTree {
                 generation: 0,
                 node: Some(Node {
                     layout: id,
+                    published_layout: taffy::Layout::new(),
                     children: vec![],
                     parent: None,
                     style,
@@ -425,6 +432,10 @@ impl UiTree {
             next_generation: 1,
             dirty: true,
             layout_dirty: true,
+            full_extract_required: true,
+            layout_nodes: [(id, root)].into(),
+            layout_written: Default::default(),
+            geometry_dirty: Default::default(),
             property_dirty: Default::default(),
             paint_subtree_ends: Default::default(),
             paint_dirty: Default::default(),
@@ -495,6 +506,7 @@ impl UiTree {
         self.slots[slot].generation = generation;
         self.slots[slot].node = Some(Node {
             layout,
+            published_layout: taffy::Layout::new(),
             children: vec![],
             parent: Some(parent),
             style,
@@ -511,9 +523,11 @@ impl UiTree {
             text: None,
         });
         self.node_mut(parent).children.push(id);
+        self.layout_nodes.insert(layout, id);
         self.revision = next;
         self.dirty = true;
         self.layout_dirty = true;
+        self.full_extract_required = true;
         Ok(id)
     }
 
@@ -529,6 +543,8 @@ impl UiTree {
         for removed in order.into_iter().rev() {
             let layout = self.node(removed)?.layout;
             self.layout.remove(layout)?;
+            self.layout_nodes.remove(&layout);
+            self.layout_written.remove(&removed);
             let slot = &mut self.slots[removed.slot];
             slot.node = None;
             if let Some(next) = slot.generation.checked_add(1) {
@@ -538,6 +554,7 @@ impl UiTree {
         }
         self.node_mut(parent).children.retain(|child| *child != id);
         self.layout_dirty = true;
+        self.full_extract_required = true;
         Ok(())
     }
 
@@ -752,7 +769,9 @@ impl UiTree {
             text_changed,
         ) in changed
         {
-            self.paint_dirty.insert(id);
+            if color_changed || decoration_changed || image_changed || text_changed {
+                self.paint_dirty.insert(id);
+            }
             if property_changed {
                 self.property_dirty.insert(id);
             }
@@ -767,6 +786,7 @@ impl UiTree {
                     .expect("prepared Taffy children");
                 self.node_mut(id).children = children;
                 self.layout_dirty = true;
+                self.full_extract_required = true;
                 result.route(
                     id,
                     UpdatePath::ReconcileStructure,
@@ -781,6 +801,7 @@ impl UiTree {
                     .unwrap_or_else(|| node.style.clone());
                 let snapshot = entry.measure.unwrap_or_else(|| node.measure.clone());
                 let layout = node.layout;
+                self.full_extract_required |= node.style.display != style.display;
                 self.layout
                     .set_style(layout, measure::effective_style(&style, snapshot.as_ref()))
                     .expect("prepared Taffy style");
@@ -877,6 +898,7 @@ impl UiTree {
         if viewport_changed {
             self.advance()?;
             self.layout_dirty = true;
+            self.full_extract_required = true;
             self.viewport = Some(viewport);
         }
         if !self.dirty {
@@ -891,21 +913,21 @@ impl UiTree {
             && !self.layout_dirty
             && self.frame.is_some()
         {
-            return self.patch_paint_frame();
+            return self.patch_paint_frame(0, LayoutStats::default());
         }
         let layout_runs = u64::from(self.layout_dirty);
         let mut layout_stats = LayoutStats::default();
         if self.layout_dirty {
-            self.layout.compute_layout_with_measure(
-                self.node(self.root)?.layout,
-                Size {
-                    width: AvailableSpace::Definite(viewport[0]),
-                    height: AvailableSpace::Definite(viewport[1]),
-                },
-                |inputs, _, snapshot, style| {
-                    measure::layout_leaf(inputs, snapshot.as_deref(), style, &mut layout_stats)
-                },
-            )?;
+            layout_stats = self.compute_layout(viewport)?;
+        }
+        if self.frame_build_policy == FrameBuildPolicy::Selective
+            && !self.full_extract_required
+            && self.frame.is_some()
+        {
+            self.mark_layout_geometry()?;
+            let frame = self.patch_paint_frame(layout_runs, layout_stats)?;
+            self.finish_layout_publication();
+            return Ok(frame);
         }
         let mut properties = properties::PropertyBuilder::default();
         let mut recorded_chunks = 0;
@@ -984,6 +1006,9 @@ impl UiTree {
             damage,
         };
         self.layout_dirty = false;
+        self.full_extract_required = false;
+        self.geometry_dirty.clear();
+        self.finish_layout_publication();
         self.property_dirty.clear();
         self.paint_dirty.clear();
         self.index_paint_items(&frame.items);

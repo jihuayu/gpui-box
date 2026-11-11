@@ -127,7 +127,11 @@ impl UiTree {
     }
     /// Material changes extract individual visible nodes. Visual property
     /// changes extract disjoint affected subtrees from persistent layout.
-    pub(super) fn patch_paint_frame(&mut self) -> Result<FramePacket, Error> {
+    pub(super) fn patch_paint_frame(
+        &mut self,
+        layout_runs: u64,
+        layout_stats: LayoutStats,
+    ) -> Result<FramePacket, Error> {
         let before = self.frame.as_ref().expect("published geometry").clone();
         let mut candidates = BTreeMap::new();
         let mut updates = vec![];
@@ -156,7 +160,7 @@ impl UiTree {
                 disjoint.push(range);
             }
         }
-        let mut properties = if disjoint.is_empty() {
+        let mut properties = if disjoint.is_empty() && self.geometry_dirty.is_empty() {
             before.properties.clone()
         } else {
             Arc::new((*before.properties).clone())
@@ -172,6 +176,19 @@ impl UiTree {
                 debug_assert_eq!(item.node, before.items[index].node);
                 candidates.insert(index, item);
             }
+        }
+        for id in self.geometry_dirty.iter().copied().collect::<Vec<_>>() {
+            let Some(index) = self.paint_indices.get(&id).copied() else {
+                continue;
+            };
+            if candidates.contains_key(&index) {
+                continue;
+            }
+            let context = self.subtree_context(id, &before)?;
+            let props = Arc::get_mut(&mut properties).expect("private geometry property snapshot");
+            let item = self.extract_node(id, context, props, &mut recorded_chunks)?;
+            stats.extracted_nodes += 1;
+            candidates.insert(index, item);
         }
         for id in self.paint_dirty.iter().copied().collect::<Vec<_>>() {
             let Some(index) = self.paint_indices.get(&id).copied() else {
@@ -209,6 +226,15 @@ impl UiTree {
                     .transpose()?;
             }
             candidates.insert(index, item);
+        }
+        if properties
+            .transforms
+            .shares_root(&before.properties.transforms)
+            && properties.clips.shares_root(&before.properties.clips)
+            && properties.scrolls.shares_root(&before.properties.scrolls)
+            && properties.effects.shares_root(&before.properties.effects)
+        {
+            properties = before.properties.clone();
         }
         let mut patches = vec![];
         for (index, item) in candidates {
@@ -248,9 +274,9 @@ impl UiTree {
             base_revision: Some(before.revision),
             revision: self.revision,
             items,
-            layout_runs: 0,
+            layout_runs,
             recorded_chunks,
-            layout_stats: LayoutStats::default(),
+            layout_stats,
             build_stats: stats,
             updates: updates.into(),
             removed: Arc::from([]),
@@ -263,6 +289,7 @@ impl UiTree {
         };
         self.paint_dirty.clear();
         self.property_dirty.clear();
+        self.geometry_dirty.clear();
         self.dirty = false;
         self.frame = Some(frame.clone());
         Ok(frame)

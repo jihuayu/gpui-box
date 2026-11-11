@@ -66,6 +66,11 @@ path = "src/properties.rs"
 required-features = ["retained-runtime"]
 
 [[bin]]
+name = "layout-publication-perf"
+path = "src/layout_publication.rs"
+required-features = ["retained-runtime"]
+
+[[bin]]
 name = "paragraph-runtime-perf"
 path = "src/paragraph.rs"
 required-features = ["retained-text"]

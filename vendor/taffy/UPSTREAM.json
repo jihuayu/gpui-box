@@ -1,0 +1,271 @@
+{
+  "crate": "taffy",
+  "version": "0.15.0",
+  "registry_checksum": "3c8480887e8803986d96a7173729565520d4bbb721ad6b7ad6941a22897207aa",
+  "git_revision": "eb6450694f33e2b7413e40677f230ff63f0fc194",
+  "source": "crates.io cached package",
+  "files": [
+    {
+      "path": "Cargo.toml",
+      "sha256": "e9afa6bc7b121ffda29d8f25e5de28f68f1c2124bd1902a4b29ed43675b9f94d"
+    },
+    {
+      "path": "Cargo.toml.orig",
+      "sha256": "a6b2bd2ce68925625d64ea6fc7679c4838827fcbec9f13384587964ee9fa84d3"
+    },
+    {
+      "path": "examples/basic.rs",
+      "sha256": "49ec445e251e4474e8facd8939c6ccecc457b5711f178fb8832fd1d09fa8ce7e"
+    },
+    {
+      "path": "examples/common/image.rs",
+      "sha256": "cc623e9b1c5bc67fb0f7b4df1e0254adbe68401a372bd2d8ade929fb02e34441"
+    },
+    {
+      "path": "examples/common/text.rs",
+      "sha256": "62df7b4e8887c0e131d8dafcb6872c5d50b991a22346f06f05f59d4857398767"
+    },
+    {
+      "path": "examples/custom_tree_owned_partial.rs",
+      "sha256": "3a48aab6574be965829b4f839f687e9fce0963556988b2c20c72361e50c27903"
+    },
+    {
+      "path": "examples/custom_tree_owned_unsafe.rs",
+      "sha256": "902ecb3c8b7ccb011957f8705a5def19d63d4d2c2b2e00d12296138813b690e7"
+    },
+    {
+      "path": "examples/custom_tree_vec.rs",
+      "sha256": "8d1b732075b0b0d3eb97d83add6843f186fbcff6bdf88c149561fcb066e59eed"
+    },
+    {
+      "path": "examples/flexbox_gap.rs",
+      "sha256": "790098dbb6e10f8d38e913165db801f7159a81728bae9a3d6e0e57f6fa9b31ac"
+    },
+    {
+      "path": "examples/grid_holy_grail.rs",
+      "sha256": "bf2e9cd51abad89a504a78ec6e908bf3c8d129456c6d11318cf2ff22f76e8b39"
+    },
+    {
+      "path": "examples/measure.rs",
+      "sha256": "d4ead14836e46d87e34f81d2b960c80a0209ca3fcd86b6df1bb1730a82b99283"
+    },
+    {
+      "path": "examples/nested.rs",
+      "sha256": "a79e192c228687c76b2f2832c8c253dda212502a293c4d061ad528f0e1e09f5c"
+    },
+    {
+      "path": "README.md",
+      "sha256": "ae639d00b0d3f0f0006dcbc9e696bdcea490d5b96fee774a837b1b7022008dd8"
+    },
+    {
+      "path": "src/compute/block.rs",
+      "sha256": "20785c95e9e3b4a2392ceaaed23b514bdca502a37174f5c5f7adeeeaa2d9c016"
+    },
+    {
+      "path": "src/compute/common/alignment.rs",
+      "sha256": "8766e3a95beb7548d4f6c15ae36436e1f925e7e3430a15e96d1f65e82bcb78de"
+    },
+    {
+      "path": "src/compute/common/mod.rs",
+      "sha256": "f61e06fbf53015f14f6c833c56712abd9d74dede675c6cfd55bf90ed2b5f8ef5"
+    },
+    {
+      "path": "src/compute/common/scrollable_overflow.rs",
+      "sha256": "8c036cf35f0878206dd92973d219956bdf24bdb890269e19a572cb9cc42a2994"
+    },
+    {
+      "path": "src/compute/common/sizing_keyword.rs",
+      "sha256": "6030b55185314f2219aeea40cb7a8d13fd182e4b916730561a73a6e834a80ae5"
+    },
+    {
+      "path": "src/compute/flexbox.rs",
+      "sha256": "c25e643a9a0ae71c78b6781558b5dcdc4a55fa7f01799acc7ec8b24ff11cb884"
+    },
+    {
+      "path": "src/compute/float.rs",
+      "sha256": "08f162bc90c55c1b1ba2930e5adf6abc9881611086a75c096853f9ce92141118"
+    },
+    {
+      "path": "src/compute/grid/alignment.rs",
+      "sha256": "63d0a0115bfab9ae7a6473c34fd4122ffe2fe3938281b5f14597cfadb6378c98"
+    },
+    {
+      "path": "src/compute/grid/explicit_grid.rs",
+      "sha256": "f42348dcea5c61c79ae17165cbbba505da980e29841c9a26adb8494d322a4808"
+    },
+    {
+      "path": "src/compute/grid/implicit_grid.rs",
+      "sha256": "5534ac03c758cdc52869cd465db95c4c6637b38af2e9db21aa44bb3c3430e49a"
+    },
+    {
+      "path": "src/compute/grid/mod.rs",
+      "sha256": "5a6671fd86c039ec9b2af396dd17c7ce5caf89a7a50d0e46ffe83a28cc9290ce"
+    },
+    {
+      "path": "src/compute/grid/placement.rs",
+      "sha256": "d58b9cc09d1b411cc2c3486fca9f88ed203767f9942592b73a069889c7d001ca"
+    },
+    {
+      "path": "src/compute/grid/track_sizing.rs",
+      "sha256": "a63be4da7621d0f9d8ee9196d726c1a30b558f4d1fe94fd54de3eb34994f1dd8"
+    },
+    {
+      "path": "src/compute/grid/types/cell_occupancy.rs",
+      "sha256": "44c6bf4de309744a8f77b903257cdcdb6e70d06355a8c6a0bdd761ec19128481"
+    },
+    {
+      "path": "src/compute/grid/types/coordinates.rs",
+      "sha256": "de9fc2e86ecf12ed5d2a21d49b070dfc437f40c8411a9a2a90414b952df2dcb2"
+    },
+    {
+      "path": "src/compute/grid/types/grid_item.rs",
+      "sha256": "f09cfb9b24e244333b4b0ad52659de8b65adf763814857ef562a6a52c8699a90"
+    },
+    {
+      "path": "src/compute/grid/types/grid_track.rs",
+      "sha256": "537833abe5b6a33f2815d727fe258ec93d0ea3aca541b8fd19c99310d817ba75"
+    },
+    {
+      "path": "src/compute/grid/types/grid_track_counts.rs",
+      "sha256": "58d92718927dbebe30e0f9634ac309002e9b5a774e3e6fb67150f2b8341f036d"
+    },
+    {
+      "path": "src/compute/grid/types/mod.rs",
+      "sha256": "bb4773d2aa496973426940a64e70dfb62716f526cb7a70b3e7e59d7463b10a24"
+    },
+    {
+      "path": "src/compute/grid/types/named.rs",
+      "sha256": "c8fec280aad83c20d1408e91c0c096b96070a0bc04fd7b24ecbd7ea5e6b5e8f3"
+    },
+    {
+      "path": "src/compute/grid/util/mod.rs",
+      "sha256": "3302f73c3f2fd98db32297a6e9d71a0646269c248d825d1cc92d17ecec93adbf"
+    },
+    {
+      "path": "src/compute/grid/util/test_helpers.rs",
+      "sha256": "a5069efd4ddc0254eeb289ba1a135b73510bba7fa2f29de4c9aa98d8f04cd66a"
+    },
+    {
+      "path": "src/compute/leaf.rs",
+      "sha256": "603e7e5752d4abd78319f1df33d05b9355950ba8cd3d5434f1f12c416aae0810"
+    },
+    {
+      "path": "src/compute/mod.rs",
+      "sha256": "2b438bacffb7e72f0095243bc21f114caba549a61fd1f3cf769dbfa063c184e4"
+    },
+    {
+      "path": "src/compute/oof.rs",
+      "sha256": "fad3ce3bdfa5730e92d3dbde763e61049c9c402db2a01105ed13f5fbb1c45523"
+    },
+    {
+      "path": "src/geometry.rs",
+      "sha256": "5340222bb52ac1be0a5ba79df3253fdfee45798fac17b32012c4ec45b192eb41"
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "1c33a9d79bcce2d45ce8c94ba1d5b721f6a943c5855ad0f6d035be16348eca4c"
+    },
+    {
+      "path": "src/prelude.rs",
+      "sha256": "892bc57c2dca1fde7ade48c33affb0f2cc81e27ae91c927ca756b639b56633d2"
+    },
+    {
+      "path": "src/style/alignment.rs",
+      "sha256": "f96681846c9f5c6598e27f0170029d91952839c75bfd75f86fb7e0b321e7c806"
+    },
+    {
+      "path": "src/style/available_space.rs",
+      "sha256": "b704be4853ba3251e904a0ccafe3612220fc9fbb4f28b8fd8103c319018d8e06"
+    },
+    {
+      "path": "src/style/block.rs",
+      "sha256": "9ed4b1b2c3aa7443feec78ce106504fa153eb9d1ffa21098dd322537999d950b"
+    },
+    {
+      "path": "src/style/compact_length.rs",
+      "sha256": "3d771b000898dc764c5adccd0759150216ea79e42a5d4808c530cf67a20397c8"
+    },
+    {
+      "path": "src/style/dimension.rs",
+      "sha256": "56e2ac72ba2c322dc9aa8aa08d11671d7b1f2e720a83de3fa7248e7f9963d436"
+    },
+    {
+      "path": "src/style/flex.rs",
+      "sha256": "f85b52efaedccd68e9ab570966cb8c2cf2ff903b5adaf43799f25910737d0dc4"
+    },
+    {
+      "path": "src/style/float.rs",
+      "sha256": "884a69bb999dae5172fb88805e7a0ed30fc3ef6a6d0b5340ff56045d45a5cb6c"
+    },
+    {
+      "path": "src/style/grid.rs",
+      "sha256": "fd006874affb95123e9d0dd10050493d8634a4a56ee73b351f8a08c53761804b"
+    },
+    {
+      "path": "src/style/mod.rs",
+      "sha256": "95b5c4b7b78e95fac859ff685df930769ab8a1fb14c764e9680f9b4b580e0f7a"
+    },
+    {
+      "path": "src/style_helpers.rs",
+      "sha256": "4a3bf53b9d4d410469860ea6aff13f1a84b29542e5b50151da8bd32d880d763d"
+    },
+    {
+      "path": "src/tree/cache.rs",
+      "sha256": "7fc1b9016b52b5e1093e00d8075c3d7118b2704f549fdb0838f1842d3d8387cf"
+    },
+    {
+      "path": "src/tree/layout.rs",
+      "sha256": "8d9196f87e995096ea464312774c172af65f024c36a02e3579d6b13b7fa10a15"
+    },
+    {
+      "path": "src/tree/mod.rs",
+      "sha256": "f559091feeb3bb07991c42dd382da8620ff95dbd129f7d84dc8d92cbd9540543"
+    },
+    {
+      "path": "src/tree/node.rs",
+      "sha256": "b027062338f4d2dcea8c7c4200c7bc0d109c2e33dfa955b25079bb1d7b0537ba"
+    },
+    {
+      "path": "src/tree/taffy_tree.rs",
+      "sha256": "38e8186579c2424753cd055b98c081899130a6a30f168ba50883ffa897de89a7"
+    },
+    {
+      "path": "src/tree/traits.rs",
+      "sha256": "f9f501ccd5ebfb3412c72337bbec0ada65aae7001f0f69ed235b42f68ba9273e"
+    },
+    {
+      "path": "src/util/debug.rs",
+      "sha256": "ab44f98e28e041006cd14e645e0b4bc970633c8da2d493856658ef2f2355d439"
+    },
+    {
+      "path": "src/util/front_back_vec_builder.rs",
+      "sha256": "09fa85f4cb31fc70c41bccfb5e9d424851f853bbb4c519b475f9b84f30ca5297"
+    },
+    {
+      "path": "src/util/math.rs",
+      "sha256": "ee37a509ac3eef3581571a27b167c03fc65c37ee4110cbbd4c89f7cdc149f920"
+    },
+    {
+      "path": "src/util/mod.rs",
+      "sha256": "8e572955cb989b377db453ec929e03652d0b109fa66ea0e490e9ff3b57738cd5"
+    },
+    {
+      "path": "src/util/parse.rs",
+      "sha256": "25144731b4d5de634b223ed3e81d1dd5b4c2b93635a30e0bccd8fd1b238bb47f"
+    },
+    {
+      "path": "src/util/print.rs",
+      "sha256": "0a453d0295a533092ca9a64d0cbaf3dfb1e1c9e803fe3325108f3ac1e0d76154"
+    },
+    {
+      "path": "src/util/resolve.rs",
+      "sha256": "e1ea8214c982be001c9f9ba5006881aaf7882ac5781825d7a185e2f98c5c243e"
+    },
+    {
+      "path": "src/util/sys.rs",
+      "sha256": "d83c0ec5038e46d2bc416e9f6759531af37fc0dd2bd639ffe832504f33bd006a"
+    }
+  ],
+  "license_source": "https://raw.githubusercontent.com/DioxusLabs/taffy/eb6450694f33e2b7413e40677f230ff63f0fc194/LICENSE",
+  "license_sha256": "f97daf1a0124413dccf399a4e6626b4b74acd05282f80b6d64ac82225650b77a"
+}

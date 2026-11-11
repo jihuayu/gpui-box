@@ -11,6 +11,36 @@ impl UiTree {
         properties: &mut impl properties::PropertyOutput,
         recorded_chunks: &mut u64,
     ) -> Result<Vec<PaintItem>, Error> {
+        self.extract(
+            root,
+            (origin, inherited_clip, state),
+            properties,
+            recorded_chunks,
+            true,
+        )
+    }
+
+    pub(super) fn extract_node(
+        &mut self,
+        root: NodeId,
+        context: ([f32; 2], Option<Rect>, PropertyState),
+        properties: &mut impl properties::PropertyOutput,
+        recorded_chunks: &mut u64,
+    ) -> Result<PaintItem, Error> {
+        Ok(self
+            .extract(root, context, properties, recorded_chunks, false)?
+            .pop()
+            .expect("visible indexed node"))
+    }
+
+    fn extract(
+        &mut self,
+        root: NodeId,
+        (origin, inherited_clip, state): ([f32; 2], Option<Rect>, PropertyState),
+        properties: &mut impl properties::PropertyOutput,
+        recorded_chunks: &mut u64,
+        descendants: bool,
+    ) -> Result<Vec<PaintItem>, Error> {
         let mut items = vec![];
         let mut stack = vec![(root, origin, inherited_clip, state)];
         while let Some((id, origin, inherited_clip, mut state)) = stack.pop() {
@@ -66,8 +96,10 @@ impl UiTree {
                 scroll_property,
                 effect_property,
             );
-            for child in node.children.iter().rev() {
-                stack.push((*child, [x - scroll[0], y - scroll[1]], clip, state));
+            if descendants {
+                for child in node.children.iter().rev() {
+                    stack.push((*child, [x - scroll[0], y - scroll[1]], clip, state));
+                }
             }
             let node = self.node_mut(id);
             let commands = node

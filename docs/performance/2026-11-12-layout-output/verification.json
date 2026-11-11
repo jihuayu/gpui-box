@@ -1,0 +1,24 @@
+{
+  "source_hashes_verified": 146,
+  "hardware_pixel_cases": 171,
+  "core_combined_tests_passed": 113,
+  "gallery_tests_passed": 12,
+  "taffy_default_feature_library_tests_passed": 169,
+  "clippy": "passed -D warnings",
+  "taffy_modified_original_files": [
+    "src/tree/taffy_tree.rs"
+  ],
+  "cpu_runs": 3,
+  "cpu_observed_compiler_collisions": 0,
+  "cpu_scope": "same-tree selective vs full extraction; identical Taffy computation with observer",
+  "not_measured": [
+    "native presentation",
+    "input latency",
+    "sustained cadence",
+    "energy",
+    "cross-platform",
+    "old upstream no-observer overhead"
+  ],
+  "core_retained_only_tests_passed": 104,
+  "desktop_wgpu_build": "passed"
+}

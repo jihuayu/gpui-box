@@ -91,3 +91,9 @@ Owned paragraph shaping/wrapping, font epochs, decoded image resources, custom
 constraint-dependent snapshots, proved layout islands and full layout-visit
 instrumentation remain unfinished. Native presentation and cross-platform
 qualification remain in the acceptance table.
+
+The [layout-output publication follow-up](RETAINED_LAYOUT_PUBLICATION.md) now
+uses actual Taffy result writes to avoid full extraction after local intrinsic
+changes when visibility/order stay stable. It also reports layout writes and
+net changed result identities; these do not count every internal Taffy visit
+or cache lookup. The older timings above describe full extraction at that stage.

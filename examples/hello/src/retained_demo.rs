@@ -1396,6 +1396,8 @@ mod tests {
             .reference_image(&measured, [actual.width(), actual.height()], scale)
             .unwrap();
         assert_eq!((measured.layout_runs, measured.recorded_chunks), (1, 0));
+        assert!(!measured.build_stats.full_rebuild);
+        assert!(measured.layout_stats.layout_writes > 0);
         assert!(
             actual.as_raw() == reference.as_raw(),
             "normal measure click reaches GPU"
@@ -1481,6 +1483,8 @@ mod tests {
             view.tree.borrow().published_frame().unwrap().clone()
         });
         assert_eq!((frame.layout_runs, frame.recorded_chunks), (1, 0));
+        assert!(!frame.build_stats.full_rebuild);
+        assert!(frame.layout_stats.layout_writes > 0);
         let measured = gpu.borrow_mut().image().unwrap();
         let reference = gpu
             .borrow_mut()
