@@ -2,6 +2,7 @@ use crate::{CancelReason, ErrorCode, SystemError};
 use std::{
     sync::{Arc, Mutex, Weak},
     task::Waker,
+    thread::{self, ThreadId},
     time::Instant,
 };
 
@@ -97,6 +98,7 @@ pub struct LogicalRect {
 }
 
 struct OwnerState {
+    thread: ThreadId,
     generation: Mutex<Option<u64>>,
     watchers: WakeList,
 }
@@ -123,6 +125,7 @@ impl UiOwner {
         Self {
             surface,
             lease: Arc::new(OwnerLease(Arc::new(OwnerState {
+                thread: thread::current().id(),
                 generation: Mutex::new(Some(1)),
                 watchers: WakeList::default(),
             }))),
@@ -130,6 +133,7 @@ impl UiOwner {
     }
 
     pub fn context(&self, anchor: Option<LogicalRect>) -> Result<UiContext, SystemError> {
+        self.check_thread()?;
         let generation = lock(&self.lease.0.generation)
             .ok_or_else(|| SystemError::new(ErrorCode::ContextExpired, "UI owner is disposed"))?;
         Ok(UiContext {
@@ -141,6 +145,7 @@ impl UiOwner {
     }
 
     pub fn advance_generation(&self) -> Result<(), SystemError> {
+        self.check_thread()?;
         {
             let mut generation = lock(&self.lease.0.generation);
             let next = generation.and_then(|value| value.checked_add(1));
@@ -160,6 +165,16 @@ impl UiOwner {
         *lock(&self.lease.0.generation) = None;
         self.lease.0.watchers.wake_all();
     }
+
+    fn check_thread(&self) -> Result<(), SystemError> {
+        if self.lease.0.thread != thread::current().id() {
+            return Err(SystemError::new(
+                ErrorCode::ContextExpired,
+                "UI operation requires its owning thread",
+            ));
+        }
+        Ok(())
+    }
 }
 
 /// A non-owning, logical UI attachment. Native handles remain provider-private.
@@ -172,7 +187,17 @@ pub struct UiContext {
 }
 
 impl UiContext {
+    /// True only on the owning UI thread and for the current live attachment.
     pub fn is_current(&self) -> bool {
+        self.state.upgrade().is_some_and(|owner| {
+            owner.thread == thread::current().id()
+                && *lock(&owner.generation) == Some(self.generation)
+        })
+    }
+
+    // Callback completion may occur on a worker. It can validate lifetime but
+    // cannot use a logical context to execute native UI operations there.
+    fn has_current_lifetime(&self) -> bool {
         self.state
             .upgrade()
             .is_some_and(|owner| *lock(&owner.generation) == Some(self.generation))
@@ -193,8 +218,24 @@ pub struct OperationContext {
 }
 
 impl OperationContext {
+    /// Execution-time validation. UI operations must run on the owner thread;
+    /// contexts without a UI attachment remain usable for background work.
     pub fn check_at(&self, now: Instant) -> Result<(), SystemError> {
         if self.ui.as_ref().is_some_and(|ui| !ui.is_current()) {
+            return Err(SystemError::new(
+                ErrorCode::ContextExpired,
+                "UI context is expired or belongs to another thread",
+            ));
+        }
+        self.check_lifetime_at(now)
+    }
+
+    pub(crate) fn check_lifetime_at(&self, now: Instant) -> Result<(), SystemError> {
+        if self
+            .ui
+            .as_ref()
+            .is_some_and(|ui| !ui.has_current_lifetime())
+        {
             return Err(SystemError::new(
                 ErrorCode::ContextExpired,
                 "UI context has expired",
@@ -216,7 +257,7 @@ impl OperationContext {
             .ok_or_else(|| {
                 SystemError::new(
                     ErrorCode::ContextExpired,
-                    "A current UI context is required",
+                    "A current UI context on its owning thread is required",
                 )
             })
     }

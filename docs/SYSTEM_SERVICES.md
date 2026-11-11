@@ -70,8 +70,11 @@ The UI host owns `UiOwner`. Its logical `SurfaceId` survives attachment changes;
 `dispose` or dropping the final owning guard invalidates all contexts. Contexts
 hold only weak attachment state and never keep a native window alive. Anchors use
 client-area logical coordinates. Native handles remain private to providers.
-`require_ui` validates presence/current generation; providers must also validate
-thread ownership and any anchor geometry required by their native API.
+`UiOwner::new` records the current owning UI thread. `is_current`, `require_ui`
+and execution-time `OperationContext::check_at` validate that thread as well as
+the live generation. Creating a context or advancing a generation on another
+thread returns `ContextExpired`. Providers must create owners on the actual
+platform UI thread and validate any anchor geometry required by their native API.
 
 Cloned `OperationContext`s share cooperative cancellation and UI generation.
 Cancellation is first-reason-wins. Dropping one Request abandons only that request;
@@ -86,7 +89,11 @@ The default core owns no timer thread. A host must schedule
 so even a provider that never calls back times out. Deadline checks use monotonic
 `Instant`. Tests inject an elapsed instant through `expire_at`, without sleeping.
 
-Completion ports and event senders are Send when their payloads are Send.
+Request receivers are explicitly non-Send; this keeps their execution and result
+delivery local even for Send payloads. Completion ports and event senders are
+Send when their payloads are Send. Worker callback completion validates attachment
+lifetime, cancellation and deadline without requiring the UI thread; the receiver
+then validates execution ownership when delivering the result on the local thread.
 Registry providers, UI futures, Entity scopes and native listeners stay local.
 Background I/O should use GPUI's background executor and send only owned Send
 data back. Release GPUI borrows and internal locks before native calls or user
@@ -153,3 +160,6 @@ and misconfigured providers, duplicate registrations, fake overrides, cancellati
 before registration, pending cancellation wakeup, concurrent duplicate callbacks,
 deadline expiry without callbacks, stale generation/disposal, abandoned requests,
 event overflow/resync, single-reader enforcement and reentrant listener cleanup.
+The ownership regression additionally rejects worker-thread UI execution while
+accepting a worker callback delivered to the local receiver. A compile-fail doc
+test freezes Request's non-Send boundary.

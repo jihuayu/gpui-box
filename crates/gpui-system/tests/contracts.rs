@@ -162,6 +162,45 @@ fn cancellation_before_registration_and_request_drop_are_safe() {
 }
 
 #[test]
+fn ui_execution_rejects_worker_thread_but_worker_completion_is_allowed() {
+    let owner = UiOwner::new(SurfaceId(88));
+    let context = OperationContext {
+        ui: Some(owner.context(None).unwrap()),
+        ..Default::default()
+    };
+    let worker_context = context.clone();
+    let worker_owner = owner.clone();
+    let (mut request, callback) = request::<u32>(context);
+    let worker = std::thread::spawn(move || {
+        assert!(!worker_context.ui.as_ref().unwrap().is_current());
+        assert_eq!(
+            worker_context.require_ui().err().unwrap().code,
+            ErrorCode::ContextExpired
+        );
+        assert_eq!(
+            worker_context.check_at(Instant::now()).unwrap_err().code,
+            ErrorCode::ContextExpired
+        );
+        assert_eq!(
+            worker_owner.context(None).err().unwrap().code,
+            ErrorCode::ContextExpired
+        );
+        assert_eq!(
+            worker_owner.advance_generation().unwrap_err().code,
+            ErrorCode::ContextExpired
+        );
+        assert!(OperationContext::default().check_at(Instant::now()).is_ok());
+        assert!(callback.complete(Ok(Completion::Completed(42))));
+    });
+    worker.join().unwrap();
+    assert_eq!(
+        poll(&mut request, &Arc::default()),
+        Poll::Ready(Ok(Completion::Completed(42)))
+    );
+    assert!(owner.context(None).unwrap().is_current());
+}
+
+#[test]
 fn generation_change_disposal_and_last_owner_drop_wake() {
     let owner = UiOwner::new(SurfaceId(12));
     let (mut old, callback) = request::<u32>(OperationContext {

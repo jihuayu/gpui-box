@@ -2,7 +2,9 @@ use crate::context::{WakeCell, lock};
 use crate::{Completion, DiagnosticEvent, DiagnosticPhase, OperationContext, ServiceResult};
 use std::{
     future::Future,
+    marker::PhantomData,
     pin::Pin,
+    rc::Rc,
     sync::{
         Arc, Mutex,
         atomic::{AtomicU64, Ordering},
@@ -30,7 +32,13 @@ struct Shared<T> {
 
 /// Receiver of exactly one completion. Drop abandons this request without
 /// cancelling siblings that share its cancellation token. No blocking destructor.
-pub struct Request<T>(Arc<Shared<T>>);
+/// The receiver is local even when native callback payloads are Send.
+///
+/// ```compile_fail
+/// fn assert_send<T: Send>() {}
+/// assert_send::<gpui_system::Request<()>>();
+/// ```
+pub struct Request<T>(Arc<Shared<T>>, PhantomData<Rc<()>>);
 
 /// Cloneable, thread-safe when `T: Send`, native callback completion port.
 pub struct CompletionPort<T>(Arc<Shared<T>>);
@@ -52,11 +60,14 @@ pub fn request<T>(context: OperationContext) -> (Request<T>, CompletionPort<T>) 
         wake: Arc::default(),
     });
     shared.context.watch(&shared.wake);
-    (Request(shared.clone()), CompletionPort(shared))
+    (Request(shared.clone(), PhantomData), CompletionPort(shared))
 }
 
-fn interruption<T>(context: &OperationContext, now: Instant) -> Option<ServiceResult<T>> {
-    if let Err(error) = context.check_at(now) {
+fn interruption<T>(
+    context: &OperationContext,
+    validation: Result<(), crate::SystemError>,
+) -> Option<ServiceResult<T>> {
+    if let Err(error) = validation {
         return Some(Err(error));
     }
     context
@@ -73,7 +84,11 @@ impl<T> CompletionPort<T> {
     /// First callback wins. Expired owners, cancellation and deadlines take
     /// precedence when observed before native completion is accepted.
     pub fn complete(&self, result: ServiceResult<T>) -> bool {
-        let result = interruption(&self.0.context, Instant::now()).unwrap_or(result);
+        let result = interruption(
+            &self.0.context,
+            self.0.context.check_lifetime_at(Instant::now()),
+        )
+        .unwrap_or(result);
         let accepted = {
             let mut state = lock(&self.0.state);
             if state.terminal || state.result.is_some() {
@@ -93,7 +108,9 @@ impl<T> CompletionPort<T> {
             let mut state = lock(&self.0.state);
             if state.terminal || state.result.is_some() {
                 false
-            } else if let Some(result) = interruption(&self.0.context, now) {
+            } else if let Some(result) =
+                interruption(&self.0.context, self.0.context.check_lifetime_at(now))
+            {
                 state.result = Some(result);
                 true
             } else {
@@ -153,7 +170,7 @@ impl<T> Future for Request<T> {
             return Poll::Pending;
         }
         // Revalidate on delivery, including a callback accepted before recreation.
-        let discarded = interruption(&self.0.context, Instant::now())
+        let discarded = interruption(&self.0.context, self.0.context.check_at(Instant::now()))
             .and_then(|result| state.result.replace(result));
         if let Some(result) = state.result.take() {
             state.terminal = true;
