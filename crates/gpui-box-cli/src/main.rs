@@ -3,6 +3,7 @@ mod generate;
 mod output;
 mod package;
 mod reference;
+mod registry;
 mod sdk;
 mod workflow;
 use output::CliError;
@@ -30,6 +31,78 @@ fn execute(arguments: &[String]) -> Result<Value, CliError> {
         [command] if matches!(command.as_str(), "--version" | "-V") => {
             outputln!("gpui-box {}", gpui_box::VERSION);
             return Ok(json!({"version": gpui_box::VERSION}));
+        }
+        [command] | [command, _]
+            if command == "list" || command == "info" && arguments.len() == 2 =>
+        {
+            if command == "list" && arguments.len() != 1 {
+                return Err(CliError::new(
+                    "INVALID_ARGUMENTS",
+                    "Use list without arguments",
+                ));
+            }
+            let snapshot = registry::bundled()
+                .map_err(|error| CliError::new("REGISTRY_QUERY_FAILED", error))?;
+            let view = snapshot
+                .view(arguments.get(1).map(String::as_str))
+                .map_err(|error| CliError::new("REGISTRY_QUERY_FAILED", error))?;
+            if !output::is_json() {
+                for entry in &view.entries {
+                    outputln!("{} {} · {}", entry.id, entry.version, entry.title);
+                    if command == "info" {
+                        outputln!(
+                            "Kind {:?} · Delivery {:?} · License {}\nSDK {} · GPUI {}\nSource https://github.com/jihuayu/gpui-box/tree/{}",
+                            entry.kind,
+                            entry.delivery,
+                            entry.license,
+                            entry.sdk_version,
+                            entry.upstream_revision,
+                            view.source_revision,
+                        );
+                        for source in &entry.sources {
+                            outputln!("Source file {} · SHA256 {}", source.path, source.sha256);
+                        }
+                        for dependency in &entry.dependencies {
+                            outputln!("Requires {} {}", dependency.id, dependency.version);
+                        }
+                        for (platform, evidence) in &entry.platforms {
+                            outputln!(
+                                "Platform {} · {:?} · {} · Evidence {}",
+                                platform,
+                                evidence.status,
+                                evidence.scope,
+                                evidence.evidence
+                            );
+                        }
+                    }
+                }
+                outputln!(
+                    "Registry {} · Installation tracking unavailable",
+                    view.snapshot_sha256
+                );
+            }
+            return serde_json::to_value(view)
+                .map_err(|error| CliError::new("REGISTRY_QUERY_FAILED", error.to_string()));
+        }
+        [command, operation, items @ ..]
+            if command == "registry" && operation == "resolve" && !items.is_empty() =>
+        {
+            let snapshot = registry::bundled()
+                .map_err(|error| CliError::new("REGISTRY_RESOLUTION_FAILED", error))?;
+            let resolution = snapshot
+                .resolve(items)
+                .map_err(|error| CliError::new("REGISTRY_RESOLUTION_FAILED", error))?;
+            if !output::is_json() {
+                for entry in &resolution.entries {
+                    outputln!("{} {}", entry.id, entry.version);
+                }
+                outputln!(
+                    "Resolved {} entries · Installation applied false",
+                    resolution.entries.len()
+                );
+            }
+            return serde_json::to_value(resolution)
+                .map_err(|error| CliError::new("REGISTRY_RESOLUTION_FAILED", error.to_string()));
         }
         [command] if command == "info" => {
             outputln!(

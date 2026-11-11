@@ -143,7 +143,9 @@ and verifies no-op generation plus retained source/native customizations. Eight
 enabled combinations build through the normal CLI. Disabled targets must fail
 planning. Final SDK verification checks that those builds preserved the source
 closure. Desktop executables and both native APK ABIs are inspected, and
-artifact SHA-256 values are recorded.
+artifact SHA-256 values are recorded. The embedded CLI registry digest must match
+the exported SDK snapshot. A combined workbench/component dependency resolution
+retains exact registry/source identities in the same receipt.
 
 The existing14-day validation artifact includes per-command stdout/stderr,
 version/provenance/build receipts and explicit runtime-execution status. The

@@ -41,6 +41,7 @@ vendor/
     Cargo.upstream.toml     Original official workspace manifest
     UPSTREAM.json           Source revision, adaptations, and file hashes
 docs/                       Architecture, roadmap, research, and contributor guidance
+registry/                   Bundled official discovery snapshot and source/evidence metadata
 templates/                  Shared app source, mise environments and starter instructions
 tooling/licenses/           Commit-pinned supplemental dependency texts and source hashes
 ```

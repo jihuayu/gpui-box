@@ -853,3 +853,59 @@ application example.
   System back returns to the filtered search. Reopening reads the saved content.
   Semantic XML and inspected screenshots confirm both layouts. Rotation mode
   returns to the original free policy. Physical-device testing remains deferred.
+
+## Bundled registry discovery and resolution
+
+```sh
+gpui-box list --json
+gpui-box info official/template/workbench --json
+gpui-box registry resolve official/template/workbench official/control/button --json
+```
+
+The CLI embeds registry/official-v1.json. Schema-v1 RegistryView and Resolution
+include the SHA-256 of the exact bundled snapshot, source repository/commit,
+SDK version, coordinated GPUI revision and each entry's source-file hashes,
+license, delivery mode, dependencies and six-platform evidence. Current entries
+cover six controls, default theme tokens, four application templates and typed
+command contributions. The package entries describe the coordinated component
+crate. Their metadata does not imply independent Cargo packages per control.
+
+Source revision pins the files described by this snapshot. The source hash test
+checks current distribution bytes against the inventory, and requires explicit
+snapshot maintenance when a listed implementation changes. Existing SDK export
+also includes the registry through the committed source closure. CLI and project
+GPUI code retain separate dependency boundaries. A registry query reads embedded
+metadata and works without a project, source checkout, tools or network. Human
+info includes source hashes, dependencies and platform scopes. info without an
+item preserves the existing distribution response. Unknown items use
+REGISTRY_QUERY_FAILED. Invalid command syntax retains INVALID_ARGUMENTS.
+
+Resolution accepts exact namespaced identities from this single bundled version
+set. It sorts/deduplicates requested roots and visits lexically ordered edges,
+emitting dependencies before consumers. Shared dependencies appear once. Cycles,
+missing entries and exact dependency-version conflicts include their cause chain.
+Schema/source metadata and SDK/Rust/GPUI mismatches fail before output with
+REGISTRY_RESOLUTION_FAILED. Entry and edge counts bound resolution. Platform
+metadata is retained for callers to inspect. This metadata-only operation does
+not select a project platform or verify installed compiler/toolchain state.
+
+Installation tracking is explicitly unavailable and installation_applied is
+false. Runtime source contents use the SDK/installer verification contracts.
+Source-file hashes describe repository inputs and do not authenticate downloadable
+archives. Registry release authentication, version-range solving, remote caches,
+project lock state, package/source/capability installation, editable-source update
+and per-platform required-capability policy retain #64/#65/#66/#71/#74 gates.
+The initial snapshot labels Windows/Linux/Android entries experimental with
+specific build/emulator scope, Apple targets unverified and Web unsupported.
+Native menu integration and real assistive-reader acceptance retain their own
+evidence. Physical-device testing remains deferred.
+
+
+Registry discovery qualification runs70Windows CLI tests, including four
+snapshot/resolver groups and the empty-directory command scenario. Full
+`mise run check` and strict CLI Clippy pass. The final CLI suite repeats after
+source inventory dependency/license adjustments. No project files or tool/network
+processes are used by discovery/resolution. Hosted native template matrices
+also compare embedded CLI registry bytes with the exported SDK snapshot, run a
+combined template dependency resolution and record both inventories in their
+receipts before generated builds.

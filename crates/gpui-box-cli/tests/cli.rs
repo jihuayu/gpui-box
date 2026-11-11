@@ -259,14 +259,14 @@ fn generated_reference_matches_markdown_and_help_from_any_directory() {
         let streaming = syntax.starts_with("dev ") || syntax.starts_with("logs ");
         assert_eq!(command["json"], !streaming);
     }
-    assert_eq!(syntaxes.len(), 20);
+    assert_eq!(syntaxes.len(), 23);
     let mut codes = std::collections::BTreeSet::new();
     for error in contract["errors"].as_array().unwrap() {
         let code = error["code"].as_str().unwrap();
         assert!(codes.insert(code));
         assert!(markdown.contains(code));
     }
-    assert_eq!(codes.len(), 17);
+    assert_eq!(codes.len(), 19);
     assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
 }
 
@@ -287,5 +287,89 @@ fn reference_invalid_arguments_are_finite_and_read_only() {
             "INVALID_ARGUMENTS"
         );
     }
+    assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+}
+
+#[test]
+fn registry_discovery_and_resolution_are_read_only_from_an_empty_directory() {
+    let directory = tempfile::tempdir().unwrap();
+    let invoke = |arguments: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+            .current_dir(directory.path())
+            .args(arguments)
+            .output()
+            .unwrap()
+    };
+    let response = json_response(&invoke(&["list", "--json"]), true);
+    assert_eq!(response["result"]["schema_version"], 1);
+    assert_eq!(response["result"]["installation_tracking"], "unavailable");
+    let entries = response["result"]["entries"].as_array().unwrap();
+    assert_eq!(entries.len(), 12);
+    let ids = entries
+        .iter()
+        .map(|entry| entry["id"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    assert!(ids.windows(2).all(|pair| pair[0] < pair[1]));
+    let details = json_response(
+        &invoke(&["info", "official/template/workbench", "--json"]),
+        true,
+    );
+    assert_eq!(details["result"]["entries"].as_array().unwrap().len(), 1);
+    assert_eq!(details["result"]["entries"][0]["delivery"], "source");
+    let first = json_response(
+        &invoke(&[
+            "registry",
+            "resolve",
+            "official/template/workbench",
+            "official/control/button",
+            "--json",
+        ]),
+        true,
+    );
+    let reverse = json_response(
+        &invoke(&[
+            "registry",
+            "resolve",
+            "official/control/button",
+            "official/template/workbench",
+            "official/control/button",
+            "--json",
+        ]),
+        true,
+    );
+    assert_eq!(first, reverse);
+    assert_eq!(first["result"]["installation_applied"], false);
+    assert_eq!(
+        first["result"]["snapshot_sha256"],
+        response["result"]["snapshot_sha256"]
+    );
+    assert_eq!(
+        json_response(&invoke(&["info", "--json"]), true)["result"]["version"],
+        gpui_box::VERSION
+    );
+    for (arguments, code) in [
+        (
+            vec!["info", "official/control/unknown", "--json"],
+            "REGISTRY_QUERY_FAILED",
+        ),
+        (
+            vec!["registry", "resolve", "official/control/unknown", "--json"],
+            "REGISTRY_RESOLUTION_FAILED",
+        ),
+        (vec!["registry", "resolve", "--json"], "INVALID_ARGUMENTS"),
+        (vec!["list", "extra", "--json"], "INVALID_ARGUMENTS"),
+    ] {
+        assert_eq!(
+            json_response(&invoke(&arguments), false)["error"]["code"],
+            code
+        );
+    }
+    let output = invoke(&["list"]);
+    assert!(output.status.success());
+    assert!(
+        String::from_utf8(output.stdout)
+            .unwrap()
+            .contains("official/control/button")
+    );
     assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
 }
