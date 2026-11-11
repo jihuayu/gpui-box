@@ -1,0 +1,35 @@
+{
+  "started_at": "2026-11-11T18:35:15.6251996+08:00",
+  "base_commit": "734c5abc7ed1f37f27883f8daae0688147f83372",
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.1\nLLVM version: 22.1.8",
+  "source_hashes": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "3A0346E016F8D1B0DA669A6FAB1A97B788EADF4449DCF74397DE7B21A3DA14A8"
+    },
+    {
+      "path": "crates/gpui-box/src/retained.rs",
+      "sha256": "53CA0CED8A29A7DBDB9A85FCA742318B807BADB2820273A9DD1F1B8F1061D2DB"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive.rs",
+      "sha256": "AC80F6006502DB384243364044E65FED9AAE003A9D8A731A444BF35149FBE802"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/properties.rs",
+      "sha256": "A06C9993E400EBF2E7E66589A76A07CD4F3EB5900ED281B15AF34952C51FE91F"
+    },
+    {
+      "path": "examples/hello/src/retained_demo.rs",
+      "sha256": "3D7CF607B61C5F140C05DF41DCAFF9A780221F4B21B90A8D67A90D4FF5B27B7A"
+    },
+    {
+      "path": "tooling/rendering-perf/src/reactive.rs",
+      "sha256": "DE1F638769E2897967A3FE65FAA233361182157DF4186B0DD603041103C99E89"
+    },
+    {
+      "path": "tooling/rendering-perf/Cargo.toml",
+      "sha256": "346E0C1FDF974E0A484A0505E6EA00B5A936C8C8ABC7084CEB534F3162077F18"
+    }
+  ]
+}

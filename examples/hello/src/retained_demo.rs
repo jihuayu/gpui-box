@@ -1,21 +1,23 @@
 //! Normal GPUI event → retained transaction → persistent layout → paint adapter.
 use gpui::*;
 use gpui_box::retained::{
-    BackendCapabilities, DisplayCommand, NodeId, Rect, Style, Transaction, UiTree, length, taffy,
+    BackendCapabilities, DisplayCommand, Rect, Style, Transaction, UiTree, length,
+    reactive::{Property, ReactiveUi, Signal},
+    taffy,
 };
 use std::{cell::RefCell, rc::Rc};
 
 pub struct RetainedDemo {
-    tree: Rc<RefCell<UiTree>>,
-    tile: NodeId,
-    viewport: NodeId,
-    scrolled: bool,
-    alternate: bool,
+    tree: Rc<RefCell<ReactiveUi>>,
+    color: Signal<u32>,
+    scroll: Signal<[f32; 2]>,
     last_commit: String,
+    #[cfg(test)]
+    render_count: usize,
     #[cfg(feature = "retained-wgpu")]
     gpu: Option<Rc<RefCell<gpui_box::retained::wgpu::WgpuFrameRenderer>>>,
     #[cfg(feature = "retained-wgpu")]
-    dimmed: bool,
+    opacity: Signal<f32>,
     #[cfg(feature = "retained-wgpu")]
     presented_image: Rc<RefCell<Option<std::sync::Arc<RenderImage>>>>,
 }
@@ -82,17 +84,31 @@ impl RetainedDemo {
         );
         tree.commit(transaction, BackendCapabilities::default())
             .unwrap();
+        let mut tree =
+            ReactiveUi::new(tree, BackendCapabilities::default()).expect("create reactive UI");
+        let color = tree.signal(0x245fc7ff);
+        let scroll = tree.signal([0.0; 2]);
+        tree.bind(color, Property::color(tile)).expect("bind color");
+        tree.bind(scroll, Property::scroll(viewport))
+            .expect("bind scroll");
+        #[cfg(feature = "retained-wgpu")]
+        let opacity = {
+            let opacity = tree.signal(1.0);
+            tree.bind(opacity, Property::opacity(viewport))
+                .expect("bind opacity");
+            opacity
+        };
         Self {
             tree: Rc::new(RefCell::new(tree)),
-            tile,
-            viewport,
-            scrolled: false,
-            alternate: false,
+            color,
+            scroll,
             last_commit: "Ready".into(),
+            #[cfg(test)]
+            render_count: 0,
             #[cfg(feature = "retained-wgpu")]
             gpu: None,
             #[cfg(feature = "retained-wgpu")]
-            dimmed: false,
+            opacity,
             #[cfg(feature = "retained-wgpu")]
             presented_image: Rc::new(RefCell::new(None)),
         }
@@ -101,6 +117,11 @@ impl RetainedDemo {
     #[cfg(feature = "retained-wgpu")]
     pub fn with_gpu(cx: &mut Context<Self>) -> Self {
         let mut view = Self::new(cx);
+        view.tree
+            .borrow_mut()
+            .set_capabilities(BackendCapabilities {
+                solid_color_patch: true,
+            });
         view.gpu = Some(Rc::new(RefCell::new(
             gpui_box::retained::wgpu::WgpuFrameRenderer::new(3).expect("create GPU frame consumer"),
         )));
@@ -110,6 +131,10 @@ impl RetainedDemo {
 
 impl Render for RetainedDemo {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        #[cfg(test)]
+        {
+            self.render_count += 1;
+        }
         let tree = self.tree.clone();
         #[cfg(feature = "retained-wgpu")]
         let gpu = self.gpu.clone();
@@ -123,15 +148,17 @@ impl Render for RetainedDemo {
                 .cursor_pointer()
                 .child("Toggle isolated group opacity")
                 .on_click(cx.listener(|this, _, _, cx| {
-                    this.dimmed = !this.dimmed;
-                    let mut tx = Transaction::default();
-                    tx.opacity(this.viewport, if this.dimmed { 0.5 } else { 1.0 });
+                    let opacity = this.opacity;
                     let commit = this
                         .tree
                         .borrow_mut()
-                        .commit(tx, BackendCapabilities::default())
+                        .transaction(|tx| {
+                            let next = if *tx.read(opacity)? == 1.0 { 0.5 } else { 1.0 };
+                            tx.set(opacity, next)?;
+                            Ok(())
+                        })
                         .expect("commit group opacity");
-                    if commit.request_frame {
+                    if commit.commit.request_frame {
                         cx.notify();
                     }
                 }))
@@ -154,20 +181,27 @@ impl Render for RetainedDemo {
                     .cursor_pointer()
                     .child("Retained UI · Change color")
                     .on_click(cx.listener(|this, _, _, cx| {
-                        let next = !this.alternate;
-                        let mut tx = Transaction::default();
-                        tx.color(this.tile, if next { 0xc75824ff } else { 0x245fc7ff });
+                        let color = this.color;
                         let commit = this
                             .tree
                             .borrow_mut()
-                            .commit(tx, BackendCapabilities::default())
+                            .transaction(|tx| {
+                                let next = if *tx.read(color)? == 0x245fc7ff {
+                                    0xc75824ff
+                                } else {
+                                    0x245fc7ff
+                                };
+                                tx.set(color, next)?;
+                                Ok(())
+                            })
                             .expect("commit color");
-                        this.alternate = next;
                         this.last_commit = format!(
                             "Revision {} · {} changed · {:?}",
-                            commit.revision, commit.changed_nodes, commit.routes
+                            commit.commit.revision,
+                            commit.commit.changed_nodes,
+                            commit.commit.routes
                         );
-                        if commit.request_frame {
+                        if commit.commit.request_frame {
                             cx.notify();
                         }
                     })),
@@ -179,20 +213,20 @@ impl Render for RetainedDemo {
                     .cursor_pointer()
                     .child("Write temporary color then restore in one transaction")
                     .on_click(cx.listener(|this, _, _, _| {
-                        let current = if this.alternate {
-                            0xc75824ff
-                        } else {
-                            0x245fc7ff
-                        };
-                        let mut tx = Transaction::default();
-                        tx.color(this.tile, 0xffffffff);
-                        tx.color(this.tile, current);
+                        let color = this.color;
                         let commit = this
                             .tree
                             .borrow_mut()
-                            .commit(tx, BackendCapabilities::default())
+                            .transaction(|tx| {
+                                let current = *tx.read(color)?;
+                                tx.set(color, 0xffffffff)?;
+                                tx.transaction(|tx| {
+                                    tx.set(color, current)?;
+                                    Ok(())
+                                })
+                            })
                             .expect("commit equal transaction");
-                        debug_assert!(!commit.request_frame);
+                        debug_assert!(!commit.commit.request_frame);
                     })),
             )
             .child(
@@ -202,15 +236,21 @@ impl Render for RetainedDemo {
                     .cursor_pointer()
                     .child("Scroll clipped content")
                     .on_click(cx.listener(|this, _, _, cx| {
-                        this.scrolled = !this.scrolled;
-                        let mut tx = Transaction::default();
-                        tx.scroll(this.viewport, [if this.scrolled { 24.0 } else { 0.0 }, 0.0]);
+                        let scroll = this.scroll;
                         let commit = this
                             .tree
                             .borrow_mut()
-                            .commit(tx, BackendCapabilities::default())
+                            .transaction(|tx| {
+                                let next = if tx.read(scroll)?[0] == 0.0 {
+                                    24.0
+                                } else {
+                                    0.0
+                                };
+                                tx.set(scroll, [next, 0.0])?;
+                                Ok(())
+                            })
                             .expect("commit scroll");
-                        if commit.request_frame {
+                        if commit.commit.request_frame {
                             cx.notify();
                         }
                     })),
@@ -315,7 +355,7 @@ mod tests {
         cx.simulate_click(button.center(), Modifiers::default());
         cx.run_until_parked();
         let after = view.read_with(cx, |view, _| {
-            assert!(view.alternate);
+            assert_eq!(*view.tree.borrow().read(view.color).unwrap(), 0xc75824ff);
             view.tree.borrow().published_frame().unwrap().clone()
         });
         assert_ne!(before.items[1].commands[0], after.items[1].commands[0]);
@@ -329,6 +369,16 @@ mod tests {
         });
         assert_eq!(after.revision, repeated.revision);
         assert!(std::sync::Arc::ptr_eq(&after.items, &repeated.items));
+        let stats = view.read_with(cx, |view, _| view.tree.borrow().stats());
+        assert_eq!(
+            (
+                stats.transactions,
+                stats.changed_sources,
+                stats.sink_writes,
+                stats.frame_requests
+            ),
+            (2, 1, 1, 1)
+        );
         let scroll = cx.debug_bounds("retained-scroll").unwrap();
         cx.simulate_click(scroll.center(), Modifiers::default());
         cx.run_until_parked();
@@ -341,6 +391,48 @@ mod tests {
             &after.items[3].commands,
             &scrolled.items[3].commands
         ));
+        let renders = view.read_with(cx, |view, _| view.render_count);
+        for _ in 0..16 {
+            cx.run_until_parked();
+        }
+        assert_eq!(
+            view.read_with(cx, |view, _| view.render_count),
+            renders,
+            "idle event loop must not schedule reactive rendering"
+        );
+        let before_batch = scrolled.revision;
+        view.update(cx, |view, cx| {
+            let result = view
+                .tree
+                .borrow_mut()
+                .transaction(|tx| {
+                    tx.set(view.color, 0x66aa88ff)?;
+                    tx.transaction(|tx| {
+                        tx.set(view.scroll, [0.0, 0.0])?;
+                        Ok(())
+                    })
+                })
+                .unwrap();
+            assert_eq!(result.commit.changed_nodes, 2);
+            if result.commit.request_frame {
+                cx.notify();
+            }
+        });
+        cx.run_until_parked();
+        let (revision, count, stats) = view.read_with(cx, |view, _| {
+            (
+                view.tree.borrow().published_frame().unwrap().revision,
+                view.render_count,
+                view.tree.borrow().stats(),
+            )
+        });
+        assert_eq!(revision, before_batch + 1);
+        assert_eq!(
+            count,
+            renders + 1,
+            "outer transaction requests one view render"
+        );
+        assert_eq!((stats.transactions, stats.frame_requests), (4, 3));
     }
 
     #[cfg(feature = "retained-wgpu")]

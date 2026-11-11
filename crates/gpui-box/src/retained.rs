@@ -14,6 +14,7 @@ use taffy::prelude::*;
 pub use taffy::style_helpers::{length, percent};
 pub mod arena;
 mod properties;
+pub mod reactive;
 pub use properties::{Damage, PropertyNode, PropertyState, PropertyTrees};
 #[cfg(all(feature = "retained-wgpu", not(target_family = "wasm")))]
 pub mod wgpu;
@@ -113,6 +114,20 @@ pub enum Patch {
     Opacity(NodeId, f32),
 }
 
+impl Patch {
+    fn node(&self) -> NodeId {
+        match self {
+            Self::Color(id, _)
+            | Self::Style(id, _)
+            | Self::Translation(id, _)
+            | Self::Reorder(id, _)
+            | Self::Clip(id, _)
+            | Self::Scroll(id, _)
+            | Self::Opacity(id, _) => *id,
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct Transaction {
     patches: Vec<Patch>,
@@ -161,6 +176,9 @@ pub enum Error {
     InvalidClip,
     InvalidScroll,
     InvalidOpacity,
+    InvalidSignal,
+    InvalidBinding,
+    BindingConflict,
 }
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -208,7 +226,7 @@ pub struct UiTree {
 #[derive(Default)]
 struct Pending {
     color: Option<u32>,
-    style: Option<Style>,
+    style: Option<Box<Style>>,
     translation: Option<[f32; 2]>,
     children: Option<Vec<NodeId>>,
     clip: Option<Option<Rect>>,
@@ -358,25 +376,23 @@ impl UiTree {
     /// Writing A→B→A in one transaction produces no UI work.
     pub fn commit(
         &mut self,
-        transaction: Transaction,
+        mut transaction: Transaction,
         capabilities: BackendCapabilities,
     ) -> Result<Commit, Error> {
-        let mut pending: BTreeMap<NodeId, Pending> = BTreeMap::new();
+        // Stable sorting preserves last-writer semantics while avoiding a
+        // separately allocated tree entry for every node in a large animation.
+        transaction.patches.sort_by_key(Patch::node);
+        let mut pending: Vec<(NodeId, Pending)> = Vec::new();
         for patch in transaction.patches {
-            let id = match &patch {
-                Patch::Color(id, _)
-                | Patch::Style(id, _)
-                | Patch::Translation(id, _)
-                | Patch::Reorder(id, _)
-                | Patch::Clip(id, _)
-                | Patch::Scroll(id, _)
-                | Patch::Opacity(id, _) => *id,
-            };
+            let id = patch.node();
             self.node(id)?;
-            let entry = pending.entry(id).or_default();
+            if pending.last().is_none_or(|(previous, _)| *previous != id) {
+                pending.push((id, Pending::default()));
+            }
+            let entry = &mut pending.last_mut().expect("pending node").1;
             match patch {
                 Patch::Color(_, color) => entry.color = Some(color),
-                Patch::Style(_, style) => entry.style = Some(*style),
+                Patch::Style(_, style) => entry.style = Some(style),
                 Patch::Translation(_, translation) => {
                     if translation.iter().any(|v| !v.is_finite()) {
                         return Err(Error::InvalidTranslation);
@@ -422,7 +438,7 @@ impl UiTree {
             let style_changed = entry
                 .style
                 .as_ref()
-                .is_some_and(|style| *style != node.style);
+                .is_some_and(|style| **style != node.style);
             let color_changed = entry.color.is_some_and(|color| color != node.color);
             let property_changed = entry
                 .translation
@@ -473,7 +489,7 @@ impl UiTree {
                 result.routes.push((id, UpdatePath::ReconcileStructure));
             }
             if style_changed {
-                let style = entry.style.expect("changed style");
+                let style = *entry.style.expect("changed style");
                 self.layout
                     .set_style(self.node(id)?.layout, style.clone())?;
                 self.node_mut(id).style = style;

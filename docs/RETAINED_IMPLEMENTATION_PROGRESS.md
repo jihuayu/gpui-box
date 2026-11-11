@@ -9,6 +9,8 @@ The [clip, scroll and damage stage](RETAINED_PROPERTIES_DAMAGE.md) adds shared
 property chains, normal UI scroll events and measured partial GPU redraw.
 The [group-compositing stage](RETAINED_GROUP_COMPOSITING.md) adds isolated opacity,
 content-cache invalidation and a correct readback bridge for normal window paint.
+The [reactive update stage](RETAINED_REACTIVE_UPDATES.md) connects typed source/sink
+bindings, nested event transactions, lifecycle cleanup and measured batch dispatch.
 
 ## Current integrated foundation
 
@@ -46,14 +48,14 @@ click test passed pixel comparison at the actual window scale.
 
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
-| Normal UI update chain | Desktop click → transaction → layout → FramePacket → ordinary paint plus optional persistent WGPU, with hardware pixel checks | Native-surface presentation, reactive sources/property sinks and complete routing |
-| P0 equality and transactions | Final-value comparison, batch validation, duplicate field coalescing, no frame request on equality | Reactive sources, nested transaction boundaries, event scheduling and idle-wakeup measurements |
+| Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → paint/persistent WGPU, with hardware pixel checks | Native-surface presentation and complete general routing |
+| P0 equality and transactions | Source equality before fanout, final-value coalescing, atomic sink validation, nested savepoints, one outer frame intent, idle-render assertions | Computed/effect graph, cross-event producer scheduling and real OS idle-wakeup/energy measurements |
 | P0–P5 routing | Rectangle color/translation/style/reorder intents and backend capability input | General primitive capabilities, explicit fallback reasons, semantic/resource channels and actual GPU patch dispatch |
-| Logical / Render Tree | Persistent one-to-one rectangle identity, children, removal and generation | Separate logical scopes and render identities, portals, keyed reconciliation, event/semantics lifetime and legacy islands |
+| Logical / Render Tree | Persistent one-to-one rectangle identity, children, removal and generation; signal handles and property sinks retire on disposal/subtree removal | Separate logical scopes and render identities, portals, keyed reconciliation, event/semantics lifetime and legacy islands |
 | Persistent Taffy | Long-lived nodes, style/children setters, root cache and resize handling | Owned text/image/custom measure snapshots, baseline/overflow dependencies, independent islands and layout visit counters |
 | Paint chunks / property trees | Shared local fill commands; sparse transform/clip/scroll/effect chains with inherited state, clip-aware geometry/hit testing | Stable chunk IDs, full affine transforms, selective geometry extraction and spatial indices |
 | GPU arena | Generic CPU allocation table with generations and deferred slot reuse, WGPU geometric growth and completion-held buffer/binding leases | General resource/material records, budgets, compaction and other backends |
-| Batch GPU updates | Adjacent upload merging, actual 160/480-byte writes and 10,000-object batch translation pixel verification; completed-work Full/Damage/Auto A/B | Sustained 60/120Hz animation, fragmented order throughput and tuning |
+| Batch GPU updates | Adjacent upload merging; 10,000-object translation and 10,000-signal color pixel verification; CPU per-signal/coalesced/typed-batch comparison; completed-work redraw A/B | Sustained 60/120Hz animation, general batch/fragmented order throughput and tuning |
 | P2 property / composite | Translation/clip/scroll reuse commands and update GPU instances/hit geometry; isolated subtree opacity supports nesting and 16-byte property-only updates | GPU transform/clip indirection, texture import for window presentation and NativeView geometry |
 | Text / images / complex primitives | Existing legacy GPUI functionality and previous source audit | New retained primitive types, resource events, shaping and pixel regressions |
 | Flex / responsive contract | Pinned Taffy style input and persistent resize | Public subset validation, RTL/baseline/rounding tests, environment subscriptions, constraint/container queries and adaptive structures |

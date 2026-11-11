@@ -6,6 +6,7 @@ use gpui_box::retained::{
 use std::{error::Error, fs, path::PathBuf};
 mod retained_bench;
 mod retained_layers;
+mod retained_reactive;
 
 fn compare(
     renderer: &mut WgpuFrameRenderer,
@@ -640,6 +641,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &mut results,
     )?;
     retained_layers::run(&mut renderer, &output, &mut results)?;
+    retained_reactive::run(&mut renderer, &output, &mut results)?;
     fs::write(
         output.join("validation.json"),
         serde_json::to_vec_pretty(&results)?,

@@ -98,3 +98,12 @@ and retained-memory profiling. Those need separate instruments and real devices.
 
 See [the research report](../../docs/RENDERING_PERFORMANCE_RESEARCH.md) for source
 evidence, observed results and the next experiments.
+
+## Reactive runtime follow-up
+
+`./tooling/rendering-perf/run-reactive.ps1` builds the CPU-only
+`reactive-runtime-perf` binary. It measures the actual retained signal/sink
+runtime, equality before fanout and changed-node per-signal/coalesced/typed-batch
+commit costs. The [reactive report](../../docs/RETAINED_REACTIVE_UPDATES.md)
+defines its scope and frozen results. `run-retained-gpu.ps1` additionally checks
+the 10,000-signal path through real instance uploads and full-reference pixels.
