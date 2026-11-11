@@ -628,6 +628,18 @@ platform semantic adapter. Screen-reader speech, process-death persistence,
 registry/publication metadata, isolated arbitrary-item preview commands and
 workbench/module generation retain their own acceptance gates.
 
+A fresh external Windows spaces/Chinese path completes desktop compilation/link
+in43.09s and strict application Clippy. Android builds both native ABIs through
+the normal CLI with all36Gradle tasks executed in2m28s. Normal dev installs and
+cold-starts on API35 Android15 x86_64 in2180ms. Actual taps toggle all settings,
+check the checkbox and increment the specimen. UiAutomation verifies native
+checked states, reduced-motion duration0ms and PreviewDraft42 editor text.
+Portrait/landscape/portrait retains all settings, draft and activation count.
+Tab/Space toggles the checkbox, then Tab/Enter activates the specimen. Rotation
+policy is restored to its original free state. Initial screenshot inspection
+found the editor's default light theme in the dark preview. The template now
+sets the retained editor's initial theme explicitly before its first frame.
+
 ## Reproducible external template qualification
 
 `mise run check:templates` runs the opt-in real-tool qualification test. Set

@@ -190,6 +190,7 @@ pub fn open(cx: &mut App) {
     cx.open_window(WindowOptions::default(), |_, cx| {
         let input = cx.new(|cx| {
             let mut input = TextInput::new(cx);
+            input.set_theme(Theme::DARK, cx);
             input.set_label("Component preview input", cx);
             input
         });
