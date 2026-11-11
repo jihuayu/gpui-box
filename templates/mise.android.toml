@@ -1,0 +1,8 @@
+[tools]
+java = "temurin-17.0.21+9"
+gradle = "8.13"
+"cargo:cargo-ndk" = "4.1.2"
+[tasks."build:android"]
+run = "gradle -p android-host :app:assembleDebug"
+[tasks."install:android"]
+run = "gradle -p android-host :app:installDebug"

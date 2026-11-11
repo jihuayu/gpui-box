@@ -1,7 +1,7 @@
 package dev.gpui.box
 
 import android.content.Context
-import android.text.InputType
+import android.graphics.Matrix
 import android.util.SparseLongArray
 import android.view.Choreographer
 import android.view.KeyEvent
@@ -11,6 +11,7 @@ import android.view.SurfaceView
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
+import android.view.inputmethod.CursorAnchorInfo
 
 class GpuiView(context: Context) : SurfaceView(context), SurfaceHolder.Callback {
     var generation = 0L
@@ -20,11 +21,16 @@ class GpuiView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
     private var pendingFrame = false
     private var inputSession = 0L
     private var connection: GpuiInputConnection? = null
+    private var monitorCursor = false
+    private val accessibility = GpuiAccessibility(this)
     private val contacts = SparseLongArray()
     private val choreographer = Choreographer.getInstance()
     private val frameCallback = Choreographer.FrameCallback {
         pendingFrame = false
-        if (attached && resumed) NativeBridge.frame(generation)
+        if (attached && resumed) {
+            NativeBridge.frame(generation)
+            if (monitorCursor) updateCursorAnchor()
+        }
     }
     private val ime get() = context.getSystemService(InputMethodManager::class.java)
 
@@ -33,6 +39,10 @@ class GpuiView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
         isFocusableInTouchMode = true
         holder.addCallback(this)
     }
+    override fun onAttachedToWindow() { super.onAttachedToWindow(); accessibility.attach() }
+    override fun onDetachedFromWindow() { accessibility.detach(); super.onDetachedFromWindow() }
+    override fun getAccessibilityNodeProvider() = accessibility
+    fun updateAccessibility() { if (attached) accessibility.refresh() }
     override fun surfaceCreated(holder: SurfaceHolder) { /* Size arrives in surfaceChanged. */ }
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         NativeBridge.checkMain()
@@ -46,6 +56,7 @@ class GpuiView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
             attached = true
         }
         NativeBridge.lifecycle(generation, resumed)
+        updateAccessibility()
         (context as? MainActivity)?.updateBackRegistration()
         scheduleFrame()
     }
@@ -116,8 +127,9 @@ class GpuiView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
         closeInputConnection()
         if (session == 0L) return null
         inputSession = session
-        info.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
-        info.imeOptions = EditorInfo.IME_ACTION_DONE or EditorInfo.IME_FLAG_NO_EXTRACT_UI
+        val configuration = NativeBridge.editorInfo(generation)
+        info.inputType = configuration[0]
+        info.imeOptions = configuration[1] or EditorInfo.IME_FLAG_NO_EXTRACT_UI
         val state = NativeBridge.textState(generation)
         info.initialSelStart = state[0]
         info.initialSelEnd = state[1]
@@ -127,6 +139,7 @@ class GpuiView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
         connection?.closeConnection()
         connection = null
         inputSession = 0L
+        monitorCursor = false
     }
     fun acceptsInput(value: GpuiInputConnection, surface: Long, session: Long): Boolean {
         NativeBridge.checkMain()
@@ -155,9 +168,34 @@ class GpuiView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
         if (connection?.isBatchEditing == true) return
         val state = NativeBridge.textState(generation)
         ime.updateSelection(this, state[0], state[1], state[2], state[3])
+        if (monitorCursor) updateCursorAnchor()
+    }
+    fun requestCursorUpdates(mode: Int): Boolean {
+        if (mode and 3.inv() != 0) return false
+        monitorCursor = mode and 2 != 0
+        if (mode and 1 != 0) {
+            NativeBridge.frame(generation)
+            updateCursorAnchor()
+        }
+        return true
+    }
+    private fun updateCursorAnchor() {
+        val bounds = NativeBridge.caretBounds(generation, inputSession) ?: return
+        val state = NativeBridge.textState(generation)
+        val location = IntArray(2)
+        getLocationOnScreen(location)
+        val matrix = Matrix().apply { setTranslate(location[0].toFloat(), location[1].toFloat()) }
+        val builder = CursorAnchorInfo.Builder().setMatrix(matrix).setSelectionRange(state[0], state[1])
+            .setInsertionMarkerLocation(bounds[0], bounds[1], bounds[1] + bounds[3], bounds[1] + bounds[3],
+                CursorAnchorInfo.FLAG_HAS_VISIBLE_REGION)
+        val text = NativeBridge.text(generation)
+        if (state[2] >= 0 && state[3] in state[2]..text.length) builder.setComposingText(state[2], text.substring(state[2], state[3]))
+        ime.updateCursorAnchorInfo(this, builder.build())
     }
     override fun onKeyDown(code: Int, event: KeyEvent): Boolean {
         if (!attached) return super.onKeyDown(code, event)
+        val key = hardwareKey(code, event)
+        if (key != null) return NativeBridge.key(generation, key, modifiers(event), true, event.repeatCount > 0)
         syncInputSession()
         val connection = connection ?: (onCreateInputConnection(EditorInfo()) as? GpuiInputConnection)
             ?: return super.onKeyDown(code, event)
@@ -172,5 +210,28 @@ class GpuiView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
             return connection.commitText(String(Character.toChars(character)), 1)
         }
         return super.onKeyDown(code, event)
+    }
+    override fun onKeyUp(code: Int, event: KeyEvent): Boolean {
+        val key = hardwareKey(code, event)
+        if (attached && key != null) return NativeBridge.key(generation, key, modifiers(event), false, false)
+        return super.onKeyUp(code, event)
+    }
+    private fun modifiers(event: KeyEvent): Int =
+        (if (event.isShiftPressed) 1 else 0) or (if (event.isCtrlPressed) 2 else 0) or
+        (if (event.isAltPressed) 4 else 0) or (if (event.isMetaPressed) 8 else 0)
+    private fun hardwareKey(code: Int, event: KeyEvent): String? = when (code) {
+        KeyEvent.KEYCODE_TAB -> "tab"
+        KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> "enter"
+        KeyEvent.KEYCODE_SPACE -> if (!onCheckIsTextEditor()) "space" else null
+        KeyEvent.KEYCODE_ESCAPE -> "escape"
+        KeyEvent.KEYCODE_DPAD_LEFT -> "left"
+        KeyEvent.KEYCODE_DPAD_RIGHT -> "right"
+        KeyEvent.KEYCODE_DPAD_UP -> "up"
+        KeyEvent.KEYCODE_DPAD_DOWN -> "down"
+        KeyEvent.KEYCODE_MOVE_HOME -> "home"
+        KeyEvent.KEYCODE_MOVE_END -> "end"
+        KeyEvent.KEYCODE_FORWARD_DEL -> "delete"
+        else -> if ((event.isCtrlPressed || event.isMetaPressed) && code in KeyEvent.KEYCODE_A..KeyEvent.KEYCODE_Z)
+            ('a'.code + code - KeyEvent.KEYCODE_A).toChar().toString() else null
     }
 }

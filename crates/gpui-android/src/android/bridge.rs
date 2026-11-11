@@ -111,7 +111,7 @@ pub(super) fn write_clipboard(text: &str) {
 fn runtime() -> Option<Rc<Runtime>> {
     RUNTIME.with(|slot| slot.borrow().clone())
 }
-fn window(generation: u64) -> Option<Rc<WindowState>> {
+pub(super) fn window(generation: u64) -> Option<Rc<WindowState>> {
     let window = runtime()?.platform.window.clone();
     let valid = window.session.borrow().accepts(generation);
     valid.then_some(window)
@@ -164,6 +164,7 @@ pub fn attach(
 }
 
 pub fn detach(generation: u64) {
+    back_gesture(generation, 3, 0., 0., 0.);
     if let Some(runtime) = runtime() {
         runtime.platform.window.detach(generation);
     }
@@ -195,6 +196,9 @@ pub fn frame(generation: u64) {
 }
 
 pub fn lifecycle(generation: u64, resumed: bool) {
+    if !resumed {
+        back_gesture(generation, 3, 0., 0., 0.);
+    }
     if let Some(window) = window(generation) {
         window.set_visible(resumed);
         if let Some(runtime) = runtime() {
@@ -266,11 +270,100 @@ pub fn back(generation: u64) -> bool {
     handled
 }
 
+/// Predictive gestures keep their original claim and coordinates through completion.
+pub fn back_gesture(generation: u64, phase: i32, x: f32, y: f32, progress: f32) -> bool {
+    let Some(window) = window(generation).filter(|w| w.visible.get()) else {
+        return false;
+    };
+    if !x.is_finite() || !y.is_finite() || !progress.is_finite() {
+        return false;
+    }
+    if phase == 0 {
+        back_gesture(generation, 3, x, y, 0.);
+        let event = BackGestureEvent {
+            phase: BackGesturePhase::Started,
+            start_position: point(px(x / window.scale.get()), px(y / window.scale.get())),
+            progress: 0.,
+        };
+        let platform_claim = window.back_enabled.get();
+        let claimed = platform_claim
+            || window
+                .input
+                .with(|callback| callback(PlatformInput::BackGesture(event.clone())))
+                .is_some_and(|result| result.default_prevented);
+        if claimed {
+            window.back_gesture.replace(Some((event, platform_claim)));
+        }
+        post(0);
+        return claimed;
+    }
+    if !(1..=3).contains(&phase) {
+        return false;
+    }
+    let Some((mut event, platform_claim)) = window.back_gesture.borrow().clone() else {
+        return false;
+    };
+    event.phase = match phase {
+        1 => BackGesturePhase::Progressed,
+        2 => BackGesturePhase::Committed,
+        _ => BackGesturePhase::Cancelled,
+    };
+    event.progress = if phase == 2 {
+        1.
+    } else {
+        progress.clamp(0., 1.)
+    };
+    if phase != 1 {
+        window.back_gesture.take();
+    }
+    if platform_claim {
+        if phase == 2 {
+            window.back.with(|callback| callback());
+        }
+    } else {
+        window
+            .input
+            .with(|callback| callback(PlatformInput::BackGesture(event)));
+    }
+    post(0);
+    true
+}
+
 pub fn memory_warning() {
     if let Some(runtime) = runtime() {
         runtime.platform.memory_warning.with(|callback| callback());
         post(0);
     }
+}
+
+/// Hardware navigation and shortcuts use GPUI's normal key dispatch path.
+pub fn key(generation: u64, key: &str, modifiers: i32, down: bool, held: bool) -> bool {
+    let Some(window) = window(generation).filter(|w| w.visible.get()) else {
+        return false;
+    };
+    let keystroke = Keystroke {
+        key: key.into(),
+        modifiers: Modifiers {
+            shift: modifiers & 1 != 0,
+            control: modifiers & 2 != 0,
+            alt: modifiers & 4 != 0,
+            platform: modifiers & 8 != 0,
+            ..Default::default()
+        },
+        key_char: None,
+    };
+    let event = if down {
+        PlatformInput::KeyDown(KeyDownEvent {
+            keystroke,
+            is_held: held,
+            prefer_character_input: false,
+        })
+    } else {
+        PlatformInput::KeyUp(KeyUpEvent { keystroke })
+    };
+    let handled = window.input.with(|callback| callback(event)).is_some();
+    post(0);
+    handled
 }
 
 /// Android context-menu commands share the platform clipboard implementation
@@ -373,6 +466,33 @@ pub fn text_state(generation: u64) -> [i32; 4] {
         .unwrap_or([0, 0, -1, -1])
 }
 
+/// Caret geometry uses physical pixels relative to the fitted SurfaceView.
+pub fn caret_bounds(generation: u64, session: u64) -> Option<[f32; 4]> {
+    if session == 0 || input_session(generation) != session {
+        return None;
+    }
+    let window = window(generation)?;
+    window
+        .input_handler
+        .with(|handler| {
+            let selection = handler.selected_text_range(true)?;
+            let cursor = if selection.reversed {
+                selection.range.start
+            } else {
+                selection.range.end
+            };
+            let bounds = handler.bounds_for_range(cursor..cursor)?;
+            let scale = window.scale.get();
+            Some([
+                f32::from(bounds.origin.x) * scale,
+                f32::from(bounds.origin.y) * scale,
+                f32::from(bounds.size.width) * scale,
+                f32::from(bounds.size.height) * scale,
+            ])
+        })
+        .flatten()
+}
+
 /// IME offsets and cursor arguments use UTF-16 code units, as Android does.
 /// Operations are commit, compose, finish, selection, delete, composing-region.
 pub fn edit(generation: u64, session: u64, operation: i32, value: &str, a: i32, b: i32) -> bool {
@@ -439,4 +559,96 @@ pub fn edit(generation: u64, session: u64, operation: i32, value: &str, a: i32, 
     post(4);
     post(0);
     true
+}
+
+/// Android EditorInfo flags derived from the coordinated GPUI configuration.
+pub fn editor_info(generation: u64) -> [i32; 2] {
+    let Some(window) = window(generation) else {
+        return [1, 1];
+    };
+    let config = window.text_configuration.borrow();
+    let mut input_type = 1;
+    if config.autocorrect {
+        input_type |= 0x8000;
+    }
+    if !config.suggestions {
+        input_type |= 0x80000;
+    }
+    input_type |= match config.autocapitalize {
+        Autocapitalize::None => 0,
+        Autocapitalize::Characters => 0x1000,
+        Autocapitalize::Words => 0x2000,
+        Autocapitalize::Sentences => 0x4000,
+    };
+    let action = match config.input_action {
+        TextInputAction::Unspecified => 0,
+        TextInputAction::Enter => 1,
+        TextInputAction::Go => 2,
+        TextInputAction::Search => 3,
+        TextInputAction::Send => 4,
+        TextInputAction::Next => 5,
+        TextInputAction::Done => 6,
+        TextInputAction::Previous => 7,
+    };
+    [input_type, action]
+}
+
+pub fn editor_action(generation: u64, session: u64) -> bool {
+    if session == 0 || input_session(generation) != session {
+        return false;
+    }
+    let Some(window) = window(generation) else {
+        return false;
+    };
+    window.input_handler.with(|handler| handler.unmark_text());
+    let action = window.text_configuration.borrow().input_action;
+    if matches!(action, TextInputAction::Done) {
+        post(2);
+    }
+    let (key, shift) = match action {
+        TextInputAction::Next => ("tab", false),
+        TextInputAction::Previous => ("tab", true),
+        _ => ("enter", false),
+    };
+    window.input.with(|callback| {
+        callback(PlatformInput::KeyDown(KeyDownEvent {
+            keystroke: Keystroke {
+                key: key.into(),
+                modifiers: Modifiers {
+                    shift,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            is_held: false,
+            prefer_character_input: false,
+        }))
+    });
+    post(0);
+    true
+}
+
+/// Insets are relative to the already fitted SurfaceView viewport. The host
+/// applies system/IME geometry once, and forwards zero residual edges here.
+pub fn insets(generation: u64, values: [i32; 8]) {
+    let Some(window) = window(generation) else {
+        return;
+    };
+    let scale = window.scale.get();
+    let edges = |offset| Edges {
+        left: px(values[offset] as f32 / scale),
+        top: px(values[offset + 1] as f32 / scale),
+        right: px(values[offset + 2] as f32 / scale),
+        bottom: px(values[offset + 3] as f32 / scale),
+    };
+    let next = WindowInsets {
+        safe_area: edges(0),
+        ime: edges(4),
+        ..Default::default()
+    };
+    if *window.insets.borrow() != next {
+        window.insets.replace(next.clone());
+        window.insets_changed.with(|callback| callback(next));
+        post(0);
+    }
 }

@@ -83,9 +83,10 @@ backup-rule metadata, missing example icon, and the custom SurfaceView's pending
 accessibility click integration. Packaging metadata and AccessKit work own those
 remaining warnings.
 
-## Remaining M1 work
+## Follow-up scope after the earlier foundation slice
 
-The following acceptance items remain open in issue #2.
+The following items were carried forward from the six-case baseline in issue #2.
+The additional slice below records subsequent implementation and current gaps.
 
 - Complete text input configuration, editor actions, caret geometry, real Chinese
   keyboard candidate UI, and additional malformed/surrogate-boundary cases.
@@ -100,3 +101,81 @@ The following acceptance items remain open in issue #2.
 
 The memory test checks runtime usability after notifications. Cache reclamation
 and pressure-driven GPU resource rebuilding require separate measurements.
+
+## Additional platform and gallery slice
+
+The following implementation extends the earlier six-test baseline. It retains
+the official GPUI snapshot and adds distribution-owned behavior.
+
+- `android_entrypoint!` generates the typed JNI exports from an application launch
+  function. The example and generated projects share this macro. Every entry
+  checks Android's main Looper before accessing thread-local GPUI state.
+  `catch_unwind` converts Rust panics to IllegalStateException and poisons the
+  process-owned runtime. Subsequent entries reject execution and require process
+  restart. Native aborts remain process failures. The default Activity leaves
+  that exception uncaught, so a partially unwound runtime cannot resume normal
+  rendering. Recoverable renderer errors still need a separate device-loss path.
+- EditorInfo derives autocorrect, capitalization, suggestions and action flags
+  from GPUI. Done dismisses input, Next/Previous dispatch Tab/Shift-Tab, and other
+  actions dispatch Enter. Hardware navigation and shortcuts enter normal GPUI
+  key-down/up handling. CursorAnchorInfo receives physical-pixel caret geometry,
+  screen translation, UTF-16 selection and composing text on immediate/monitor
+  requests. Advanced cursor update filters return unsupported.
+- `OnBackAnimationCallback` forwards start/progress/cancel/commit. Claimed gestures
+  retain their original local position. Pause/detach cancel active gestures.
+  A gesture unclaimed at its actual edge cannot gain a synthetic center claim
+  at commit. Button navigation retains the existing committed-back path.
+  Android 15 sends a synthetic `(0, 0)` animation start for `KEYCODE_BACK`.
+  The host recognizes that positionless sequence and uses committed-back
+  dispatch. Real gestures keep their original edge hit test. The connected
+  system-key case caught this distinction and passed in two consecutive full
+  eight-case runs after correction.
+- WindowInsetsAnimation updates the fitted SurfaceView's system/IME padding.
+  GPUI receives zero residual insets because the content viewport is already
+  fitted. Full edge-to-edge delivery remains open. SafeArea reads the coordinated
+  WindowInsets API without applying host padding a second time.
+- The initial Android AccessKit transport retains incremental nodes, prunes
+  unreachable subtrees and exposes semantic virtual nodes through an
+  AccessibilityNodeProvider. It maps roles, names, values, enabled/toggled/focus
+  state, bounds and Click/Focus/SetValue actions. Callbacks execute after internal
+  borrows are released. Surface generation and active-state checks reject old
+  requests. Recreated Views rebuild their virtual-node snapshot.
+
+The eight connected tests extend the baseline with editor configuration, cursor
+geometry and update modes, native main-thread rejection, semantic text editing,
+gallery controls, Enter activation, modal background isolation, Escape dismissal
+and trigger focus restoration. Existing lifecycle, clipboard, composition,
+surface, memory and back cases remain in the same suite. Predictive cancellation,
+progress, commit and stale-surface checks are exercised directly through JNI.
+Surrogate-interior and extreme UTF-16 selection tests cover scalar-boundary
+clamping. InputConnection candidate UI with a real Chinese keyboard remains open.
+
+### Validation for the additional slice
+
+| Check | Result |
+| --- | --- |
+| `mise run check` | Passed 50 host tests after integrating #31/#32, one compile-fail doctest, formatting, strict Clippy and whitespace checks |
+| `mise run check:components` | Passed two model tests and strict component/shared-gallery Clippy |
+| `mise run build:desktop` and desktop strict Clippy | Passed on Windows MSVC |
+| Android x86_64 strict Clippy | Passed for the backend and example JNI exports |
+| Gradle `:app:lintDebug` | Passed with 0 errors and 8 warnings |
+| Gradle `:app:connectedDebugAndroidTest` | Passed 8/8 in three consecutive full runs on API 35 after the synthetic back-key fix |
+
+Both Android ABI builds use platform 35. Repeated builds verified Gradle's native
+task becomes UP-TO-DATE without source changes and reruns after component/host
+changes. Android Lint passes with eight warnings in the development host,
+including target/tool/dependency updates, backup/icon metadata and SurfaceView
+accessibility click guidance. Upstream Windows linker messages and deprecated
+Android node/test APIs remain visible in tool output.
+
+The platform's synthetic back-key sequence was checked against Android 15
+`ViewRootImpl.NativePreImeInputStage.doOnBackKeyEvent`.
+[Android 15 source](https://github.com/aosp-mirror/platform_frameworks_base/blob/android-15.0.0_r1/core/java/android/view/ViewRootImpl.java)
+
+M1 remains open for TalkBack runtime acceptance, virtual-node hover exploration,
+text-selection actions, composed transforms, live announcements and modal
+screen-reader traversal. Process-death restore, lock/unlock, GPU recovery,
+broader gesture stress, combined IME/predictive-back animation and full edge-to-edge
+insets also remain open. #21 owns application-facing restoration/lifecycle
+contracts. #2 owns their host integration. Physical-device, multiple GPU vendor
+and real Chinese candidate-UI qualification remain deferred.

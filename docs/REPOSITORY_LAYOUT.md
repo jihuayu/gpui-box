@@ -13,9 +13,11 @@ crates/
   gpui-box/                 Public facade and coordinated GPUI exports
   gpui-box-cli/             Distribution development tools
   gpui-android/             Distribution-owned Android platform integration
-  gpui-app-data/            Application directories and recoverable settings
+  gpui-system/              Typed capability, request and event contracts
+  gpui-app-data/            Private directories and recoverable settings
   gpui-permissions/         Permission status, contextual requests, settings recovery
-components/                 Reusable UI packages, themes, and adaptive widgets
+components/
+  gpui-box-components/      Controls, themes, screen-owned models and shell primitives
 examples/
   desktop/                  Desktop application using the facade
   hello/                    Shared Rust view and bundled OFL font
@@ -30,6 +32,7 @@ vendor/
     Cargo.upstream.toml     Original official workspace manifest
     UPSTREAM.json           Source revision, adaptations, and file hashes
 docs/                       Architecture, roadmap, research, and contributor guidance
+templates/                  Shared app source, mise environments and starter instructions
 ```
 
 ## Ownership rules
@@ -45,12 +48,14 @@ docs/                       Architecture, roadmap, research, and contributor gui
   here when it can use the common facade and services.
 - `platforms` owns OS host projects, resources, signing, and package integration.
 - `examples` contains executable consumer applications and acceptance galleries.
-- Application templates will live under `templates` when project generation is
-  implemented. Build orchestration will live under `tooling` when needed.
+- `templates` owns starter application source and mise configuration. Generator
+  policy, managed manifests and recovery state live in `crates/gpui-box-cli`.
+  Build orchestration will live under `tooling` when needed.
 
 ## Current build paths
 
 `mise run check` validates the dependency-light distribution core and CLI.
+`mise run check:components` validates component models and shared gallery lints.
 `mise run check:desktop`, `build:desktop`, and `dev:desktop` use the real copied
 GPUI backend for the current desktop OS. GUI builds require that platform's native
 dependencies. The `desktop` facade feature exposes GPUI types as `gpui_box::gpui`
