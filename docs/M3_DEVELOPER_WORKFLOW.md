@@ -58,7 +58,10 @@ embedded in Rust for desktop/Android text rendering.
 The current development template always includes desktop and Android source.
 `targets` selects permitted CLI workflows. Android uses minSdk/targetSdk 35 and
 compileSdk 36. `package android` creates a debug-key APK. Release-signed APK/AAB
-and update channels remain in M4/M5. Desktop installers remain in M7.
+and update channels are described in the [M4 packaging workflow](M4_ANDROID_PACKAGING.md)
+and M5. `package android --release` now builds signed/inspected APK and AAB.
+`package desktop --portable` builds a Windows developer ZIP. Desktop installers
+remain in M7.
 
 ## Ownership and regeneration
 

@@ -2,6 +2,7 @@ package dev.gpui.box
 
 import android.app.UiAutomation
 import android.os.SystemClock
+import android.content.Intent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.FrameLayout
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -42,6 +43,15 @@ class PermissionProviderTest {
     }
 
     private fun action(label: String) {
+        awaitForeground(label)
+        instrumentation.runOnMainSync {
+            val node = nodes().single { it.optString("label") == label }
+            assertTrue(NativeBridge.accessibilityAction(view().generation, node.getString("id").toULong().toLong(), 0, ""))
+            NativeBridge.frame(view().generation)
+        }
+    }
+
+    private fun awaitForeground(operation: String) {
         val deadline = SystemClock.uptimeMillis() + 10000
         var ready = false
         do {
@@ -49,12 +59,7 @@ class PermissionProviderTest {
             if (ready) break
             SystemClock.sleep(50)
         } while (SystemClock.uptimeMillis() < deadline)
-        assertTrue("Activity must regain foreground focus before $label", ready)
-        instrumentation.runOnMainSync {
-            val node = nodes().single { it.optString("label") == label }
-            assertTrue(NativeBridge.accessibilityAction(view().generation, node.getString("id").toULong().toLong(), 0, ""))
-            NativeBridge.frame(view().generation)
-        }
+        assertTrue("Activity must regain foreground focus before $operation", ready)
     }
 
     private fun awaitValue(label: String, expected: String) {
@@ -144,7 +149,14 @@ class PermissionProviderTest {
         // Change actual Android authorization while the Activity is paused.
         // uiAutomation delegates the permission change to PackageManager.
         shell("pm grant $packageName android.permission.POST_NOTIFICATIONS")
-        shell("input keyevent KEYCODE_BACK")
+        // Bring the test-owned Activity above Settings and clear the intervening
+        // Settings Activity. Otherwise it resurfaces when the rule finishes and
+        // can steal focus from the next test's newly launched Activity.
+        instrumentation.runOnMainSync {
+            activityRule.activity.startActivity(Intent(activityRule.activity, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+        }
+        awaitForeground("settings-return reconciliation")
         awaitValue("Notification permission status", "Granted")
         instrumentation.runOnMainSync {
             assertFalse(NativeBridge.permissionResult(Long.MAX_VALUE, 0))

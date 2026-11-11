@@ -41,6 +41,7 @@ vendor/
     UPSTREAM.json           Source revision, adaptations, and file hashes
 docs/                       Architecture, roadmap, research, and contributor guidance
 templates/                  Shared app source, mise environments and starter instructions
+tooling/licenses/           Commit-pinned supplemental dependency texts and source hashes
 ```
 
 ## Ownership rules
@@ -58,7 +59,7 @@ templates/                  Shared app source, mise environments and starter ins
 - `examples` contains executable consumer applications and acceptance galleries.
 - `templates` owns starter application source and mise configuration. Generator
   policy, managed manifests and recovery state live in `crates/gpui-box-cli`.
-  Build orchestration will live under `tooling` when needed.
+  Shared release license provenance lives under `tooling/licenses`.
 
 ## Current build paths
 
