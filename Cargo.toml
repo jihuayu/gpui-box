@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/gpui-box", "crates/gpui-box-cli", "crates/gpui-accessibility", "crates/gpui-android", "crates/gpui-lifecycle", "crates/gpui-system", "crates/gpui-app-data", "crates/gpui-permissions", "crates/gpui-files", "crates/gpui-sharing", "crates/gpui-clipboard", "crates/gpui-notifications", "crates/gpui-activation", "crates/gpui-secrets", "crates/gpui-local-auth", "crates/gpui-updates", "crates/gpui-diagnostics", "crates/gpui-power", "crates/gpui-menus", "examples/hello", "examples/android", "examples/desktop", "components/gpui-box-components"]
+members = ["crates/gpui-box", "crates/gpui-box-cli", "crates/gpui-accessibility", "crates/gpui-android", "crates/gpui-lifecycle", "crates/gpui-system", "crates/gpui-app-data", "crates/gpui-permissions", "crates/gpui-files", "crates/gpui-sharing", "crates/gpui-clipboard", "crates/gpui-notifications", "crates/gpui-activation", "crates/gpui-secrets", "crates/gpui-local-auth", "crates/gpui-updates", "crates/gpui-diagnostics", "crates/gpui-power", "crates/gpui-menus", "crates/gpui-tray", "examples/hello", "examples/android", "examples/desktop", "components/gpui-box-components"]
 default-members = ["crates/gpui-box", "crates/gpui-box-cli"]
 exclude = ["vendor/gpui"]
 
@@ -30,6 +30,7 @@ gpui-local-auth = { path = "crates/gpui-local-auth", default-features = false }
 gpui-updates = { path = "crates/gpui-updates" }
 gpui-diagnostics = { path = "crates/gpui-diagnostics", default-features = false }
 gpui-menus = { path = "crates/gpui-menus", default-features = false }
+gpui-tray = { path = "crates/gpui-tray", default-features = false }
 gpui-power = { path = "crates/gpui-power", default-features = false }
 gpui-clipboard = { path = "crates/gpui-clipboard" }
 gpui-notifications = { path = "crates/gpui-notifications", default-features = false }
