@@ -2,6 +2,7 @@ package dev.gpui.box
 
 import android.content.ComponentCallbacks2
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.view.KeyEvent
 import android.view.WindowInsets
 import android.view.WindowInsetsAnimation
@@ -115,6 +116,18 @@ class PlatformFoundationTest {
         // Drain any state retained by a previous Activity in this process.
         while (NativeBridge.back(view.generation)) NativeBridge.frame(view.generation)
         tap(view, 220f)
+        val density = view.resources.displayMetrics.density
+        assertTrue(NativeBridge.backGesture(view.generation, 0, 2f * density, 220f * density, 0f))
+        assertTrue(NativeBridge.backGesture(view.generation, 1, 0f, 0f, 0.5f))
+        assertTrue(NativeBridge.backGesture(view.generation, 3, 0f, 0f, 0f))
+        // Cancellation leaves the counter and its claim intact.
+        assertTrue(NativeBridge.backGesture(view.generation, 0, 2f * density, 220f * density, 0f))
+        assertFalse(NativeBridge.backGesture(view.generation - 1, 2, 0f, 0f, 1f))
+        assertTrue(NativeBridge.backGesture(view.generation, 2, 0f, 0f, 1f))
+        NativeBridge.frame(view.generation)
+        assertFalse(NativeBridge.backGesture(view.generation, 2, 0f, 0f, 1f))
+        assertFalse(NativeBridge.back(view.generation))
+        tap(view, 220f)
         assertTrue(NativeBridge.back(view.generation))
         NativeBridge.frame(view.generation)
         assertFalse(NativeBridge.back(view.generation))
@@ -182,6 +195,10 @@ class PlatformFoundationTest {
             })
             tap(view, 220f)
             view.hideKeyboard()
+            val container = view.parent as FrameLayout
+            container.isFocusableInTouchMode = true
+            container.requestFocus()
+            view.context.getSystemService(InputMethodManager::class.java).restartInput(container)
         }
         // InputMethodManager dismissal completes asynchronously. Back during
         // that transition correctly belongs to the keyboard instead of GPUI.
@@ -190,7 +207,8 @@ class PlatformFoundationTest {
         while (keyboardVisible && SystemClock.uptimeMillis() < deadline) {
             instrumentation.waitForIdleSync()
             withView { view ->
-                keyboardVisible = imeAnimationRunning || view.rootWindowInsets?.isVisible(WindowInsets.Type.ime()) == true
+                val ime = view.context.getSystemService(InputMethodManager::class.java)
+                keyboardVisible = imeAnimationRunning || view.rootWindowInsets?.isVisible(WindowInsets.Type.ime()) == true || ime.isActive(view)
             }
             if (keyboardVisible) SystemClock.sleep(50)
         }

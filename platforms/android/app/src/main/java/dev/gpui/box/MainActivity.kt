@@ -4,22 +4,51 @@ import android.app.Activity
 import android.os.Bundle
 import android.content.ComponentCallbacks2
 import android.util.Log
+import android.view.WindowInsetsAnimation
 import android.view.WindowInsets
-import android.window.OnBackInvokedCallback
+import android.window.OnBackAnimationCallback
+import android.window.BackEvent
 import android.window.OnBackInvokedDispatcher
 import android.widget.FrameLayout
 
 class MainActivity : Activity() {
     private lateinit var gpui: GpuiView
     private var backRegistered = false
-    private val backCallback = OnBackInvokedCallback {
-        if (gpui.rootWindowInsets?.isVisible(WindowInsets.Type.ime()) == true) {
-            Log.i("gpui-box", "System back dismissed the IME")
-            gpui.hideKeyboard()
-        } else {
-            val handled = NativeBridge.back(gpui.generation)
-            Log.i("gpui-box", "System back handled=$handled generation=${gpui.generation}")
-            if (!handled) finish()
+    private var predictiveClaimed = false
+    private var predictiveStarted = false
+    private val backCallback = object : OnBackAnimationCallback {
+        override fun onBackStarted(event: BackEvent) {
+            // Android 15 ViewRootImpl sends a synthetic (0, 0) start for
+            // KEYCODE_BACK. It has no gesture position and uses committed-back
+            // dispatch. Real edge gestures retain their original hit test.
+            predictiveStarted = event.touchX != 0f || event.touchY != 0f
+            if (!predictiveStarted) return
+            val location = IntArray(2)
+            gpui.getLocationOnScreen(location)
+            predictiveClaimed = NativeBridge.backGesture(gpui.generation, 0,
+                event.touchX - location[0], event.touchY - location[1], 0f)
+        }
+        override fun onBackProgressed(event: BackEvent) {
+            if (predictiveClaimed) NativeBridge.backGesture(gpui.generation, 1, 0f, 0f, event.progress)
+        }
+        override fun onBackCancelled() {
+            NativeBridge.backGesture(gpui.generation, 3, 0f, 0f, 0f)
+            predictiveClaimed = false
+            predictiveStarted = false
+        }
+        override fun onBackInvoked() {
+            if (gpui.rootWindowInsets?.isVisible(WindowInsets.Type.ime()) == true) {
+                onBackCancelled()
+                Log.i("gpui-box", "System back dismissed the IME")
+                gpui.hideKeyboard()
+            } else {
+                val handled = if (predictiveClaimed) NativeBridge.backGesture(gpui.generation, 2, 0f, 0f, 1f)
+                    else if (!predictiveStarted) NativeBridge.back(gpui.generation) else false
+                predictiveClaimed = false
+                predictiveStarted = false
+                Log.i("gpui-box", "System back handled=$handled generation=${gpui.generation}")
+                if (!handled) finish()
+            }
         }
     }
     fun updateBackRegistration() {
@@ -37,17 +66,25 @@ class MainActivity : Activity() {
         // Full edge-to-edge GPUI WindowInsets animation is a later platform task.
         val content = FrameLayout(this)
         content.addView(gpui, FrameLayout.LayoutParams(-1, -1))
-        content.setOnApplyWindowInsetsListener { view, insets ->
+        fun applyInsets(insets: WindowInsets) {
+            val view = content
             val bars = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
             val keyboard = insets.getInsets(WindowInsets.Type.ime())
             view.setPadding(bars.left, bars.top, bars.right, maxOf(bars.bottom, keyboard.bottom))
-            insets
+            NativeBridge.insets(gpui.generation)
         }
+        content.setOnApplyWindowInsetsListener { _, insets -> applyInsets(insets); insets }
+        content.setWindowInsetsAnimationCallback(object : WindowInsetsAnimation.Callback(DISPATCH_MODE_CONTINUE_ON_SUBTREE) {
+            override fun onProgress(insets: WindowInsets, running: MutableList<WindowInsetsAnimation>): WindowInsets {
+                applyInsets(insets)
+                return insets
+            }
+        })
         setContentView(content)
         NativeBridge.bind(gpui)
     }
     override fun onResume() { super.onResume(); gpui.setResumed(true); updateBackRegistration() }
-    override fun onPause() { gpui.setResumed(false); super.onPause() }
+    override fun onPause() { backCallback.onBackCancelled(); gpui.setResumed(false); super.onPause() }
     override fun onDestroy() {
         if (backRegistered) onBackInvokedDispatcher.unregisterOnBackInvokedCallback(backCallback)
         NativeBridge.unbind(gpui)

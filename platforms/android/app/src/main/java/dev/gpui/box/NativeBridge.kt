@@ -56,6 +56,7 @@ object NativeBridge {
                 3 -> (current.context as? MainActivity)?.finish()
                 4 -> current.updateSelection()
                 5 -> current.syncInputSession()
+                7 -> current.updateAccessibility()
                 6 -> (current.context as? MainActivity)?.updateBackRegistration()
             }
         }
@@ -71,6 +72,13 @@ object NativeBridge {
         view.get()?.context?.getSystemService(ClipboardManager::class.java)
             ?.setPrimaryClip(ClipData.newPlainText("gpui-box", text))
     }
+    @JvmStatic fun checkMainThread() = checkMain()
+    @JvmStatic external fun editorInfo(generation: Long): IntArray
+    @JvmStatic external fun editorAction(generation: Long, session: Long): Boolean
+    @JvmStatic external fun caretBounds(generation: Long, session: Long): FloatArray?
+    @JvmStatic external fun accessibilitySnapshot(generation: Long, enabled: Boolean): String
+    @JvmStatic external fun accessibilityAction(generation: Long, id: Long, action: Int, text: String): Boolean
+    @JvmStatic external fun insets(generation: Long)
     @JvmStatic external fun initialize()
     @JvmStatic external fun attach(surface: Surface, generation: Long, width: Int, height: Int, density: Float)
     @JvmStatic external fun detach(generation: Long)
@@ -84,6 +92,8 @@ object NativeBridge {
     @JvmStatic external fun edit(generation: Long, session: Long, operation: Int, text: String, a: Int, b: Int): Boolean
     @JvmStatic external fun backEnabled(generation: Long): Boolean
     @JvmStatic external fun back(generation: Long): Boolean
+    @JvmStatic external fun backGesture(generation: Long, phase: Int, x: Float, y: Float, progress: Float): Boolean
+    @JvmStatic external fun key(generation: Long, key: String, modifiers: Int, down: Boolean, held: Boolean): Boolean
     @JvmStatic external fun memoryWarning()
     @JvmStatic external fun clipboardAction(generation: Long, session: Long, operation: Int): Boolean
 }

@@ -19,10 +19,11 @@ included in the vendored upstream snapshot.
 | --- | --- |
 | `vendor/gpui` | Copied official engine, platform backends, local dependency closure, assets, and provenance |
 | `crates` | Distribution facade, CLI, and future application/update services |
-| `components` | Future reusable controls, themes, and adaptive UI packages |
+| `components` | Reusable controls, themes, controller models, and adaptive UI packages |
 | `examples` | Executable applications and acceptance galleries |
 | `platforms` | Native host projects, OS resources, signing, and packaging |
 | `docs` | Architecture, implementation plans, research, and repository guidance |
+| `templates` | Application-owned starter source and mise configuration for project generation |
 
 See [repository layout and ownership rules](docs/REPOSITORY_LAYOUT.md).
 
@@ -82,14 +83,38 @@ See [Android setup](platforms/android/README.md) and
 
 ## Implementation status
 
-The facade exposes distribution version/source information and opt-in desktop
-GPUI exports. The initial CLI implements help, version, and `info`. The desktop
-example and Android host share Chinese text, a counter, and two editable fields.
-M0 is complete against the API 35 emulator gate. M1 adds focus-scoped input
-connections, nested batch edits, Android plain-text clipboard access, committed
-system-back routing, and memory-warning delivery. M1 remains in progress.
-Component packages, application services, release packaging, and update providers are tracked by the roadmap
-and will be added in their owning directories as implementation progresses.
+M0 is complete against the API 35 emulator gate. M1 provides focus-scoped input
+connections, nested batch edits, clipboard, memory warnings, guarded reusable JNI
+entrypoints, EditorInfo/actions, cursor-anchor geometry, predictive-back transport
+and an initial AccessKit virtual-node adapter. The desktop and Android examples
+share Chinese text, editable fields, reusable components and an adaptive gallery.
+The CLI now generates source-checkout applications and provides doctor,
+dev/build/install, debug APK packaging, device selection and logs. See the reports
+below for tested behavior and open M1–M3 acceptance gates. Application services,
+release packaging and update providers have their own roadmap issues.
+
+### Generate an application
+
+Build the CLI with `mise run build`. Add the resulting `target/debug` directory
+to PATH, then use an absolute path to this source checkout.
+
+```sh
+gpui-box new "My Application" --distribution /absolute/path/to/gpui-box
+cd "My Application"
+mise trust
+mise trust mise.android.toml
+mise install
+mise -E android install
+mise exec -- rustup target add aarch64-linux-android x86_64-linux-android
+gpui-box doctor
+gpui-box dev desktop
+gpui-box dev android --device emulator-5554
+```
+
+Configure identity, version, assets, targets and the development channel in
+`gpui-box.json`. Keep source in `app/src` and native customizations in
+`android-custom.gradle.kts`. Read [the CLI workflow](docs/M3_DEVELOPER_WORKFLOW.md)
+before regeneration or distributing generated output.
 
 ## Documentation
 
@@ -97,6 +122,8 @@ and will be added in their owning directories as implementation progresses.
 - [Project plan](docs/PROJECT_PLAN.md)
 - [Architecture decisions](docs/ARCHITECTURE_DECISIONS.md)
 - [M1 Android validation](docs/M1_ANDROID_VALIDATION.md)
+- [M2 component gallery](docs/M2_COMPONENT_GALLERY.md)
+- [M3 developer workflow](docs/M3_DEVELOPER_WORKFLOW.md)
 - [Reference research](docs/REFERENCES.md)
 - [Later Android native composition](docs/ANDROID_COMPOSITION_PLAN.md)
 - [GitHub roadmap](https://github.com/jihuayu/gpui-box/issues/17)

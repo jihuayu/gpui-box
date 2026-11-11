@@ -5,8 +5,8 @@ use gpui::{
     App, Bounds, ClipboardItem, Context, CursorStyle, ElementId, ElementInputHandler, Entity,
     EntityInputHandler, FocusHandle, Focusable, GlobalElementId, KeyBinding, LayoutId, MouseButton,
     MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, Pixels, Point, ShapedLine,
-    SharedString, Style, TextRun, UTF16Selection, UnderlineStyle, Window, actions, div, fill, hsla,
-    point, prelude::*, px, relative, rgb, rgba, size, white,
+    SharedString, Style, TextRun, UTF16Selection, UnderlineStyle, Window, actions, div, fill,
+    point, prelude::*, px, relative, rgb, rgba, size,
 };
 use unicode_segmentation::*;
 
@@ -30,10 +30,13 @@ actions!(
     ]
 );
 
-pub(super) struct TextInput {
+pub struct TextInput {
     focus_handle: FocusHandle,
+    configuration: gpui::TextInputConfiguration,
     content: SharedString,
     placeholder: SharedString,
+    label: SharedString,
+    theme: crate::Theme,
     selected_range: Range<usize>,
     selection_reversed: bool,
     marked_range: Option<Range<usize>>,
@@ -269,6 +272,14 @@ impl TextInput {
 }
 
 impl EntityInputHandler for TextInput {
+    fn text_input_configuration(
+        &mut self,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> gpui::TextInputConfiguration {
+        self.configuration.clone()
+    }
+
     fn text_for_range(
         &mut self,
         range_utf16: Range<usize>,
@@ -398,7 +409,7 @@ impl EntityInputHandler for TextInput {
         _cx: &mut Context<Self>,
     ) -> Option<Bounds<Pixels>> {
         let last_layout = self.last_layout.as_ref()?;
-        if last_layout.text != self.content {
+        if !self.content.is_empty() && last_layout.text != self.content {
             return None;
         }
         let range = self.range_from_utf16(&range_utf16);
@@ -435,7 +446,7 @@ impl EntityInputHandler for TextInput {
         let line_point = self.last_bounds?.localize(&point)?;
         let last_layout = self.last_layout.as_ref()?;
 
-        if last_layout.text != self.content {
+        if !self.content.is_empty() && last_layout.text != self.content {
             return None;
         }
         let utf8_index = last_layout.closest_index_for_x(line_point.x);
@@ -494,7 +505,7 @@ impl Element for TextElement {
         let style = window.text_style();
 
         let (display_text, text_color) = if content.is_empty() {
-            (input.placeholder.clone(), hsla(0., 0., 0., 0.2))
+            (input.placeholder.clone(), rgb(input.theme.muted).into())
         } else {
             (content, style.color)
         };
@@ -623,9 +634,25 @@ impl Render for TextInput {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .id("text-input")
+            .role(accesskit::Role::TextInput)
+            .aria_label(self.label.clone())
+            .aria_value(self.content.clone())
+            .aria_placeholder(self.placeholder.clone())
+            .on_a11y_action(accesskit::Action::SetValue, {
+                let entity = cx.entity().downgrade();
+                move |data, window, cx| {
+                    if let Some(accesskit::ActionData::Value(value)) = data {
+                        let _ = entity.update(cx, |input, cx| {
+                            let length = input.content.encode_utf16().count();
+                            input.replace_text_in_range(Some(0..length), value, window, cx);
+                        });
+                    }
+                }
+            })
             .flex()
             .key_context("TextInput")
             .track_focus(&self.focus_handle(cx))
+            .tab_index(0)
             .cursor(CursorStyle::IBeam)
             .on_action(cx.listener(Self::backspace))
             .on_action(cx.listener(Self::delete))
@@ -644,16 +671,17 @@ impl Render for TextInput {
             .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
             .on_mouse_up_out(MouseButton::Left, cx.listener(Self::on_mouse_up))
             .on_mouse_move(cx.listener(Self::on_mouse_move))
-            .bg(rgb(0xeeeeee))
-            .text_color(rgb(0x171d28))
-            .line_height(px(30.))
-            .text_size(px(18.))
+            .bg(rgb(self.theme.surface))
+            .text_color(rgb(self.theme.text))
+            .line_height(px(30. * self.theme.text_scale))
+            .text_size(px(18. * self.theme.text_scale))
             .child(
                 div()
-                    .h(px(30. + 4. * 2.))
+                    .min_h(px(48.))
+                    .h(px(30. * self.theme.text_scale + 4. * 2.))
                     .w_full()
                     .p(px(4.))
-                    .bg(white())
+                    .bg(rgb(self.theme.surface))
                     .child(TextElement { input: cx.entity() }),
             )
     }
@@ -666,11 +694,17 @@ impl Focusable for TextInput {
 }
 
 impl TextInput {
-    pub(super) fn new(cx: &mut Context<Self>) -> Self {
+    pub fn new(cx: &mut Context<Self>) -> Self {
         Self {
             focus_handle: cx.focus_handle(),
+            configuration: gpui::TextInputConfiguration {
+                input_action: gpui::TextInputAction::Done,
+                ..Default::default()
+            },
             content: "".into(),
             placeholder: "Type here / 输入中文".into(),
+            label: "Text input".into(),
+            theme: crate::Theme::LIGHT,
             selected_range: 0..0,
             selection_reversed: false,
             marked_range: None,
@@ -680,7 +714,7 @@ impl TextInput {
         }
     }
 }
-pub(super) fn bind_keys(cx: &mut App) {
+pub fn bind_keys(cx: &mut App) {
     cx.bind_keys([
         KeyBinding::new("backspace", Backspace, Some("TextInput")),
         KeyBinding::new("delete", Delete, Some("TextInput")),
@@ -695,4 +729,38 @@ pub(super) fn bind_keys(cx: &mut App) {
         KeyBinding::new("home", Home, Some("TextInput")),
         KeyBinding::new("end", End, Some("TextInput")),
     ]);
+}
+
+impl TextInput {
+    pub fn set_theme(&mut self, theme: crate::Theme, cx: &mut Context<Self>) {
+        self.theme = theme;
+        cx.notify();
+    }
+    pub fn set_label(&mut self, label: impl Into<SharedString>, cx: &mut Context<Self>) {
+        self.label = label.into();
+        cx.notify();
+    }
+    pub fn value(&self) -> &str {
+        &self.content
+    }
+    pub fn set_value(
+        &mut self,
+        value: impl Into<SharedString>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.content = value.into();
+        self.selected_range = self.content.len()..self.content.len();
+        self.marked_range = None;
+        window.notify_text_input_changed(&self.focus_handle);
+        cx.notify();
+    }
+    pub fn configure(
+        &mut self,
+        configuration: gpui::TextInputConfiguration,
+        cx: &mut Context<Self>,
+    ) {
+        self.configuration = configuration;
+        cx.notify();
+    }
 }
