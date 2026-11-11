@@ -17,6 +17,8 @@ menus = ["system", "permissions", "activation", "dep:gpui-menus"]
 menus-gpui = ["menus", "system-gpui", "permissions-gpui", "activation-gpui", "gpui-menus/gpui"]
 power = ["system", "lifecycle", "permissions", "dep:gpui-power"]
 power-gpui = ["power", "system-gpui", "lifecycle-gpui", "permissions-gpui", "gpui-power/gpui"]
+tray = ["system", "lifecycle", "menus", "dep:gpui-tray"]
+tray-gpui = ["tray", "system-gpui", "lifecycle-gpui", "menus-gpui", "gpui-tray/gpui"]
 sharing = ["system", "dep:gpui-sharing"]
 
 clipboard = ["system", "dep:gpui-clipboard"]
@@ -59,6 +61,7 @@ gpui-updates = { workspace = true, optional = true }
 gpui-diagnostics = { workspace = true, optional = true }
 gpui-menus = { workspace = true, optional = true }
 gpui-power = { workspace = true, optional = true }
+gpui-tray = { workspace = true, optional = true }
 
 [target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
 gpui = { workspace = true, optional = true }
