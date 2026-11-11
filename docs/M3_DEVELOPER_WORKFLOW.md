@@ -347,3 +347,40 @@ the old plan, then completes recovery after releasing the handle. Physical-devic
 testing remains deferred. Registry installation, archive extraction, broader
 SDK/offline/migration policy and non-Windows qualification remain tracked by
 #61/#65 and their related issues.
+
+## Android device inventory and selection
+
+`gpui-box devices --json` returns schema-v1 inventory data with `completed`,
+`platform` and serial-sorted `devices`. Each entry includes `serial`, the raw adb
+`state`, `available`, and a deterministic map of adb attributes such as `product`,
+`model`, `device` and `transport_id`. Only state `device` is available for app
+workflows. Offline, unauthorized, recovery, bootloader and host-permission states
+remain visible. Empty inventory is a successful query. Query failures and invalid
+adb output produce `DEVICE_QUERY_FAILED`. Human output retains the adb listing,
+and JSON mode sends that diagnostic listing to stderr.
+
+Android `install`, `dev` and `logs` resolve one ready device before regeneration,
+build or application process lookup. Explicit `--device SERIAL` takes precedence
+over `ANDROID_SERIAL`. With neither set, exactly one ready device is required.
+An unknown/unavailable requested serial fails even if another device is ready.
+Ambiguity includes the ready serials and corrective selection instructions.
+Unauthorized/offline/host-permission states receive corrective diagnostics.
+The resolved serial is passed to Gradle through `ANDROID_SERIAL` and to adb
+through `-s`, keeping installation and launch on the same selected device.
+Build-only and packaging operations keep their existing device-independent paths.
+
+The CLI suite passes 38 Windows tests. Four inventory/selection unit cases cover
+CRLF, empty/malformed/duplicate output, attribute ordering, multiple/zero ready
+devices and unavailable explicit states. A command regression verifies that
+missing adb rejects install/dev before managed-file generation or build starts,
+including when configuration has pending changes. Real API35 emulator inventory
+returns `emulator-5554` with state `device` and native adb attributes. A nonexistent
+environment-selected serial is rejected before generation. Physical-device and
+non-Windows qualification remain deferred. Explicit `install android --device
+emulator-5554 --json` succeeds, followed by the real `dev android --device
+emulator-5554` entry point. Gradle installs to that device and adb uses `-s` for
+the same serial. The generated application's cold launch returns `Status: ok`
+and a live process. Integrated `mise run check` passes 191 host tests plus six
+compile-fail doctests and two nested child reports. Broader structured doctor checks,
+platform add/list, SDK closure and additional backend qualification remain open
+under #61/#62/#73.
