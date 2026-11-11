@@ -1803,11 +1803,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpui-app-data"
+version = "0.1.0-dev"
+dependencies = [
+ "dirs",
+ "gpui-system",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "gpui-box"
 version = "0.1.0-dev"
 dependencies = [
  "gpui",
  "gpui-android",
+ "gpui-app-data",
  "gpui-system",
  "gpui_platform",
 ]

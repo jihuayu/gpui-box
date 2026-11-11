@@ -1,0 +1,21 @@
+[package]
+name = "gpui-app-data"
+description = "Private application directories and recoverable settings for gpui-box"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+gpui-system.workspace = true
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tempfile = "3.27"
+
+[target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
+dirs = "6.0"
+
+[lints]
+workspace = true

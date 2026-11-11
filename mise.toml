@@ -36,11 +36,11 @@ run = "cargo fmt --all -- --check"
 
 [tasks.test]
 description = "Test distribution-owned library and CLI packages"
-run = "cargo test --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system"
+run = "cargo test --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data"
 
 [tasks.lint]
 description = "Lint distribution-owned library and CLI packages"
-run = "cargo clippy --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system --all-targets -- -D warnings"
+run = "cargo clippy --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data --all-targets -- -D warnings"
 
 [tasks.build]
 description = "Build the shared facade and CLI"
@@ -67,8 +67,8 @@ description = "Validate configuration, Rust formatting, tests, and lints"
 run = [
   "mise tasks validate",
   "cargo fmt --all -- --check",
-  "cargo test --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system",
-  "cargo clippy --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system --all-targets -- -D warnings",
+  "cargo test --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data",
+  "cargo clippy --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data --all-targets -- -D warnings",
   "git diff --check",
   "git diff --cached --check",
 ]

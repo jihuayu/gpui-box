@@ -33,3 +33,7 @@ pub use gpui_android as android;
     any(target_os = "windows", target_os = "macos", target_os = "linux")
 ))]
 pub use gpui_platform::application;
+
+/// Private application directories and recoverable settings.
+#[cfg(feature = "app-data")]
+pub use gpui_app_data as app_data;
