@@ -7,6 +7,7 @@ use std::{error::Error, fs, path::PathBuf};
 mod retained_bench;
 mod retained_composition;
 mod retained_computed;
+mod retained_delivery;
 mod retained_extraction;
 mod retained_glyph_bench;
 mod retained_hit_index;
@@ -660,6 +661,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_layers::run(&mut renderer, &output, &mut results)?;
     retained_reactive::run(&mut renderer, &output, &mut results)?;
     retained_computed::run(&mut renderer, &output, &mut results)?;
+    retained_delivery::run(&mut renderer, &output, &mut results)?;
     retained_logical::run(&mut renderer, &output, &mut results)?;
     retained_measure::run(&mut renderer, &output, &mut results)?;
     retained_responsive::run(&mut renderer, &output, &mut results)?;

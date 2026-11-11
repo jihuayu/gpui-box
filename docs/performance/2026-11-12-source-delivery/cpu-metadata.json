@@ -1,0 +1,55 @@
+{
+  "started_at": "2026-11-12T00:48:45.6578816+08:00",
+  "base_commit": "8afed1cd99e08c4391cbb81dfbeed911bf51f58a",
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.1\nLLVM version: 22.1.8",
+  "source_hashes": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "769E6577FD28A97F045051C683B610C5D064805BBC623F08B29D914273250BC0"
+    },
+    {
+      "path": "crates/gpui-box/src/retained.rs",
+      "sha256": "3246FBA723C0F34D9B4DA85B5B3A9E2B34109692C62659B8C4A275CB5FD489A2"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive.rs",
+      "sha256": "017303E7947947092B3B50F67DE88B42EA69B6AE2D4DECD9CC20BE24060573CC"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive/computed.rs",
+      "sha256": "71B8922B3EAD8055D90415D9ED54F4CB43D615B0DF736BC9AA2D39CE6F81A782"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive/effects.rs",
+      "sha256": "63ACE141BCA85A3E97C975CF353AD6C03F851C1138A320DD261BBC64D346BB1F"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive/delivery.rs",
+      "sha256": "B34E3261AFF014FD3DDE51DE362C79CDF08C3693184C0A8C3AE0674DA5DCFF3F"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive/delivery/tests.rs",
+      "sha256": "D7E9A49787900D35428D61407282689615C0536B54F3F39E856F584A67C170AA"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/logical.rs",
+      "sha256": "0473E8E55A78C982128F3EFB897C67EC775C0A26CC38E149CCC932069E1D73B0"
+    },
+    {
+      "path": "examples/hello/src/retained_demo.rs",
+      "sha256": "E758983DA10D7C011C0749C96A1D73A48919D102AAB4908BD6808315AED66537"
+    },
+    {
+      "path": "tooling/rendering-perf/src/delivery.rs",
+      "sha256": "05FC7A05D7B829006F4243B81CAC9B56A9F818682D5E6CADC0D6B3C7AFCEE422"
+    },
+    {
+      "path": "tooling/rendering-perf/Cargo.toml",
+      "sha256": "01306CEA296050004B2D5166C737CB905582BE8C91CEAF38159FC2900667CC83"
+    },
+    {
+      "path": "tooling/rendering-perf/run-delivery.ps1",
+      "sha256": "80EC3144C774774619B3ECFD3169405A90D1499BF7ADA8AFF797BFD67F431235"
+    }
+  ]
+}

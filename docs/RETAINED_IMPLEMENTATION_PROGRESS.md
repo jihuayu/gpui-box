@@ -63,6 +63,9 @@ dependencies in rank order, cuts off equal outputs, settles transaction reads
 and atomically publishes derived sources with typed sinks and keyed lifetimes.
 The [post-commit effects stage](RETAINED_EFFECTS.md) observes final dependencies
 once per successful transaction and owns replacement/scope/drop cleanup.
+The [source-delivery stage](RETAINED_SOURCE_DELIVERY.md) coalesces background
+Send values before owner transactions, integrates executor readiness/waking and
+checks bounded queues, stale sources, actual worker threads and native execution.
 
 ## Current integrated foundation
 
@@ -101,7 +104,7 @@ click test passed pixel comparison at the actual window scale.
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → paint/persistent WGPU, with hardware pixel checks | Native-surface presentation and complete general routing |
-| P0 equality and transactions | Source equality before fanout, final-value coalescing, explicit computed DAG with ordered propagation/equality cutoff, transaction-consistent reads, atomic source/derived/sink validation, nested savepoints, keyed dependency lifetime checks, synchronous post-commit effects with deduplication and replacement/scope/drop cleanup, one outer frame intent, real normal-click computed/effect route and idle-render assertions | General asynchronous/reentrant effect scheduling, dynamic dependency tracking, dense graph scheduling costs, cross-event producer scheduling and real OS idle-wakeup/energy measurements |
+| P0 equality and transactions | Source equality before fanout, final-value coalescing, explicit computed DAG with ordered propagation/equality cutoff, transaction-consistent reads, atomic source/derived/sink validation, nested savepoints, keyed dependency lifetime checks, synchronous post-commit effects with deduplication and replacement/scope/drop cleanup; bounded background last-value source inbox with executor wake, owner drain and stale-source cleanup; one outer frame intent, real normal-click/worker computed/effect route and idle-render assertions | General asynchronous/reentrant effect scheduling, dynamic dependency tracking, dense graph scheduling costs, generalized producer priority/backpressure/byte budgets and visible-window automatic wake/OS idle-wakeup/energy measurements |
 | P0–P5 routing | Solid/decorated-quad color, paint, property, layout, reorder and decoded-image resource intents; reason records; P1 reuses commands with 0 layout/recording and stable instance dispatch; indexed producer patches and immutable-page consumer validation reuse | General primitive/material capabilities, semantic channels, general asynchronous resource invalidation and eliminate remaining full resource/order scanning |
 | Logical / Render Tree | Independent generation-checked scopes, zero/multiple outputs and portals, keyed reorder retaining state/render/chunks, subtree source/binding/output cleanup; gallery and hardware validation | Atomic structural batches, portal reparenting, event/focus/semantics lifetime and legacy islands; eliminate whole-scope/order scans |
 | Persistent Taffy | Long-lived nodes, style/children setters, owned image/fixed/shaped paragraph snapshots, constraint-dependent wrap, baseline/overflow updates, actual leaf/measure-call counts, root cache and resize handling | General constraint-dependent custom inputs, paragraph conformance, independent islands, full node visits/cache-hit counters |

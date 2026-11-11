@@ -9,6 +9,7 @@ try {
     $sources = @('Cargo.lock', 'crates/gpui-box/src/retained.rs', 'crates/gpui-box/src/retained/reactive.rs',
         'crates/gpui-box/src/retained/reactive/computed.rs', 'crates/gpui-box/src/retained/reactive/computed/tests.rs',
         'crates/gpui-box/src/retained/reactive/effects.rs', 'crates/gpui-box/src/retained/reactive/effects/tests.rs',
+        'crates/gpui-box/src/retained/reactive/delivery.rs', 'crates/gpui-box/src/retained/reactive/delivery/tests.rs',
         'crates/gpui-box/src/retained/logical.rs', 'examples/hello/src/retained_demo.rs',
         'tooling/rendering-perf/src/computed.rs', 'tooling/rendering-perf/Cargo.toml', 'tooling/rendering-perf/run-computed.ps1')
     $hashes = foreach ($source in $sources) {

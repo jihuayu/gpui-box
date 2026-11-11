@@ -48,6 +48,23 @@ pub struct LogicalUi {
 }
 
 impl LogicalUi {
+    pub fn open_updates(&mut self, capacity: usize) -> Result<reactive::UpdateReceiver, Error> {
+        self.ui.open_updates(capacity)
+    }
+    pub fn update_sender<T: PartialEq + Send + 'static>(
+        &mut self,
+        receiver: &reactive::UpdateReceiver,
+        signal: Signal<T>,
+    ) -> Result<reactive::UpdateSender<T>, Error> {
+        self.ui.update_sender(receiver, signal)
+    }
+    pub fn apply_updates(
+        &mut self,
+        receiver: &mut reactive::UpdateReceiver,
+    ) -> Result<reactive::UpdateBatch, Error> {
+        self.ui.apply_updates(receiver)
+    }
+
     pub fn new(style: Style, color: u32, capabilities: BackendCapabilities) -> Result<Self, Error> {
         Self::from_tree(UiTree::new(style, color)?, capabilities)
     }

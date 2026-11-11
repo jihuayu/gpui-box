@@ -38,3 +38,8 @@ proves the initial snapshot is released after GPU completion.
 [Frozen evidence](performance/2026-11-11-queue/README.md) records this source and
 hardware result. Full device/surface-loss, resource epochs and idle-completion
 host scheduling remain in the [complete goal](RETAINED_IMPLEMENTATION_PROGRESS.md).
+
+The [source-delivery follow-up](RETAINED_SOURCE_DELIVERY.md) moves coalescing
+upstream of reactive commit and extraction for background visual-state values.
+It uses an awaited host waker rather than producing every intermediate packet.
+This does not add a renderer thread or GPU completion wake while entirely idle.

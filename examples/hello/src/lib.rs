@@ -106,3 +106,9 @@ pub fn open_retained_gpu(cx: &mut App) {
     .expect("open retained GPU integration example");
     cx.activate(true);
 }
+
+/// Run the opt-in native executor/surface diagnostic and write its JSON result.
+#[cfg(feature = "retained-wgpu")]
+pub fn check_retained_delivery(cx: &mut App, output: std::path::PathBuf) {
+    retained_demo::delivery_check::open(cx, output);
+}

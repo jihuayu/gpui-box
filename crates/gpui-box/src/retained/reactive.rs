@@ -5,6 +5,8 @@ mod computed;
 pub use computed::{ComputedInputs, Dependency};
 mod effects;
 pub use effects::{EffectCleanup, EffectId, EffectInputs};
+mod delivery;
+pub use delivery::{UpdateBatch, UpdateQueueStats, UpdateReceiver, UpdateSender};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct SourceId {
@@ -168,6 +170,7 @@ struct Source {
     computation: Option<computed::Computation>,
     rank: u64,
     scheduled_epoch: Cell<u64>,
+    delivery_lifetime: Option<Arc<()>>,
 }
 struct SourceSlot {
     generation: u64,
@@ -226,6 +229,7 @@ pub struct ReactiveUi {
     schedule_epoch: Cell<u64>,
     capabilities: BackendCapabilities,
     stats: ReactiveStats,
+    delivery: Option<std::sync::Weak<delivery::Shared>>,
 }
 
 impl ReactiveUi {
@@ -247,6 +251,7 @@ impl ReactiveUi {
             schedule_epoch: Cell::new(0),
             capabilities,
             stats: ReactiveStats::default(),
+            delivery: None,
         })
     }
 
@@ -299,6 +304,7 @@ impl ReactiveUi {
             computation: None,
             rank: 0,
             scheduled_epoch: Cell::new(0),
+            delivery_lifetime: None,
         })
     }
 

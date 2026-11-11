@@ -29,7 +29,9 @@ dependencies, rank-ordered propagation, equality cutoff, consistent staged reads
 and keyed scope lifetime checks. The gallery color sink now consumes a derived
 source through the ordinary click and paint path. The [effect stage](RETAINED_EFFECTS.md)
 adds synchronous post-commit observation and cleanup. General asynchronous effect
-scheduling and cross-thread source delivery remain future work.
+scheduling remains future work. [Source delivery](RETAINED_SOURCE_DELIVERY.md)
+now provides a bounded background last-value inbox with executor wake and one
+owner transaction per drain. Separate synchronous events are still explicit.
 
 The synchronous transaction boundary is explicit. Separate host events are not
 implicitly merged. Savepoints currently clone the maps of

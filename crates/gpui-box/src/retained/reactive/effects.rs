@@ -116,6 +116,9 @@ impl ReactiveUi {
 
 impl Drop for ReactiveUi {
     fn drop(&mut self) {
+        if let Some(delivery) = self.delivery.as_ref().and_then(std::sync::Weak::upgrade) {
+            delivery.close();
+        }
         for effect in self.effects.values_mut().rev() {
             if let Some(cleanup) = effect.cleanup.take() {
                 cleanup();

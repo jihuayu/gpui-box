@@ -80,6 +80,7 @@ impl ReactiveUi {
             }),
             rank,
             scheduled_epoch: Cell::new(0),
+            delivery_lifetime: None,
         });
         for id in dependencies {
             self.sources[id.slot]

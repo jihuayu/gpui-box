@@ -46,6 +46,11 @@ path = "src/reactive.rs"
 required-features = ["retained-runtime"]
 
 [[bin]]
+name = "delivery-runtime-perf"
+path = "src/delivery.rs"
+required-features = ["retained-runtime"]
+
+[[bin]]
 name = "computed-runtime-perf"
 path = "src/computed.rs"
 required-features = ["retained-runtime"]

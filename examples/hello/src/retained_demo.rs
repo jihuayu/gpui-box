@@ -4,17 +4,21 @@ use gpui_box::retained::{
     BackendCapabilities, CustomMeasureSnapshot, ImageResource, MeasureSnapshot, QuadDecoration,
     Rect, Style, Transaction, UiTree, length,
     logical::LogicalUi,
-    reactive::{Property, Signal},
+    reactive::{Property, Signal, UpdateSender},
     responsive::{BreakpointStyles, FlexStyle, LayoutEnvironment, ResponsiveBindings, StyleQuery},
     taffy,
 };
 use std::{cell::RefCell, rc::Rc};
+#[cfg(feature = "retained-wgpu")]
+pub(super) mod delivery_check;
 
 pub struct RetainedDemo {
     tree: Rc<RefCell<LogicalUi>>,
     responsive: Rc<RefCell<ResponsiveBindings>>,
     color: Signal<u32>,
     observed_color: Rc<std::cell::Cell<u32>>,
+    color_sender: UpdateSender<u32>,
+    _updates_task: Task<()>,
     scroll: Signal<[f32; 2]>,
     measure: Signal<Option<MeasureSnapshot>>,
     decoration: Signal<QuadDecoration>,
@@ -27,7 +31,6 @@ pub struct RetainedDemo {
     image_cache: Rc<RefCell<std::collections::BTreeMap<u64, std::sync::Arc<RenderImage>>>>,
     last_commit: String,
     reversed: bool,
-    #[cfg(test)]
     render_count: usize,
     #[cfg(feature = "retained-wgpu")]
     gpu: Option<Rc<RefCell<gpui_box::retained::wgpu::WgpuFrameRenderer>>>,
@@ -329,11 +332,58 @@ impl RetainedDemo {
             )
             .unwrap();
         tree.bind(text, Property::text(text_node)).unwrap();
+        let mut receiver = tree.open_updates(128).expect("open source delivery");
+        let color_sender = tree
+            .update_sender(&receiver, color)
+            .expect("create color producer");
+        let updates_task = cx.spawn(async move |view, cx| {
+            while let Ok(true) = receiver.ready().await {
+                // Establish a GPUI effect cycle before notifying the window;
+                // bare AsyncApp::update_entity does not flush pending effects.
+                if cx
+                    .update(|cx| {
+                        view.update(cx, |view, cx| {
+                            match view.tree.borrow_mut().apply_updates(&mut receiver) {
+                                Ok(batch) => {
+                                    if batch
+                                        .commit
+                                        .is_some_and(|commit| commit.commit.request_frame)
+                                    {
+                                        cx.notify();
+                                    }
+                                }
+                                Err(error) => {
+                                    view.last_commit =
+                                        format!("Background update rejected: {error}")
+                                }
+                            }
+                        })
+                    })
+                    .is_err()
+                {
+                    break;
+                }
+                // A continuously producing worker must not keep this future
+                // running without returning control to the host executor.
+                let mut yielded = false;
+                std::future::poll_fn(|cx| {
+                    if std::mem::replace(&mut yielded, true) {
+                        std::task::Poll::Ready(())
+                    } else {
+                        cx.waker().wake_by_ref();
+                        std::task::Poll::Pending
+                    }
+                })
+                .await;
+            }
+        });
         Self {
             tree: Rc::new(RefCell::new(tree)),
             responsive: Rc::new(RefCell::new(responsive)),
             color,
             observed_color,
+            color_sender,
+            _updates_task: updates_task,
             scroll,
             measure,
             decoration,
@@ -348,7 +398,6 @@ impl RetainedDemo {
             image_cache: Rc::new(RefCell::new(std::collections::BTreeMap::new())),
             last_commit: "Ready".into(),
             reversed: false,
-            #[cfg(test)]
             render_count: 0,
             #[cfg(feature = "retained-wgpu")]
             gpu: None,
@@ -378,10 +427,7 @@ impl RetainedDemo {
 
 impl Render for RetainedDemo {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        #[cfg(test)]
-        {
-            self.render_count += 1;
-        }
+        self.render_count += 1;
         let tree = self.tree.clone();
         let image_cache = self.image_cache.clone();
         let rasterizer = self.rasterizer.clone();
@@ -609,6 +655,19 @@ impl Render for RetainedDemo {
                         }
                     })),
             )
+            .child(
+                div().id("retained-background").debug_selector(|| "retained-background".into()).cursor_pointer()
+                    .child("Queue background color burst")
+                    .on_click(cx.listener(|this, _, _, _| {
+                        let sender = this.color_sender.clone();
+                        let final_color = if this.observed_color.get() == 0x66aa88ff { 0x245fc7ff } else { 0x66aa88ff };
+                        std::thread::spawn(move || {
+                            for color in [0xff8844ff, 0x4488ffff, final_color] {
+                                if sender.send(color).is_err() { break; }
+                            }
+                        });
+                    })),
+            )
             .child(format!("{} · material #{:08x}", self.last_commit, self.observed_color.get()))
             .child(
                 canvas(
@@ -735,6 +794,83 @@ impl Render for RetainedDemo {
 mod tests {
     use super::*;
     use core::prelude::v1::test;
+
+    #[gpui::test]
+    fn background_source_delivery_wakes_owner_once_for_burst_and_idles(cx: &mut TestAppContext) {
+        // This test intentionally wakes the foreground future from an actual
+        // OS worker rather than GPUI's deterministic simulated worker queue.
+        cx.executor().allow_parking();
+        let (view, cx) = cx.add_window_view(|_, cx| RetainedDemo::new(cx));
+        cx.run_until_parked();
+        let (sender, before, renders, stats) = view.read_with(cx, |view, _| {
+            (
+                view.color_sender.clone(),
+                view.tree.borrow().published_frame().unwrap().clone(),
+                view.render_count,
+                view.tree.borrow().stats(),
+            )
+        });
+        std::thread::spawn(move || {
+            for _ in 0..100 {
+                sender.send(0x4488ffff).unwrap();
+                sender.send(0x66aa88ff).unwrap();
+            }
+        })
+        .join()
+        .unwrap();
+        view.read_with(cx, |view, _| {
+            assert_eq!(*view.tree.borrow().read(view.color).unwrap(), 0x245fc7ff);
+            assert_eq!(view.tree.borrow().stats(), stats);
+            assert_eq!(view.color_sender.stats().unwrap().pending, 1);
+        });
+        cx.run_until_parked();
+        let after = view.read_with(cx, |view, _| {
+            let current = view.tree.borrow().stats();
+            assert_eq!(current.transactions, stats.transactions + 1);
+            assert_eq!(current.computed_evaluations, stats.computed_evaluations + 1);
+            assert_eq!(current.effect_runs, stats.effect_runs + 1);
+            assert_eq!(view.observed_color.get(), 0x66aa88ff);
+            assert_eq!(view.render_count, renders + 1);
+            let queue = view.color_sender.stats().unwrap();
+            assert_eq!(
+                (
+                    queue.enqueued,
+                    queue.coalesced,
+                    queue.applied,
+                    queue.waker_notifications
+                ),
+                (200, 199, 1, 1)
+            );
+            view.tree.borrow().published_frame().unwrap().clone()
+        });
+        assert_eq!(after.revision, before.revision + 1);
+        // The ordinary canvas consumer declares no instance-patch capability,
+        // so its one changed material legitimately records one local chunk.
+        assert_eq!((after.layout_runs, after.recorded_chunks), (0, 1));
+        for _ in 0..16 {
+            cx.run_until_parked();
+        }
+        let (sender, renders) = view.read_with(cx, |view, _| {
+            assert_eq!(view.render_count, renders + 1);
+            (view.color_sender.clone(), view.render_count)
+        });
+        // Equal committed values still wake the owner once to inspect the
+        // source, then cause no computed work, frame intent or view render.
+        std::thread::spawn(move || {
+            sender.send(0x66aa88ff).unwrap();
+        })
+        .join()
+        .unwrap();
+        cx.run_until_parked();
+        view.read_with(cx, |view, _| {
+            assert_eq!(view.render_count, renders);
+            assert_eq!(
+                view.tree.borrow().published_frame().unwrap().revision,
+                after.revision
+            );
+            assert_eq!(view.color_sender.stats().unwrap().waker_notifications, 2);
+        });
+    }
 
     #[gpui::test]
     fn normal_click_updates_retained_frame_and_equal_transaction_keeps_revision(

@@ -1,0 +1,58 @@
+{
+  "started_at": "2026-11-12T00:48:19.5486700+08:00",
+  "base_commit": "8afed1cd99e08c4391cbb81dfbeed911bf51f58a",
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.1\nLLVM version: 22.1.8",
+  "source_hashes": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "769E6577FD28A97F045051C683B610C5D064805BBC623F08B29D914273250BC0"
+    },
+    {
+      "path": "crates/gpui-box/src/retained.rs",
+      "sha256": "3246FBA723C0F34D9B4DA85B5B3A9E2B34109692C62659B8C4A275CB5FD489A2"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive.rs",
+      "sha256": "017303E7947947092B3B50F67DE88B42EA69B6AE2D4DECD9CC20BE24060573CC"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive/computed.rs",
+      "sha256": "71B8922B3EAD8055D90415D9ED54F4CB43D615B0DF736BC9AA2D39CE6F81A782"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive/effects.rs",
+      "sha256": "63ACE141BCA85A3E97C975CF353AD6C03F851C1138A320DD261BBC64D346BB1F"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive/delivery.rs",
+      "sha256": "B34E3261AFF014FD3DDE51DE362C79CDF08C3693184C0A8C3AE0674DA5DCFF3F"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/logical.rs",
+      "sha256": "0473E8E55A78C982128F3EFB897C67EC775C0A26CC38E149CCC932069E1D73B0"
+    },
+    {
+      "path": "examples/hello/src/retained_demo.rs",
+      "sha256": "E758983DA10D7C011C0749C96A1D73A48919D102AAB4908BD6808315AED66537"
+    },
+    {
+      "path": "examples/hello/src/retained_demo/delivery_check.rs",
+      "sha256": "67181238DD681D39B47988FBAA280ED652ED3693234879010932CF80D69D3407"
+    },
+    {
+      "path": "examples/hello/src/lib.rs",
+      "sha256": "0920474B7346105DF9D6EF9D6D033154BFFB0B5978344DE421819DA4C16F8F1C"
+    },
+    {
+      "path": "examples/desktop/src/main.rs",
+      "sha256": "8202C791C7645CC5DF53A2E8525F8B694CB45962057CEA8DC7770D6842D3EDC4"
+    },
+    {
+      "path": "tooling/rendering-perf/run-delivery-native.ps1",
+      "sha256": "8D2B18F54D892E908B6BDDA390A2B9F613A085529CAD8EDB81F519D312F700F4"
+    }
+  ],
+  "executable_sha256": "2E499D3E9D64C034735D13B75EB59A44037D1BCF6B8F9D71909C35EBC5808A7D",
+  "launch_window_style": "Hidden",
+  "scope": "Real OS worker and foreground executor, native window creation, labelled manual draw when hidden, GPU pixel comparison; no wake-latency or energy claim"
+}
