@@ -10,6 +10,7 @@ publish.workspace = true
 
 [features]
 default = []
+sharing = ["system", "dep:gpui-sharing"]
 system = ["dep:gpui-system"]
 secrets = ["system", "dep:gpui-secrets"]
 app-data = ["system", "dep:gpui-app-data"]
@@ -26,6 +27,7 @@ android = ["dep:gpui", "dep:gpui-android"]
 desktop = ["dep:gpui", "dep:gpui_platform", "gpui_platform/font-kit", "gpui_platform/wayland", "gpui_platform/x11"]
 
 [dependencies]
+gpui-sharing = { workspace = true, optional = true }
 gpui-secrets = { workspace = true, optional = true }
 gpui-activation = { workspace = true, optional = true }
 gpui-app-data = { workspace = true, optional = true }

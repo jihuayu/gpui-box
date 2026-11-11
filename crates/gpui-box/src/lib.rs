@@ -57,3 +57,7 @@ pub use gpui_secrets as secrets;
 /// Authorized file picking, opaque resources and safe save/export.
 #[cfg(feature = "files")]
 pub use gpui_files as files;
+
+/// Explicit native text/link sharing and authorized export leases.
+#[cfg(feature = "sharing")]
+pub use gpui_sharing as sharing;
