@@ -371,6 +371,30 @@ TalkBack speech, real Chinese keyboard candidate UI, GPU loss and physical-devic
 qualification retain their separate M1/M6 acceptance gates. Physical-device
 testing remains deferred.
 
+### Repeated-suite keyboard qualification
+
+A post-merge fresh-data repeat of the first IME test completed with one keyboard
+readiness failure. Insets initially reported hidden while the previous window's
+hide and the new window's automatic show remained asynchronous. Logcat recorded
+the old hide arriving after the requested show and cancelling it. The test now
+waits for foreground input-method ownership and establishes an actually visible,
+settled initial keyboard before blurring the editor. Subsequent state waits
+require500ms of stable observations within a15s deadline. UiAutomation's
+accessibility suppression is selected before explicitly launching the Activity.
+This removes the ActivityTestRule auto-launch ordering gap after accessibility
+tests. Existing production host/component logic required no changes.
+
+The ordered adaptive/editor/IME suite passes5/5 in70.049s. An initial complete
+repeat timed out launching the new Activity before its test body. Android's
+WindowManager/BLAST transition Watchdog subsequently terminated system_server,
+aborting instrumentation. Crash and Watchdog logs were retained. The same AVD
+was restarted with its existing host-GPU/no-snapshot configuration. The full
+API35 suite then passes23/23 in77.028s, followed by a second complete23/23 in67.34s
+after app-data reset. Permission cases
+require that reset because their real grants persist between invocations.
+Full predictive edge animation, TalkBack speech, real Chinese candidate UI,
+GPU loss, wider emulator stress and hardware retain independent gates.
+
 ## Actual screen sleep and wake lifecycle
 
 ScreenLifecycleTest exercises three real OS sleep/wake cycles through UiAutomation
