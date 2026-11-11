@@ -36,11 +36,11 @@ run = "cargo fmt --all -- --check"
 
 [tasks.test]
 description = "Test distribution-owned library and CLI packages"
-run = "cargo test --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-lifecycle"
+run = "cargo test --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-activation -p gpui-secrets -p gpui-lifecycle"
 
 [tasks.lint]
 description = "Lint distribution-owned library and CLI packages"
-run = "cargo clippy --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-lifecycle --all-targets -- -D warnings"
+run = "cargo clippy --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-activation -p gpui-secrets -p gpui-lifecycle --all-targets -- -D warnings"
 
 [tasks.build]
 description = "Build the shared facade and CLI"
@@ -49,6 +49,13 @@ run = "cargo build --locked -p gpui-box -p gpui-box-cli"
 [tasks."check:desktop"]
 description = "Check the desktop GPUI example and vendored backend"
 run = "cargo check --locked -p gpui-box-example-desktop"
+
+[tasks."check:components"]
+description = "Test component models and lint the shared gallery"
+run = [
+  "cargo test --locked -p gpui-box-components",
+  "cargo clippy --locked -p gpui-box-components -p gpui-box-example-hello --all-targets -- -D warnings",
+]
 
 [tasks."build:desktop"]
 description = "Build the desktop GPUI example"
@@ -67,8 +74,8 @@ description = "Validate configuration, Rust formatting, tests, and lints"
 run = [
   "mise tasks validate",
   "cargo fmt --all -- --check",
-  "cargo test --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-lifecycle",
-  "cargo clippy --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-lifecycle --all-targets -- -D warnings",
+  "cargo test --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-activation -p gpui-secrets -p gpui-lifecycle",
+  "cargo clippy --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-activation -p gpui-secrets -p gpui-lifecycle --all-targets -- -D warnings",
   "git diff --check",
   "git diff --cached --check",
 ]

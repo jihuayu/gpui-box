@@ -94,19 +94,27 @@ configuration remains unverified.
   discarded after attachment or surface replacement.
 - System back first dismisses the visible IME, then invokes an enabled platform
   back handler or GPUI's portable committed back gesture, then finishes the host
-  when unclaimed. Predictive-back progress animation remains follow-up work.
+  when unclaimed. Predictive gestures retain their original start claim and
+  forward progress/cancellation/commit through OnBackAnimationCallback.
 - Activity trim-memory and low-memory notifications reach GPUI memory-warning
   subscribers on the main Looper.
 - The M0 host fits the SurfaceView inside system bars and keyboard insets. Full
-  edge-to-edge safe-area and animated GPUI WindowInsets delivery are future work.
+  fitted-viewport padding follows WindowInsetsAnimation. GPUI receives zero
+  residual inset edges. Full edge-to-edge geometry remains future work.
+- `android_entrypoint!` shares all typed JNI exports between examples/templates.
+  Native entry checks the main Looper, catches panics and poisons a failed runtime
+  until the process restarts. Application code supplies its Rust launch function.
+- EditorInfo/action keys and CursorAnchorInfo use GPUI's text configuration,
+  selection and caret geometry. An initial AccessKit adapter supplies Android
+  virtual nodes and Click/Focus/SetValue actions.
 
 ## Current boundaries
 
 This is a single-window platform skeleton. The display reports a provisional
 60 Hz refresh interval. Background timers use individual sleeping threads.
-Credentials, file pickers, URL intents, accessibility, predictive-back animation,
-GPU device-loss recovery, process-death persistence, and complete IME configuration
-remain platform work. Runtime state survives Activity recreation within a live
+Credentials, file pickers, URL intents, TalkBack qualification, virtual-node
+hover/text-selection, GPU device-loss recovery, process-death persistence and
+advanced IME cases remain platform work. Runtime state survives Activity recreation within a live
 process. A new process starts with the example's initial state.
 
 See [M0 validation](../../docs/M0_ANDROID_VALIDATION.md) for commands, results,

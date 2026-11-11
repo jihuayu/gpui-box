@@ -53,6 +53,16 @@ class VerticalSliceTest {
             assertTrue(connection.commitText("🙂", 1))
             assertTrue(connection.deleteSurroundingTextInCodePoints(1, 0))
             assertEquals("你好！", NativeBridge.text(generation))
+            // Invalid offsets are clamped to scalar boundaries without corrupting Rust UTF-8.
+            assertTrue(connection.performContextMenuAction(android.R.id.selectAll))
+            assertTrue(connection.commitText("A🙂B", 1))
+            assertTrue(connection.setSelection(2, 2))
+            assertEquals(listOf(3, 3), NativeBridge.textState(generation).take(2))
+            assertTrue(connection.deleteSurroundingTextInCodePoints(1, 0))
+            assertEquals("AB", NativeBridge.text(generation))
+            assertTrue(connection.setSelection(Int.MIN_VALUE, Int.MAX_VALUE))
+            assertEquals("AB", connection.getSelectedText(0).toString())
+            assertTrue(connection.commitText("你好！", 1))
             // A stale surface generation cannot change the current field.
             assertFalse(NativeBridge.edit(generation - 1, NativeBridge.inputSession(generation), 0, "stale", 1, 0))
             assertEquals("你好！", NativeBridge.text(generation))

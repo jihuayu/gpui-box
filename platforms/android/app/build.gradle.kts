@@ -31,6 +31,16 @@ dependencies {
 val buildRust by tasks.registering(Exec::class) {
     val repository = rootProject.projectDir.resolve("../..").canonicalFile
     workingDir(repository)
+    inputs.files(repository.resolve("Cargo.toml"), repository.resolve("Cargo.lock"), repository.resolve("mise.toml"), repository.resolve("mise.android.toml"))
+    inputs.files(fileTree(repository.resolve("crates")) { include("**/*.rs", "**/Cargo.toml") })
+    inputs.files(fileTree(repository.resolve("components")) { include("**/*.rs", "**/Cargo.toml") })
+    inputs.files(fileTree(repository.resolve("examples")) { include("**/*.rs", "**/Cargo.toml", "**/assets/**") })
+    inputs.files(fileTree(repository.resolve("vendor/gpui")) { include("**/*.rs", "**/Cargo.toml", "**/*.wgsl", "**/*.hlsl", "**/*.metal") })
+    inputs.property("rustProfile", "debug")
+    inputs.property("androidPlatform", 35)
+    inputs.property("abis", "arm64-v8a,x86_64")
+    inputs.property("ndkVersion", android.ndkVersion)
+    outputs.files(layout.buildDirectory.file("rustJniLibs/arm64-v8a/libgpui_box_android.so"), layout.buildDirectory.file("rustJniLibs/x86_64/libgpui_box_android.so"))
     environment("ANDROID_NDK_HOME", androidComponents.sdkComponents.sdkDirectory.get()
         .dir("ndk/30.0.16248370").asFile.absolutePath)
     commandLine("mise", "-E", "android", "exec", "--", "cargo", "ndk",

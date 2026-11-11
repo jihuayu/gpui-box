@@ -45,3 +45,11 @@ pub use gpui_platform::application;
 /// Private application directories and recoverable settings.
 #[cfg(feature = "app-data")]
 pub use gpui_app_data as app_data;
+
+/// Validated URL opening and durable activation routing.
+#[cfg(feature = "activation")]
+pub use gpui_activation as activation;
+
+/// Account-scoped secure credentials, with explicit native provider policies.
+#[cfg(feature = "secrets")]
+pub use gpui_secrets as secrets;

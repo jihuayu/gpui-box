@@ -1787,9 +1787,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpui-activation"
+version = "0.1.0-dev"
+dependencies = [
+ "gpui",
+ "gpui-app-data",
+ "gpui-system",
+ "serde",
+ "tempfile",
+ "url",
+]
+
+[[package]]
 name = "gpui-android"
 version = "0.1.0-dev"
 dependencies = [
+ "accesskit",
  "android_logger",
  "anyhow",
  "futures",
@@ -1799,6 +1812,7 @@ dependencies = [
  "log",
  "ndk",
  "raw-window-handle",
+ "serde_json",
  "uuid",
 ]
 
@@ -1818,10 +1832,12 @@ name = "gpui-box"
 version = "0.1.0-dev"
 dependencies = [
  "gpui",
+ "gpui-activation",
  "gpui-android",
  "gpui-app-data",
  "gpui-lifecycle",
  "gpui-permissions",
+ "gpui-secrets",
  "gpui-system",
  "gpui_platform",
 ]
@@ -1831,6 +1847,20 @@ name = "gpui-box-cli"
 version = "0.1.0-dev"
 dependencies = [
  "gpui-box",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+]
+
+[[package]]
+name = "gpui-box-components"
+version = "0.1.0-dev"
+dependencies = [
+ "accesskit",
+ "gpui",
+ "gpui-system",
+ "unicode-segmentation",
 ]
 
 [[package]]
@@ -1839,8 +1869,6 @@ version = "0.1.0-dev"
 dependencies = [
  "gpui-box",
  "gpui-box-example-hello",
- "jni",
- "log",
 ]
 
 [[package]]
@@ -1855,8 +1883,9 @@ dependencies = [
 name = "gpui-box-example-hello"
 version = "0.1.0-dev"
 dependencies = [
+ "accesskit",
  "gpui",
- "unicode-segmentation",
+ "gpui-box-components",
 ]
 
 [[package]]
@@ -1873,6 +1902,15 @@ version = "0.1.0-dev"
 dependencies = [
  "gpui",
  "gpui-system",
+]
+
+[[package]]
+name = "gpui-secrets"
+version = "0.1.0-dev"
+dependencies = [
+ "gpui-system",
+ "windows-sys 0.61.2",
+ "zeroize",
 ]
 
 [[package]]
