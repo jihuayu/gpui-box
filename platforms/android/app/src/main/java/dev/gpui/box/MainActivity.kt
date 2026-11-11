@@ -1,6 +1,7 @@
 package dev.gpui.box
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.content.ComponentCallbacks2
 import android.util.Log
@@ -13,6 +14,8 @@ import android.widget.FrameLayout
 
 class MainActivity : Activity() {
     private lateinit var gpui: GpuiView
+    private lateinit var services: GpuiServices
+    private val pendingUrls = java.util.ArrayDeque<Pair<String, String>>()
     private var backRegistered = false
     private var predictiveClaimed = false
     private var predictiveStarted = false
@@ -62,6 +65,13 @@ class MainActivity : Activity() {
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         gpui = GpuiView(this)
+        services = GpuiServices(this)
+        val saved = state?.getStringArrayList("gpui-box.pending-urls")
+        if (saved != null) for (entry in saved) {
+            val separator = entry.indexOf('\n')
+            if (separator > 0) pendingUrls.add(entry.substring(0, separator) to entry.substring(separator + 1))
+        }
+        if (saved == null) enqueueUrl(intent)
         // Keep the first slice's drawable viewport clear of system UI and IME.
         // Full edge-to-edge GPUI WindowInsets animation is a later platform task.
         val content = FrameLayout(this)
@@ -83,6 +93,34 @@ class MainActivity : Activity() {
         setContentView(content)
         NativeBridge.bind(gpui)
     }
+    private fun enqueueUrl(intent: Intent) {
+        if (!services.accepts(intent)) return
+        if (pendingUrls.size >= 16) {
+            Log.w("gpui-box", "Activation queue is full; application must install and drain its activation handler")
+            return
+        }
+        // Stable for Activity recreation/retry. A fresh incoming Intent gets its own ID.
+        val id = java.util.UUID.randomUUID().toString()
+        pendingUrls.add(id to intent.dataString!!)
+    }
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        enqueueUrl(intent)
+        deliverPendingUrls()
+    }
+    override fun onSaveInstanceState(state: Bundle) {
+        state.putStringArrayList("gpui-box.pending-urls", ArrayList(pendingUrls.map { "${it.first}\n${it.second}" }))
+        super.onSaveInstanceState(state)
+    }
+    fun deliverPendingUrls() {
+        while (pendingUrls.isNotEmpty()) {
+            val (id, url) = pendingUrls.first
+            if (!NativeBridge.openUrlEvent(gpui.generation, id, url)) return
+            pendingUrls.removeFirst()
+        }
+    }
+    fun openUrl(url: String) = services.openUrl(url)
     override fun onResume() { super.onResume(); gpui.setResumed(true); updateBackRegistration() }
     override fun onPause() { backCallback.onBackCancelled(); gpui.setResumed(false); super.onPause() }
     override fun onDestroy() {

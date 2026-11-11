@@ -1,5 +1,5 @@
 // Adapted from the pinned Apache-2.0 GPUI examples/input.rs.
-use std::ops::Range;
+use std::{cell::Cell, ops::Range, rc::Rc};
 
 use gpui::{
     App, Bounds, ClipboardItem, Context, CursorStyle, ElementId, ElementInputHandler, Entity,
@@ -43,6 +43,7 @@ pub struct TextInput {
     last_layout: Option<ShapedLine>,
     last_bounds: Option<Bounds<Pixels>>,
     is_selecting: bool,
+    a11y_run: Rc<Cell<Option<accesskit::NodeId>>>,
 }
 
 impl TextInput {
@@ -638,6 +639,69 @@ impl Render for TextInput {
             .aria_label(self.label.clone())
             .aria_value(self.content.clone())
             .aria_placeholder(self.placeholder.clone())
+            .a11y_synthetic_children({
+                let content = self.content.clone();
+                let selection = self.selected_range.clone();
+                let reversed = self.selection_reversed;
+                let run = self.a11y_run.clone();
+                move |builder| {
+                    let id = builder.synthetic_node_id(0);
+                    run.set(Some(id));
+                    let mut node = accesskit::Node::new(accesskit::Role::TextRun);
+                    node.set_value(content.to_string());
+                    node.set_character_lengths(
+                        content
+                            .chars()
+                            .map(|character| character.len_utf8() as u8)
+                            .collect::<Vec<_>>(),
+                    );
+                    builder.push_child(id, node);
+                    let start = content[..selection.start].chars().count();
+                    let end = content[..selection.end].chars().count();
+                    let (anchor, focus) = if reversed { (end, start) } else { (start, end) };
+                    builder
+                        .parent_node()
+                        .set_text_selection(accesskit::TextSelection {
+                            anchor: accesskit::TextPosition {
+                                node: id,
+                                character_index: anchor,
+                            },
+                            focus: accesskit::TextPosition {
+                                node: id,
+                                character_index: focus,
+                            },
+                        });
+                }
+            })
+            .on_a11y_action(accesskit::Action::SetTextSelection, {
+                let entity = cx.entity().downgrade();
+                move |data, window, cx| {
+                    if let Some(accesskit::ActionData::SetTextSelection(selection)) = data {
+                        let _ = entity.update(cx, |input, cx| {
+                            if input.a11y_run.get() != Some(selection.anchor.node)
+                                || selection.anchor.node != selection.focus.node
+                            {
+                                return;
+                            }
+                            let offset = |index| {
+                                input
+                                    .content
+                                    .char_indices()
+                                    .map(|(offset, _)| offset)
+                                    .nth(index)
+                                    .unwrap_or(input.content.len())
+                            };
+                            let anchor = offset(selection.anchor.character_index);
+                            let focus = offset(selection.focus.character_index);
+                            input.selected_range = anchor.min(focus)..anchor.max(focus);
+                            input.selection_reversed = focus < anchor;
+                            input.focus_handle.focus(window, cx);
+                            window.notify_text_selection_changed(&input.focus_handle);
+                            cx.notify();
+                        });
+                    }
+                }
+            })
             .on_a11y_action(accesskit::Action::SetValue, {
                 let entity = cx.entity().downgrade();
                 move |data, window, cx| {
@@ -711,6 +775,7 @@ impl TextInput {
             last_layout: None,
             last_bounds: None,
             is_selecting: false,
+            a11y_run: Rc::new(Cell::new(None)),
         }
     }
 }

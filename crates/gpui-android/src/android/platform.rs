@@ -20,6 +20,7 @@ pub struct AndroidPlatform {
     text: Arc<dyn PlatformTextSystem>,
     pub(super) lifecycle: CallbackSlot<Box<dyn FnMut(AppLifecyclePhase)>>,
     pub(super) memory_warning: CallbackSlot<Box<dyn FnMut()>>,
+    pub(super) open_urls: CallbackSlot<Box<dyn FnMut(Vec<String>)>>,
 }
 
 impl AndroidPlatform {
@@ -33,6 +34,7 @@ impl AndroidPlatform {
             )),
             lifecycle: CallbackSlot::default(),
             memory_warning: CallbackSlot::default(),
+            open_urls: CallbackSlot::default(),
         }
     }
 }
@@ -107,10 +109,13 @@ impl Platform for AndroidPlatform {
     fn window_appearance(&self) -> WindowAppearance {
         WindowAppearance::Dark
     }
-    fn open_url(&self, _: &str) {
-        log::warn!("Android open_url is not implemented");
+    fn open_url(&self, url: &str) {
+        super::bridge::open_url(url);
     }
-    fn on_open_urls(&self, _: Box<dyn FnMut(Vec<String>)>) {}
+    fn on_open_urls(&self, callback: Box<dyn FnMut(Vec<String>)>) {
+        self.open_urls.set(callback);
+        super::bridge::post(0);
+    }
     fn register_url_scheme(&self, _: &str) -> Task<Result<()>> {
         Task::ready(Err(anyhow::anyhow!(
             "Declare URL schemes in AndroidManifest.xml"

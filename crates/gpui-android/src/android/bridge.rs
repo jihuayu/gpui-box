@@ -20,10 +20,20 @@ struct Runtime {
     platform: Rc<AndroidPlatform>,
     _application: ApplicationHandle,
     queue: RefCell<PriorityQueueReceiver<RunnableVariant>>,
+    delivered_urls: RefCell<std::collections::VecDeque<String>>,
 }
 thread_local! {
     static RUNTIME: RefCell<Option<Rc<Runtime>>> = const { RefCell::new(None) };
     static LAUNCH: RefCell<Option<fn(&mut App)>> = const { RefCell::new(None) };
+    static ACTIVATION: super::CallbackSlot<Box<dyn FnMut(&str, &str) -> bool>> = super::CallbackSlot::default();
+}
+
+/// Install an application-owned activation handoff. Return true only after
+/// accepting the stable ID and URL into the application's routing workflow.
+/// Persist on a worker using gpui-activation when durable delivery is required.
+pub fn on_activation(callback: impl FnMut(&str, &str) -> bool + 'static) {
+    ACTIVATION.with(|slot| slot.set(Box::new(callback)));
+    post(0);
 }
 
 /// Installs the Java bridge on Android's main thread. The class must provide
@@ -155,6 +165,7 @@ pub fn attach(
                 platform,
                 _application: application,
                 queue: RefCell::new(queue),
+                delivered_urls: RefCell::default(),
             })))
         });
     }
@@ -334,6 +345,68 @@ pub fn memory_warning() {
         runtime.platform.memory_warning.with(|callback| callback());
         post(0);
     }
+}
+
+/// Best-effort GPUI URL handoff. Android reports only whether startActivity accepted it.
+pub(super) fn open_url(url: &str) {
+    let Some(host) = HOST.get() else {
+        return;
+    };
+    let result = (|| -> jni::errors::Result<bool> {
+        let mut env = host.vm.attach_current_thread()?;
+        let class: &JClass = host.class.as_obj().into();
+        let value = env.new_string(url)?;
+        env.call_static_method(
+            class,
+            "openUrl",
+            "(Ljava/lang/String;)Z",
+            &[JValue::Object(&value)],
+        )?
+        .z()
+    })();
+    if !matches!(result, Ok(true)) {
+        log::warn!("Android URL handoff was unavailable");
+    }
+}
+
+/// Delivery requires a live foreground surface and an application URL listener.
+/// The bounded in-process deduplication complements the application durable inbox.
+pub fn open_url_event(generation: u64, id: &str, url: &str) -> bool {
+    if window(generation).is_none_or(|window| !window.visible.get())
+        || id.is_empty()
+        || id.len() > 128
+        || url.len() > 8192
+        || url.chars().any(char::is_control)
+    {
+        return false;
+    }
+    let Some(runtime) = runtime() else {
+        return false;
+    };
+    if runtime
+        .delivered_urls
+        .borrow()
+        .iter()
+        .any(|delivered| delivered == id)
+    {
+        return true;
+    }
+    let accepted = ACTIVATION.with(|slot| slot.with(|callback| callback(id, url)));
+    if !accepted.unwrap_or_else(|| {
+        runtime
+            .platform
+            .open_urls
+            .with(|callback| callback(vec![url.to_owned()]))
+            .is_some()
+    }) {
+        return false;
+    }
+    let mut delivered = runtime.delivered_urls.borrow_mut();
+    delivered.push_back(id.to_owned());
+    if delivered.len() > 256 {
+        delivered.pop_front();
+    }
+    true
 }
 
 /// Hardware navigation and shortcuts use GPUI's normal key dispatch path.

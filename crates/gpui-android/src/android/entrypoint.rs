@@ -282,6 +282,24 @@ macro_rules! android_entrypoint {
         static NATIVE_FAILED: std::sync::atomic::AtomicBool =
             std::sync::atomic::AtomicBool::new(false);
         #[unsafe(no_mangle)]
+        pub unsafe extern "system" fn Java_dev_gpui_box_NativeBridge_openUrlEvent(
+            mut env: JNIEnv,
+            _: JClass,
+            generation: jlong,
+            id: JString,
+            url: JString,
+        ) -> jboolean {
+            boundary(&mut env, |env| {
+                let Ok(id) = env.get_string(&id).map(String::from) else {
+                    return 0;
+                };
+                let Ok(url) = env.get_string(&url).map(String::from) else {
+                    return 0;
+                };
+                $crate::open_url_event(generation as u64, &id, &url) as jboolean
+            })
+        }
+        #[unsafe(no_mangle)]
         pub unsafe extern "system" fn Java_dev_gpui_box_NativeBridge_caretBounds(
             mut env: JNIEnv,
             _: JClass,

@@ -29,6 +29,7 @@ class GpuiView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
         pendingFrame = false
         if (attached && resumed) {
             NativeBridge.frame(generation)
+            (context as? MainActivity)?.deliverPendingUrls()
             if (monitorCursor) updateCursorAnchor()
         }
     }
@@ -42,6 +43,7 @@ class GpuiView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
     override fun onAttachedToWindow() { super.onAttachedToWindow(); accessibility.attach() }
     override fun onDetachedFromWindow() { accessibility.detach(); super.onDetachedFromWindow() }
     override fun getAccessibilityNodeProvider() = accessibility
+    override fun dispatchHoverEvent(event: MotionEvent): Boolean = accessibility.hover(event) || super.dispatchHoverEvent(event)
     fun updateAccessibility() { if (attached) accessibility.refresh() }
     override fun surfaceCreated(holder: SurfaceHolder) { /* Size arrives in surfaceChanged. */ }
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {

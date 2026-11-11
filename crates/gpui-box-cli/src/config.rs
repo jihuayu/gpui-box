@@ -19,6 +19,112 @@ pub struct AppConfig {
     pub permissions: Vec<String>,
     #[serde(default = "default_assets")]
     pub assets: Vec<PathBuf>,
+    #[serde(default)]
+    pub services: Services,
+}
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Services {
+    #[serde(default = "service_version")]
+    pub schema_version: u32,
+    #[serde(default)]
+    pub permissions: Vec<PermissionDeclaration>,
+    #[serde(default)]
+    pub url_schemes: Vec<String>,
+}
+fn service_version() -> u32 {
+    1
+}
+impl Default for Services {
+    fn default() -> Self {
+        Self {
+            schema_version: 1,
+            permissions: Vec::new(),
+            url_schemes: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PermissionDeclaration {
+    pub kind: PermissionKind,
+    pub purpose: String,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PermissionKind {
+    Notifications,
+    Camera,
+    Microphone,
+    LocationWhenInUse,
+    Contacts,
+}
+impl PermissionKind {
+    pub fn android_permissions(self) -> &'static [&'static str] {
+        match self {
+            Self::Notifications => &["android.permission.POST_NOTIFICATIONS"],
+            Self::Camera => &["android.permission.CAMERA"],
+            Self::Microphone => &["android.permission.RECORD_AUDIO"],
+            Self::LocationWhenInUse => &[
+                "android.permission.ACCESS_COARSE_LOCATION",
+                "android.permission.ACCESS_FINE_LOCATION",
+            ],
+            Self::Contacts => &["android.permission.READ_CONTACTS"],
+        }
+    }
+}
+impl Services {
+    fn validate(&self, targets: &[String]) -> Result<(), String> {
+        if self.schema_version != 1 {
+            return Err("services.schema_version must be 1".into());
+        }
+        if (!self.permissions.is_empty() || !self.url_schemes.is_empty())
+            && !targets.iter().any(|target| target == "android")
+        {
+            return Err("Native service declarations currently require the android target".into());
+        }
+        let mut permissions = BTreeSet::new();
+        for declaration in &self.permissions {
+            if !permissions.insert(declaration.kind) {
+                return Err("services.permissions kinds must be unique".into());
+            }
+            if declaration.purpose.trim().is_empty()
+                || declaration.purpose.len() > 512
+                || declaration.purpose.chars().any(char::is_control)
+            {
+                return Err("services.permissions purpose must contain 1–512 printable bytes describing the contextual request".into());
+            }
+        }
+        let mut schemes = BTreeSet::new();
+        for scheme in &self.url_schemes {
+            if scheme.len() > 64
+                || !scheme.starts_with(|character: char| character.is_ascii_lowercase())
+                || !scheme.bytes().all(|character| {
+                    character.is_ascii_lowercase()
+                        || character.is_ascii_digit()
+                        || b"+.-".contains(&character)
+                })
+                || matches!(
+                    scheme.as_str(),
+                    "http"
+                        | "https"
+                        | "file"
+                        | "javascript"
+                        | "data"
+                        | "shell"
+                        | "content"
+                        | "intent"
+                )
+            {
+                return Err("services.url_schemes requires lowercase custom schemes. Verified web links and document/resource schemes require their native provider configuration".into());
+            }
+            if !schemes.insert(scheme) {
+                return Err("services.url_schemes must be unique".into());
+            }
+        }
+        Ok(())
+    }
 }
 fn default_assets() -> Vec<PathBuf> {
     vec![PathBuf::from("assets")]
@@ -80,6 +186,7 @@ impl AppConfig {
         if self.update_channel != "development" {
             return Err("Only the development channel is implemented. Signed release/update channels are tracked in M4/M5.".into());
         }
+        self.services.validate(&self.targets)?;
         if self
             .permissions
             .iter()

@@ -8,7 +8,7 @@ mod window;
 pub use bridge::{
     attach, back, back_enabled, back_gesture, caret_bounds, clipboard_action, detach, edit,
     editor_action, editor_info, frame, initialize, input_session, insets, key, lifecycle,
-    memory_warning, resize, text, text_state, touch,
+    memory_warning, on_activation, open_url_event, resize, text, text_state, touch,
 };
 pub use platform::AndroidPlatform;
 

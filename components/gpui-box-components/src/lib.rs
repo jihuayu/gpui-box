@@ -1,6 +1,8 @@
 //! Reusable controls built against the distribution's single GPUI identity.
 pub mod input;
 pub mod model;
+pub mod query;
+pub mod reactive;
 pub mod shell;
 use gpui::{prelude::*, *};
 pub use input::TextInput;
@@ -135,6 +137,7 @@ pub fn status(id: impl Into<ElementId>, state: Status, theme: Theme) -> Stateful
     };
     label(id, message, theme)
         .role(accesskit::Role::Status)
+        .a11y_synthetic_children(|builder| builder.parent_node().set_live(accesskit::Live::Polite))
         .p_3()
         .bg(rgb(theme.surface))
         .rounded_lg()

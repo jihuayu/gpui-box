@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "permissions": [],
+  "url_schemes": ["gpui-box-example"]
+}

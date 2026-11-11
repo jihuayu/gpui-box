@@ -2,21 +2,38 @@
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 use gpui_box_components::input;
+use gpui_box_components::{
+    query::{QueryClient, QueryRequest},
+    reactive::{Binding, Memo, ReactiveScope, Signal, Store},
+};
+
+#[derive(Clone, PartialEq)]
+struct Preferences {
+    dark: bool,
+    checked: bool,
+    large_text: bool,
+}
 
 struct Hello {
     count: usize,
     input: Entity<input::TextInput>,
     secondary_input: Entity<input::TextInput>,
     gallery_open: bool,
-    dark: bool,
-    checked: bool,
-    large_text: bool,
+    preferences: Store<Preferences>,
+    committed: Signal<String>,
+    summary: Memo<String>,
+    scope: ReactiveScope,
+    queries: QueryClient<&'static str, Vec<String>>,
+    request: Option<QueryRequest>,
+    render_count: u64,
+    activation_count: usize,
     modal_open: bool,
     modal_focus: FocusHandle,
     modal_trigger: FocusHandle,
 }
 impl Render for Hello {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.render_count += 1;
         if self.gallery_open {
             return self.render_gallery(window, cx).into_any_element();
         }
@@ -99,8 +116,13 @@ impl Render for Hello {
 impl Hello {
     fn render_gallery(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         use gpui_box_components::{Layout, Status, Theme, button, checkbox, label, status, switch};
-        let mut theme = if self.dark { Theme::DARK } else { Theme::LIGHT };
-        theme.text_scale = if self.large_text { 1.5 } else { 1.0 };
+        let preferences = self.preferences.snapshot(cx);
+        let mut theme = if preferences.dark {
+            Theme::DARK
+        } else {
+            Theme::LIGHT
+        };
+        theme.text_scale = if preferences.large_text { 1.5 } else { 1.0 };
         if self.modal_open {
             return div()
                 .id("modal-layer")
@@ -155,23 +177,28 @@ impl Hello {
                 .into_any_element();
         }
         let wide = Layout::for_width(f32::from(window.viewport_size().width)) == Layout::Wide;
-        let toggle = |field: fn(&mut Hello) -> &mut bool| {
+        let toggle = |field: fn(&mut Preferences) -> &mut bool| {
             let entity = cx.entity().downgrade();
             move |_: &mut Window, cx: &mut App| {
                 let _ = entity.update(cx, |this, cx| {
-                    let value = field(this);
-                    *value = !*value;
-                    let mut theme = if this.dark {
+                    this.preferences.command(
+                        |state| {
+                            let value = field(state);
+                            *value = !*value;
+                        },
+                        cx,
+                    );
+                    let preferences = this.preferences.snapshot(cx);
+                    let mut theme = if preferences.dark {
                         gpui_box_components::Theme::DARK
                     } else {
                         gpui_box_components::Theme::LIGHT
                     };
-                    theme.text_scale = if this.large_text { 1.5 } else { 1.0 };
+                    theme.text_scale = if preferences.large_text { 1.5 } else { 1.0 };
                     this.input
                         .update(cx, |input, cx| input.set_theme(theme, cx));
                     this.secondary_input
                         .update(cx, |input, cx| input.set_theme(theme, cx));
-                    cx.notify();
                 });
             }
         };
@@ -207,6 +234,11 @@ impl Hello {
             .font_family("Noto Sans CJK SC")
             .child(label("gallery-title", "Component workbench", theme).text_3xl())
             .child(label(
+                "activation-status",
+                format!("Activation events {}", self.activation_count),
+                theme,
+            ))
+            .child(label(
                 "gallery-layout",
                 if wide {
                     "Wide workspace · Controllers retained"
@@ -215,12 +247,17 @@ impl Hello {
                 },
                 theme,
             ))
-            .child(button(
-                "gallery-home",
-                "Back to platform checks",
-                theme,
-                toggle(|this| &mut this.gallery_open),
-            ))
+            .child(button("gallery-home", "Back to platform checks", theme, {
+                let entity = cx.entity().downgrade();
+                move |window, cx| {
+                    let _ = entity.update(cx, |this, cx| {
+                        window.blur(cx);
+                        window.dismiss_virtual_keyboard();
+                        this.gallery_open = false;
+                        cx.notify();
+                    });
+                }
+            }))
             .child(
                 div()
                     .flex()
@@ -229,21 +266,21 @@ impl Hello {
                     .child(switch(
                         "theme",
                         "Dark appearance",
-                        self.dark,
+                        preferences.dark,
                         theme,
                         toggle(|this| &mut this.dark),
                     ))
                     .child(checkbox(
                         "large-text",
                         "Large text",
-                        self.large_text,
+                        preferences.large_text,
                         theme,
                         toggle(|this| &mut this.large_text),
                     ))
                     .child(checkbox(
                         "consent",
                         "Enable notifications",
-                        self.checked,
+                        preferences.checked,
                         theme,
                         toggle(|this| &mut this.checked),
                     )),
@@ -269,6 +306,77 @@ impl Hello {
             ))
             .child(self.input.clone())
             .child(self.secondary_input.clone())
+            .child(button("commit-draft", "Commit primary draft", theme, {
+                let entity = cx.entity().downgrade();
+                move |_, cx| {
+                    let _ = entity.update(cx, |this, cx| {
+                        let value = this.input.read(cx).value().to_owned();
+                        Binding::signal(this.committed.clone()).set(value, cx);
+                    });
+                }
+            }))
+            .child(label("committed-summary", self.summary.get(cx), theme))
+            .child(label(
+                "reactive-metrics",
+                format!(
+                    "View renders {} · Scoped notifications {}",
+                    self.render_count,
+                    self.scope.notification_count()
+                ),
+                theme,
+            ))
+            .child(button("load-items", "Start item request", theme, {
+                let entity = cx.entity().downgrade();
+                move |_, cx| {
+                    let _ = entity.update(cx, |this, cx| {
+                        this.request = Some(this.queries.start("items"));
+                        cx.notify();
+                    });
+                }
+            }))
+            .child(button("finish-items", "Complete item request", theme, {
+                let entity = cx.entity().downgrade();
+                move |_, cx| {
+                    let _ = entity.update(cx, |this, cx| {
+                        if let Some(request) = this.request.take() {
+                            this.queries.complete(
+                                &"items",
+                                &request,
+                                Ok(vec!["Saved item 你好".into(), "Responsive detail".into()]),
+                            );
+                            cx.notify();
+                        }
+                    });
+                }
+            }))
+            .child(button("clear-account", "Clear account data", theme, {
+                let entity = cx.entity().downgrade();
+                move |_, cx| {
+                    let _ = entity.update(cx, |this, cx| {
+                        this.queries.clear();
+                        this.request = None;
+                        cx.notify();
+                    });
+                }
+            }))
+            .child(status(
+                "query-status",
+                match self.queries.state(&"items") {
+                    Some(state) if state.pending() => Status::Loading,
+                    Some(state) if state.value.is_some() => Status::Ready,
+                    _ => Status::Empty,
+                },
+                theme,
+            ))
+            .children(
+                self.queries
+                    .state(&"items")
+                    .and_then(|state| state.value.as_ref())
+                    .into_iter()
+                    .flatten()
+                    .enumerate()
+                    .map(|(index, item)| label(("query-item", index), item.clone(), theme)),
+            )
             .children(
                 [
                     Status::Loading,
@@ -322,30 +430,70 @@ pub fn open(cx: &mut App) {
         .expect("load bundled OFL font");
     input::bind_keys(cx);
     let bounds = Bounds::centered(None, size(px(720.), px(480.)), cx);
-    cx.open_window(
-        WindowOptions {
-            window_bounds: Some(WindowBounds::Windowed(bounds)),
-            ..Default::default()
-        },
-        |_, cx| {
-            let input = cx.new(input::TextInput::new);
-            let secondary_input = cx.new(input::TextInput::new);
-            input.update(cx, |input, cx| input.set_label("Primary draft", cx));
-            secondary_input.update(cx, |input, cx| input.set_label("Secondary draft", cx));
-            cx.new(|cx| Hello {
-                count: 0,
-                input,
-                secondary_input,
-                gallery_open: false,
-                dark: true,
-                checked: false,
-                large_text: false,
-                modal_open: false,
-                modal_focus: cx.focus_handle(),
-                modal_trigger: cx.focus_handle(),
-            })
-        },
-    )
-    .expect("open shared example");
+    let window = cx
+        .open_window(
+            WindowOptions {
+                window_bounds: Some(WindowBounds::Windowed(bounds)),
+                ..Default::default()
+            },
+            |_, cx| {
+                let input = cx.new(input::TextInput::new);
+                let secondary_input = cx.new(input::TextInput::new);
+                input.update(cx, |input, cx| input.set_label("Primary draft", cx));
+                secondary_input.update(cx, |input, cx| input.set_label("Secondary draft", cx));
+                cx.new(|cx| {
+                    let preferences = Store::new(
+                        Preferences {
+                            dark: true,
+                            checked: false,
+                            large_text: false,
+                        },
+                        cx,
+                    );
+                    let committed = Signal::new(String::new(), cx);
+                    let summary = Memo::new(
+                        &committed,
+                        |value| format!("Committed primary draft · {value}"),
+                        cx,
+                    );
+                    let mut scope = ReactiveScope::default();
+                    scope.observe(&preferences.signal(), cx);
+                    scope.observe(&summary.signal(), cx);
+                    Hello {
+                        count: 0,
+                        input,
+                        secondary_input,
+                        gallery_open: false,
+                        preferences,
+                        committed,
+                        summary,
+                        scope,
+                        queries: QueryClient::default(),
+                        request: None,
+                        render_count: 0,
+                        activation_count: 0,
+                        modal_open: false,
+                        modal_focus: cx.focus_handle(),
+                        modal_trigger: cx.focus_handle(),
+                    }
+                })
+            },
+        )
+        .expect("open shared example");
+    #[cfg(target_os = "android")]
+    {
+        let mut app = cx.to_async();
+        gpui_android::on_activation(move |_, _| {
+            window
+                .update(&mut app, |view, _, cx| {
+                    view.activation_count += 1;
+                    view.gallery_open = true;
+                    cx.notify();
+                })
+                .is_ok()
+        });
+    }
+    #[cfg(not(target_os = "android"))]
+    let _ = window;
     cx.activate(true);
 }
