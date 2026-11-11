@@ -105,7 +105,8 @@ pub(super) fn run(
     tx.translation(tree.root(), [1.0, 1.0]);
     tree.commit(tx, BackendCapabilities::default())?;
     let geometry = tree.frame([800.0; 2])?;
-    assert!(geometry.build_stats.full_rebuild);
+    assert!(!geometry.build_stats.full_rebuild);
+    assert_eq!(geometry.build_stats.extracted_nodes, 201);
     renderer.submit(&geometry, [800, 800], 1.0)?;
     let mut tx = Transaction::default();
     tx.color(nodes[130], 0x44aaffff);

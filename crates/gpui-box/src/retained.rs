@@ -17,6 +17,9 @@ pub mod frame_queue;
 mod image;
 pub mod logical;
 pub use image::ImageResource;
+mod extraction;
+#[cfg(test)]
+mod extraction_tests;
 mod measure;
 mod paint_store;
 pub use paint_store::{FrameBuildPolicy, FrameBuildStats, PaintItems};
@@ -325,7 +328,8 @@ pub struct UiTree {
     revision: u64,
     dirty: bool,
     layout_dirty: bool,
-    geometry_dirty: bool,
+    property_dirty: std::collections::BTreeSet<NodeId>,
+    paint_subtree_ends: BTreeMap<NodeId, usize>,
     paint_dirty: std::collections::BTreeSet<NodeId>,
     paint_indices: BTreeMap<NodeId, usize>,
     frame_build_policy: FrameBuildPolicy,
@@ -391,7 +395,8 @@ impl UiTree {
             revision: 0,
             dirty: true,
             layout_dirty: true,
-            geometry_dirty: true,
+            property_dirty: Default::default(),
+            paint_subtree_ends: Default::default(),
             paint_dirty: Default::default(),
             paint_indices: Default::default(),
             frame_build_policy: Default::default(),
@@ -701,7 +706,9 @@ impl UiTree {
         ) in changed
         {
             self.paint_dirty.insert(id);
-            self.geometry_dirty |= property_changed;
+            if property_changed {
+                self.property_dirty.insert(id);
+            }
             if structure_changed {
                 let children = entry.children.expect("changed children");
                 let layouts = children
@@ -830,7 +837,6 @@ impl UiTree {
         }
         if self.frame_build_policy == FrameBuildPolicy::Selective
             && !self.layout_dirty
-            && !self.geometry_dirty
             && self.frame.is_some()
         {
             return self.patch_paint_frame();
@@ -849,10 +855,11 @@ impl UiTree {
                 },
             )?;
         }
-        let mut items = Vec::new();
-        let mut stack = vec![(
+        let mut properties = PropertyTrees::default();
+        let mut recorded_chunks = 0;
+        let items = self.extract_subtree(
             self.root,
-            [0.0, 0.0],
+            [0.0; 2],
             Some(Rect {
                 x: 0.0,
                 y: 0.0,
@@ -860,135 +867,9 @@ impl UiTree {
                 height: viewport[1],
             }),
             PropertyState::default(),
-        )];
-        let mut properties = PropertyTrees::default();
-        let mut recorded_chunks = 0;
-        while let Some((id, origin, inherited_clip, mut state)) = stack.pop() {
-            let node = self.node(id)?;
-            if node.style.display == taffy::Display::None {
-                continue;
-            }
-            let layout = *self.layout.layout(node.layout)?;
-            let x = origin[0] + layout.location.x + node.translation[0];
-            let y = origin[1] + layout.location.y + node.translation[1];
-            if node.translation != [0.0; 2] {
-                properties.transforms.insert(
-                    id,
-                    PropertyNode {
-                        parent: state.transform,
-                        value: node.translation,
-                    },
-                );
-                state.transform = Some(id);
-            }
-            let clip = node.clip.map(|clip| clip.translated([x, y]));
-            if let Some(local_clip) = node.clip {
-                properties.clips.insert(
-                    id,
-                    PropertyNode {
-                        parent: state.clip,
-                        value: local_clip,
-                    },
-                );
-                state.clip = Some(id);
-            }
-            let clip = match (inherited_clip, clip) {
-                (Some(a), Some(b)) => Some(a.intersect(b)),
-                (a, b) => a.or(b),
-            };
-            if node.opacity != 1.0 {
-                properties.effects.insert(
-                    id,
-                    PropertyNode {
-                        parent: state.effect,
-                        value: node.opacity,
-                    },
-                );
-                state.effect = Some(id);
-            }
-            let paint_state = state;
-            let scroll = [
-                node.scroll[0].min(layout.scroll_width()),
-                node.scroll[1].min(layout.scroll_height()),
-            ];
-            if node.scroll != [0.0; 2] {
-                properties.scrolls.insert(
-                    id,
-                    PropertyNode {
-                        parent: state.scroll,
-                        value: scroll,
-                    },
-                );
-                state.scroll = Some(id);
-            }
-            for child in node.children.iter().rev() {
-                stack.push((*child, [x - scroll[0], y - scroll[1]], clip, state));
-            }
-            let node = self.node_mut(id);
-            let commands = node
-                .chunk
-                .get_or_insert_with(|| {
-                    recorded_chunks += 1;
-                    Arc::from([if node.decoration == QuadDecoration::default() {
-                        DisplayCommand::Fill(node.color)
-                    } else {
-                        DisplayCommand::DecoratedFill {
-                            color: node.color,
-                            decoration: node.decoration,
-                        }
-                    }])
-                })
-                .clone();
-            #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
-            let glyphs = node
-                .text
-                .as_ref()
-                .map(|text| {
-                    text.resource.chunk(
-                        (layout.size.width
-                            - layout.border.left
-                            - layout.border.right
-                            - layout.padding.left
-                            - layout.padding.right)
-                            .max(0.0),
-                    )
-                })
-                .transpose()?;
-            items.push(PaintItem {
-                node: id,
-                bounds: Rect {
-                    x,
-                    y,
-                    width: layout.size.width,
-                    height: layout.size.height,
-                },
-                commands,
-                fill_color: node.color,
-                image: node.image.clone(),
-                #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
-                text: node.text.clone(),
-                #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
-                glyphs,
-                content_bounds: Rect {
-                    x: x + layout.border.left + layout.padding.left,
-                    y: y + layout.border.top + layout.padding.top,
-                    width: (layout.size.width
-                        - layout.border.left
-                        - layout.border.right
-                        - layout.padding.left
-                        - layout.padding.right)
-                        .max(0.0),
-                    height: (layout.size.height
-                        - layout.border.top
-                        - layout.border.bottom
-                        - layout.padding.top
-                        - layout.padding.bottom)
-                        .max(0.0),
-                },
-                clip,
-                properties: paint_state,
-            });
-        }
+            &mut properties,
+            &mut recorded_chunks,
+        )?;
         let previous: BTreeMap<_, _> = self
             .frame
             .as_ref()
@@ -1050,14 +931,9 @@ impl UiTree {
             damage,
         };
         self.layout_dirty = false;
-        self.geometry_dirty = false;
+        self.property_dirty.clear();
         self.paint_dirty.clear();
-        self.paint_indices = frame
-            .items
-            .iter()
-            .enumerate()
-            .map(|(index, item)| (item.node, index))
-            .collect();
+        self.index_paint_items(&frame.items);
         self.dirty = false;
         self.frame = Some(frame.clone());
         Ok(frame)

@@ -100,19 +100,68 @@ impl UiTree {
     pub fn set_frame_build_policy(&mut self, policy: FrameBuildPolicy) {
         self.frame_build_policy = policy;
     }
-    /// Existing geometry/property trees remain valid for local material/paint
-    /// changes; only indexed visible dirty nodes need extraction and damage.
+    /// Material changes extract individual visible nodes. Visual property
+    /// changes extract disjoint affected subtrees from persistent layout.
     pub(super) fn patch_paint_frame(&mut self) -> Result<FramePacket, Error> {
         let before = self.frame.as_ref().expect("published geometry").clone();
-        let mut patches = vec![];
+        let mut candidates = BTreeMap::new();
         let mut updates = vec![];
         let mut damage: Option<Rect> = None;
         let mut stats = FrameBuildStats::default();
         let mut recorded_chunks = 0;
+        let mut ranges = self
+            .property_dirty
+            .iter()
+            .filter_map(|id| {
+                Some((
+                    *self.paint_indices.get(id)?,
+                    *self.paint_subtree_ends.get(id)?,
+                    *id,
+                ))
+            })
+            .collect::<Vec<_>>();
+        ranges.sort_by_key(|(start, _, _)| *start);
+        // Visible preorder makes descendants contiguous. Keep only the outer
+        // dirty roots so simultaneous ancestor/descendant writes extract once.
+        let mut disjoint = vec![];
+        let mut covered_until = 0;
+        for range in ranges {
+            if range.0 >= covered_until {
+                covered_until = range.1;
+                disjoint.push(range);
+            }
+        }
+        let mut properties = if disjoint.is_empty() {
+            before.properties.clone()
+        } else {
+            Arc::new((*before.properties).clone())
+        };
+        for &(start, end, id) in &disjoint {
+            let (origin, clip, state) = self.subtree_context(id, &before)?;
+            let props = Arc::get_mut(&mut properties).expect("private property snapshot");
+            for index in start..end {
+                let node = before.items[index].node;
+                props.transforms.remove(&node);
+                props.clips.remove(&node);
+                props.scrolls.remove(&node);
+                props.effects.remove(&node);
+            }
+            let extracted =
+                self.extract_subtree(id, origin, clip, state, props, &mut recorded_chunks)?;
+            debug_assert_eq!(extracted.len(), end - start);
+            stats.extracted_nodes += extracted.len();
+            for (index, item) in (start..end).zip(extracted) {
+                debug_assert_eq!(item.node, before.items[index].node);
+                candidates.insert(index, item);
+            }
+        }
         for id in self.paint_dirty.iter().copied().collect::<Vec<_>>() {
             let Some(index) = self.paint_indices.get(&id).copied() else {
                 continue;
             };
+            if candidates.contains_key(&index) {
+                continue;
+            }
             stats.extracted_nodes += 1;
             let mut item = before.items[index].clone();
             let node = self.node_mut(id);
@@ -141,21 +190,36 @@ impl UiTree {
                     .map(|text| text.resource.chunk(item.content_bounds.width))
                     .transpose()?;
             }
-            let old = &before.items[index];
-            if old.commands == item.commands
-                && old.fill_color == item.fill_color
-                && old.image == item.image
-                && old.same_text(&item)
-            {
-                continue;
-            }
-            for ink in [old.ink_bounds(), item.ink_bounds()].into_iter().flatten() {
-                damage = Some(damage.map_or(ink, |previous| previous.union(ink)));
-            }
-            updates.push(item.clone());
-            patches.push((index, item));
+            candidates.insert(index, item);
         }
-        patches.sort_by_key(|(index, _)| *index);
+        let mut patches = vec![];
+        for (index, item) in candidates {
+            let old = &before.items[index];
+            let paint_changed = old.bounds != item.bounds
+                || old.content_bounds != item.content_bounds
+                || old.clip != item.clip
+                || old.commands != item.commands
+                || old.fill_color != item.fill_color
+                || old.image != item.image
+                || !old.same_text(&item);
+            let effects_changed = !properties::same_effects(
+                old.properties.effect,
+                item.properties.effect,
+                &before.properties,
+                &properties,
+            );
+            if paint_changed || effects_changed {
+                for ink in [old.ink_bounds(), item.ink_bounds()].into_iter().flatten() {
+                    damage = Some(damage.map_or(ink, |previous| previous.union(ink)));
+                }
+            }
+            if paint_changed {
+                updates.push(item.clone());
+            }
+            if paint_changed || old.properties != item.properties {
+                patches.push((index, item));
+            }
+        }
         let items = if patches.is_empty() {
             before.items.clone()
         } else {
@@ -173,16 +237,52 @@ impl UiTree {
             updates: updates.into(),
             removed: Arc::from([]),
             order: None,
-            properties: before.properties.clone(),
+            properties,
             damage: Damage {
                 full: false,
                 bounds: damage,
             },
         };
         self.paint_dirty.clear();
+        self.property_dirty.clear();
         self.dirty = false;
         self.frame = Some(frame.clone());
         Ok(frame)
+    }
+
+    fn subtree_context(
+        &self,
+        id: NodeId,
+        before: &FramePacket,
+    ) -> Result<([f32; 2], Option<Rect>, PropertyState), Error> {
+        let Some(parent) = self.node(id)?.parent else {
+            let viewport = self.viewport.expect("published viewport");
+            return Ok((
+                [0.0; 2],
+                Some(Rect {
+                    x: 0.0,
+                    y: 0.0,
+                    width: viewport[0],
+                    height: viewport[1],
+                }),
+                PropertyState::default(),
+            ));
+        };
+        let item = &before.items[self.paint_indices[&parent]];
+        let node = self.node(parent)?;
+        let layout = self.layout.layout(node.layout)?;
+        let mut state = item.properties;
+        if node.scroll != [0.0; 2] {
+            state.scroll = Some(parent);
+        }
+        Ok((
+            [
+                item.bounds.x - node.scroll[0].min(layout.scroll_width()),
+                item.bounds.y - node.scroll[1].min(layout.scroll_height()),
+            ],
+            item.clip,
+            state,
+        ))
     }
 }
 
@@ -338,7 +438,9 @@ mod tests {
         let mut tx = Transaction::default();
         tx.translation(nodes[0], [1.0, 1.0]);
         tree.commit(tx, BackendCapabilities::default()).unwrap();
-        assert!(tree.frame([1000.0; 2]).unwrap().build_stats.full_rebuild);
+        let moved = tree.frame([1000.0; 2]).unwrap();
+        assert!(!moved.build_stats.full_rebuild);
+        assert_eq!(moved.build_stats.extracted_nodes, 1);
         let mut tx = Transaction::default();
         tx.color(nodes[0], 0x11ff11ff);
         tree.commit(tx, BackendCapabilities::default()).unwrap();

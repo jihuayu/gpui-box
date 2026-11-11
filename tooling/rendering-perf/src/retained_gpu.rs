@@ -5,6 +5,7 @@ use gpui_box::retained::{
 };
 use std::{error::Error, fs, path::PathBuf};
 mod retained_bench;
+mod retained_extraction;
 mod retained_glyph_bench;
 mod retained_image;
 mod retained_layers;
@@ -661,6 +662,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_image::run(&mut renderer, &output, &mut results)?;
     retained_text::run(&mut renderer, &output, &mut results)?;
     retained_paint_store::run(&mut renderer, &output, &mut results)?;
+    retained_extraction::run(&mut renderer, &output, &mut results)?;
     fs::write(
         output.join("validation.json"),
         serde_json::to_vec_pretty(&results)?,
@@ -693,6 +695,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     fs::write(
         output.join("paint-store-benchmark.json"),
         serde_json::to_vec_pretty(&retained_paint_store::benchmark()?)?,
+    )?;
+    fs::write(
+        output.join("extraction-benchmark.json"),
+        serde_json::to_vec_pretty(&retained_extraction::benchmark()?)?,
     )?;
     Ok(())
 }

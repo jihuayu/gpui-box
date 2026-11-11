@@ -62,13 +62,13 @@ pub struct PropertyState {
     pub effect: Option<NodeId>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct PropertyNode<T> {
     pub parent: Option<NodeId>,
     pub value: T,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct PropertyTrees {
     pub transforms: BTreeMap<NodeId, PropertyNode<[f32; 2]>>,
     pub clips: BTreeMap<NodeId, PropertyNode<Rect>>,
@@ -168,7 +168,7 @@ pub(super) fn damage(
     }
 }
 
-fn same_effects(
+pub(super) fn same_effects(
     mut a: Option<NodeId>,
     mut b: Option<NodeId>,
     old: &PropertyTrees,
