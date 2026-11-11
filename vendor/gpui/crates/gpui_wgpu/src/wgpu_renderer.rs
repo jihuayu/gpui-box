@@ -18,6 +18,8 @@ use std::sync::Arc;
 
 #[cfg(all(not(target_family = "wasm"), feature = "quad-patch-prototype"))]
 pub mod quad_patch_prototype;
+#[cfg(all(not(target_family = "wasm"), feature = "retained-renderer"))]
+pub mod retained;
 
 const MAX_INSTANCE_BUFFER_SIZE: u64 = 256 * 1024 * 1024;
 
@@ -2350,7 +2352,8 @@ impl WgpuRenderer {
         test,
         feature = "bench-support",
         feature = "test-support",
-        feature = "quad-patch-prototype"
+        feature = "quad-patch-prototype",
+        feature = "retained-renderer"
     )
 ))]
 struct HeadlessRenderTarget {
@@ -2364,7 +2367,8 @@ struct HeadlessRenderTarget {
         test,
         feature = "bench-support",
         feature = "test-support",
-        feature = "quad-patch-prototype"
+        feature = "quad-patch-prototype",
+        feature = "retained-renderer"
     )
 ))]
 impl HeadlessRenderTarget {
@@ -2382,7 +2386,8 @@ impl HeadlessRenderTarget {
         test,
         feature = "bench-support",
         feature = "test-support",
-        feature = "quad-patch-prototype"
+        feature = "quad-patch-prototype",
+        feature = "retained-renderer"
     )
 ))]
 pub struct WgpuHeadlessRenderer {
@@ -2398,7 +2403,8 @@ pub struct WgpuHeadlessRenderer {
         test,
         feature = "bench-support",
         feature = "test-support",
-        feature = "quad-patch-prototype"
+        feature = "quad-patch-prototype",
+        feature = "retained-renderer"
     )
 ))]
 impl WgpuHeadlessRenderer {

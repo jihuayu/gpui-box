@@ -187,7 +187,8 @@ impl WgpuContext {
             test,
             feature = "bench-support",
             feature = "test-support",
-            feature = "quad-patch-prototype"
+            feature = "quad-patch-prototype",
+            feature = "retained-renderer"
         )
     ))]
     pub(crate) fn new_headless() -> anyhow::Result<(Self, wgpu::TextureFormat)> {
@@ -214,7 +215,8 @@ impl WgpuContext {
             test,
             feature = "bench-support",
             feature = "test-support",
-            feature = "quad-patch-prototype"
+            feature = "quad-patch-prototype",
+            feature = "retained-renderer"
         )
     ))]
     fn create_headless() -> anyhow::Result<(Self, wgpu::TextureFormat)> {
@@ -285,7 +287,8 @@ impl WgpuContext {
             test,
             feature = "bench-support",
             feature = "test-support",
-            feature = "quad-patch-prototype"
+            feature = "quad-patch-prototype",
+            feature = "retained-renderer"
         )
     ))]
     /// Both candidates are 8-bit RGBA-ordered or BGRA-ordered formats: headless readback

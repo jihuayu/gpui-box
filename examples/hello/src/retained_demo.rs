@@ -8,6 +8,8 @@ pub struct RetainedDemo {
     tile: NodeId,
     alternate: bool,
     last_commit: String,
+    #[cfg(feature = "retained-wgpu")]
+    gpu: Option<Rc<RefCell<gpui_box::retained::wgpu::WgpuFrameRenderer>>>,
 }
 
 impl RetainedDemo {
@@ -33,13 +35,26 @@ impl RetainedDemo {
             tile,
             alternate: false,
             last_commit: "Ready".into(),
+            #[cfg(feature = "retained-wgpu")]
+            gpu: None,
         }
+    }
+
+    #[cfg(feature = "retained-wgpu")]
+    pub fn with_gpu(cx: &mut Context<Self>) -> Self {
+        let mut view = Self::new(cx);
+        view.gpu = Some(Rc::new(RefCell::new(
+            gpui_box::retained::wgpu::WgpuFrameRenderer::new(3).expect("create GPU frame consumer"),
+        )));
+        view
     }
 }
 
 impl Render for RetainedDemo {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let tree = self.tree.clone();
+        #[cfg(feature = "retained-wgpu")]
+        let gpu = self.gpu.clone();
         div()
             .size_full()
             .p_6()
@@ -99,10 +114,23 @@ impl Render for RetainedDemo {
             .child(self.last_commit.clone())
             .child(
                 canvas(
-                    move |bounds, _, _| {
-                        tree.borrow_mut()
+                    move |bounds, _window, _| {
+                        let frame = tree
+                            .borrow_mut()
                             .frame([f32::from(bounds.size.width), f32::from(bounds.size.height)])
-                            .expect("prepare retained frame")
+                            .expect("prepare retained frame");
+                        #[cfg(feature = "retained-wgpu")]
+                        if let Some(gpu) = &gpu {
+                            let scale = _window.scale_factor();
+                            let surface = [
+                                (f32::from(bounds.size.width) * scale).ceil().max(1.0) as u32,
+                                (f32::from(bounds.size.height) * scale).ceil().max(1.0) as u32,
+                            ];
+                            gpu.borrow_mut()
+                                .submit(&frame, surface, scale)
+                                .expect("submit UI frame to GPU");
+                        }
+                        frame
                     },
                     |bounds, frame, window, _| {
                         for item in frame.items.iter() {
@@ -163,5 +191,34 @@ mod tests {
         });
         assert_eq!(after.revision, repeated.revision);
         assert!(std::sync::Arc::ptr_eq(&after.items, &repeated.items));
+    }
+
+    #[cfg(feature = "retained-wgpu")]
+    #[gpui::test]
+    #[ignore = "requires a hardware WGPU adapter"]
+    fn normal_click_reaches_gpu_and_matches_reference_pixels(cx: &mut TestAppContext) {
+        let (view, cx) = cx.add_window_view(|_, cx| RetainedDemo::with_gpu(cx));
+        let gpu = view.read_with(cx, |view, _| view.gpu.clone().unwrap());
+        let before = gpu.borrow_mut().image().unwrap();
+        let button = cx.debug_bounds("retained-change").unwrap();
+        cx.simulate_click(button.center(), Modifiers::default());
+        cx.run_until_parked();
+        let frame = view.read_with(cx, |view, _| {
+            view.tree.borrow().published_frame().unwrap().clone()
+        });
+        let after = gpu.borrow_mut().image().unwrap();
+        assert!(
+            before.as_raw() != after.as_raw(),
+            "click must change GPU pixels"
+        );
+        let scale = cx.update(|window, _| window.scale_factor());
+        let reference = gpu
+            .borrow_mut()
+            .reference_image(&frame, [after.width(), after.height()], scale)
+            .unwrap();
+        assert!(
+            after.as_raw() == reference.as_raw(),
+            "UI frame and full renderer pixels differ"
+        );
     }
 }

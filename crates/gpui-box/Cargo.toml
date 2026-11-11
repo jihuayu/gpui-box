@@ -11,15 +11,18 @@ publish.workspace = true
 [features]
 default = []
 retained = ["dep:taffy"]
+retained-wgpu = ["retained", "dep:gpui", "dep:gpui_wgpu"]
 android = ["dep:gpui", "dep:gpui-android"]
 desktop = ["dep:gpui", "dep:gpui_platform", "gpui_platform/font-kit", "gpui_platform/wayland", "gpui_platform/x11"]
 
 [target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
 gpui = { workspace = true, optional = true }
 gpui_platform = { workspace = true, optional = true }
+gpui_wgpu = { path = "../../vendor/gpui/crates/gpui_wgpu", optional = true, features = ["retained-renderer"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 gpui = { workspace = true, optional = true }
+gpui_wgpu = { path = "../../vendor/gpui/crates/gpui_wgpu", optional = true, features = ["retained-renderer"] }
 gpui-android = { workspace = true, optional = true }
 
 [lints]

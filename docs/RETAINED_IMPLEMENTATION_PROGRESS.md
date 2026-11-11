@@ -3,6 +3,9 @@
 The active implementation goal covers the complete runtime requested on
 2026-11-11. Work continues in `codex/rendering-performance-research`.
 
+The subsequent [GPU integration stage](RETAINED_GPU_INTEGRATION.md) connects
+FramePacket deltas to persistent quad allocations and bounded in-flight submits.
+
 ## Current integrated foundation
 
 `gpui-box/retained` owns persistent rectangle nodes and a Taffy tree. Nodes carry
@@ -31,24 +34,27 @@ This adapter declares default backend capabilities and uses ordinary GPUI paint.
 The earlier WGPU single-quad upload prototype remains a separate experiment.
 `InstancePatch` is a routing intent for a consumer declaring that capability.
 The normal canvas adapter currently selects `RepaintChunks` for color changes.
+With the `retained-wgpu` example feature, the same click and prepaint flow also
+submits the frame to a persistent offscreen GPU consumer. The explicit hardware
+click test passed pixel comparison at the actual window scale.
 
 ## Full-goal acceptance tracking
 
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
-| Normal UI update chain | Desktop gallery click → transaction → persistent layout → owned frame → GPUI paint, with GPUI simulated-click integration coverage | Native-window pixel checks, signals/property sinks and GPU delta consumption |
+| Normal UI update chain | Desktop click → transaction → layout → FramePacket → ordinary paint plus optional persistent WGPU, with hardware pixel checks | Native-surface presentation, reactive sources/property sinks and complete routing |
 | P0 equality and transactions | Final-value comparison, batch validation, duplicate field coalescing, no frame request on equality | Reactive sources, nested transaction boundaries, event scheduling and idle-wakeup measurements |
 | P0–P5 routing | Rectangle color/translation/style/reorder intents and backend capability input | General primitive capabilities, explicit fallback reasons, semantic/resource channels and actual GPU patch dispatch |
 | Logical / Render Tree | Persistent one-to-one rectangle identity, children, removal and generation | Separate logical scopes and render identities, portals, keyed reconciliation, event/semantics lifetime and legacy islands |
 | Persistent Taffy | Long-lived nodes, style/children setters, root cache and resize handling | Owned text/image/custom measure snapshots, baseline/overflow dependencies, independent islands and layout visit counters |
 | Paint chunks / property trees | Shared local fill commands and inherited translation | Stable chunk IDs, separate clip/effect/scroll trees, selective geometry extraction and spatial indices |
-| GPU arena | Prior fixed-scene WGPU prototype | General allocation table, pages, slot reuse, generation, resource leases and fences |
-| Batch GPU updates | CPU property transactions can batch nodes | Upload-range coalescing, 10,000-object animation and GPU batch throughput comparison |
+| GPU arena | Generic CPU allocation table with generations and deferred slot reuse, WGPU geometric growth and completion-held buffer/binding leases | General resource/material records, budgets, compaction and other backends |
+| Batch GPU updates | Adjacent upload merging, actual 160/480-byte writes and 10,000-object batch translation pixel verification | Sustained 60/120Hz animation, throughput/latency comparison and tuning |
 | P2 property / composite | Translation reuses command chunks and updates hit geometry | GPU transform/opacity/scroll, group isolation and NativeView geometry |
 | Text / images / complex primitives | Existing legacy GPUI functionality and previous source audit | New retained primitive types, resource events, shaping and pixel regressions |
 | Flex / responsive contract | Pinned Taffy style input and persistent resize | Public subset validation, RTL/baseline/rounding tests, environment subscriptions, constraint/container queries and adaptive structures |
 | Damage / cache / compositor | Existing full-frame GPUI fallback | Old/new ink damage, buffer preservation rules, raster cache budgets, eviction and strategy A/B |
-| FramePacket / frames in flight | Owned immutable CPU frames outlive tree mutation/deletion | Base revisions, epochs, queue coalescing, GPU retirement, device loss and backpressure |
+| FramePacket / frames in flight | Owned snapshots plus base-revision deltas, skip-frame resync, stale-frame rejection, bounded queue, completion retirement and explicit renderer reset | Forced device/surface loss, resource epochs, background completion pumping and producer queue coalescing |
 
 ## Verification and present limits
 

@@ -94,6 +94,7 @@ and will be added in their owning directories as implementation progresses.
 ## Documentation
 
 - [Retained runtime implementation progress and acceptance tracking](docs/RETAINED_IMPLEMENTATION_PROGRESS.md)
+- [Retained frame deltas, GPU arena and multi-frame integration](docs/RETAINED_GPU_INTEGRATION.md)
 - [Rendering performance research and reproducible CPU experiments](docs/RENDERING_PERFORMANCE_RESEARCH.md)
 - [Single-quad GPU upload prototype and hardware comparison](docs/GPU_QUAD_PATCH_RESULTS.md)
 - [Repository layout](docs/REPOSITORY_LAYOUT.md)

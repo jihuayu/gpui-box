@@ -1,0 +1,27 @@
+param([string]$Output = 'target/retained-runtime-gpu')
+$ErrorActionPreference = 'Stop'
+$workspace = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
+Push-Location -LiteralPath $workspace
+try {
+    & mise exec -- cargo build --release --locked --offline -p gpui-box-rendering-perf --features retained-gpu --bin retained-runtime-gpu
+    if ($LASTEXITCODE -ne 0) { throw 'Retained runtime build failed' }
+    New-Item -ItemType Directory -Path $Output -Force | Out-Null
+    $sources = @('Cargo.lock', 'crates/gpui-box/Cargo.toml', 'crates/gpui-box/src/retained.rs',
+        'crates/gpui-box/src/retained/arena.rs', 'crates/gpui-box/src/retained/wgpu.rs',
+        'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained.rs',
+        'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer.rs',
+        'tooling/rendering-perf/src/retained_gpu.rs')
+    $hashes = foreach ($source in $sources) {
+        [ordered]@{path = $source; sha256 = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash}
+    }
+    [ordered]@{
+        started_at = [DateTimeOffset]::Now.ToString('o')
+        base_commit = (& git rev-parse HEAD).Trim()
+        rustc = (& mise exec -- rustc -Vv) -join "`n"
+        source_hashes = @($hashes)
+        scope = 'Retained UI frames, hardware pixel comparisons, upload payload counts, in-flight lifecycle'
+    } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $Output 'metadata.json') -Encoding utf8
+    & ./target/release/retained-runtime-gpu.exe $Output
+    if ($LASTEXITCODE -ne 0) { throw 'Retained runtime hardware validation failed' }
+}
+finally { Pop-Location }

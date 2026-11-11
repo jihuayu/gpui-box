@@ -43,3 +43,19 @@ Its report records actual adapter, source hashes, pixel comparisons and timing
 scope. `UPSTREAM.json` continues to identify the original import bytes. The
 410/411 count above describes the earlier M0 audit before this experimental
 patch, rather than the current checkout's hash match count.
+
+## Retained FramePacket quad consumer
+
+The separate opt-in `retained-renderer` feature enables
+`wgpu_renderer/retained.rs`. It owns persistent storage buffers and bindings,
+accepts batched instance ranges, preserves explicit draw order and holds replaced
+allocations through submission completion. Its bounded queue polls the oldest
+submission at the configured limit. Headless feature gates also accept this
+feature so distribution-owned retained frames can be validated with pixel
+readback. The distribution facade owns node identity, frame revisions and the
+generic instance allocation table in `crates/gpui-box/src/retained`.
+
+Validation includes same-backend pixel comparison for resizing, growth,
+transparency, reordering, deletion/reuse, dropped frames, explicit reconstruction
+and a 10,000-object batch. The desktop test app exercises click-to-offscreen-GPU
+submission. Native window surface presentation remains separate integration work.

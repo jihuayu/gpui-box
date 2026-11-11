@@ -14,9 +14,11 @@ default = []
 gpui-scene = ["dep:gpui"]
 gpu-backend = ["gpui-scene", "dep:gpui_wgpu"]
 gpu-prototype = ["gpu-backend", "gpui_wgpu/quad-patch-prototype", "dep:serde_json"]
+retained-gpu = ["dep:gpui-box", "gpui-box/retained-wgpu", "dep:serde_json"]
 
 [dependencies]
 gpui = { workspace = true, optional = true }
+gpui-box = { workspace = true, optional = true }
 gpui_wgpu = { path = "../../vendor/gpui/crates/gpui_wgpu", optional = true }
 serde_json = { version = "1", optional = true }
 # Match the pinned GPUI version and layout features, including disabled rounding
@@ -30,3 +32,8 @@ workspace = true
 name = "quad-patch-gpu"
 path = "src/gpu.rs"
 required-features = ["gpu-prototype"]
+
+[[bin]]
+name = "retained-runtime-gpu"
+path = "src/retained_gpu.rs"
+required-features = ["retained-gpu"]

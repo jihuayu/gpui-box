@@ -1,0 +1,114 @@
+[
+  {
+    "case": "initial",
+    "pixel_equal": true,
+    "revision": 9,
+    "layout_runs": 1,
+    "recorded_chunks": 9
+  },
+  {
+    "case": "color",
+    "pixel_equal": true,
+    "revision": 10,
+    "layout_runs": 0,
+    "recorded_chunks": 1
+  },
+  {
+    "case": "batch",
+    "pixel_equal": true,
+    "revision": 11,
+    "layout_runs": 0,
+    "recorded_chunks": 3
+  },
+  {
+    "case": "translation",
+    "pixel_equal": true,
+    "revision": 12,
+    "layout_runs": 0,
+    "recorded_chunks": 0
+  },
+  {
+    "case": "reorder",
+    "pixel_equal": true,
+    "revision": 13,
+    "layout_runs": 1,
+    "recorded_chunks": 0
+  },
+  {
+    "case": "replace",
+    "pixel_equal": true,
+    "revision": 15,
+    "layout_runs": 1,
+    "recorded_chunks": 1
+  },
+  {
+    "case": "in-flight-reuse",
+    "pixel_equal": true,
+    "revision": 62,
+    "layout_runs": 0,
+    "recorded_chunks": 0
+  },
+  {
+    "case": "dropped-base",
+    "pixel_equal": true,
+    "revision": 64,
+    "layout_runs": 0,
+    "recorded_chunks": 1
+  },
+  {
+    "case": "reset",
+    "pixel_equal": true,
+    "revision": 64,
+    "layout_runs": 0,
+    "recorded_chunks": 1
+  },
+  {
+    "case": "resize-scale",
+    "pixel_equal": true,
+    "revision": 65,
+    "layout_runs": 1,
+    "recorded_chunks": 0
+  },
+  {
+    "case": "growth",
+    "pixel_equal": true,
+    "revision": 105,
+    "layout_runs": 1,
+    "recorded_chunks": 40
+  },
+  {
+    "case": "new-tree",
+    "pixel_equal": true,
+    "revision": 1,
+    "layout_runs": 1,
+    "recorded_chunks": 1
+  },
+  {
+    "case": "transparent-overlap",
+    "pixel_equal": true,
+    "revision": 3,
+    "layout_runs": 1,
+    "recorded_chunks": 2
+  },
+  {
+    "case": "transparent-reorder",
+    "pixel_equal": true,
+    "revision": 4,
+    "layout_runs": 1,
+    "recorded_chunks": 0
+  },
+  {
+    "case": "alpha-update",
+    "pixel_equal": true,
+    "revision": 5,
+    "layout_runs": 0,
+    "recorded_chunks": 1
+  },
+  {
+    "case": "batch-10000",
+    "pixel_equal": true,
+    "revision": 10002,
+    "layout_runs": 0,
+    "recorded_chunks": 0
+  }
+]

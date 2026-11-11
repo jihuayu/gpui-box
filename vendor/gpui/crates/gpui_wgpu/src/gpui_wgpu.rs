@@ -13,10 +13,13 @@ pub use wgpu_context::*;
         test,
         feature = "bench-support",
         feature = "test-support",
-        feature = "quad-patch-prototype"
+        feature = "quad-patch-prototype",
+        feature = "retained-renderer"
     )
 ))]
 pub use wgpu_renderer::WgpuHeadlessRenderer;
 #[cfg(all(not(target_family = "wasm"), feature = "quad-patch-prototype"))]
 pub use wgpu_renderer::quad_patch_prototype::*;
+#[cfg(all(not(target_family = "wasm"), feature = "retained-renderer"))]
+pub use wgpu_renderer::retained::*;
 pub use wgpu_renderer::{GpuContext, WgpuRenderer, WgpuSurfaceConfig};

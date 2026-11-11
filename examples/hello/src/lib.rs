@@ -94,3 +94,13 @@ pub fn open_retained(cx: &mut App) {
     .expect("open retained UI example");
     cx.activate(true);
 }
+
+/// Opens the normal gallery with offscreen WGPU delta consumption enabled.
+#[cfg(feature = "retained-wgpu")]
+pub fn open_retained_gpu(cx: &mut App) {
+    cx.open_window(WindowOptions::default(), |_, cx| {
+        cx.new(retained_demo::RetainedDemo::with_gpu)
+    })
+    .expect("open retained GPU integration example");
+    cx.activate(true);
+}

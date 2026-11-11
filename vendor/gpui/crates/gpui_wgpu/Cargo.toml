@@ -15,6 +15,7 @@ doctest = false
 [features]
 default = []
 quad-patch-prototype = ["dep:image"]
+retained-renderer = ["dep:image"]
 bench-support = ["gpui/bench-support", "dep:image"]
 font-kit = ["dep:font-kit"]
 test-support = ["gpui/test-support", "dep:image"]

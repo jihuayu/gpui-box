@@ -7,6 +7,11 @@ fn main() {
             }
         })
         .detach();
+        #[cfg(feature = "retained-wgpu")]
+        if retained {
+            gpui_box_example_hello::open_retained_gpu(cx);
+            return;
+        }
         if retained {
             gpui_box_example_hello::open_retained(cx);
         } else {

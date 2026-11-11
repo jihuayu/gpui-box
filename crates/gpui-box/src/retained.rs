@@ -11,6 +11,9 @@ use std::{
 pub use taffy::Style;
 use taffy::prelude::*;
 pub use taffy::style_helpers::{length, percent};
+pub mod arena;
+#[cfg(all(feature = "retained-wgpu", not(target_family = "wasm")))]
+pub mod wgpu;
 
 /// Identity belongs to one tree and one lifetime of its arena slot.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -44,10 +47,15 @@ pub struct PaintItem {
 /// Owned output can be read after the producing tree has changed or been dropped.
 #[derive(Clone, Debug)]
 pub struct FramePacket {
+    pub tree: u64,
+    pub base_revision: Option<u64>,
     pub revision: u64,
     pub items: Arc<[PaintItem]>,
     pub layout_runs: u64,
     pub recorded_chunks: u64,
+    pub updates: Arc<[PaintItem]>,
+    pub removed: Arc<[NodeId]>,
+    pub order: Option<Arc<[NodeId]>>,
 }
 
 impl FramePacket {
@@ -125,6 +133,9 @@ pub enum Error {
     CannotRemoveRoot,
     RevisionExhausted,
     Layout(String),
+    InvalidFrame,
+    StaleFrame,
+    Gpu(String),
 }
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -481,11 +492,44 @@ impl UiTree {
                 commands,
             });
         }
+        let previous: BTreeMap<_, _> = self
+            .frame
+            .as_ref()
+            .map(|frame| frame.items.iter().map(|item| (item.node, item)).collect())
+            .unwrap_or_default();
+        let current: BTreeMap<_, _> = items.iter().map(|item| (item.node, item)).collect();
+        let updates = items
+            .iter()
+            .filter(|item| {
+                previous
+                    .get(&item.node)
+                    .is_none_or(|old| old.bounds != item.bounds || old.commands != item.commands)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        let removed = previous
+            .keys()
+            .filter(|id| !current.contains_key(id))
+            .copied()
+            .collect::<Vec<_>>();
+        let order: Vec<_> = items.iter().map(|item| item.node).collect();
+        let order_changed = self.frame.as_ref().is_none_or(|frame| {
+            !frame
+                .items
+                .iter()
+                .map(|item| item.node)
+                .eq(order.iter().copied())
+        });
         let frame = FramePacket {
+            tree: self.identity,
+            base_revision: self.frame.as_ref().map(|frame| frame.revision),
             revision: self.revision,
             items: items.into(),
             layout_runs,
             recorded_chunks,
+            updates: updates.into(),
+            removed: removed.into(),
+            order: order_changed.then(|| order.into()),
         };
         self.layout_dirty = false;
         self.dirty = false;
