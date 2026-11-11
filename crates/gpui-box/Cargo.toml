@@ -28,6 +28,8 @@ notifications = ["system", "app-data", "permissions", "activation", "dep:gpui-no
 notifications-gpui = ["notifications", "system-gpui", "permissions-gpui", "activation-gpui", "gpui-notifications/gpui"]
 permissions = ["system", "dep:gpui-permissions"]
 permissions-gpui = ["permissions", "system-gpui", "gpui-permissions/gpui"]
+accessibility = ["system", "dep:gpui-accessibility"]
+accessibility-gpui = ["accessibility", "system-gpui", "gpui-accessibility/gpui"]
 files = ["system", "app-data", "dep:gpui-files"]
 files-gpui = ["files", "system-gpui", "gpui-files/gpui"]
 android = ["dep:gpui", "dep:gpui-android"]
@@ -44,6 +46,7 @@ gpui-app-data = { workspace = true, optional = true }
 gpui-lifecycle = { workspace = true, optional = true }
 gpui-system = { workspace = true, optional = true }
 gpui-permissions = { workspace = true, optional = true }
+gpui-accessibility = { workspace = true, optional = true }
 gpui-files = { workspace = true, optional = true }
 gpui-local-auth = { workspace = true, optional = true }
 gpui-updates = { workspace = true, optional = true }
