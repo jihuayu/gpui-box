@@ -193,6 +193,12 @@ event overflow/resync, single-reader enforcement and reentrant listener cleanup.
 The ownership regression additionally rejects worker-thread UI execution while
 accepting a worker callback delivered to the local receiver. A compile-fail doc
 test freezes Request's non-Send boundary.
+Explicit text/link sharing and prepared authorized file-resource leases build
+on these primitives in `crates/gpui-sharing`. See [SYSTEM_SHARING.md](SYSTEM_SHARING.md).
+The Windows adapter reports invocation acceptance separately from presentation
+and target delivery; copy is a caller-selected route. Native file handoff and
+Android/Apple/Linux adapters remain separate qualification gates.
+
 
 Foreground, user-initiated text clipboard operations build on these primitives
 in `crates/gpui-clipboard`. See [`SYSTEM_CLIPBOARD.md`](SYSTEM_CLIPBOARD.md).
