@@ -116,6 +116,10 @@ pub use gpui_network as network;
 #[cfg(feature = "jobs")]
 pub use gpui_jobs as jobs;
 
+/// Persistent local notification scheduling, evidence and reconciliation.
+#[cfg(feature = "notification-schedule")]
+pub use gpui_notification_schedule as notification_schedule;
+
 /// Taskbar, Dock, badge, attention and notification task presentation.
 #[cfg(feature = "task-presentation")]
 pub use gpui_task_presentation as task_presentation;
@@ -140,6 +144,36 @@ mod tests {
             jobs::platform_support_matrix()
                 .iter()
                 .all(|row| row.evidence == jobs::Evidence::ContractOnly)
+        );
+    }
+
+    #[cfg(feature = "notification-schedule")]
+    #[test]
+    fn notification_schedule_facade_reexports_the_coordinated_contracts() {
+        use crate::notification_schedule;
+        assert_eq!(
+            notification_schedule::UPSTREAM_GPUI_REVISION,
+            crate::UPSTREAM_REVISION
+        );
+        assert_eq!(notification_schedule::PACKAGE_VERSION, crate::VERSION);
+        assert_eq!(notification_schedule::ScheduleOperation::ALL.len(), 6);
+        assert_eq!(notification_schedule::PlatformTarget::ALL.len(), 6);
+        assert_eq!(notification_schedule::platform_support_matrix().len(), 36);
+        assert_eq!(
+            notification_schedule::DEFAULT_NOTIFICATION_SCHEDULE_EVENT_CAPACITY,
+            64
+        );
+        assert_eq!(notification_schedule::PROVIDER_MANIFEST.len(), 5);
+        assert_eq!(
+            notification_schedule::NOTIFICATION_SCHEDULE_FORMAT_VERSION,
+            1
+        );
+        assert_eq!(notification_schedule::MIN_REPEATING_INTERVAL_MS, 60_000);
+        assert_eq!(notification_schedule::DEFAULT_MAX_ACTIVE_SCHEDULES, 64);
+        assert!(
+            notification_schedule::platform_support_matrix()
+                .iter()
+                .all(|row| row.evidence == notification_schedule::Evidence::ContractOnly)
         );
     }
 
