@@ -183,6 +183,98 @@ fn target(config: &AppConfig, platform: &str) -> Result<(), String> {
         Err(format!("Target {platform} is disabled in gpui-box.json"))
     }
 }
+
+fn build_command(root: &Path, platform: &str) -> Result<Command, String> {
+    match platform {
+        "desktop" => {
+            let mut command = Command::new("mise");
+            command
+                .current_dir(root)
+                .args(["exec", "--", "cargo", "build", "-p", "box-desktop"]);
+            Ok(command)
+        }
+        "android" => Ok(crate::package::gradle_command(
+            root,
+            &[":app:assembleDebug"],
+        )),
+        _ => Err("Unsupported build target. Use desktop or android.".into()),
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct CommandPlan {
+    pub program: String,
+    pub arguments: Vec<String>,
+    pub working_directory: PathBuf,
+    pub inherits_environment: bool,
+    pub environment_overrides: BTreeMap<String, Option<String>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BuildPlan {
+    pub schema_version: u32,
+    pub operation: &'static str,
+    pub host: String,
+    pub target: String,
+    pub toolchain_targets: Vec<String>,
+    pub generation: crate::generate::ChangePlan,
+    pub command: CommandPlan,
+    pub execution_side_effects: Vec<&'static str>,
+    pub execution_preconditions: Vec<&'static str>,
+}
+
+pub fn build_plan(root: &Path, platform: &str) -> Result<BuildPlan, String> {
+    let config = AppConfig::load(root)?;
+    target(&config, platform)?;
+    let generation = crate::generate::plan(root)?;
+    let command = build_command(root, platform)?;
+    let utf8 = |value: &std::ffi::OsStr| {
+        value
+            .to_str()
+            .map(str::to_string)
+            .ok_or("Build plan command requires UTF-8 arguments".to_string())
+    };
+    let toolchain_targets = if platform == "android" {
+        vec![
+            "aarch64-linux-android".into(),
+            "x86_64-linux-android".into(),
+        ]
+    } else {
+        vec![format!("{}-{}", env::consts::ARCH, env::consts::OS)]
+    };
+    Ok(BuildPlan {
+        schema_version: 1,
+        operation: "build",
+        host: format!("{}-{}", env::consts::ARCH, env::consts::OS),
+        target: platform.into(),
+        toolchain_targets,
+        generation,
+        command: CommandPlan {
+            program: utf8(command.get_program())?,
+            arguments: command.get_args().map(utf8).collect::<Result<_, _>>()?,
+            working_directory: command
+                .get_current_dir()
+                .ok_or("Build command requires a working directory")?
+                .into(),
+            inherits_environment: true,
+            environment_overrides: command
+                .get_envs()
+                .map(|(key, value)| Ok((utf8(key)?, value.map(utf8).transpose()?)))
+                .collect::<Result<_, String>>()?,
+        },
+        execution_side_effects: vec![
+            "Regenerate managed project files under the generation lock and journal",
+            "Child build tools may update project lockfiles, build output, local and shared caches",
+            "Child tools may resolve or download dependencies according to their inherited configuration",
+        ],
+        execution_preconditions: vec![
+            "Current configuration and managed-file ownership must pass generation preflight again",
+            "Required mise/compiler/SDK tools must be installed and trusted for the project",
+            "Android execution verifies the generated Gradle Wrapper before process startup",
+        ],
+    })
+}
+
 pub fn workflow(
     root: &Path,
     operation: &str,
@@ -199,13 +291,24 @@ pub fn workflow(
     };
     let serial = selected.as_deref().or(serial);
     crate::generate::generate(root, false)?;
-    match (operation, platform) {
-        ("build" | "dev", "desktop") => {
-            let task = if operation == "dev" { "run" } else { "build" };
-            run(Command::new("mise").current_dir(root)
-                .args(["exec", "--", "cargo", task, "-p", "box-desktop"]))
+    if operation == "build" {
+        if platform == "android" {
+            crate::package::verify_wrapper(&root.join("android-host"))?;
         }
-        ("build" | "dev" | "install" | "package", "android") => {
+        let mut command = build_command(root, platform)?;
+        if platform == "android"
+            && let Some(serial) = serial
+        {
+            command.env("ANDROID_SERIAL", serial);
+        }
+        return run(&mut command);
+    }
+    match (operation, platform) {
+        ("dev", "desktop") => {
+            run(Command::new("mise").current_dir(root)
+                .args(["exec", "--", "cargo", "run", "-p", "box-desktop"]))
+        }
+        ("dev" | "install" | "package", "android") => {
             let task = if matches!(operation, "dev" | "install") {
                 ":app:installDebug"
             } else {

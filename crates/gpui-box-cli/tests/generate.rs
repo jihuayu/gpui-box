@@ -695,6 +695,124 @@ fn doctor_signing_checks_expose_presence_without_environment_values() {
     }
 }
 
+#[test]
+fn build_plans_are_deterministic_read_only_and_use_real_command_arguments() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create(temporary.path());
+    let config_path = app.join("gpui-box.json");
+    let mut config: serde_json::Value =
+        serde_json::from_slice(&fs::read(&config_path).unwrap()).unwrap();
+    config["version"] = "5.0.0".into();
+    fs::write(config_path, serde_json::to_vec(&config).unwrap()).unwrap();
+    let before = snapshot(&app);
+    for platform in ["desktop", "android"] {
+        let mut plans = Vec::new();
+        for _ in 0..2 {
+            let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+                .current_dir(&app)
+                .args(["build", platform, "--dry-run", "--json"])
+                .env("PATH", temporary.path().join("missing-tools"))
+                .env("ANDROID_HOME", temporary.path().join("missing-sdk"))
+                .env("GPUI_BOX_ANDROID_STORE_PASSWORD", "SECRET_PLAN_SENTINEL")
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert!(!String::from_utf8_lossy(&output.stdout).contains("SECRET_PLAN_SENTINEL"));
+            let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+            let plan = response["result"].clone();
+            assert_eq!(plan["schema_version"], 1);
+            assert_eq!(plan["operation"], "build");
+            assert_eq!(plan["target"], platform);
+            assert_eq!(plan["command"]["program"], "mise");
+            assert_eq!(plan["command"]["inherits_environment"], true);
+            assert_eq!(
+                plan["command"]["environment_overrides"],
+                serde_json::json!({})
+            );
+            assert!(
+                plan["generation"]["files"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|file| file["action"] == "update")
+            );
+            let arguments = plan["command"]["arguments"].as_array().unwrap();
+            if platform == "desktop" {
+                assert_eq!(
+                    plan["command"]["arguments"],
+                    serde_json::json!(["exec", "--", "cargo", "build", "-p", "box-desktop"])
+                );
+            } else {
+                assert_eq!(arguments.last().unwrap(), ":app:assembleDebug");
+                assert_eq!(arguments[0], "-E");
+                assert_eq!(arguments[1], "android");
+                let wrapper = PathBuf::from(arguments[6].as_str().unwrap());
+                assert!(wrapper.ends_with("android-host/gradle/wrapper/gradle-wrapper.jar"));
+                assert_eq!(
+                    plan["toolchain_targets"],
+                    serde_json::json!(["aarch64-linux-android", "x86_64-linux-android"])
+                );
+            }
+            plans.push(plan);
+            assert_eq!(before, snapshot(&app));
+        }
+        assert_eq!(plans[0], plans[1]);
+    }
+}
+
+#[test]
+fn build_plan_handles_uninitialized_projects_and_rejects_disabled_targets_and_conflicts() {
+    let temporary = tempfile::tempdir().unwrap();
+    let seed = create(temporary.path());
+    let app = temporary.path().join("Existing source project");
+    fs::create_dir(&app).unwrap();
+    fs::copy(seed.join("gpui-box.json"), app.join("gpui-box.json")).unwrap();
+    let before = snapshot(&app);
+    let output = cli(&app, &["build", "android", "--dry-run", "--json"]);
+    assert!(output.status.success());
+    let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(
+        response["result"]["generation"]["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|file| file["action"] == "create")
+    );
+    assert_eq!(before, snapshot(&app));
+    for failure in ["disabled", "managed", "lock", "unknown"] {
+        let failure_root = tempfile::tempdir().unwrap();
+        let seed = create(failure_root.path());
+        let config_path = seed.join("gpui-box.json");
+        let mut config: serde_json::Value =
+            serde_json::from_slice(&fs::read(&config_path).unwrap()).unwrap();
+        if failure == "disabled" {
+            config["targets"] = serde_json::json!(["desktop"]);
+            fs::write(&config_path, serde_json::to_vec(&config).unwrap()).unwrap();
+        }
+        if failure == "managed" {
+            fs::write(seed.join("Cargo.toml"), "// conflict").unwrap();
+        }
+        if failure == "lock" {
+            fs::write(seed.join(".gpui-box/generate.lock"), "owner").unwrap();
+        }
+        let before = snapshot(&seed);
+        let platform = if failure == "unknown" {
+            "web"
+        } else {
+            "android"
+        };
+        let output = cli(&seed, &["build", platform, "--dry-run", "--json"]);
+        assert!(!output.status.success());
+        let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(response["error"]["code"], "BUILD_PLAN_FAILED");
+        assert_eq!(before, snapshot(&seed));
+    }
+}
+
 #[cfg(windows)]
 #[test]
 fn interrupted_plan_apply_requires_new_preview_and_ordinary_generate_recovers() {
