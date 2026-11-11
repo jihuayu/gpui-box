@@ -246,3 +246,59 @@ consecutive runs. The expanded `mise run check` after PR #40 integration passes
 115 host tests and 3 compile-fail doctests, with one additional child-process
 test invocation. Components pass 5 model tests and 2 real GPUI context tests.
 Windows desktop build and Android x86_64 strict Clippy pass.
+
+## Native contextual permission continuation
+
+Session `android-permissions-20261111-b731` coordinates #20/#2 and the #3/#4
+gallery/tooling integration. The Android host installs the process-owned shared
+PermissionService in SystemServices before application launch. Both a purpose
+declaration and the matching manifest permission are required. Missing microphone
+configuration returns InvalidConfiguration with RepairConfiguration. Unsupported
+photos/biometrics/special access remain explicit Unsupported results.
+
+The adapter maps notifications, camera, microphone, foreground location and contacts.
+It probes checkSelfPermission on every query and result, handles approximate
+location as Limited and enterprise policy restriction as Restricted. Only completed
+denied callbacks contribute persistent first/retry/permanent-denial hints. A later
+successful grant clears a permanent-denial hint. Auto-reset/reinstall and wider
+OS policy cases require further qualification. Authorization must be rechecked
+before the actual protected operation and operation-time denial remains possible.
+
+Kotlin posts prompt presentation until Rust borrows unwind, then verifies the
+request is still current. Unique process request IDs identify callbacks. The
+native lane remains busy while Android owns a dialog even if the application
+cancels. Surface replacement advances the host UiOwner and rejects old completions.
+Saved pending native state carries a process token and records only started dialogs.
+Foreground-focus transitions reconcile authoritative states through the shared
+bounded observation stream. Settings results describe handoff only.
+
+New instrumentation exercises actual system permission controls through UiAutomation.
+Camera grants resolve the Rust request and a repeat request reports prompted=false.
+Notification first denial permits retry, the second denial becomes permanent,
+and a repeat avoids a synthetic dialog. The notification settings Activity is
+actually opened, PackageManager grants authorization while the app is paused,
+and foreground reconciliation updates the semantic status. Unknown request IDs
+are rejected. Configuration/unsupported cases use the native Rust diagnostic path.
+No notification payload or camera image is created by these tests.
+
+During test development, `pm revoke` correctly killed the instrumented app after
+a grant. That path requires an external process runner. A stale emulator Settings
+ANR overlay also caused focus failures. Clearing it and waiting for the actual
+Settings window before returning resolved the test interference. Keep lint and
+connected tests serial on this host. Do not classify an obscuring system window
+as a provider authorization result.
+
+The full API 35 x86_64 connected suite passed 14/14 after these fixes. Both Android
+ABIs build at platform 35, Windows desktop build passes, and Android strict Clippy
+passes. Integrated host checks include 137 host tests plus 6 compile-fail doctests
+after #41, with two additional nested child-process test reports. Components pass
+5 model tests and 2 actual GPUI context tests. CLI passes 11 tests. Android lint
+reports 0 errors and 8 existing warnings. Toolchain/renderer details match the
+continuation above. Physical-device testing remains deferred.
+
+Runtime evidence covers notification denial/retry/permanent denial/settings-resume
+and camera grants. Microphone, contacts, approximate-location, policy restrictions,
+prompt-during-recreation/cancellation stress and revocation/process reconstruction
+retain separate runtime gates. Provider capabilities conservatively use Compiled.
+The generic five-platform contract manifest retains its original scope. Full M1,
+M2 and system-service acceptance remain open in their issues.

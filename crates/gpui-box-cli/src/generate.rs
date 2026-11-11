@@ -246,12 +246,24 @@ include(":app")
             "android.hardware.camera",
         ),
         (
+            crate::config::PermissionKind::Camera,
+            "android.hardware.camera.autofocus",
+        ),
+        (
             crate::config::PermissionKind::Microphone,
             "android.hardware.microphone",
         ),
         (
             crate::config::PermissionKind::LocationWhenInUse,
             "android.hardware.location",
+        ),
+        (
+            crate::config::PermissionKind::LocationWhenInUse,
+            "android.hardware.location.gps",
+        ),
+        (
+            crate::config::PermissionKind::LocationWhenInUse,
+            "android.hardware.location.network",
         ),
     ] {
         if config
