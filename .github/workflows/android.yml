@@ -1,0 +1,81 @@
+name: Android build checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-build:
+    name: Android API 35 native build and lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CARGO_TERM_COLOR: never
+      CARGO_INCREMENTAL: "0"
+      MISE_ENV: android
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Set up pinned mise and Android tools
+        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: 2026.7.5
+          sha256: 5f7ab76afdf0780d12edeaa67e908094e9ccf7924cfe203e415c1cfb87bbf778
+          cache: true
+      - name: Verify hosted Android SDK and tool identities
+        run: |
+          mkdir -p target/ci
+          : "${ANDROID_HOME:?Hosted Android SDK is required}"
+          for package in platforms/android-36 build-tools/36.0.0 ndk/30.0.16248370; do
+            test -f "$ANDROID_HOME/$package/source.properties"
+            cat "$ANDROID_HOME/$package/source.properties"
+          done | tee target/ci/android-sdk.txt
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/30.0.16248370"
+          echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME" >> "$GITHUB_ENV"
+          echo "GRADLE_USER_HOME=$RUNNER_TEMP/gpui-box-gradle" >> "$GITHUB_ENV"
+          mise run setup:rust
+          mise run setup:android
+          mise exec -- rustc --version --verbose | tee target/ci/rust.txt
+          mise exec -- cargo --version | tee target/ci/cargo.txt
+          mise exec -- cargo ndk --version | tee target/ci/cargo-ndk.txt
+          mise exec -- java -version 2>&1 | tee target/ci/java.txt
+      - name: Lint both Android native targets
+        run: |
+          mise exec -- cargo ndk --platform 35 -t arm64-v8a -t x86_64 \
+            clippy --locked -p gpui-android -p gpui-box-example-android -- -D warnings \
+            2>&1 | tee target/ci/native-clippy.log
+      - name: Build APKs and run Android lint
+        run: |
+          mise exec -- java -classpath platforms/android/gradle/wrapper/gradle-wrapper.jar \
+            org.gradle.wrapper.GradleWrapperMain -p platforms/android \
+            :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug \
+            2>&1 | tee target/ci/android-build.log
+      - name: Inspect packaged ABIs
+        run: |
+          unzip -l platforms/android/app/build/outputs/apk/debug/app-debug.apk | tee target/ci/apk-contents.txt
+          grep -F 'lib/arm64-v8a/libgpui_box_android.so' target/ci/apk-contents.txt
+          grep -F 'lib/x86_64/libgpui_box_android.so' target/ci/apk-contents.txt
+      - name: Upload validation logs and reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: android-checks-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            target/ci/
+            platforms/android/app/build/reports/
+          if-no-files-found: warn
+          retention-days: 14
