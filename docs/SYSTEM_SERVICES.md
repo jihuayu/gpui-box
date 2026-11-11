@@ -123,6 +123,11 @@ callback. GPUI's own notify cycle retains invalidation batching; this layer does
 not introduce another signal graph or promise paint-only updates. Stable
 ReactiveScope/ReadSignal/Store work remains in #3.
 
+Permission status, contextual prompts, settings recovery and the five-platform
+permission contract build on these primitives in `crates/gpui-permissions`.
+See [`SYSTEM_PERMISSIONS.md`](SYSTEM_PERMISSIONS.md). That crate keeps
+file-picker grants resource-scoped under #23 and installs no native provider.
+
 ## Verification and remaining platform work
 
 Initial evidence was collected on Windows x86_64 on November 11, 2026 using the
@@ -148,8 +153,8 @@ Validation commands:
 
 ```sh
 cargo +1.98.1 fmt --all -- --check
-cargo +1.98.1 test --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system
-cargo +1.98.1 clippy --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system --all-targets -- -D warnings
+cargo +1.98.1 test --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions
+cargo +1.98.1 clippy --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions --all-targets -- -D warnings
 cargo +1.98.1 check --locked -p gpui-box --features system-gpui
 cargo +1.98.1 check --locked -p gpui-box --features system --target aarch64-linux-android
 cargo +1.98.1 run --locked -p gpui-system --example fake_service

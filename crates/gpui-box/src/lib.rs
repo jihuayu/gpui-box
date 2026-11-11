@@ -13,6 +13,10 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 #[cfg(feature = "system")]
 pub use gpui_system as system;
 
+/// Permission status, contextual requests and settings recovery.
+#[cfg(feature = "permissions")]
+pub use gpui_permissions as permissions;
+
 /// GPUI types from the distribution's coordinated source tree.
 #[cfg(any(
     all(

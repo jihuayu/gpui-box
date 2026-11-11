@@ -1820,6 +1820,7 @@ dependencies = [
  "gpui",
  "gpui-android",
  "gpui-app-data",
+ "gpui-permissions",
  "gpui-system",
  "gpui_platform",
 ]
@@ -1855,6 +1856,14 @@ version = "0.1.0-dev"
 dependencies = [
  "gpui",
  "unicode-segmentation",
+]
+
+[[package]]
+name = "gpui-permissions"
+version = "0.1.0-dev"
+dependencies = [
+ "gpui",
+ "gpui-system",
 ]
 
 [[package]]

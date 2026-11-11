@@ -1,0 +1,20 @@
+[package]
+name = "gpui-permissions"
+description = "Permission status, contextual requests and settings recovery for gpui-box"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+gpui = ["dep:gpui", "gpui-system/gpui"]
+
+[dependencies]
+gpui-system = { workspace = true }
+gpui = { workspace = true, optional = true }
+
+[lints]
+workspace = true
