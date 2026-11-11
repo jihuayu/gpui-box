@@ -1,6 +1,7 @@
 //! Static dependency DAG. Registration only references existing sources, so no
 //! cycles can be formed. Transaction settlement never mutates committed values.
 use super::*;
+use std::{cmp::Reverse, collections::BinaryHeap};
 
 /// Erased dependency identity; obtained from a typed signal. Runtime ownership
 /// and generation are checked before a computation or its edges are installed.
@@ -26,7 +27,6 @@ pub struct ComputedInputs<'a> {
     runtime: &'a ReactiveUi,
     dependencies: &'a BTreeSet<SourceId>,
     values: &'a BTreeMap<SourceId, Rc<dyn Value>>,
-    overlay: &'a BTreeMap<SourceId, Rc<dyn Value>>,
 }
 impl ComputedInputs<'_> {
     pub fn read<T: 'static>(&self, signal: Signal<T>) -> Result<&T, Error> {
@@ -34,9 +34,8 @@ impl ComputedInputs<'_> {
             return Err(Error::UndeclaredDependency);
         }
         let source = self.runtime.source(signal.id)?;
-        self.overlay
+        self.values
             .get(&signal.id)
-            .or_else(|| self.values.get(&signal.id))
             .unwrap_or(&source.value)
             .as_any()
             .downcast_ref::<T>()
@@ -69,7 +68,6 @@ impl ReactiveUi {
             runtime: self,
             dependencies: &dependencies,
             values: &empty,
-            overlay: &empty,
         })?;
         let source = self.insert_source(Source {
             value: Rc::new(value),
@@ -80,6 +78,7 @@ impl ReactiveUi {
                 evaluate: Box::new(move |inputs| Ok(Rc::new(evaluate(inputs)?))),
             }),
             rank,
+            scheduled_epoch: Cell::new(0),
         });
         for id in dependencies {
             self.sources[id.slot]
@@ -134,48 +133,85 @@ impl ReactiveTransaction<'_> {
         if self.dirty_roots.is_empty() {
             return Ok(());
         }
-        let mut pending = BTreeSet::new();
+        let epoch = self
+            .runtime
+            .schedule_epoch
+            .get()
+            .checked_add(1)
+            .ok_or(Error::RevisionExhausted)?;
+        self.runtime.schedule_epoch.set(epoch);
+        let mut pending = BinaryHeap::new();
         for id in self.dirty_roots.keys() {
             for dependent in &self.runtime.source(*id)?.dependents {
-                pending.insert((self.runtime.source(*dependent)?.rank, *dependent));
+                self.runtime
+                    .source(*dependent)?
+                    .enqueue(*dependent, epoch, &mut pending);
             }
         }
-        // Keep the entire propagation private until all callbacks succeed. A
-        // caught error may be corrected and retried within the same transaction.
-        let mut overlay = BTreeMap::new();
+        // Journal only replaced staged values, avoiding a second full ordered
+        // map of derived outputs. None of these values are committed yet.
+        let mut undo = vec![];
         let mut evaluations = 0;
         let mut equal = 0;
-        while let Some((_, id)) = pending.pop_first() {
+        while let Some(Reverse((_, id))) = pending.pop() {
             let source = self.runtime.source(id)?;
             let computation = source.computation.as_ref().expect("derived dependent");
-            let value = (computation.evaluate)(&ComputedInputs {
+            let value = match (computation.evaluate)(&ComputedInputs {
                 runtime: self.runtime,
                 dependencies: &computation.dependencies,
                 values: &self.values,
-                overlay: &overlay,
-            })?;
+            }) {
+                Ok(value) => value,
+                Err(error) => {
+                    for (id, previous) in undo {
+                        if let Some(previous) = previous {
+                            self.values.insert(id, previous);
+                        } else {
+                            self.values.remove(&id);
+                        }
+                    }
+                    return Err(error);
+                }
+            };
             evaluations += 1;
             let previous = self.values.get(&id).unwrap_or(&source.value);
             if value.equal(previous.as_ref()) {
                 equal += 1;
                 continue;
             }
-            overlay.insert(id, value);
-            for dependent in &source.dependents {
-                pending.insert((self.runtime.source(*dependent)?.rank, *dependent));
-            }
-        }
-        for (id, value) in overlay {
-            if self.runtime.source(id)?.value.equal(value.as_ref()) {
-                self.values.remove(&id);
+            let previous = if source.value.equal(value.as_ref()) {
+                self.values.remove(&id)
             } else {
-                self.values.insert(id, value);
+                self.values.insert(id, value)
+            };
+            undo.push((id, previous));
+            for dependent in &source.dependents {
+                self.runtime
+                    .source(*dependent)?
+                    .enqueue(*dependent, epoch, &mut pending);
             }
         }
         self.dirty_roots.clear();
         self.computed_evaluations += evaluations;
         self.computed_equal += equal;
         Ok(())
+    }
+}
+
+impl Source {
+    fn enqueue(
+        &self,
+        id: SourceId,
+        epoch: u64,
+        pending: &mut BinaryHeap<Reverse<(u64, SourceId)>>,
+    ) {
+        // Queue stamps are transient scheduler metadata. Failed settlements and
+        // nested rollback never reuse an epoch, so their stamps cannot suppress
+        // later work. No O(all sources) bitmap initialization is required.
+        if self.scheduled_epoch.get() != epoch {
+            self.scheduled_epoch.set(epoch);
+            pending.push(Reverse((self.rank, id)));
+        }
     }
 }
 

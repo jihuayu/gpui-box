@@ -1,6 +1,6 @@
 //! UI-owner signals and typed property sinks. Only the outer transaction publishes.
 use super::*;
-use std::{any::Any, collections::BTreeSet, marker::PhantomData, rc::Rc};
+use std::{any::Any, cell::Cell, collections::BTreeSet, marker::PhantomData, rc::Rc};
 mod computed;
 pub use computed::{ComputedInputs, Dependency};
 
@@ -164,6 +164,7 @@ struct Source {
     dependents: BTreeSet<SourceId>,
     computation: Option<computed::Computation>,
     rank: u64,
+    scheduled_epoch: Cell<u64>,
 }
 struct SourceSlot {
     generation: u64,
@@ -213,6 +214,7 @@ pub struct ReactiveUi {
     bindings: BTreeMap<BindingId, Binding>,
     endpoints: BTreeMap<(NodeId, Field), BindingId>,
     next_binding: u64,
+    schedule_epoch: Cell<u64>,
     capabilities: BackendCapabilities,
     stats: ReactiveStats,
 }
@@ -231,6 +233,7 @@ impl ReactiveUi {
             bindings: BTreeMap::new(),
             endpoints: BTreeMap::new(),
             next_binding: 0,
+            schedule_epoch: Cell::new(0),
             capabilities,
             stats: ReactiveStats::default(),
         })
@@ -283,6 +286,7 @@ impl ReactiveUi {
             dependents: BTreeSet::new(),
             computation: None,
             rank: 0,
+            scheduled_epoch: Cell::new(0),
         })
     }
 

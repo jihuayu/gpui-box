@@ -1,0 +1,4 @@
+{
+  "crates/gpui-box/src/retained/reactive.rs": "996e45c5512e8882aaed13e942051a8f3b519b9f651e86b8c2b7a13726a2d583",
+  "crates/gpui-box/src/retained/reactive/computed.rs": "d0ed10ee300c0229c1736527008d3a3d51cc7116f0ab7d0bbc711dc52eb8a664"
+}

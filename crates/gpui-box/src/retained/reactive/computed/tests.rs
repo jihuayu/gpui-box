@@ -291,3 +291,44 @@ fn mixed_dag_matches_full_recomputation_with_reads_restores_and_recycled_slots()
         }
     }
 }
+
+#[test]
+fn failed_settlement_restores_values_from_previous_reads_before_retry() {
+    let (mut ui, _) = super::super::tests::fixture();
+    let a = ui.signal(1i32);
+    let b = ui
+        .computed(&[a.dependency()], move |i| Ok(*i.read(a)? * 2))
+        .unwrap();
+    let c = ui
+        .computed(&[b.dependency()], move |i| {
+            let b = *i.read(b)?;
+            if b < 0 {
+                Err(Error::InvalidMeasure)
+            } else {
+                Ok(b + 1)
+            }
+        })
+        .unwrap();
+    ui.transaction(|tx| {
+        tx.set(a, 2)?;
+        assert_eq!(*tx.read(c)?, 5);
+        tx.set(a, -1)?;
+        assert_eq!(tx.read(c), Err(Error::InvalidMeasure));
+        // Correcting to the last successfully read value must re-evaluate
+        // nothing, while retaining that read's staged b/c values.
+        tx.set(a, 2)?;
+        assert_eq!(*tx.read(b)?, 4);
+        assert_eq!(*tx.read(c)?, 5);
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(
+        (
+            *ui.read(a).unwrap(),
+            *ui.read(b).unwrap(),
+            *ui.read(c).unwrap()
+        ),
+        (2, 4, 5)
+    );
+    assert_eq!(ui.stats().computed_evaluations, 2);
+}

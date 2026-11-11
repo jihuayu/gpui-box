@@ -1,0 +1,194 @@
+[
+  {
+    "render_nodes": 1000,
+    "workload": "source-equal",
+    "modes": {
+      "baseline": {
+        "pooled_median_us": 0.0626,
+        "pooled_p95_us": 0.0704,
+        "process_medians_us": [
+          0.0626,
+          0.0622,
+          0.06380000000000001
+        ]
+      },
+      "journal": {
+        "pooled_median_us": 0.06570000000000001,
+        "pooled_p95_us": 0.07880000000000001,
+        "process_medians_us": [
+          0.06559999999999999,
+          0.06620000000000001,
+          0.06430000000000001
+        ]
+      }
+    }
+  },
+  {
+    "render_nodes": 1000,
+    "workload": "bucket-equal",
+    "modes": {
+      "baseline": {
+        "pooled_median_us": 0.39199999999999996,
+        "pooled_p95_us": 0.429,
+        "process_medians_us": [
+          0.3940000000000001,
+          0.391,
+          0.395
+        ]
+      },
+      "journal": {
+        "pooled_median_us": 0.386,
+        "pooled_p95_us": 0.8260000000000001,
+        "process_medians_us": [
+          0.386,
+          0.56,
+          0.377
+        ]
+      }
+    }
+  },
+  {
+    "render_nodes": 1000,
+    "workload": "one-group",
+    "modes": {
+      "baseline": {
+        "pooled_median_us": 4.53,
+        "pooled_p95_us": 5.99,
+        "process_medians_us": [
+          4.5,
+          4.5,
+          4.82
+        ]
+      },
+      "journal": {
+        "pooled_median_us": 4.869999999999999,
+        "pooled_p95_us": 7.35,
+        "process_medians_us": [
+          4.4799999999999995,
+          4.92,
+          4.7700000000000005
+        ]
+      }
+    }
+  },
+  {
+    "render_nodes": 1000,
+    "workload": "all-groups",
+    "modes": {
+      "baseline": {
+        "pooled_median_us": 888.3499999999999,
+        "pooled_p95_us": 1313.6000000000001,
+        "process_medians_us": [
+          868.1999999999999,
+          915.0999999999999,
+          879.8000000000001
+        ]
+      },
+      "journal": {
+        "pooled_median_us": 825.9,
+        "pooled_p95_us": 1761.3,
+        "process_medians_us": [
+          669.6,
+          1284.5,
+          773.0
+        ]
+      }
+    }
+  },
+  {
+    "render_nodes": 10000,
+    "workload": "source-equal",
+    "modes": {
+      "baseline": {
+        "pooled_median_us": 0.0622,
+        "pooled_p95_us": 0.07210000000000001,
+        "process_medians_us": [
+          0.061799999999999994,
+          0.06210000000000001,
+          0.06459999999999999
+        ]
+      },
+      "journal": {
+        "pooled_median_us": 0.0665,
+        "pooled_p95_us": 0.094,
+        "process_medians_us": [
+          0.06409999999999999,
+          0.06739999999999999,
+          0.0664
+        ]
+      }
+    }
+  },
+  {
+    "render_nodes": 10000,
+    "workload": "bucket-equal",
+    "modes": {
+      "baseline": {
+        "pooled_median_us": 0.39799999999999996,
+        "pooled_p95_us": 0.608,
+        "process_medians_us": [
+          0.402,
+          0.40399999999999997,
+          0.3940000000000001
+        ]
+      },
+      "journal": {
+        "pooled_median_us": 0.39299999999999996,
+        "pooled_p95_us": 0.618,
+        "process_medians_us": [
+          0.389,
+          0.39899999999999997,
+          0.4
+        ]
+      }
+    }
+  },
+  {
+    "render_nodes": 10000,
+    "workload": "one-group",
+    "modes": {
+      "baseline": {
+        "pooled_median_us": 4.59,
+        "pooled_p95_us": 7.239999999999999,
+        "process_medians_us": [
+          4.57,
+          6.62,
+          4.42
+        ]
+      },
+      "journal": {
+        "pooled_median_us": 4.5200000000000005,
+        "pooled_p95_us": 6.669999999999999,
+        "process_medians_us": [
+          4.5200000000000005,
+          4.49,
+          4.53
+        ]
+      }
+    }
+  },
+  {
+    "render_nodes": 10000,
+    "workload": "all-groups",
+    "modes": {
+      "baseline": {
+        "pooled_median_us": 13451.400000000001,
+        "pooled_p95_us": 16092.599999999999,
+        "process_medians_us": [
+          13304.9,
+          14509.2,
+          13133.1
+        ]
+      },
+      "journal": {
+        "pooled_median_us": 11658.7,
+        "pooled_p95_us": 14767.1,
+        "process_medians_us": [
+          11235.1,
+          11322.6,
+          12874.800000000001
+        ]
+      }
+    }
+  }
+]

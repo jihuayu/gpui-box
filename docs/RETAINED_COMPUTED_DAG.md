@@ -33,8 +33,8 @@ intermediate values. Regardless of reads, sinks only receive final changed
 values at outer publication. A read followed by a return to the committed input
 also restores every affected derived value and dispatches no sinks.
 
-Propagation computes into a private overlay. A returned callback error installs
-none of that settlement, so a caller may catch the error, correct its writable
+Propagation journals replaced staged entries. A returned callback error restores
+all of that settlement, so a caller may catch the error, correct its writable
 input and retry. Nested savepoints restore staged direct/derived values, dirty
 roots and counters. The complete final sink batch is validated before either
 writable values, computed values or the render tree changes. Invalid sink
@@ -66,8 +66,9 @@ dependents rather than silently invalidating another computation.
 
 ## Validation and measurements
 
-Core tests pass 61 cases with retained-text/WGPU, and 55 with retained alone.
-Six new tests cover ordered diamonds, equality, intermediate reads, nested
+The initial stage passed 61 core cases with retained-text/WGPU, and 55 with
+retained alone. Six new tests cover ordered diamonds, equality, intermediate
+reads, nested
 rollback, compute/sink failures, caught-error retry, read-only sources,
 foreign/stale handles, keyed lifetime and rejected cross-scope disposal. A
 96-node derived DAG is checked against independent full recomputation over 200
@@ -102,6 +103,14 @@ commit, excluding frame extraction, GPU and presentation. Sparse updates avoid
 most derived computation, while dense updates still pay ordered-map scheduling
 and staging costs and are slower than eager recomputation. This does not show
 an end-to-end FPS or energy improvement.
+
+The [scheduler follow-up](performance/2026-11-12-computed-scheduler/README.md)
+replaces the ordered pending set with a contiguous heap and per-source epoch
+stamps. It journals staged replacements rather than allocating a second full
+derived-output map. Rank ordering, per-settlement deduplication, error retry and
+atomic outer publication remain the same. A further regression checks failed
+propagation after a previous successful read. Alternating baseline/current
+executables measures the scheduling change independently of eager recomputation.
 
 ```powershell
 ./tooling/rendering-perf/run-computed.ps1 -Output target/computed-runtime-perf

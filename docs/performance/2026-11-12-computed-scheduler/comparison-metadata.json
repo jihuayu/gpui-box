@@ -1,0 +1,37 @@
+{
+  "baseline_commit": "378ed23",
+  "order": [
+    [
+      "baseline",
+      "journal"
+    ],
+    [
+      "journal",
+      "baseline"
+    ],
+    [
+      "baseline",
+      "journal"
+    ]
+  ],
+  "builds_finished_before_all_timed_processes": true,
+  "binaries": [
+    {
+      "mode": "baseline",
+      "sources": {
+        "crates/gpui-box/src/retained/reactive.rs": "3e54b9ec5f6089b6198bedf828803069f78ae91392c3683d775ad37232b7f1bb",
+        "crates/gpui-box/src/retained/reactive/computed.rs": "3ae9473c457f61dd9cab90c22d25072e99a033b390eca845b73070321e071201"
+      },
+      "binary_sha256": "491306ec739059db0959e39fb260db1d5344e56e5c5bc6437f540be137ac6945"
+    },
+    {
+      "mode": "journal",
+      "sources": {
+        "crates/gpui-box/src/retained/reactive.rs": "996e45c5512e8882aaed13e942051a8f3b519b9f651e86b8c2b7a13726a2d583",
+        "crates/gpui-box/src/retained/reactive/computed.rs": "d0ed10ee300c0229c1736527008d3a3d51cc7116f0ab7d0bbc711dc52eb8a664"
+      },
+      "binary_sha256": "18d571adf2061583ef7675b0a1e176d5c8357e06ee829e7e75e96805a9986c16"
+    }
+  ],
+  "note": "Source identity for the two changed scheduler files is checked against baseline Git objects or current working sources. The benchmark source and other runtime sources are shared; final metadata captures that source set. Counter-only regression test was added after building these two release executables."
+}
