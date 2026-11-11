@@ -1,0 +1,70 @@
+{
+  "started_at": "2026-11-12T01:14:01.0939961+08:00",
+  "base_commit": "1de199dc5f1c49013c70f4ebd6b22361f7fb5306",
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.1\nLLVM version: 22.1.8",
+  "source_hashes": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "769E6577FD28A97F045051C683B610C5D064805BBC623F08B29D914273250BC0"
+    },
+    {
+      "path": "crates/gpui-box/src/retained.rs",
+      "sha256": "3246FBA723C0F34D9B4DA85B5B3A9E2B34109692C62659B8C4A275CB5FD489A2"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive.rs",
+      "sha256": "017303E7947947092B3B50F67DE88B42EA69B6AE2D4DECD9CC20BE24060573CC"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive/computed.rs",
+      "sha256": "71B8922B3EAD8055D90415D9ED54F4CB43D615B0DF736BC9AA2D39CE6F81A782"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive/effects.rs",
+      "sha256": "63ACE141BCA85A3E97C975CF353AD6C03F851C1138A320DD261BBC64D346BB1F"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive/delivery.rs",
+      "sha256": "B34E3261AFF014FD3DDE51DE362C79CDF08C3693184C0A8C3AE0674DA5DCFF3F"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/logical.rs",
+      "sha256": "0473E8E55A78C982128F3EFB897C67EC775C0A26CC38E149CCC932069E1D73B0"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/wgpu.rs",
+      "sha256": "AAD977610D0F5DCACE2F470AE1CA2DCE4B615BA06059492EABA1D8CE65636863"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained.rs",
+      "sha256": "BEA418634ABF25AC84B9881C2C2C8B3EFC5B345CB40FCC0AD96D9B8D5352A038"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/completion.rs",
+      "sha256": "591168A1F07EAEFA0B7405C849113BCB1C9F8BFF6CFA3BE5B735CA9293943727"
+    },
+    {
+      "path": "examples/hello/src/retained_demo.rs",
+      "sha256": "390F0B622234CCA9D533F572C5E45B116FEB76BDD6F9F2C98CDC395F360EC170"
+    },
+    {
+      "path": "examples/hello/src/retained_demo/delivery_check.rs",
+      "sha256": "528D8141964497ED529DFD236374C5BE152D1A806C5B2F38A2FC4CBD194921C8"
+    },
+    {
+      "path": "examples/hello/src/lib.rs",
+      "sha256": "0920474B7346105DF9D6EF9D6D033154BFFB0B5978344DE421819DA4C16F8F1C"
+    },
+    {
+      "path": "examples/desktop/src/main.rs",
+      "sha256": "8202C791C7645CC5DF53A2E8525F8B694CB45962057CEA8DC7770D6842D3EDC4"
+    },
+    {
+      "path": "tooling/rendering-perf/run-delivery-native.ps1",
+      "sha256": "58618CC876B9682E6EFFE708A7FAC8434B56765F1568255E9BEFBE8EFDDB665B"
+    }
+  ],
+  "executable_sha256": "594C8BB9A1F9299F4922487AE0098671746A5F26A00F6E4B4315FCC4747A7747",
+  "launch_window_style": "Hidden",
+  "scope": "Real OS worker and foreground executor, labelled hidden draw, GPU pixels, native idle completion/lease retirement without another frame; no wake-latency or energy claim"
+}

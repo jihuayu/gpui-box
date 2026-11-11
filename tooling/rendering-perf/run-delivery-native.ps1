@@ -12,6 +12,9 @@ try {
     $sources = @('Cargo.lock', 'crates/gpui-box/src/retained.rs', 'crates/gpui-box/src/retained/reactive.rs',
         'crates/gpui-box/src/retained/reactive/computed.rs', 'crates/gpui-box/src/retained/reactive/effects.rs',
         'crates/gpui-box/src/retained/reactive/delivery.rs', 'crates/gpui-box/src/retained/logical.rs',
+        'crates/gpui-box/src/retained/wgpu.rs',
+        'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained.rs',
+        'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/completion.rs',
         'examples/hello/src/retained_demo.rs', 'examples/hello/src/retained_demo/delivery_check.rs',
         'examples/hello/src/lib.rs', 'examples/desktop/src/main.rs', 'tooling/rendering-perf/run-delivery-native.ps1')
     $hashes = foreach ($source in $sources) {
@@ -20,7 +23,7 @@ try {
     [ordered]@{started_at = [DateTimeOffset]::Now.ToString('o'); base_commit = (& git rev-parse HEAD).Trim()
         rustc = (& mise exec -- rustc -Vv) -join "`n"; source_hashes = @($hashes)
         executable_sha256 = (Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash
-        launch_window_style = 'Hidden'; scope = 'Real OS worker and foreground executor, native window creation, labelled manual draw when hidden, GPU pixel comparison; no wake-latency or energy claim'
+        launch_window_style = 'Hidden'; scope = 'Real OS worker and foreground executor, labelled hidden draw, GPU pixels, native idle completion/lease retirement without another frame; no wake-latency or energy claim'
     } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $outputPath 'native-metadata.json') -Encoding utf8
     $process = Start-Process -FilePath $executable -ArgumentList @('--retained-delivery-check', ('"' + $resultPath + '"')) -WindowStyle Hidden -RedirectStandardOutput (Join-Path $outputPath 'native-stdout.log') -RedirectStandardError (Join-Path $outputPath 'native-stderr.log') -PassThru
     $process.Id | Set-Content -LiteralPath (Join-Path $outputPath 'native-pid.txt')

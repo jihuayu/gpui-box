@@ -1,5 +1,6 @@
 //! Persistent quad storage and ordered multi-frame submission for owned UI frames.
 use super::*;
+use crate::wgpu;
 use gpui::Quad;
 use std::{
     collections::VecDeque,
@@ -7,6 +8,8 @@ use std::{
     time::Duration,
 };
 pub type RetainedImage = image::RgbaImage;
+mod completion;
+pub use completion::{CompletionReceiver, CompletionStats};
 mod glyphs;
 mod images;
 pub use glyphs::{GlyphBatch, GlyphDrawId, GlyphGeometry, GlyphUpdates, RetainedGlyph};
@@ -96,6 +99,7 @@ pub struct RetainedQuadRenderer {
     serial: u64,
     generation: u64,
     completed: Arc<AtomicU64>,
+    completion_driver: Option<completion::CompletionDriver>,
     flights: VecDeque<Flight>,
     max_in_flight: usize,
     failed: bool,
@@ -135,6 +139,7 @@ impl RetainedQuadRenderer {
             serial: 0,
             generation: 1,
             completed: Arc::new(AtomicU64::new(0)),
+            completion_driver: None,
             flights: VecDeque::new(),
             max_in_flight,
             failed: false,
@@ -151,6 +156,36 @@ impl RetainedQuadRenderer {
     }
     pub fn last_serial(&self) -> u64 {
         self.serial
+    }
+    /// Open one native completion subscription for this device epoch. A reset
+    /// closes the previous receiver; the host must subscribe to the new epoch.
+    pub fn open_completions(&mut self) -> Result<CompletionReceiver> {
+        anyhow::ensure!(
+            self.completion_driver
+                .as_ref()
+                .is_none_or(|driver| driver.closed()),
+            "completion receiver already open"
+        );
+        let (driver, receiver) = completion::CompletionDriver::new(
+            self.renderer.context.device.clone(),
+            self.completed.clone(),
+        )?;
+        if let Some(latest) = self.flights.back() {
+            driver.schedule(latest.serial, latest.submission.clone());
+        }
+        self.completion_driver = Some(driver);
+        Ok(receiver)
+    }
+    /// Observational only; does not poll the device or release any leases.
+    pub fn lifecycle(&self) -> (u64, u64, usize) {
+        (
+            self.serial,
+            self.completed.load(Ordering::Acquire),
+            self.flights.len(),
+        )
+    }
+    pub fn completion_stats(&self) -> Option<CompletionStats> {
+        self.completion_driver.as_ref().map(|driver| driver.stats())
     }
     pub fn completed_serial(&mut self) -> Result<u64> {
         self.renderer.context.device.poll(wgpu::PollType::Poll)?;
@@ -414,6 +449,9 @@ impl RetainedQuadRenderer {
         core.resources.queue.on_submitted_work_done(move || {
             completed.fetch_max(serial, Ordering::Release);
         });
+        if let Some(driver) = &self.completion_driver {
+            driver.schedule(serial, submission.clone());
+        }
         self.flights.push_back(Flight {
             serial,
             submission,
@@ -520,6 +558,14 @@ impl RetainedQuadRenderer {
         self.size = Some(size);
         self.force_full = true;
         self.renderer.read_image()
+    }
+}
+
+impl Drop for RetainedQuadRenderer {
+    fn drop(&mut self) {
+        // Close the host subscription before releasing renderer allocations.
+        // The waiter's device clone can finish without owning any UI state.
+        self.completion_driver = None;
     }
 }
 

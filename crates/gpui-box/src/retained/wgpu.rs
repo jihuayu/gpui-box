@@ -4,14 +4,23 @@ use super::{
     *,
 };
 use gpui::{Bounds, ContentMask, DevicePixels, Quad, ScaledPixels, Scene, point, rgba, size};
+#[cfg(test)]
+use gpui_wgpu::wgpu;
 use gpui_wgpu::{
     ImageUpdates, QuadBatch, QuadImage, QuadRedraw, QuadSubmission, QuadWrite, RetainedImage,
     RetainedQuadRenderer,
 };
+// Exercise the native driver's actual mailbox implementation using this
+// workspace's locked dependencies, without resolving the upstream test tree.
+#[cfg(test)]
+#[allow(dead_code)]
+#[path = "../../../../vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/completion.rs"]
+mod completion_protocol_tests;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 mod composition;
 pub use composition::CompositionStats;
 mod validation;
+pub use gpui_wgpu::{CompletionReceiver, CompletionStats};
 pub use validation::ValidationStats;
 #[cfg(test)]
 use validation::validate;
@@ -140,6 +149,14 @@ pub struct FrameSubmission {
     pub gpu: QuadSubmission,
     pub validation: ValidationStats,
     pub composition: CompositionStats,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct FrameLifecycleStats {
+    pub submitted: u64,
+    pub completed: u64,
+    pub gpu_leases: usize,
+    pub frame_leases: usize,
 }
 
 pub struct WgpuFrameRenderer {
@@ -406,6 +423,27 @@ impl WgpuFrameRenderer {
     /// Poll completions while the producer is idle and release finished frame leases.
     pub fn poll(&mut self) -> Result<(), Error> {
         self.collect()
+    }
+
+    /// Subscribe to native completion wakeups without a polling timer. Await
+    /// readiness outside any owner borrow, then `poll` on the UI owner. This
+    /// subscription closes on receiver drop, renderer drop or device reset.
+    pub fn open_completions(&mut self) -> Result<CompletionReceiver, Error> {
+        self.backend.open_completions().map_err(gpu_error)
+    }
+
+    /// Counters only: unlike `poll`, this cannot complete or collect any work.
+    pub fn lifecycle(&self) -> FrameLifecycleStats {
+        let (submitted, completed, gpu_leases) = self.backend.lifecycle();
+        FrameLifecycleStats {
+            submitted,
+            completed,
+            gpu_leases,
+            frame_leases: self.leases.len(),
+        }
+    }
+    pub fn completion_stats(&self) -> Option<CompletionStats> {
+        self.backend.completion_stats()
     }
 
     /// Wait for all queued work, excluding texture readback.

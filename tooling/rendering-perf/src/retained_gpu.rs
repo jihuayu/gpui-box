@@ -5,6 +5,7 @@ use gpui_box::retained::{
 };
 use std::{error::Error, fs, path::PathBuf};
 mod retained_bench;
+mod retained_completion;
 mod retained_composition;
 mod retained_computed;
 mod retained_delivery;
@@ -667,6 +668,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_responsive::run(&mut renderer, &output, &mut results)?;
     retained_primitive::run(&mut renderer, &output, &mut results)?;
     retained_queue::run(&mut renderer, &output, &mut results)?;
+    retained_completion::run(&output, &mut results)?;
     retained_image::run(&mut renderer, &output, &mut results)?;
     retained_text::run(&mut renderer, &output, &mut results)?;
     retained_paint_store::run(&mut renderer, &output, &mut results)?;
@@ -683,6 +685,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         results.len()
     );
     let benchmark = retained_bench::run()?;
+    fs::write(
+        output.join("completion-benchmark.json"),
+        serde_json::to_vec_pretty(&retained_completion::benchmark()?)?,
+    )?;
     fs::write(
         output.join("damage-benchmark.json"),
         serde_json::to_vec_pretty(&benchmark)?,

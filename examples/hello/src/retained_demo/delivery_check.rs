@@ -76,7 +76,40 @@ pub(crate) fn open(cx: &mut App, output: PathBuf) {
             cx.background_executor().timer(Duration::from_millis(150)).await;
             let (final_renders, final_revision, final_queue) = view.read_with(cx, |view,_| (view.render_count,view.tree.borrow().published_frame().unwrap().revision,sender.stats().unwrap()));
             if final_renders!=renders || final_revision!=revision || final_queue.waker_notifications!=2 { return Err("equal input changed visual output or did not wake owner".into()); }
-            report = format!("{{\"passed\":true,\"platform\":\"{}\",\"real_os_worker\":true,\"real_foreground_executor\":true,\"native_window\":true,\"native_window_visible\":{},\"manual_hidden_draw\":{manual_hidden_draw},\"automatic_view_renders\":{automatic_renders},\"source_messages\":1000,\"coalesced\":999,\"burst_waker_notifications\":1,\"burst_transactions\":1,\"burst_computed_evaluations\":1,\"burst_effect_runs\":1,\"burst_view_renders\":1,\"pixel_equal\":true,\"equal_additional_view_renders\":0,\"initial_idle_ms\":250,\"post_update_idle_ms\":250,\"worker_to_delayed_check_us\":{worker_to_checked_us},\"timing_note\":\"Includes deliberate 150ms diagnostic wait; not wake or input latency. Hidden window draw is explicit, not automatic presentation. Idle checks count view renders, not OS process wakeups or energy.\"}}",std::env::consts::OS,native_state.1.is_visible());
+            // Submit two independent offscreen diagnostic packets, then let
+            // only the native completion task retire them. No image/finish/
+            // submit/poll call on the owner occurs between submit and check.
+            let (completion_serial, weak_frame, weak_pixels) = view.update(cx, |view, _| {
+                let mut tree=UiTree::new(Style::default(),0x112233ff).unwrap();
+                let image=ImageResource::rgba8([2,2],vec![255;16]).unwrap();
+                let weak_pixels=std::sync::Arc::downgrade(image.pixels());
+                let mut tx=Transaction::default();
+                tx.image(tree.root(),Some(image));
+                tree.commit(tx,BackendCapabilities::default()).unwrap();
+                let first=tree.frame([32.0,32.0]).unwrap();
+                let weak_frame=std::sync::Arc::downgrade(&first.items);
+                let gpu=view.gpu.as_ref().unwrap();
+                gpu.borrow_mut().submit(&first,[32,32],1.0).unwrap();
+                let mut tx=Transaction::default();
+                tx.image(tree.root(),None);
+                tree.commit(tx,BackendCapabilities::default()).unwrap();
+                let next=tree.frame([32.0,32.0]).unwrap();
+                let serial=gpu.borrow_mut().submit(&next,[32,32],1.0).unwrap().unwrap().gpu.serial;
+                (serial,weak_frame,weak_pixels)
+            });
+            cx.background_executor().timer(Duration::from_millis(250)).await;
+            let (lifecycle, completion_stats, completion_renders) = view.read_with(cx, |view,_| {
+                let gpu=view.gpu.as_ref().unwrap().borrow();
+                (gpu.lifecycle(),gpu.completion_stats().unwrap(),view.render_count)
+            });
+            if lifecycle.completed<completion_serial || lifecycle.frame_leases!=0 || lifecycle.gpu_leases!=0 || weak_frame.upgrade().is_some() || weak_pixels.upgrade().is_some() {
+                return Err(format!("native idle completion did not retire: {lifecycle:?}"));
+            }
+            if completion_renders!=renders { return Err("completion collection redrew the view".into()); }
+            cx.background_executor().timer(Duration::from_millis(250)).await;
+            let idle_completion_stats=view.read_with(cx,|view,_| view.gpu.as_ref().unwrap().borrow().completion_stats().unwrap());
+            if completion_stats!=idle_completion_stats {return Err("idle completion worker performed extra work".into());}
+            report = format!("{{\"passed\":true,\"platform\":\"{}\",\"real_os_worker\":true,\"real_foreground_executor\":true,\"native_window\":true,\"native_window_visible\":{},\"manual_hidden_draw\":{manual_hidden_draw},\"automatic_view_renders\":{automatic_renders},\"source_messages\":1000,\"coalesced\":999,\"burst_waker_notifications\":1,\"burst_transactions\":1,\"burst_computed_evaluations\":1,\"burst_effect_runs\":1,\"burst_view_renders\":1,\"pixel_equal\":true,\"equal_additional_view_renders\":0,\"initial_idle_ms\":250,\"post_update_idle_ms\":250,\"completion_retired_without_new_frame\":true,\"completion_frame_leases\":0,\"completion_gpu_leases\":0,\"completion_extra_view_renders\":0,\"completion_idle_counters_stable_ms\":250,\"worker_to_delayed_check_us\":{worker_to_checked_us},\"timing_note\":\"Includes deliberate 150ms diagnostic wait; not wake or input latency. Hidden window draw is explicit, not automatic presentation. Idle checks count view renders and driver work, not OS process wakeups or energy.\"}}",std::env::consts::OS,native_state.1.is_visible());
             Ok(())
         }.await;
         if let Err(error)=result {

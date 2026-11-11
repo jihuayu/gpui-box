@@ -108,5 +108,7 @@ retain queue overhead without removing those computations.
 [Frozen evidence](performance/2026-11-12-source-delivery/README.md) contains samples,
 source/binary hashes, native diagnostic and hardware results. The
 [complete RFC goal](RETAINED_IMPLEMENTATION_PROGRESS.md) stays open, including
-native surface presentation, idle GPU retirement, physical resource budgets,
+native surface presentation, physical resource budgets,
 atomic structural updates and broad layout/primitive coverage.
+The subsequent [GPU completion stage](RETAINED_GPU_COMPLETIONS.md) implements
+idle retirement independently of visual-source delivery.

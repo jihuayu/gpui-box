@@ -66,6 +66,9 @@ once per successful transaction and owns replacement/scope/drop cleanup.
 The [source-delivery stage](RETAINED_SOURCE_DELIVERY.md) coalesces background
 Send values before owner transactions, integrates executor readiness/waking and
 checks bounded queues, stale sources, actual worker threads and native execution.
+The [idle GPU completion stage](RETAINED_GPU_COMPLETIONS.md) wakes the host from
+native completion waits, retires snapshots/resources without another frame and
+handles subscription closure and device-epoch replacement.
 
 ## Current integrated foundation
 
@@ -115,7 +118,7 @@ click test passed pixel comparison at the actual window scale.
 | Text / images / complex primitives | Solid/decorated quads; immutable decoded RGBA textures, base-relative image draw updates and reference-counted shared texture ownership; owned uniform-font LTR paragraphs and grayscale glyph masks, four-width chunks, system/font/scale identity, packed R8 pages, persistent 48-byte local glyph ranges, independent 16-byte color / 32-byte property slots and adjacent batch merging; typed normal clicks, clip/opacity, CPU blend and lifecycle pixels | Path/shadow types, automatic font subscriptions, robust glyph pressure/compaction, general/rich-text materials; bidi/rich-text/selection/color/subpixel text; image decoding/fit/filter/color/animation/atlas/batching and physical resource budgets |
 | Flex / responsive contract | Opt-in validated Flex subset, separate layout/scale environment, threshold-equality rules, RTL/actual-window resize, bounded fixed content-box queries with dependency rejection | Broad Flex conformance/rounding, full environment subscriptions, constraint builders, general query dependency graph and adaptive structures; indexed rule dispatch |
 | Damage / cache / compositor | Old/new clipped ink/effect damage; preserved offscreen target, scissored clear/replay; Full/Damage/area-threshold Auto; isolated layer content cache and cached/uncached A/B; persistent mixed composition topology/shared layer draw arrays; live-layer 256 MiB guard | Tight layer bounds, backend selective validation/invalidation, cross-frame physical memory accounting, cache admission/LRU, measured cost model, multiple damage regions, native surface buffer-age contract |
-| FramePacket / frames in flight | Owned snapshots/base deltas and immutable image resources, skip-frame resync, stale rejection, single-pending producer coalescing and wake intent, bounded GPU queue, completion/weak-reference and texture/binding retirement, poll/finish/reset with resource reupload | Forced device/surface loss, general resource/font epochs, host wake/idle-completion scheduling and deferring superseded snapshot production |
+| FramePacket / frames in flight | Owned snapshots/base deltas and immutable image resources, skip-frame resync, stale rejection, single-pending producer coalescing and wake intent, bounded GPU queue, native completion worker/host wake with no idle timer, owner snapshot/texture/binding retirement without another frame, subscription cancellation/reset/resubscription, poll/finish/reset with resource reupload | Forced device/surface loss, general resource/font epochs, native surface presentation, cross-platform idle/energy qualification and deferring superseded snapshot production |
 
 ## Verification and present limits
 

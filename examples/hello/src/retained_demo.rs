@@ -35,6 +35,8 @@ pub struct RetainedDemo {
     #[cfg(feature = "retained-wgpu")]
     gpu: Option<Rc<RefCell<gpui_box::retained::wgpu::WgpuFrameRenderer>>>,
     #[cfg(feature = "retained-wgpu")]
+    _gpu_completion_task: Option<Task<()>>,
+    #[cfg(feature = "retained-wgpu")]
     opacity: Signal<f32>,
     #[cfg(feature = "retained-wgpu")]
     presented_image: Rc<RefCell<Option<std::sync::Arc<RenderImage>>>>,
@@ -402,6 +404,8 @@ impl RetainedDemo {
             #[cfg(feature = "retained-wgpu")]
             gpu: None,
             #[cfg(feature = "retained-wgpu")]
+            _gpu_completion_task: None,
+            #[cfg(feature = "retained-wgpu")]
             opacity,
             #[cfg(feature = "retained-wgpu")]
             presented_image: Rc::new(RefCell::new(None)),
@@ -421,6 +425,31 @@ impl RetainedDemo {
         view.gpu = Some(Rc::new(RefCell::new(
             gpui_box::retained::wgpu::WgpuFrameRenderer::new(3).expect("create GPU frame consumer"),
         )));
+        let gpu = view.gpu.as_ref().unwrap();
+        let mut completions = gpu
+            .borrow_mut()
+            .open_completions()
+            .expect("open GPU completions");
+        let gpu = Rc::downgrade(gpu);
+        view._gpu_completion_task = Some(cx.spawn(async move |view, cx| {
+            loop {
+                let error = match completions.ready().await {
+                    Ok(Some(_)) => {
+                        let Some(gpu) = gpu.upgrade() else { break };
+                        // Owner-only retirement. This does not notify or redraw.
+                        gpu.borrow_mut().poll().err().map(|error| error.to_string())
+                    }
+                    Ok(None) => break,
+                    Err(error) => Some(error),
+                };
+                if let Some(error) = error {
+                    let _ = view.update(cx, |view, _| {
+                        view.last_commit = format!("GPU completion failed: {error}");
+                    });
+                    break;
+                }
+            }
+        }));
         view
     }
 }
@@ -1060,6 +1089,7 @@ mod tests {
     #[gpui::test]
     #[ignore = "requires a hardware WGPU adapter"]
     fn normal_click_reaches_gpu_and_matches_reference_pixels(cx: &mut TestAppContext) {
+        cx.executor().allow_parking();
         let platform = std::sync::Arc::new(gpui_wgpu::CosmicTextSystem::new_without_system_fonts(
             "Noto Sans CJK SC",
         ));
