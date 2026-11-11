@@ -158,6 +158,126 @@ fn selected_targets_generate_only_the_requested_starter_platform() {
 }
 
 #[test]
+fn adaptive_template_records_provenance_and_preserves_application_sources() {
+    let temporary = tempfile::tempdir().unwrap();
+    for targets in ["desktop", "android", "desktop,android"] {
+        let app = temporary.path().join(format!("Adaptive {targets}"));
+        let output = cli(
+            temporary.path(),
+            &[
+                "new",
+                app.to_str().unwrap(),
+                "--distribution",
+                distribution().to_str().unwrap(),
+                "--template",
+                "adaptive",
+                "--targets",
+                targets,
+                "--json",
+            ],
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(response["result"]["template"]["id"], "adaptive");
+        let provenance: serde_json::Value =
+            serde_json::from_slice(&fs::read(app.join(".gpui-box/template.json")).unwrap())
+                .unwrap();
+        assert_eq!(provenance["template"], "adaptive");
+        assert_eq!(provenance["template_version"], 1);
+        assert_eq!(
+            app.join("desktop/src/main.rs").exists(),
+            targets.contains("desktop")
+        );
+        assert_eq!(
+            app.join("android/src/lib.rs").exists(),
+            targets.contains("android")
+        );
+        let source = app.join("app/src/lib.rs");
+        let original = fs::read_to_string(&source).unwrap();
+        assert!(original.contains("master_detail("));
+        assert!(original.contains("Shared workspace draft"));
+        assert!(original.contains("BackGesturePhase::Committed"));
+        let customized = format!("{original}\n// Application-owned adaptive customization\n");
+        fs::write(&source, customized.as_bytes()).unwrap();
+        let metadata = fs::read(app.join(".gpui-box/template.json")).unwrap();
+        let output = cli(&app, &["generate"]);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(fs::read_to_string(source).unwrap(), customized);
+        assert_eq!(
+            fs::read(app.join(".gpui-box/template.json")).unwrap(),
+            metadata
+        );
+    }
+}
+
+#[test]
+fn adaptive_init_preserves_existing_content_and_rejects_repeated_template_options() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = temporary.path().join("Existing adaptive 有 空格");
+    fs::create_dir(&app).unwrap();
+    fs::write(app.join("README.md"), b"Existing documentation").unwrap();
+    fs::write(app.join("business.txt"), b"Existing business content").unwrap();
+    let output = cli(
+        temporary.path(),
+        &[
+            "init",
+            app.to_str().unwrap(),
+            "--distribution",
+            distribution().to_str().unwrap(),
+            "--template",
+            "adaptive",
+            "--targets",
+            "android",
+        ],
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        fs::read(app.join("README.md")).unwrap(),
+        b"Existing documentation"
+    );
+    assert_eq!(
+        fs::read(app.join("business.txt")).unwrap(),
+        b"Existing business content"
+    );
+    assert!(
+        fs::read_to_string(app.join("app/src/lib.rs"))
+            .unwrap()
+            .contains("Adaptive workspace")
+    );
+    let before = snapshot(&app);
+    let output = cli(
+        temporary.path(),
+        &[
+            "init",
+            app.to_str().unwrap(),
+            "--distribution",
+            distribution().to_str().unwrap(),
+            "--template",
+            "starter",
+            "--template",
+            "adaptive",
+            "--json",
+        ],
+    );
+    assert!(!output.status.success());
+    let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(response["error"]["code"], "INVALID_ARGUMENTS");
+    assert_eq!(snapshot(&app), before);
+}
+
+#[test]
 fn target_reenable_retains_managed_ownership_and_detects_disabled_target_edits() {
     let temporary = tempfile::tempdir().unwrap();
     let app = create(temporary.path());

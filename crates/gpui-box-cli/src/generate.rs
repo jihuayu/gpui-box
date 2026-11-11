@@ -56,14 +56,41 @@ fn portable_path(value: &str) -> String {
     }
 }
 
+#[derive(Clone, Copy)]
+pub enum Template {
+    Starter,
+    Adaptive,
+}
+impl Template {
+    pub fn parse(value: &str) -> Result<Self, String> {
+        match value {
+            "starter" => Ok(Self::Starter),
+            "adaptive" => Ok(Self::Adaptive),
+            _ => Err("--template supports starter and adaptive".into()),
+        }
+    }
+    pub fn id(self) -> &'static str {
+        match self {
+            Self::Starter => "starter",
+            Self::Adaptive => "adaptive",
+        }
+    }
+}
+
 pub fn create(root: &Path, distribution: PathBuf) -> Result<(), String> {
-    create_with_targets(root, distribution, vec!["desktop".into(), "android".into()])
+    create_with_targets(
+        root,
+        distribution,
+        vec!["desktop".into(), "android".into()],
+        Template::Starter,
+    )
 }
 
 pub fn create_with_targets(
     root: &Path,
     distribution: PathBuf,
     targets: Vec<String>,
+    template: Template,
 ) -> Result<(), String> {
     if root.exists() {
         return Err(format!(
@@ -107,7 +134,7 @@ pub fn create_with_targets(
             &staging.join("gpui-box.json"),
             &serde_json::to_vec_pretty(&config).map_err(|e| e.to_string())?,
         )?;
-        generate(&staging, true)?;
+        generate_inner(&staging, Some(template), None)?;
         fs::create_dir_all(staging.join("assets")).map_err(|e| e.to_string())?;
         for asset in ["NotoSansSC-Regular.otf", "OFL.txt"] {
             fs::copy(
@@ -132,7 +159,12 @@ pub fn create_with_targets(
     result
 }
 
-pub fn initialize(root: &Path, distribution: PathBuf, targets: Vec<String>) -> Result<(), String> {
+pub fn initialize(
+    root: &Path,
+    distribution: PathBuf,
+    targets: Vec<String>,
+    template: Template,
+) -> Result<(), String> {
     let root = root
         .canonicalize()
         .map_err(|error| format!("Open init directory: {error}"))?;
@@ -147,7 +179,7 @@ pub fn initialize(root: &Path, distribution: PathBuf, targets: Vec<String>) -> R
         .and_then(|name| name.to_str())
         .ok_or("Init directory must have a UTF-8 name")?;
     let staging = root.with_file_name(format!("{name}.gpui-box-init-{}", std::process::id()));
-    create_with_targets(&staging, distribution, targets)?;
+    create_with_targets(&staging, distribution, targets, template)?;
     // Use the caller's directory name rather than the temporary staging name.
     let mut config = AppConfig::load(&staging)?;
     config.name = name.into();
@@ -293,7 +325,7 @@ pub fn apply(root: &Path, plan_path: Option<&Path>) -> Result<ApplyReceipt, Stri
         }
         None => None,
     };
-    generate_inner(root, false, expected.as_ref())
+    generate_inner(root, None, expected.as_ref())
 }
 
 struct PreparedGeneration {
@@ -668,12 +700,12 @@ include(":app")
 }
 
 pub fn generate(root: &Path, initial: bool) -> Result<(), String> {
-    generate_inner(root, initial, None).map(|_| ())
+    generate_inner(root, initial.then_some(Template::Starter), None).map(|_| ())
 }
 
 fn generate_inner(
     root: &Path,
-    initial: bool,
+    initial: Option<Template>,
     expected: Option<&ChangePlan>,
 ) -> Result<ApplyReceipt, String> {
     let metadata = managed_path(root, ".gpui-box")?;
@@ -767,11 +799,14 @@ fn generate_inner(
             .files_unchanged
             .push(prepared.plan.metadata.path.clone());
     }
-    if initial {
+    if let Some(template) = initial {
         let config = AppConfig::load(root)?;
         write(
             &root.join("app/src/lib.rs"),
-            include_bytes!("../../../templates/app.rs"),
+            match template {
+                Template::Starter => include_bytes!("../../../templates/app.rs").as_slice(),
+                Template::Adaptive => include_bytes!("../../../templates/adaptive.rs").as_slice(),
+            },
         )?;
         if config.targets.iter().any(|target| target == "desktop") {
             write(
@@ -800,7 +835,7 @@ fn generate_inner(
             &root.join(".gpui-box/template.json"),
             &serde_json::to_vec_pretty(&serde_json::json!({
                 "schema_version": 1,
-                "template": "starter",
+                "template": template.id(),
                 "template_version": 1,
                 "cli_version": gpui_box::VERSION,
                 "upstream_revision": gpui_box::UPSTREAM_REVISION,
@@ -814,7 +849,10 @@ fn generate_inner(
         )?;
         write(
             &root.join("README.md"),
-            format!("Configured targets are {}. Platform commands below apply when their target is enabled.\n\n{}", config.targets.join(", "), include_str!("../../../templates/README.md")).as_bytes(),
+            format!("Template {} v1. Configured targets are {}. Platform commands below apply when their target is enabled.\n\n{}{}", template.id(), config.targets.join(", "), include_str!("../../../templates/README.md"), match template {
+                Template::Starter => "",
+                Template::Adaptive => "\n## Adaptive example\n\nThe shared application retains its selected item and input entity across compact/wide layout changes. Compact navigation opens one detail page with Back, Escape and Android back handling. Wide layouts show both panes. Change the window width or rotate Android to exercise the 720 logical-pixel breakpoint. Keep business persistence in an application service. Process-death restoration requires the documented snapshot hooks.\n",
+            }).as_bytes(),
         )?;
     }
     Ok(receipt)
