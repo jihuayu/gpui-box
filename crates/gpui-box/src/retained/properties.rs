@@ -59,6 +59,7 @@ pub struct PropertyState {
     pub transform: Option<NodeId>,
     pub clip: Option<NodeId>,
     pub scroll: Option<NodeId>,
+    pub effect: Option<NodeId>,
 }
 
 #[derive(Clone, Debug)]
@@ -72,6 +73,7 @@ pub struct PropertyTrees {
     pub transforms: BTreeMap<NodeId, PropertyNode<[f32; 2]>>,
     pub clips: BTreeMap<NodeId, PropertyNode<Rect>>,
     pub scrolls: BTreeMap<NodeId, PropertyNode<[f32; 2]>>,
+    pub effects: BTreeMap<NodeId, PropertyNode<f32>>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -98,6 +100,7 @@ impl PaintItem {
 pub(super) fn damage(
     previous: Option<&FramePacket>,
     items: &[PaintItem],
+    properties: &PropertyTrees,
     viewport_changed: bool,
     order_changed: bool,
 ) -> Damage {
@@ -125,7 +128,15 @@ pub(super) fn damage(
             .get(&item.node)
             .zip(new.get(&item.node))
             .is_some_and(|(a, b)| {
-                a.bounds == b.bounds && a.clip == b.clip && a.commands == b.commands
+                a.bounds == b.bounds
+                    && a.clip == b.clip
+                    && a.commands == b.commands
+                    && same_effects(
+                        a.properties.effect,
+                        b.properties.effect,
+                        &previous.properties,
+                        properties,
+                    )
             })
         {
             continue;
@@ -138,6 +149,27 @@ pub(super) fn damage(
         full: false,
         bounds,
     }
+}
+
+fn same_effects(
+    mut a: Option<NodeId>,
+    mut b: Option<NodeId>,
+    old: &PropertyTrees,
+    new: &PropertyTrees,
+) -> bool {
+    while let Some(id) = a {
+        if b != a {
+            return false;
+        }
+        let left = &old.effects[&id];
+        let right = &new.effects[&id];
+        if left.value != right.value {
+            return false;
+        }
+        a = left.parent;
+        b = right.parent;
+    }
+    b.is_none()
 }
 
 #[cfg(test)]
@@ -166,6 +198,46 @@ mod tests {
         let a = tree.append(tree.root(), style.clone(), 0xff0000ff).unwrap();
         let b = tree.append(tree.root(), style, 0x0000ffff).unwrap();
         (tree, a, b)
+    }
+    #[test]
+    fn group_opacity_reuses_commands_and_damages_its_descendants() {
+        let (mut tree, a, _) = fixture();
+        let before = tree.frame([160.0, 80.0]).unwrap();
+        let mut tx = Transaction::default();
+        tx.opacity(a, 0.5);
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+        let frame = tree.frame([160.0, 80.0]).unwrap();
+        assert_eq!(
+            (
+                frame.layout_runs,
+                frame.recorded_chunks,
+                frame.updates.len()
+            ),
+            (0, 0, 0)
+        );
+        assert!(Arc::ptr_eq(
+            &before.items[1].commands,
+            &frame.items[1].commands
+        ));
+        assert_eq!(frame.items[1].properties.effect, Some(a));
+        assert_eq!(frame.properties.effects[&a].value, 0.5);
+        assert_eq!(frame.damage.bounds, Some(frame.items[1].bounds));
+        let mut tx = Transaction::default();
+        tx.color(a, 0);
+        tx.opacity(a, f32::NAN);
+        assert_eq!(
+            tree.commit(tx, BackendCapabilities::default()).unwrap_err(),
+            Error::InvalidOpacity
+        );
+        let mut tx = Transaction::default();
+        tx.opacity(a, 0.0);
+        tx.opacity(a, 0.5);
+        assert!(
+            !tree
+                .commit(tx, BackendCapabilities::default())
+                .unwrap()
+                .request_frame
+        );
     }
     #[test]
     fn scroll_clamps_to_layout_extent_keeps_background_and_shares_clip_state() {

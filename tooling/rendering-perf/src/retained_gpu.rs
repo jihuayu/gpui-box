@@ -5,6 +5,7 @@ use gpui_box::retained::{
 };
 use std::{error::Error, fs, path::PathBuf};
 mod retained_bench;
+mod retained_layers;
 
 fn compare(
     renderer: &mut WgpuFrameRenderer,
@@ -22,7 +23,8 @@ fn compare(
         "pixel mismatch in {name}"
     );
     actual.save(output.join(format!("{name}.png")))?;
-    results.push(serde_json::json!({"case":name,"pixel_equal":true,"revision":frame.revision,"layout_runs":frame.layout_runs,"recorded_chunks":frame.recorded_chunks}));
+    results.push(serde_json::json!({"case":name,"pixel_equal":true,"revision":frame.revision,"layout_runs":frame.layout_runs,"recorded_chunks":frame.recorded_chunks,
+        "reference": if frame.properties.effects.is_empty() { "original full GPUI renderer" } else { "fresh full isolated renderer; no reused cache" }}));
     Ok(())
 }
 
@@ -637,6 +639,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &output,
         &mut results,
     )?;
+    retained_layers::run(&mut renderer, &output, &mut results)?;
     fs::write(
         output.join("validation.json"),
         serde_json::to_vec_pretty(&results)?,
@@ -649,6 +652,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     fs::write(
         output.join("damage-benchmark.json"),
         serde_json::to_vec_pretty(&benchmark)?,
+    )?;
+    fs::write(
+        output.join("layer-benchmark.json"),
+        serde_json::to_vec_pretty(&retained_layers::benchmark()?)?,
     )?;
     Ok(())
 }

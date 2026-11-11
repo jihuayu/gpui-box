@@ -14,6 +14,10 @@ pub struct RetainedDemo {
     last_commit: String,
     #[cfg(feature = "retained-wgpu")]
     gpu: Option<Rc<RefCell<gpui_box::retained::wgpu::WgpuFrameRenderer>>>,
+    #[cfg(feature = "retained-wgpu")]
+    dimmed: bool,
+    #[cfg(feature = "retained-wgpu")]
+    presented_image: Rc<RefCell<Option<std::sync::Arc<RenderImage>>>>,
 }
 
 impl RetainedDemo {
@@ -87,6 +91,10 @@ impl RetainedDemo {
             last_commit: "Ready".into(),
             #[cfg(feature = "retained-wgpu")]
             gpu: None,
+            #[cfg(feature = "retained-wgpu")]
+            dimmed: false,
+            #[cfg(feature = "retained-wgpu")]
+            presented_image: Rc::new(RefCell::new(None)),
         }
     }
 
@@ -105,6 +113,32 @@ impl Render for RetainedDemo {
         let tree = self.tree.clone();
         #[cfg(feature = "retained-wgpu")]
         let gpu = self.gpu.clone();
+        #[cfg(feature = "retained-wgpu")]
+        let presented_image = self.presented_image.clone();
+        #[cfg(feature = "retained-wgpu")]
+        let effect_button = self.gpu.as_ref().map(|_| {
+            div()
+                .id("retained-opacity")
+                .debug_selector(|| "retained-opacity".into())
+                .cursor_pointer()
+                .child("Toggle isolated group opacity")
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.dimmed = !this.dimmed;
+                    let mut tx = Transaction::default();
+                    tx.opacity(this.viewport, if this.dimmed { 0.5 } else { 1.0 });
+                    let commit = this
+                        .tree
+                        .borrow_mut()
+                        .commit(tx, BackendCapabilities::default())
+                        .expect("commit group opacity");
+                    if commit.request_frame {
+                        cx.notify();
+                    }
+                }))
+                .into_any_element()
+        });
+        #[cfg(not(feature = "retained-wgpu"))]
+        let effect_button: Option<AnyElement> = None;
         div()
             .size_full()
             .p_6()
@@ -181,6 +215,7 @@ impl Render for RetainedDemo {
                         }
                     })),
             )
+            .children(effect_button)
             .child(self.last_commit.clone())
             .child(
                 canvas(
@@ -200,9 +235,34 @@ impl Render for RetainedDemo {
                                 .submit(&frame, surface, scale)
                                 .expect("submit UI frame to GPU");
                         }
-                        frame
+                        #[cfg(feature = "retained-wgpu")]
+                        let raster = gpu
+                            .as_ref()
+                            .filter(|_| !frame.properties.effects.is_empty())
+                            .map(|gpu| {
+                                gpu.borrow_mut()
+                                    .window_image()
+                                    .expect("read isolated groups for window paint")
+                            });
+                        #[cfg(feature = "retained-wgpu")]
+                        if let Some(previous) = presented_image.replace(raster.clone())
+                            && raster.as_ref().is_none_or(|image| image.id != previous.id)
+                        {
+                            _window
+                                .drop_image(previous)
+                                .expect("retire previous readback image");
+                        }
+                        #[cfg(not(feature = "retained-wgpu"))]
+                        let raster: Option<std::sync::Arc<RenderImage>> = None;
+                        (frame, raster)
                     },
-                    |bounds, frame, window, _| {
+                    |bounds, (frame, raster), window, _| {
+                        if let Some(raster) = raster {
+                            window
+                                .paint_image(bounds, bounds, Corners::default(), raster, 0, false)
+                                .expect("paint isolated groups");
+                            return;
+                        }
                         for item in frame.items.iter() {
                             let mask = item.clip.map(|clip| ContentMask {
                                 bounds: Bounds {
@@ -334,6 +394,46 @@ mod tests {
         assert!(
             image.as_raw() == reference.as_raw(),
             "scroll damage matches full renderer"
+        );
+        let opacity = cx.debug_bounds("retained-opacity").unwrap();
+        cx.simulate_click(opacity.center(), Modifiers::default());
+        cx.run_until_parked();
+        let isolated = view.read_with(cx, |view, _| {
+            view.tree.borrow().published_frame().unwrap().clone()
+        });
+        assert_eq!((isolated.layout_runs, isolated.recorded_chunks), (0, 0));
+        let image = gpu.borrow_mut().image().unwrap();
+        let reference = gpu
+            .borrow_mut()
+            .reference_image(&isolated, [image.width(), image.height()], scale)
+            .unwrap();
+        assert!(
+            image.as_raw() == reference.as_raw(),
+            "normal UI isolated group pixels"
+        );
+        let presented = gpu.borrow_mut().window_image().unwrap();
+        let bgra = presented.as_bytes(0).unwrap();
+        for (actual, expected) in bgra
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .zip(image.as_raw().as_chunks::<4>().0)
+        {
+            assert_eq!(
+                *actual,
+                [expected[2], expected[1], expected[0], expected[3]]
+            );
+        }
+        assert!(std::sync::Arc::ptr_eq(
+            &presented,
+            &gpu.borrow_mut().window_image().unwrap()
+        ));
+        assert!(cx.update(|window, _| window.has_image_atlas_entry(&presented)));
+        cx.simulate_click(opacity.center(), Modifiers::default());
+        cx.run_until_parked();
+        assert!(
+            !cx.update(|window, _| window.has_image_atlas_entry(&presented)),
+            "retire the readback sprite when isolation is removed"
         );
     }
 }

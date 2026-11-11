@@ -7,6 +7,9 @@ use std::{
     time::Duration,
 };
 pub type RetainedImage = image::RgbaImage;
+mod layers;
+use layers::LayerCache;
+pub use layers::{QuadDraw, QuadLayer, QuadLayerId};
 
 pub struct QuadWrite {
     pub start: u32,
@@ -15,7 +18,9 @@ pub struct QuadWrite {
 pub struct QuadBatch {
     pub capacity: u32,
     pub writes: Vec<QuadWrite>,
-    pub order: Option<Vec<Range<u32>>>,
+    pub order: Option<Vec<QuadDraw>>,
+    pub layers: Vec<QuadLayer>,
+    pub cache_layers: bool,
     pub size: Size<DevicePixels>,
     pub redraw: QuadRedraw,
 }
@@ -43,6 +48,9 @@ pub struct QuadSubmission {
     pub buffer_generation: u64,
     pub drawn_pixels: u64,
     pub partial: bool,
+    pub rasterized_layers: usize,
+    pub reused_layers: usize,
+    pub property_upload_bytes: u64,
 }
 
 struct Flight {
@@ -52,6 +60,7 @@ struct Flight {
     _buffer: wgpu::Buffer,
     _binding: wgpu::BindGroup,
     _clear: Option<(wgpu::Buffer, wgpu::BindGroup)>,
+    _layers: Vec<layers::LayerLease>,
 }
 
 pub struct RetainedQuadRenderer {
@@ -59,7 +68,7 @@ pub struct RetainedQuadRenderer {
     buffer: wgpu::Buffer,
     binding: InstanceBinding,
     mirror: Vec<Quad>,
-    order: Vec<Range<u32>>,
+    order: Vec<QuadDraw>,
     size: Option<Size<DevicePixels>>,
     serial: u64,
     generation: u64,
@@ -69,6 +78,7 @@ pub struct RetainedQuadRenderer {
     failed: bool,
     clear: Option<(wgpu::Buffer, InstanceBinding)>,
     force_full: bool,
+    layers: LayerCache,
 }
 
 impl RetainedQuadRenderer {
@@ -87,6 +97,7 @@ impl RetainedQuadRenderer {
             "retained storage buffers required"
         );
         let (buffer, binding) = allocation(&renderer, 1);
+        let layers = LayerCache::new(&renderer);
         Ok(Self {
             renderer,
             buffer,
@@ -102,6 +113,7 @@ impl RetainedQuadRenderer {
             failed: false,
             clear: None,
             force_full: true,
+            layers,
         })
     }
 
@@ -155,12 +167,7 @@ impl RetainedQuadRenderer {
             );
         }
         let order = batch.order.as_ref().unwrap_or(&self.order);
-        anyhow::ensure!(
-            order
-                .iter()
-                .all(|range| range.start < range.end && range.end <= batch.capacity),
-            "draw outside allocation"
-        );
+        LayerCache::validate(&batch.layers, order, batch.capacity, batch.size)?;
         let serial = self
             .serial
             .checked_add(1)
@@ -199,6 +206,7 @@ impl RetainedQuadRenderer {
         self.failed = true;
         let size_changed = self.size != Some(batch.size);
         if size_changed {
+            self.layers.clear();
             // Set shared globals and target through the same reference path.
             self.renderer.render(&Scene::default(), batch.size)?;
             self.size = Some(batch.size);
@@ -249,6 +257,11 @@ impl RetainedQuadRenderer {
         }
         let mut uploaded_bytes = 0;
         let mut upload_ranges = 0;
+        let dirty_ranges: Vec<_> = batch
+            .writes
+            .iter()
+            .map(|write| write.start..write.start + write.values.len() as u32)
+            .collect();
         if grown {
             uploaded_bytes = self.upload(0, &self.mirror);
             upload_ranges = 1;
@@ -281,6 +294,15 @@ impl RetainedQuadRenderer {
         } else {
             batch.redraw
         };
+        let layer_stats = self.layers.render(
+            &self.renderer,
+            &self.binding,
+            &mut encoder,
+            batch.layers,
+            &dirty_ranges,
+            batch.size,
+            batch.cache_layers,
+        )?;
         if redraw != QuadRedraw::Unchanged {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("retained_quad_pass"),
@@ -314,14 +336,8 @@ impl RetainedQuadRenderer {
                     &mut pass,
                 );
             }
-            for range in &self.order {
-                core.draw_instances(
-                    &self.binding,
-                    &core.resources.pipelines.quads,
-                    range.clone(),
-                    &mut pass,
-                );
-            }
+            self.layers
+                .draw(core, &self.binding, &self.order, &mut pass)?;
         }
         let submission = core.resources.queue.submit([encoder.finish()]);
         let completed = self.completed.clone();
@@ -337,6 +353,7 @@ impl RetainedQuadRenderer {
                 .clear
                 .as_ref()
                 .map(|(buffer, binding)| (buffer.clone(), binding.bind_group.clone())),
+            _layers: self.layers.leases(),
         });
         self.serial = serial;
         self.renderer.check_gpu_errors()?;
@@ -352,15 +369,19 @@ impl RetainedQuadRenderer {
             completed: self.completed.load(Ordering::Acquire),
             uploaded_bytes,
             upload_ranges,
-            draw_calls: if redraw == QuadRedraw::Unchanged {
-                0
-            } else {
-                self.order.len() + usize::from(redraw != QuadRedraw::Full)
-            },
+            draw_calls: layer_stats.draws
+                + if redraw == QuadRedraw::Unchanged {
+                    0
+                } else {
+                    self.order.len() + usize::from(redraw != QuadRedraw::Full)
+                },
             in_flight: self.flights.len(),
             buffer_generation: self.generation,
             drawn_pixels,
             partial: matches!(redraw, QuadRedraw::Damage { .. }),
+            rasterized_layers: layer_stats.rasterized,
+            reused_layers: layer_stats.reused,
+            property_upload_bytes: layer_stats.property_bytes,
         })
     }
 
@@ -390,6 +411,17 @@ impl RetainedQuadRenderer {
         let image = self.renderer.read_image()?;
         self.completed_serial()?;
         Ok(image)
+    }
+
+    /// Readback bridge for existing window paint; direct texture import is pending.
+    pub fn window_image(&mut self) -> Result<Arc<gpui::RenderImage>> {
+        let mut image = self.image()?;
+        for pixel in image.pixels_mut() {
+            pixel.0.swap(0, 2);
+        }
+        Ok(Arc::new(gpui::RenderImage::new(vec![image::Frame::new(
+            image,
+        )])))
     }
 
     pub fn reference_image(

@@ -97,8 +97,10 @@ inherited translation, rectangular clipping and resolved scroll. They accept
 alpha with the existing ordered blending semantics. The subsequent
 [property/damage stage](RETAINED_PROPERTIES_DAMAGE.md) extends the original
 16-case evidence with 10 pixel scenarios and completed-work timing comparisons.
-Group opacity, full affine transforms, property indirection on the GPU, text/image
-resources and the remaining primitive types are still in the active goal.
+The [group-compositing stage](RETAINED_GROUP_COMPOSITING.md) adds isolated group
+opacity, effect chains and layer-content reuse. Full affine transforms,
+transform/clip indirection on the GPU, text/image resources and the remaining
+primitive types are still in the active goal.
 
 Frame generation and validation currently scan the full snapshot. The consumer
 uploads only changed instances after sequential updates, but a complete CPU

@@ -70,3 +70,17 @@ reference renderer prevents pixel checks from overwriting the live target.
 An explicit `finish` waits for completion without readback for throughput A/B.
 Clear allocations remain leased through queued work. This implementation does
 not assume preserved pixels on a native swapchain or implement group opacity.
+
+### Isolated opacity layers
+
+The next stage adds `retained/layers.rs` and `layers.wgsl`. A postorder composition
+plan references persistent quad ranges and isolated layers. Layers render to
+transparent textures; the composite shader uses premultiplied blending and one
+opacity uniform. Content, draw-order and nested-effect changes invalidate the
+appropriate caches. Opacity-only changes reuse the affected layer contents.
+Full-size layer working sets have a 256 MiB validation guard; unused layers leave
+the cache and in-flight texture/buffer/binding leases protect queued work.
+The guard does not yet account for peak memory in overlapping allocation epochs.
+An explicit cache-disable control supports completed-work hardware A/B. A BGRA
+readback helper bridges isolated output to existing window image paint while
+direct GPU texture import remains pending.

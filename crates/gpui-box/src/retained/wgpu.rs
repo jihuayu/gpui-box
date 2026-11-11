@@ -7,10 +7,8 @@ use gpui::{Bounds, ContentMask, DevicePixels, Quad, ScaledPixels, Scene, point, 
 use gpui_wgpu::{
     QuadBatch, QuadRedraw, QuadSubmission, QuadWrite, RetainedImage, RetainedQuadRenderer,
 };
-use std::{
-    collections::{BTreeMap, BTreeSet, VecDeque},
-    ops::Range,
-};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
+mod composition;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct Record {
@@ -139,6 +137,9 @@ pub struct WgpuFrameRenderer {
     failed: bool,
     reference: Option<RetainedQuadRenderer>,
     policy: CompositorPolicy,
+    had_effects: bool,
+    cache_layers: bool,
+    window_image: Option<(u64, Arc<gpui::RenderImage>)>,
 }
 
 impl WgpuFrameRenderer {
@@ -157,6 +158,9 @@ impl WgpuFrameRenderer {
             failed: false,
             reference: None,
             policy: CompositorPolicy::Full,
+            had_effects: false,
+            cache_layers: true,
+            window_image: None,
         })
     }
 
@@ -177,6 +181,13 @@ impl WgpuFrameRenderer {
             self.source = None;
         }
         Ok(())
+    }
+
+    pub fn set_raster_cache_enabled(&mut self, enabled: bool) {
+        if self.cache_layers != enabled {
+            self.cache_layers = enabled;
+            self.source = None;
+        }
     }
 
     fn collect(&mut self) -> Result<(), Error> {
@@ -270,22 +281,16 @@ impl WgpuFrameRenderer {
                 }
             }
         }
-        let rebuild_order = full_resync || frame.order.is_some() || command_count_changed;
-        let order = if rebuild_order {
-            let mut ranges: Vec<Range<u32>> = vec![];
-            for item in frame.items.iter() {
-                for handle in self.instances.get(&item.node).ok_or(Error::InvalidFrame)? {
-                    if let Some(range) = ranges.last_mut().filter(|range| range.end == handle.slot)
-                    {
-                        range.end += 1;
-                    } else {
-                        ranges.push(handle.slot..handle.slot + 1);
-                    }
-                }
-            }
-            Some(ranges)
+        let rebuild_order = full_resync
+            || frame.order.is_some()
+            || command_count_changed
+            || self.had_effects
+            || !frame.properties.effects.is_empty();
+        let (order, layers) = if rebuild_order {
+            let (order, layers) = composition::plan(frame, &self.instances)?;
+            (Some(order), layers)
         } else {
-            None
+            (None, vec![])
         };
         let writes = self
             .arena
@@ -302,6 +307,8 @@ impl WgpuFrameRenderer {
                 capacity: self.arena.capacity(),
                 writes,
                 order,
+                layers,
+                cache_layers: self.cache_layers,
                 size: size(
                     DevicePixels(surface[0] as i32),
                     DevicePixels(surface[1] as i32),
@@ -323,6 +330,7 @@ impl WgpuFrameRenderer {
         self.latest = self.source;
         self.scale = scale;
         self.surface = surface;
+        self.had_effects = !frame.properties.effects.is_empty();
         self.leases.push_back((gpu.serial, frame.clone()));
         self.collect()?;
         self.failed = false;
@@ -332,6 +340,21 @@ impl WgpuFrameRenderer {
     pub fn image(&mut self) -> Result<RetainedImage, Error> {
         let image = self.backend.image().map_err(gpu_error)?;
         self.collect()?;
+        Ok(image)
+    }
+
+    /// Correct window presentation bridge for isolated groups. This waits for a
+    /// readback and uploads through the legacy sprite atlas; direct import is pending.
+    pub fn window_image(&mut self) -> Result<Arc<gpui::RenderImage>, Error> {
+        let serial = self.backend.last_serial();
+        if let Some((cached, image)) = &self.window_image
+            && *cached == serial
+        {
+            return Ok(image.clone());
+        }
+        let image = self.backend.window_image().map_err(gpu_error)?;
+        self.collect()?;
+        self.window_image = Some((serial, image.clone()));
         Ok(image)
     }
 
@@ -353,6 +376,13 @@ impl WgpuFrameRenderer {
         scale: f32,
     ) -> Result<RetainedImage, Error> {
         validate(frame, surface, scale)?;
+        if !frame.properties.effects.is_empty() {
+            // Legacy GPUI flattens element opacity. Group isolation instead uses
+            // a fresh full renderer with no previous raster-cache contents.
+            let mut fresh = Self::new(1)?;
+            fresh.submit(frame, surface, scale)?;
+            return fresh.image();
+        }
         let mut scene = Scene::default();
         for item in frame.items.iter() {
             for command in item.commands.iter() {
@@ -383,6 +413,7 @@ impl WgpuFrameRenderer {
         replacement.latest = self.latest;
         replacement.retired_sources = self.retired_sources.clone();
         replacement.policy = self.policy;
+        replacement.cache_layers = self.cache_layers;
         *self = replacement;
         Ok(())
     }
@@ -413,6 +444,33 @@ fn validate(frame: &FramePacket, surface: [u32; 2], scale: f32) -> Result<(), Er
         if item.node.tree != frame.tree || !nodes.insert(item.node) {
             return Err(Error::InvalidFrame);
         }
+    }
+    for (id, effect) in &frame.properties.effects {
+        if !nodes.contains(id) || !effect.value.is_finite() || !(0.0..=1.0).contains(&effect.value)
+        {
+            return Err(Error::InvalidFrame);
+        }
+        let mut cursor = effect.parent;
+        let mut depth = 0;
+        while let Some(parent) = cursor {
+            depth += 1;
+            if depth > frame.properties.effects.len() {
+                return Err(Error::InvalidFrame);
+            }
+            cursor = frame
+                .properties
+                .effects
+                .get(&parent)
+                .ok_or(Error::InvalidFrame)?
+                .parent;
+        }
+    }
+    if frame.items.iter().any(|item| {
+        item.properties
+            .effect
+            .is_some_and(|id| !frame.properties.effects.contains_key(&id))
+    }) {
+        return Err(Error::InvalidFrame);
     }
     if frame
         .base_revision
@@ -531,6 +589,24 @@ mod tests {
         );
         let mut invalid = frame.clone();
         invalid.removed = Arc::from([tree.root()]);
+        assert_eq!(
+            validate(&invalid, [100, 100], 1.0),
+            Err(Error::InvalidFrame)
+        );
+        let mut invalid = frame.clone();
+        Arc::make_mut(&mut invalid.properties).effects.insert(
+            tree.root(),
+            PropertyNode {
+                parent: Some(tree.root()),
+                value: 0.5,
+            },
+        );
+        assert_eq!(
+            validate(&invalid, [100, 100], 1.0),
+            Err(Error::InvalidFrame)
+        );
+        let mut invalid = frame.clone();
+        Arc::make_mut(&mut invalid.items)[0].properties.effect = Some(tree.root());
         assert_eq!(
             validate(&invalid, [100, 100], 1.0),
             Err(Error::InvalidFrame)

@@ -110,6 +110,7 @@ pub enum Patch {
     Reorder(NodeId, Vec<NodeId>),
     Clip(NodeId, Option<Rect>),
     Scroll(NodeId, [f32; 2]),
+    Opacity(NodeId, f32),
 }
 
 #[derive(Default)]
@@ -135,6 +136,10 @@ impl Transaction {
     pub fn scroll(&mut self, node: NodeId, offset: [f32; 2]) {
         self.patches.push(Patch::Scroll(node, offset));
     }
+    /// Composite the complete subtree as an isolated group with opacity in 0..=1.
+    pub fn opacity(&mut self, node: NodeId, opacity: f32) {
+        self.patches.push(Patch::Opacity(node, opacity));
+    }
     /// Reorder the existing children of one parent, preserving their identity.
     pub fn reorder(&mut self, parent: NodeId, children: Vec<NodeId>) {
         self.patches.push(Patch::Reorder(parent, children));
@@ -155,6 +160,7 @@ pub enum Error {
     Gpu(String),
     InvalidClip,
     InvalidScroll,
+    InvalidOpacity,
 }
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -178,6 +184,7 @@ struct Node {
     chunk: Option<Arc<[DisplayCommand]>>,
     clip: Option<Rect>,
     scroll: [f32; 2],
+    opacity: f32,
 }
 struct Slot {
     generation: u64,
@@ -206,6 +213,7 @@ struct Pending {
     children: Option<Vec<NodeId>>,
     clip: Option<Option<Rect>>,
     scroll: Option<[f32; 2]>,
+    opacity: Option<f32>,
 }
 
 impl UiTree {
@@ -236,6 +244,7 @@ impl UiTree {
                     chunk: None,
                     clip: None,
                     scroll: [0.0; 2],
+                    opacity: 1.0,
                 }),
             }],
             free: vec![],
@@ -312,6 +321,7 @@ impl UiTree {
             chunk: None,
             clip: None,
             scroll: [0.0; 2],
+            opacity: 1.0,
         });
         self.node_mut(parent).children.push(id);
         self.revision = next;
@@ -359,7 +369,8 @@ impl UiTree {
                 | Patch::Translation(id, _)
                 | Patch::Reorder(id, _)
                 | Patch::Clip(id, _)
-                | Patch::Scroll(id, _) => *id,
+                | Patch::Scroll(id, _)
+                | Patch::Opacity(id, _) => *id,
             };
             self.node(id)?;
             let entry = pending.entry(id).or_default();
@@ -387,6 +398,12 @@ impl UiTree {
                     }
                     entry.scroll = Some(offset);
                 }
+                Patch::Opacity(_, opacity) => {
+                    if !opacity.is_finite() || !(0.0..=1.0).contains(&opacity) {
+                        return Err(Error::InvalidOpacity);
+                    }
+                    entry.opacity = Some(opacity);
+                }
                 Patch::Reorder(_, children) => {
                     let mut previous = self.node(id)?.children.clone();
                     let mut proposed = children.clone();
@@ -411,7 +428,8 @@ impl UiTree {
                 .translation
                 .is_some_and(|value| value != node.translation)
                 || entry.clip.is_some_and(|value| value != node.clip)
-                || entry.scroll.is_some_and(|value| value != node.scroll);
+                || entry.scroll.is_some_and(|value| value != node.scroll)
+                || entry.opacity.is_some_and(|value| value != node.opacity);
             let structure_changed = entry
                 .children
                 .as_ref()
@@ -485,6 +503,9 @@ impl UiTree {
                 }
                 if let Some(value) = entry.scroll {
                     node.scroll = value;
+                }
+                if let Some(value) = entry.opacity {
+                    node.opacity = value;
                 }
                 result.routes.push((id, UpdatePath::PropertyPatch));
             }
@@ -562,6 +583,16 @@ impl UiTree {
                 (Some(a), Some(b)) => Some(a.intersect(b)),
                 (a, b) => a.or(b),
             };
+            if node.opacity != 1.0 {
+                properties.effects.insert(
+                    id,
+                    PropertyNode {
+                        parent: state.effect,
+                        value: node.opacity,
+                    },
+                );
+                state.effect = Some(id);
+            }
             let paint_state = state;
             let scroll = [
                 node.scroll[0].min(layout.scroll_width()),
@@ -631,8 +662,13 @@ impl UiTree {
                 .map(|item| item.node)
                 .eq(order.iter().copied())
         });
-        let damage =
-            properties::damage(self.frame.as_ref(), &items, viewport_changed, order_changed);
+        let damage = properties::damage(
+            self.frame.as_ref(),
+            &items,
+            &properties,
+            viewport_changed,
+            order_changed,
+        );
         let frame = FramePacket {
             tree: self.identity,
             base_revision: self.frame.as_ref().map(|frame| frame.revision),
