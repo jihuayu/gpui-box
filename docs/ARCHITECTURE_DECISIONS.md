@@ -13,7 +13,7 @@ incompatible types if multiple GPUI package identities enter the graph.
 
 ### Decision
 
-Provide an application-facing `ggpui` facade over a tested, fixed dependency set.
+Provide an application-facing `gpui-box` facade over a tested, fixed dependency set.
 Anchor platform work to official Zed GPUI, preserving its workspace and coordinated
 crate set at one pinned revision. Add `gpui_android` inside that workspace and keep
 necessary upstream changes in a documented patch queue. Use optional compatible
@@ -61,7 +61,7 @@ stack, accessibility bridge, and full tool tuple in M0.
 
 ### Consequences
 
-ggpui maintains the Android host and dispatcher integration directly. Background
+gpui-box maintains the Android host and dispatcher integration directly. Background
 work returns to the system main thread through explicit dispatch. Native reentry,
 GPUI borrows, and main-thread blocking require clear invariants. M0 can revise the
 host or rendering choice if measurements fail the required acceptance cases.
@@ -129,7 +129,7 @@ dependencies require feature or target isolation.
 
 ### Context
 
-The user selected Apache License, Version 2.0 for ggpui.
+The user selected Apache License, Version 2.0 for gpui-box.
 
 ### Decision
 
@@ -185,3 +185,27 @@ textures independently.
 Mobile work extends existing GPUI behavior and requires focused interoperability
 tests. Initial Android delivery stays bounded. Native composition and iOS
 certification have their own acceptance gates.
+
+## ADR-009 — Stage Android system composition behind measured interop gates
+
+### Context
+
+Native views and GPU-rendered content need matched geometry, buffer ownership,
+and traversal timing. Flutter HCPP demonstrates an experimental system-composition
+approach whose APIs and renderer assumptions require gpui-box-specific validation.
+
+### Decision
+
+Follow the base Android release with C0–C5 in ANDROID_COMPOSITION_PLAN.md. Prove
+AHB/WGPU target and external-fence interoperability first. Preserve a basic
+native-overlay tier, then add an opt-in system tier using sealed frames,
+generation-aware ownership, bounded queues, ViewRoot synchronization, and exact
+release tracking. Treat API 34+ as the initial system-tier candidate policy while
+checking the actual minimum for each called API.
+
+### Consequences
+
+The base Android delivery has an independent release gate. System composition
+needs device capability negotiation, failure recovery, and resource stress tests.
+Shared composition types are extracted after Android and iOS demonstrate matching
+needs. Renderer and host changes remain narrowly scoped and separately reviewed.

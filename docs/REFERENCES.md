@@ -24,7 +24,7 @@ uses Rust 1.98.1. GPUI's crate manifest declares Apache-2.0.
 The repository describes a facade over a behavior foundation and styled component
 layer. This is the principal component reuse candidate and a reference for a
 coordinated user-facing API. Its published claims about production use and catalog
-size are project-reported. ggpui has not independently benchmarked the catalog.
+size are project-reported. gpui-box has not independently benchmarked the catalog.
 The inspected Kit manifest is version 0.9.1 and gates its platform dependency out
 on Android/iOS. Its package declares Apache-2.0, while documentation prose has
 additional licensing terms described in the README.
@@ -103,12 +103,35 @@ for its Rust view model, layout, scene, and rendering behavior.
 - [Android surface destruction contract](https://developer.android.com/reference/android/view/SurfaceHolder.Callback)
 - [Android text editing protocol](https://developer.android.com/reference/android/view/inputmethod/InputConnection)
 
+### Flutter HCPP and Android system composition
+
+The user's second design input motivated ANDROID_COMPOSITION_PLAN.md. Official
+documentation was checked for experimental status, the Flutter API 34+/Vulkan
+requirement, and the API 31 introduction of `applyTransactionOnDraw`. The inspected
+Flutter HEAD was `d9b77d26265f5130ec6b250f087289fd3dddf5bf`. Source confirms sealed
+frame batches, traversal gating, and present-ID-based completion handling. The
+code and patch were read as references, with no Flutter build performed.
+
+- [Scene slicing and overlay submission](https://github.com/flutter/flutter/blob/d9b77d26265f5130ec6b250f087289fd3dddf5bf/engine/src/flutter/shell/platform/android/external_view_embedder/external_view_embedder_2.cc)
+- [ViewRoot transaction synchronization](https://github.com/flutter/flutter/blob/d9b77d26265f5130ec6b250f087289fd3dddf5bf/engine/src/flutter/shell/platform/android/io/flutter/plugin/platform/PlatformViewsController2.java)
+- [AHB swapchain and present tracking](https://github.com/flutter/flutter/blob/d9b77d26265f5130ec6b250f087289fd3dddf5bf/engine/src/flutter/impeller/renderer/backend/vulkan/swapchain/ahb/ahb_swapchain_impl_vk.cc)
+- [Native surface transaction wrapper](https://github.com/flutter/flutter/blob/d9b77d26265f5130ec6b250f087289fd3dddf5bf/engine/src/flutter/impeller/toolkit/android/surface_transaction.cc)
+- [Multi-frame race fix #194591](https://github.com/flutter/flutter/pull/194591)
+- [AttachedSurfaceControl API and draw scheduling](https://developer.android.com/reference/android/view/AttachedSurfaceControl)
+- [NDK surface-control and release-fence APIs](https://developer.android.com/ndk/reference/group/native-activity)
+- [AHardwareBuffer usages and ownership](https://developer.android.com/ndk/reference/group/a-hardware-buffer)
+- [Pinned WGPU Vulkan texture wrapping](https://github.com/gfx-rs/wgpu/blob/cddb2f5d80dc0009b2ef6767635140cacf90a007/wgpu-hal/src/vulkan/device.rs)
+
+The second input's iOS module sketch is reconciled with the existing official
+iOS backend. The plan evaluates Apple transaction synchronization during that
+later track and keeps Android's buffer/fence protocol platform-specific.
+
 ### Tauri
 
 Tauri's mobile plugin implementation is a reference for Rust/native boundaries.
 Its updater documents a check/download/install workflow and supports Windows,
 macOS, and Linux. Android and iOS are marked unsupported. Reusing ideas from that
-workflow still requires ggpui-specific APIs and Android channel providers.
+workflow still requires gpui-box-specific APIs and Android channel providers.
 
 - [Mobile plugin bridge](https://github.com/tauri-apps/tauri/blob/66b29d1b03bdc08e7275f8da40cc05432a50e1f4/crates/tauri/src/plugin/mobile.rs)
 - [Updater platform table and workflow](https://github.com/tauri-apps/plugins-workspace/blob/9aa4f717152cdeceed4bada9c849ad68a9dc402c/plugins/updater/README.md)

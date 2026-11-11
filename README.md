@@ -1,7 +1,9 @@
-# ggpui
+# gpui-box
 
 A developer-focused GPUI distribution with Android support, reusable components,
 application tooling, packaging, and platform-aware updates.
+
+[Project repository](https://github.com/jihuayu/gpui-box)
 
 ## Project status
 
@@ -59,11 +61,14 @@ will grow as implementation milestones introduce buildable packages.
 - [Project plan and milestone acceptance criteria](docs/PROJECT_PLAN.md)
 - [Architecture decisions](docs/ARCHITECTURE_DECISIONS.md)
 - [Reference implementation research](docs/REFERENCES.md)
+- [Later Android native composition technical plan](docs/ANDROID_COMPOSITION_PLAN.md)
 
 Project documentation, code, configuration, and public API names use English.
+Planned Cargo packages and the CLI use the `gpui-box` prefix. Rust imports use
+`gpui_box` for the facade, following Cargo's hyphen-to-underscore convention.
 
 ## License
 
-Original ggpui contributions are licensed under Apache License, Version 2.0.
+Original gpui-box contributions are licensed under Apache License, Version 2.0.
 Dependencies and any future vendored source retain their respective licenses and
 required notices. See [LICENSE](LICENSE).

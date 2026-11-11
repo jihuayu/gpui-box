@@ -1,10 +1,10 @@
-# ggpui project plan
+# gpui-box project plan
 
 Draft for implementation review, prepared on November 11, 2026.
 
 ## 1. Product intent
 
-ggpui is a coordinated GPUI distribution for developers building native Rust
+gpui-box is a coordinated GPUI distribution for developers building native Rust
 applications. It brings together a tested GPUI baseline, Android integration,
 common UI components, application services, project tooling, packaging, and update
 delivery. A developer should be able to create a project, run it on Windows and
@@ -38,7 +38,7 @@ These are planning decisions made by the author and can be adjusted during revie
 | UI foundation | Official Zed GPUI baseline, with optional compatible Kit layers | Keeps platform integration anchored to upstream while reusing component work |
 | Android host | Kotlin Activity and SurfaceView with a typed JNI bridge | Supports system-main-thread ownership and a direct InputConnection adapter |
 | Rendering | Evaluate GPUI WGPU with Vulkan first on Android | Validates surface, shader, texture, and text behavior on a bounded backend |
-| Application API | A `ggpui` facade plus optional capabilities | Gives consumers a coordinated dependency graph |
+| Application API | A `gpui-box` facade plus optional capabilities | Gives consumers a coordinated dependency graph |
 
 M0 must pin and test the complete Gradle, AGP, Kotlin, JNI,
 SDK, NDK, and JDK tuple. If the chosen AGP requires a newer JDK,
@@ -88,20 +88,20 @@ Android. [android-activity](https://github.com/rust-mobile/android-activity/blob
 
 ```mermaid
 flowchart TB
-    App[Application and shared views] --> Facade[ggpui facade]
+    App[Application and shared views] --> Facade[gpui-box facade]
     Facade --> UI[Components and adaptive navigation]
     Facade --> Services[Application services]
     Facade --> Updates[Channel-aware update service]
     UI --> Core[One coordinated GPUI dependency graph]
     Core --> Desktop[Existing desktop backend]
-    Core --> Android[ggpui Android platform backend]
+    Core --> Android[gpui-box Android platform backend]
     Android --> Host[Kotlin Activity and SurfaceView JNI bridge]
     Android --> GPU[GPUI WGPU Vulkan evaluation]
     Core --> IOS[Later official gpui_ios validation]
     IOS --> Apple[Existing gpui_apple Metal path]
     Updates --> Play[Play update provider]
     Updates --> APK[Direct APK update provider]
-    CLI[ggpui CLI] --> Cargo[Cargo and cargo-ndk]
+    CLI[gpui-box CLI] --> Cargo[Cargo and cargo-ndk]
     CLI --> Gradle[Gradle Wrapper and Android packaging]
     CLI --> DesktopBundle[Desktop packaging adapters]
     Mise[mise tools and repository tasks] --> CLI
@@ -127,12 +127,16 @@ graph cannot be established, keep Kit optional and implement the minimal gallery
 using GPUI primitives. Research anchors in REFERENCES.md have not been established
 as a working dependency pair.
 
-Applications should import GPUI types through ggpui's facade. Every package must
+Applications should import GPUI types through gpui-box's facade. Every package must
 resolve the same GPUI package identity, including source and revision. A Kit
 release using renamed GPUI snapshot packages cannot be combined casually with a
 different GPUI Git source. M0 chooses either an aligned upstream/snapshot graph or
 a controlled set of minimally patched snapshots. Verify with Cargo metadata and
 duplicate-package inspection before exposing public types.
+
+The distribution repository is `https://github.com/jihuayu/gpui-box`. Cargo package
+names and the CLI use `gpui-box`, with `gpui_box` as the Rust facade import.
+The upstream fork or patch repository is a separate implementation choice.
 
 Keep Android-specific platform code in a separate crate. Use upstream extension
 points where they suffice. If core changes are required, maintain a small,
@@ -147,11 +151,11 @@ platform additions initially live inside the preserved upstream workspace.
 
 ```text
 crates/
-  ggpui/                 Application-facing facade and initialization
-  ggpui-components/      Coordinated component exports and mobile additions
-  ggpui-app/             Navigation, configuration, storage, and lifecycle
-  ggpui-update/          Update state machine and channel providers
-  ggpui-cli/             Project creation, diagnostics, dev, build, and package
+  gpui-box/                 Application-facing facade and initialization
+  gpui-box-components/      Coordinated component exports and mobile additions
+  gpui-box-app/             Navigation, configuration, storage, and lifecycle
+  gpui-box-update/          Update state machine and channel providers
+  gpui-box-cli/             Project creation, diagnostics, dev, build, and package
 examples/
   hello/                 Smallest shared-view desktop and Android application
   gallery/               Component, accessibility, and adaptive-layout checks
@@ -247,6 +251,11 @@ must reach TalkBack. Include accessibility in the first release acceptance gate.
 
 ### Later native integration
 
+The detailed follow-on architecture, AHB/WGPU interop spike, frame/fence ownership,
+runtime fallback, and C0–C5 acceptance gates are specified in
+[Android native composition technical plan](ANDROID_COMPOSITION_PLAN.md).
+This track follows M0–M6, with an optional bounded C0 risk spike after M0.
+
 After the self-rendered application path passes, add a bounded NativeView feature.
 Begin with an Android WebView in a rectangular region above the GPUI surface,
 supporting basic position/size changes and explicit focus/lifecycle handling.
@@ -274,7 +283,7 @@ desktop-only dependencies.
 
 ### CLI and packaging
 
-The proposed CLI commands are `ggpui new`, `doctor`, `dev`, `build`, `package`,
+The proposed CLI commands are `gpui-box new`, `doctor`, `dev`, `build`, `package`,
 and `update manifest`. They become available incrementally after M0. `doctor`
 reports exact versions, SDK paths, licenses, NDK, compiler prerequisites, ABIs,
 and connected devices with corrective commands.
@@ -328,7 +337,7 @@ tooling work can expand once M0 confirms the dependency graph and Android host.
 | M5, Android updates | Play provider, direct APK provider, signed update metadata, interruption handling | Actual Play test-track verification and APK upgrade from v1 to v2, data retention, rejected tampering/wrong signer/downgrade, cancellation and retry |
 | M6, 0.1.0 candidate | Versioned docs, migration policy, CI matrix, release checklist, sample app | Another developer completes the documented setup/build/install/update journey, with recorded platform limitations and all required gates passing |
 | M7, desktop distribution | Native Windows installer and updater, then macOS/Linux packaging adapters | Per-platform signing, install/uninstall, update, restart, and recovery checks on declared supported systems |
-| M8, iOS validation and native integration | Official iOS/Apple backend audit, shared gallery and packaging on macOS, then constrained NativeView support | Initial official iOS sample baseline, shared-view iOS device tests, lifecycle/IME/VoiceOver checks, separate native-view acceptance |
+| M8, iOS validation | Official iOS/Apple backend audit, shared gallery and packaging on macOS | Initial official iOS sample baseline, shared-view iOS device tests, lifecycle/IME/VoiceOver checks |
 
 The first iOS activity when that track starts is to run and audit the official
 sample. Preserve existing iOS code and keep any available upstream iOS checks
@@ -344,7 +353,7 @@ already comfortable with Rust and Android internals. Allocate 2–3 weeks to M0,
 Allow a further 3–4 weeks for upstream/dependency and device issues, bringing the
 budget including contingency to 21–34 engineer-weeks. Re-estimate after M0.
 External prerequisites such as Play access and test hardware can affect elapsed
-time. M7 and M8 are estimated separately.
+time. M7, M8, and the C0–C5 native-composition track are estimated separately.
 
 ## 5. Validation and release discipline
 
