@@ -111,12 +111,38 @@ pub use gpui_dnd as dnd;
 #[cfg(feature = "network")]
 pub use gpui_network as network;
 
+/// Persistent background jobs, constraint gating, checkpoint recovery and
+/// bounded in-process CPU/I/O pools.
+#[cfg(feature = "jobs")]
+pub use gpui_jobs as jobs;
+
 /// Taskbar, Dock, badge, attention and notification task presentation.
 #[cfg(feature = "task-presentation")]
 pub use gpui_task_presentation as task_presentation;
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "jobs")]
+    #[test]
+    fn jobs_facade_reexports_the_coordinated_contracts() {
+        use crate::jobs;
+        assert_eq!(jobs::UPSTREAM_GPUI_REVISION, crate::UPSTREAM_REVISION);
+        assert_eq!(jobs::PACKAGE_VERSION, crate::VERSION);
+        assert_eq!(jobs::JobsOperation::ALL.len(), 6);
+        assert_eq!(jobs::PlatformTarget::ALL.len(), 6);
+        assert_eq!(jobs::platform_support_matrix().len(), 36);
+        assert_eq!(jobs::DEFAULT_JOBS_EVENT_CAPACITY, 64);
+        assert_eq!(jobs::PROVIDER_MANIFEST.len(), 5);
+        assert!(!jobs::durable_scheduling_available(
+            jobs::PlatformTarget::Linux
+        ));
+        assert!(
+            jobs::platform_support_matrix()
+                .iter()
+                .all(|row| row.evidence == jobs::Evidence::ContractOnly)
+        );
+    }
+
     #[cfg(feature = "power")]
     #[test]
     fn power_facade_reexports_the_coordinated_contracts() {
