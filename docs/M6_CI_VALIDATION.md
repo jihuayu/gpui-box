@@ -50,3 +50,36 @@ cross-build/emulator CI, feature/dependency audit matrices, release signing,
 16 KB runtime pages, GPU/performance and hardware qualification retain separate
 M6 gates. Physical-device testing remains deferred under the current project
 scope. M6 stays open until its full release acceptance is satisfied.
+
+## Linux shared-code gate
+
+`.github/workflows/linux.yml` runs the same shared/CLI, component, gallery and
+desktop compilation entry points on Ubuntu 24.04. The CLI suite includes its
+Unix-specific managed-output and metadata symlink regression on this runner.
+The workflow pins the same mise/Rust versions, verifies the Linux x64 mise
+SHA-256 and retains APT, tool-identity and validation logs for 14 days.
+
+Native prerequisites cover Clang, CMake, pkg-config, OpenSSL, udev, Fontconfig,
+XKB, X11, Wayland, Vulkan/EGL, ALSA, GLib and D-Bus. Their Ubuntu package versions
+follow the hosted image and current official Ubuntu repositories. This job
+qualifies the tested image/package tuple. The release SDK closure remains
+tracked separately under #62.
+
+The first attempt failed during APT provisioning before Rust setup. Its mirror
+discovery repeatedly reported DNS failure for azure.archive.ubuntu.com. A partial
+index update returned success and package installation continued against stale
+indexes until it failed after roughly 45 minutes. The corrected workflow uses
+explicit official Ubuntu HTTPS sources for this command, treats incomplete
+index updates as failures, bounds retries/download timeouts and limits the
+provisioning step to ten minutes. Logs are created before installation so a
+provisioning failure can still produce an artifact. The repository's normal
+developer APT configuration is outside this hosted workflow.
+
+[Initial provisioning failure](https://github.com/jihuayu/gpui-box/actions/runs/43036937740)
+
+Hosted qualification for the current revision is tracked in PR #91. Linux
+interactive rendering, desktop service-provider behavior, assistive technology
+and packaging/update support retain their operation-specific acceptance gates.
+Android cross-build/emulator CI and macOS qualification remain separate work.
+
+[Linux CI implementation and evidence](https://github.com/jihuayu/gpui-box/pull/91)
