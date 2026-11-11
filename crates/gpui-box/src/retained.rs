@@ -264,6 +264,7 @@ pub enum Error {
     ReadonlySignal,
     UndeclaredDependency,
     SignalInUse,
+    InvalidEffect,
     InvalidBinding,
     BindingConflict,
     InvalidScope,

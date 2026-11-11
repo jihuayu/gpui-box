@@ -24,9 +24,9 @@ pub(super) struct Computation {
 /// Computations must be pure: returned errors roll back UI state, but cannot
 /// undo arbitrary external side effects performed by a callback.
 pub struct ComputedInputs<'a> {
-    runtime: &'a ReactiveUi,
-    dependencies: &'a BTreeSet<SourceId>,
-    values: &'a BTreeMap<SourceId, Rc<dyn Value>>,
+    pub(super) runtime: &'a ReactiveUi,
+    pub(super) dependencies: &'a BTreeSet<SourceId>,
+    pub(super) values: &'a BTreeMap<SourceId, Rc<dyn Value>>,
 }
 impl ComputedInputs<'_> {
     pub fn read<T: 'static>(&self, signal: Signal<T>) -> Result<&T, Error> {
@@ -73,6 +73,7 @@ impl ReactiveUi {
             value: Rc::new(value),
             bindings: BTreeSet::new(),
             dependents: BTreeSet::new(),
+            effects: BTreeSet::new(),
             computation: Some(Computation {
                 dependencies: dependencies.clone(),
                 evaluate: Box::new(move |inputs| Ok(Rc::new(evaluate(inputs)?))),
@@ -113,6 +114,7 @@ impl ReactiveUi {
     pub(in crate::retained) fn validate_scope_disposal(
         &self,
         sources: &BTreeSet<Dependency>,
+        effects: &BTreeSet<EffectId>,
     ) -> Result<(), Error> {
         for id in sources {
             if self
@@ -120,6 +122,14 @@ impl ReactiveUi {
                 .dependents
                 .iter()
                 .any(|dependent| !sources.contains(&Dependency(*dependent)))
+            {
+                return Err(Error::SignalInUse);
+            }
+            if self
+                .source(id.0)?
+                .effects
+                .iter()
+                .any(|effect| !effects.contains(effect))
             {
                 return Err(Error::SignalInUse);
             }

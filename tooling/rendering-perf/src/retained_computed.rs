@@ -35,6 +35,34 @@ pub(super) fn run(
     let translation = ui.computed(scope, 3, &[bucket.dependency()], move |i| {
         Ok([*i.read(bucket)? as f32 * 4.0, 0.0])
     })?;
+    let observed = std::rc::Rc::new(std::cell::RefCell::new(vec![]));
+    let events = observed.clone();
+    ui.effect(
+        scope,
+        0,
+        &[
+            bucket.dependency(),
+            color.dependency(),
+            translation.dependency(),
+        ],
+        move |i| {
+            let bucket = *i.read(bucket).unwrap();
+            assert_eq!(i.read(translation).unwrap()[0], bucket as f32 * 4.0);
+            assert_eq!(
+                *i.read(color).unwrap(),
+                if bucket % 2 == 0 {
+                    0x245fc7ff
+                } else {
+                    0xcc7733ff
+                }
+            );
+            events.borrow_mut().push(("run", bucket));
+            let events = events.clone();
+            Some(Box::new(move || {
+                events.borrow_mut().push(("cleanup", bucket))
+            }))
+        },
+    )?;
     let style = Style {
         size: taffy::Size {
             width: length(20.0),
@@ -65,6 +93,7 @@ pub(super) fn run(
         (1, 1, 0)
     );
     assert!(!commit.commit.request_frame);
+    assert_eq!((commit.effect_runs, commit.effect_cleanups), (0, 0));
     let equal = ui.frame([320.0, 80.0])?;
     assert!(std::sync::Arc::ptr_eq(&initial.items, &equal.items));
     assert!(renderer.submit(&equal, size, 1.0)?.is_none());
@@ -94,6 +123,7 @@ pub(super) fn run(
         (3, 20, 10)
     );
     assert_eq!(commit.commit.revision, initial.revision + 1);
+    assert_eq!((commit.effect_runs, commit.effect_cleanups), (1, 1));
     let frame = ui.frame([320.0, 80.0])?;
     assert_eq!((frame.layout_runs, frame.recorded_chunks), (0, 0));
     let submitted = renderer.submit(&frame, size, 1.0)?.unwrap();
@@ -110,6 +140,7 @@ pub(super) fn run(
     results.last_mut().unwrap()["derived_evaluations"] = commit.computed_evaluations.into();
     results.last_mut().unwrap()["sink_writes"] = commit.sink_writes.into();
     results.last_mut().unwrap()["uploaded_bytes"] = submitted.gpu.uploaded_bytes.into();
+    results.last_mut().unwrap()["post_commit_effect_runs"] = commit.effect_runs.into();
     let commit = ui.transaction(|tx| {
         tx.set(input, 12)?;
         assert_eq!(*tx.read(bucket)?, 3);
@@ -147,6 +178,7 @@ pub(super) fn run(
     assert_eq!(*ui.read(bucket)?, 1);
     let after = ui.frame([320.0, 80.0])?;
     assert_eq!(before.revision, after.revision);
+    assert_eq!(*observed.borrow(), [("run", 0), ("cleanup", 0), ("run", 1)]);
     assert!(renderer.submit(&after, size, 1.0)?.is_none());
     compare(
         renderer,
@@ -157,5 +189,7 @@ pub(super) fn run(
         output,
         results,
     )?;
+    drop(ui);
+    assert_eq!(observed.borrow().last(), Some(&("cleanup", 1)));
     Ok(())
 }

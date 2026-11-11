@@ -14,6 +14,7 @@ pub struct RetainedDemo {
     tree: Rc<RefCell<LogicalUi>>,
     responsive: Rc<RefCell<ResponsiveBindings>>,
     color: Signal<u32>,
+    observed_color: Rc<std::cell::Cell<u32>>,
     scroll: Signal<[f32; 2]>,
     measure: Signal<Option<MeasureSnapshot>>,
     decoration: Signal<QuadDecoration>,
@@ -114,6 +115,13 @@ impl RetainedDemo {
             .expect("create computed material");
         tree.bind(material, Property::color(tile))
             .expect("bind computed color");
+        let observed_color = Rc::new(std::cell::Cell::new(0));
+        let observed = observed_color.clone();
+        tree.effect(root_scope, 0, &[material.dependency()], move |inputs| {
+            observed.set(*inputs.read(material).expect("declared material"));
+            None
+        })
+        .expect("observe committed material");
         let decoration = tree.state(root_scope, 5, QuadDecoration::default).unwrap();
         tree.bind(decoration, Property::decoration(tile))
             .expect("bind decoration");
@@ -325,6 +333,7 @@ impl RetainedDemo {
             tree: Rc::new(RefCell::new(tree)),
             responsive: Rc::new(RefCell::new(responsive)),
             color,
+            observed_color,
             scroll,
             measure,
             decoration,
@@ -600,7 +609,7 @@ impl Render for RetainedDemo {
                         }
                     })),
             )
-            .child(self.last_commit.clone())
+            .child(format!("{} · material #{:08x}", self.last_commit, self.observed_color.get()))
             .child(
                 canvas(
                     move |bounds, _window, _| {
@@ -742,6 +751,7 @@ mod tests {
         cx.run_until_parked();
         let after = view.read_with(cx, |view, _| {
             assert_eq!(*view.tree.borrow().read(view.color).unwrap(), 0xc75824ff);
+            assert_eq!(view.observed_color.get(), 0xc75824ff);
             view.tree.borrow().published_frame().unwrap().clone()
         });
         assert_ne!(before.items[1].fill_color, after.items[1].fill_color);
@@ -766,6 +776,7 @@ mod tests {
             (3, 3, 2, 2)
         );
         assert_eq!(stats.computed_evaluations, 1);
+        assert_eq!(stats.effect_runs, 1);
         let scroll = cx.debug_bounds("retained-scroll").unwrap();
         cx.simulate_click(scroll.center(), Modifiers::default());
         cx.run_until_parked();

@@ -1,0 +1,234 @@
+{
+  "scope": "completed-work wall clock: transaction + frame + submit + queue backpressure + final completion; no texture readback, no present, no GPU-only timestamp",
+  "samples_per_policy": 120,
+  "rounds": 3,
+  "warmup_per_round": 8,
+  "max_in_flight": 3,
+  "cases": [
+    {
+      "case": "grid-576-1080p",
+      "surface": [
+        1920,
+        1080
+      ],
+      "measurements": [
+        {
+          "policy": "full",
+          "completed_frame_mean_us": 445.3333333333333,
+          "round_completed_frame_mean_us": [
+            456.7875,
+            448.05,
+            431.1625
+          ],
+          "speedup_vs_full": 1.0,
+          "commit_and_frame": {
+            "median_us": 4.8,
+            "p95_us": 13.1
+          },
+          "submit_including_backpressure": {
+            "median_us": 425.3,
+            "p95_us": 572.3
+          },
+          "redraw_region_pixels": 2073600,
+          "draw_calls": 1,
+          "uploaded_bytes_per_change": 160,
+          "pixel_equal": true
+        },
+        {
+          "policy": "damage",
+          "completed_frame_mean_us": 64.295,
+          "round_completed_frame_mean_us": [
+            64.72,
+            64.91999999999999,
+            63.245000000000005
+          ],
+          "speedup_vs_full": 6.926406926406926,
+          "commit_and_frame": {
+            "median_us": 2.9000000000000004,
+            "p95_us": 4.5
+          },
+          "submit_including_backpressure": {
+            "median_us": 56.5,
+            "p95_us": 73.39999999999999
+          },
+          "redraw_region_pixels": 676,
+          "draw_calls": 2,
+          "uploaded_bytes_per_change": 160,
+          "pixel_equal": true
+        },
+        {
+          "policy": "auto-35pct",
+          "completed_frame_mean_us": 75.125,
+          "round_completed_frame_mean_us": [
+            84.9875,
+            69.00250000000001,
+            71.385
+          ],
+          "speedup_vs_full": 5.92789794786467,
+          "commit_and_frame": {
+            "median_us": 2.9000000000000004,
+            "p95_us": 7.4
+          },
+          "submit_including_backpressure": {
+            "median_us": 59.3,
+            "p95_us": 124.10000000000001
+          },
+          "redraw_region_pixels": 676,
+          "draw_calls": 2,
+          "uploaded_bytes_per_change": 160,
+          "pixel_equal": true
+        }
+      ]
+    },
+    {
+      "case": "overdraw-32-1080p",
+      "surface": [
+        1920,
+        1080
+      ],
+      "measurements": [
+        {
+          "policy": "full",
+          "completed_frame_mean_us": 5054.546666666666,
+          "round_completed_frame_mean_us": [
+            5337.7300000000005,
+            4902.530000000001,
+            4923.38
+          ],
+          "speedup_vs_full": 1.0,
+          "commit_and_frame": {
+            "median_us": 14.7,
+            "p95_us": 23.900000000000002
+          },
+          "submit_including_backpressure": {
+            "median_us": 4870.099999999999,
+            "p95_us": 6133.099999999999
+          },
+          "redraw_region_pixels": 2073600,
+          "draw_calls": 1,
+          "uploaded_bytes_per_change": 160,
+          "pixel_equal": true
+        },
+        {
+          "policy": "damage",
+          "completed_frame_mean_us": 85.04833333333335,
+          "round_completed_frame_mean_us": [
+            116.03,
+            62.870000000000005,
+            76.245
+          ],
+          "speedup_vs_full": 59.431460542044704,
+          "commit_and_frame": {
+            "median_us": 3.3000000000000003,
+            "p95_us": 5.5
+          },
+          "submit_including_backpressure": {
+            "median_us": 63.2,
+            "p95_us": 120.3
+          },
+          "redraw_region_pixels": 676,
+          "draw_calls": 2,
+          "uploaded_bytes_per_change": 160,
+          "pixel_equal": true
+        },
+        {
+          "policy": "auto-35pct",
+          "completed_frame_mean_us": 85.46666666666668,
+          "round_completed_frame_mean_us": [
+            68.4375,
+            102.49000000000001,
+            85.4725
+          ],
+          "speedup_vs_full": 59.14056162246488,
+          "commit_and_frame": {
+            "median_us": 3.3000000000000003,
+            "p95_us": 10.5
+          },
+          "submit_including_backpressure": {
+            "median_us": 60.2,
+            "p95_us": 218.9
+          },
+          "redraw_region_pixels": 676,
+          "draw_calls": 2,
+          "uploaded_bytes_per_change": 160,
+          "pixel_equal": true
+        }
+      ]
+    },
+    {
+      "case": "overdraw-32-2160p",
+      "surface": [
+        3840,
+        2160
+      ],
+      "measurements": [
+        {
+          "policy": "full",
+          "completed_frame_mean_us": 19635.65166666667,
+          "round_completed_frame_mean_us": [
+            19637.45,
+            19629.107500000002,
+            19640.3975
+          ],
+          "speedup_vs_full": 1.0,
+          "commit_and_frame": {
+            "median_us": 16.4,
+            "p95_us": 30.800000000000004
+          },
+          "submit_including_backpressure": {
+            "median_us": 19512.600000000002,
+            "p95_us": 20317.0
+          },
+          "redraw_region_pixels": 8294400,
+          "draw_calls": 1,
+          "uploaded_bytes_per_change": 160,
+          "pixel_equal": true
+        },
+        {
+          "policy": "damage",
+          "completed_frame_mean_us": 90.88166666666667,
+          "round_completed_frame_mean_us": [
+            81.8425,
+            80.8375,
+            109.96499999999999
+          ],
+          "speedup_vs_full": 216.05734563259918,
+          "commit_and_frame": {
+            "median_us": 4.300000000000001,
+            "p95_us": 8.1
+          },
+          "submit_including_backpressure": {
+            "median_us": 76.69999999999999,
+            "p95_us": 128.60000000000002
+          },
+          "redraw_region_pixels": 676,
+          "draw_calls": 2,
+          "uploaded_bytes_per_change": 160,
+          "pixel_equal": true
+        },
+        {
+          "policy": "auto-35pct",
+          "completed_frame_mean_us": 100.885,
+          "round_completed_frame_mean_us": [
+            168.69750000000002,
+            67.14250000000001,
+            66.815
+          ],
+          "speedup_vs_full": 194.63400571607937,
+          "commit_and_frame": {
+            "median_us": 3.3000000000000003,
+            "p95_us": 13.6
+          },
+          "submit_including_backpressure": {
+            "median_us": 61.9,
+            "p95_us": 231.1
+          },
+          "redraw_region_pixels": 676,
+          "draw_calls": 2,
+          "uploaded_bytes_per_change": 160,
+          "pixel_equal": true
+        }
+      ]
+    }
+  ]
+}

@@ -3,6 +3,8 @@ use super::*;
 use std::{any::Any, cell::Cell, collections::BTreeSet, marker::PhantomData, rc::Rc};
 mod computed;
 pub use computed::{ComputedInputs, Dependency};
+mod effects;
+pub use effects::{EffectCleanup, EffectId, EffectInputs};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct SourceId {
@@ -162,6 +164,7 @@ struct Source {
     value: Rc<dyn Value>,
     bindings: BTreeSet<BindingId>,
     dependents: BTreeSet<SourceId>,
+    effects: BTreeSet<EffectId>,
     computation: Option<computed::Computation>,
     rank: u64,
     scheduled_epoch: Cell<u64>,
@@ -192,6 +195,8 @@ pub struct ReactiveStats {
     pub frame_requests: u64,
     pub computed_evaluations: u64,
     pub computed_equal: u64,
+    pub effect_runs: u64,
+    pub effect_cleanups: u64,
 }
 
 pub struct ReactiveCommit<R> {
@@ -201,6 +206,8 @@ pub struct ReactiveCommit<R> {
     pub sink_writes: usize,
     pub computed_evaluations: u64,
     pub computed_equal: u64,
+    pub effect_runs: usize,
+    pub effect_cleanups: usize,
 }
 
 /// Signals, sinks and render nodes have one UI-thread owner. A transaction is a
@@ -214,6 +221,8 @@ pub struct ReactiveUi {
     bindings: BTreeMap<BindingId, Binding>,
     endpoints: BTreeMap<(NodeId, Field), BindingId>,
     next_binding: u64,
+    effects: BTreeMap<EffectId, effects::Effect>,
+    next_effect: u64,
     schedule_epoch: Cell<u64>,
     capabilities: BackendCapabilities,
     stats: ReactiveStats,
@@ -233,6 +242,8 @@ impl ReactiveUi {
             bindings: BTreeMap::new(),
             endpoints: BTreeMap::new(),
             next_binding: 0,
+            effects: BTreeMap::new(),
+            next_effect: 0,
             schedule_epoch: Cell::new(0),
             capabilities,
             stats: ReactiveStats::default(),
@@ -284,6 +295,7 @@ impl ReactiveUi {
             value: Rc::new(value),
             bindings: BTreeSet::new(),
             dependents: BTreeSet::new(),
+            effects: BTreeSet::new(),
             computation: None,
             rank: 0,
             scheduled_epoch: Cell::new(0),
@@ -387,7 +399,7 @@ impl ReactiveUi {
     }
 
     fn dispose_source(&mut self, source: SourceId) -> Result<(), Error> {
-        if !self.source(source)?.dependents.is_empty() {
+        if !self.source(source)?.dependents.is_empty() || !self.source(source)?.effects.is_empty() {
             return Err(Error::SignalInUse);
         }
         let dependencies = self
@@ -479,7 +491,9 @@ impl ReactiveUi {
         } = tx;
         let mut properties = Transaction::default();
         let mut sink_writes = 0;
+        let mut effects = BTreeSet::new();
         for (id, value) in &values {
+            effects.extend(&self.source(*id)?.effects);
             for binding in &self.source(*id)?.bindings {
                 (self.bindings[binding].write)(value.as_ref(), &mut properties);
                 sink_writes += 1;
@@ -498,6 +512,12 @@ impl ReactiveUi {
         self.stats.frame_requests += u64::from(commit.request_frame);
         self.stats.computed_evaluations += computed_evaluations;
         self.stats.computed_equal += computed_equal;
+        let mut effect_cleanups = 0;
+        for id in &effects {
+            effect_cleanups += usize::from(self.run_effect(*id));
+        }
+        self.stats.effect_runs += effects.len() as u64;
+        self.stats.effect_cleanups += effect_cleanups as u64;
         Ok(ReactiveCommit {
             value,
             commit,
@@ -505,6 +525,8 @@ impl ReactiveUi {
             sink_writes,
             computed_evaluations,
             computed_equal,
+            effect_runs: effects.len(),
+            effect_cleanups,
         })
     }
 }

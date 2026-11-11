@@ -32,6 +32,9 @@ reuse. Before removal, the union of owned sources is checked for dependents in
 surviving scopes (`SignalInUse`); no scope, binding or render state changes on
 that rejection. Removed derived sources are disposed in reverse dependency
 rank across all removed scopes, followed by their writable inputs.
+The [effect lifecycle stage](RETAINED_EFFECTS.md) also owns keyed post-commit
+observers, validates surviving cross-scope observer dependencies, and executes
+removed observers' cleanup before any source retires.
 
 Logical and render parentage are separate. `append_render` takes both an owner
 scope and an explicit render parent, allowing fragments and portals. Logical
@@ -70,11 +73,14 @@ Reconciliation currently scans scopes/hosts and sorts affected render siblings;
 it is not a sublinear structure-update implementation. Render insertion/removal
 and host reorder may create multiple internal revisions. The host requests one
 frame after its event, but a fully atomic structural transaction remains open.
-There are no user callbacks during reconciliation; returned validation errors
-for duplicate keys and dependent hosts are checked before mutation.
+Returned validation errors for duplicate keys, dependent hosts and surviving
+source observers are checked before mutation. Reconciliation now invokes
+registered effect cleanup after that preflight; cleanup must be infallible and
+must not reenter the runtime.
 
 Events, focus, accessibility ownership, legacy islands and portal reparenting
-are still pending. Scopes do not yet invoke arbitrary component setup/effects.
+are still pending. Scopes have explicit keyed effect setup/cleanup; automatic
+component construction and asynchronous effect execution remain open.
 The retained primitive remains a rectangle, and the existing native GPU
 presentation/resource limits still apply. This stage does not complete the
 full RFC goal or establish a new performance speedup for keyed reconciliation.

@@ -115,6 +115,83 @@ fn summary(mut samples: Vec<f64>) -> Value {
     samples.sort_by(f64::total_cmp);
     json!({"median_us":samples[samples.len()/2], "p95_us":samples[samples.len()*95/100], "samples_us":samples})
 }
+
+fn effect_benchmark() -> Result<Value, Error> {
+    use std::{cell::Cell, rc::Rc};
+    let mut results = vec![];
+    for count in [0, 1, 1_000] {
+        for workload in ["source-equal", "derived-equal", "changed"] {
+            let mut ui = ReactiveUi::new(
+                UiTree::new(Style::default(), 0)?,
+                BackendCapabilities::default(),
+            )?;
+            let input = ui.signal(0u32);
+            let bucket = ui.computed(&[input.dependency()], move |i| Ok(*i.read(input)? / 4))?;
+            let runs = Rc::new(Cell::new(0u64));
+            let cleanups = Rc::new(Cell::new(0u64));
+            for _ in 0..count {
+                let runs = runs.clone();
+                let cleanups = cleanups.clone();
+                ui.effect(&[bucket.dependency()], move |i| {
+                    std::hint::black_box(i.read(bucket).unwrap());
+                    runs.set(runs.get() + 1);
+                    let cleanups = cleanups.clone();
+                    Some(Box::new(move || cleanups.set(cleanups.get() + 1)))
+                })?;
+            }
+            let events_per_sample = if workload == "source-equal" {
+                1000
+            } else {
+                100
+            };
+            let mut samples = vec![];
+            for sample in 0..192 {
+                let start = Instant::now();
+                for event in 0..events_per_sample {
+                    let sequence = sample * events_per_sample + event;
+                    let value = match workload {
+                        "source-equal" => 0,
+                        "derived-equal" => sequence % 2,
+                        _ => (sequence % 2) * 4,
+                    };
+                    let commit = ui.transaction(|tx| {
+                        tx.set(input, value)?;
+                        Ok(())
+                    })?;
+                    if sequence > 0 {
+                        assert_eq!(
+                            commit.effect_runs,
+                            if workload == "changed" { count } else { 0 }
+                        );
+                    }
+                    assert!(!commit.commit.request_frame);
+                }
+                if sample >= 12 {
+                    samples.push(start.elapsed().as_secs_f64() * 1e6 / events_per_sample as f64);
+                }
+            }
+            let expected = if workload == "changed" {
+                (192 * events_per_sample - 1) as u64 * count as u64
+            } else {
+                0
+            };
+            assert_eq!(
+                (ui.stats().effect_runs, ui.stats().effect_cleanups),
+                (expected, expected)
+            );
+            assert_eq!(
+                (runs.get(), cleanups.get()),
+                (expected + count as u64, expected)
+            );
+            drop(ui);
+            assert_eq!(runs.get(), cleanups.get());
+            results.push(json!({"effects":count,"workload":workload,"timing":summary(samples),"events_per_sample":events_per_sample,"initial_and_disposal_cleanup_counts_equal":true}));
+        }
+    }
+    Ok(
+        json!({"scope":"CPU synchronous source/computed commit plus post-commit observer and cleanup fanout; no render sinks or GPU. 12 warmup and 180 measured samples; short samples average events_per_sample. Counts and no-frame behavior asserted.","results":results}),
+    )
+}
 fn main() -> Result<(), Box<dyn StdError>> {
     let output = PathBuf::from(
         std::env::args()
@@ -209,6 +286,10 @@ fn main() -> Result<(), Box<dyn StdError>> {
         serde_json::to_vec_pretty(
             &json!({"scope":"CPU transaction only: typed source writes, derived values, equality, sinks and tree commit. Excludes frame extraction, layout, GPU, notify and presentation. 3 rotating rounds, 12 warmup samples and 60 measured samples per mode/round. Samples average the recorded events_per_sample. Eager mode skips source-equal events but recomputes every derived value after a changed input.","results":results}),
         )?,
+    )?;
+    fs::write(
+        output.join("effect-benchmark.json"),
+        serde_json::to_vec_pretty(&effect_benchmark()?)?,
     )?;
     println!("Computed benchmark passed; output={}", output.display());
     Ok(())

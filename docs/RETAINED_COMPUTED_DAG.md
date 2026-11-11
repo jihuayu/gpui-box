@@ -119,8 +119,10 @@ executables measures the scheduling change independently of eager recomputation.
 
 ## Remaining scope
 
-This implements a static explicit computed DAG. Automatic/dynamic dependency
-tracking, arbitrary effect scheduling and cleanup, cross-event coalescing and
+The [effect follow-up](RETAINED_EFFECTS.md) adds synchronous read-only post-commit
+observation and replacement/scope/drop cleanup. This implements a static
+explicit computed DAG. Automatic/dynamic dependency tracking, general
+asynchronous/reentrant effect scheduling, cross-event coalescing and
 cross-thread delivery remain open. Transaction reads settle all pending work,
 including unrelated dirty branches; deeply nested savepoints clone staged maps.
 Dense graph scheduling needs separate optimization and measurements. Native GPU

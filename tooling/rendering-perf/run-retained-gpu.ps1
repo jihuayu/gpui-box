@@ -13,6 +13,8 @@ try {
         'crates/gpui-box/src/retained/reactive.rs',
         'crates/gpui-box/src/retained/reactive/computed.rs',
         'crates/gpui-box/src/retained/reactive/computed/tests.rs',
+        'crates/gpui-box/src/retained/reactive/effects.rs',
+        'crates/gpui-box/src/retained/reactive/effects/tests.rs',
         'crates/gpui-box/src/retained/logical.rs',
         'crates/gpui-box/src/retained/measure.rs',
         'crates/gpui-box/src/retained/paint_store.rs',

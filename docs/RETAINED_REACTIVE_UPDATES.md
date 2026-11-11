@@ -27,8 +27,9 @@ while source publication is in progress. The host calls `notify` once when
 The [computed DAG follow-up](RETAINED_COMPUTED_DAG.md) adds explicit derived
 dependencies, rank-ordered propagation, equality cutoff, consistent staged reads
 and keyed scope lifetime checks. The gallery color sink now consumes a derived
-source through the ordinary click and paint path. General effect scheduling and
-asynchronous cross-thread source delivery remain future work.
+source through the ordinary click and paint path. The [effect stage](RETAINED_EFFECTS.md)
+adds synchronous post-commit observation and cleanup. General asynchronous effect
+scheduling and cross-thread source delivery remain future work.
 
 The synchronous transaction boundary is explicit. Separate host events are not
 implicitly merged. Savepoints currently clone the maps of

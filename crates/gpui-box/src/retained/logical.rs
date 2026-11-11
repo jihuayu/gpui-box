@@ -1,8 +1,8 @@
 //! Component scopes have identities and source lifetimes independent of render nodes.
 use super::{
     reactive::{
-        BindingId, ComputedInputs, Dependency, Property, ReactiveCommit, ReactiveTransaction,
-        ReactiveUi, ScopedSource, Signal,
+        BindingId, ComputedInputs, Dependency, EffectCleanup, EffectId, EffectInputs, Property,
+        ReactiveCommit, ReactiveTransaction, ReactiveUi, ScopedSource, Signal,
     },
     *,
 };
@@ -20,6 +20,7 @@ struct Scope {
     key: u64,
     children: Vec<ScopeId>,
     sources: BTreeMap<u64, Box<dyn ScopedSource>>,
+    effects: BTreeMap<u64, EffectId>,
     renders: Vec<NodeId>,
 }
 struct Slot {
@@ -90,6 +91,7 @@ impl LogicalUi {
                     key: 0,
                     children: vec![],
                     sources: BTreeMap::new(),
+                    effects: BTreeMap::new(),
                     renders: owned,
                 }),
             }],
@@ -198,6 +200,24 @@ impl LogicalUi {
     pub fn read<T: 'static>(&self, source: Signal<T>) -> Result<&T, Error> {
         self.ui.read(source)
     }
+
+    /// Keyed post-commit observation. Setup runs once; subsequent key reuse
+    /// retains the original callback and requires the same dependency set.
+    pub fn effect(
+        &mut self,
+        scope: ScopeId,
+        key: u64,
+        dependencies: &[Dependency],
+        observe: impl Fn(&EffectInputs<'_>) -> Option<EffectCleanup> + 'static,
+    ) -> Result<EffectId, Error> {
+        if let Some(id) = self.scope(scope)?.effects.get(&key) {
+            self.ui.validate_scoped_effect(*id, dependencies)?;
+            return Ok(*id);
+        }
+        let id = self.ui.effect(dependencies, observe)?;
+        self.scope_mut(scope).effects.insert(key, id);
+        Ok(id)
+    }
     pub fn bind<T: 'static>(
         &mut self,
         source: Signal<T>,
@@ -263,7 +283,12 @@ impl LogicalUi {
                     .map(|source| source.dependency())
             })
             .collect();
-        self.ui.validate_scope_disposal(&dead_sources)?;
+        let dead_effects = removed
+            .iter()
+            .flat_map(|id| self.scope(*id).unwrap().effects.values().copied())
+            .collect();
+        self.ui
+            .validate_scope_disposal(&dead_sources, &dead_effects)?;
         // A surviving portal cannot retain a host which is about to be destroyed.
         // Reject before modifying logical state, bindings or render topology.
         for (node, owner) in &self.render_owners {
@@ -297,6 +322,11 @@ impl LogicalUi {
             }
         }
         let mut request_frame = !roots.is_empty();
+        // Cleanup observers before retiring any of their dependencies, including
+        // inputs owned by other scopes in the same removal set.
+        for effect in dead_effects.iter().rev() {
+            self.ui.dispose_effect(*effect)?;
+        }
         for node in roots {
             self.ui.remove(node)?;
         }
@@ -338,6 +368,7 @@ impl LogicalUi {
                 key: *key,
                 children: vec![],
                 sources: BTreeMap::new(),
+                effects: BTreeMap::new(),
                 renders: vec![],
             });
             order.push(id);
@@ -395,6 +426,54 @@ mod tests {
             BackendCapabilities::default(),
         )
         .unwrap()
+    }
+
+    #[test]
+    fn scoped_effects_retain_observation_and_cleanup_before_cross_scope_inputs_retire() {
+        use std::{cell::RefCell, rc::Rc};
+        let mut ui = fixture();
+        let root = ui.root_scope();
+        let scopes = ui.reconcile_keys(root, &[1, 2]).unwrap().order;
+        let input = ui.state(scopes[0], 0, || 0u32).unwrap();
+        let events = Rc::new(RefCell::new(vec![]));
+        let log = events.clone();
+        let effect = ui
+            .effect(scopes[1], 0, &[input.dependency()], move |i| {
+                let value = *i.read(input).unwrap();
+                log.borrow_mut().push(("run", value));
+                let log = log.clone();
+                Some(Box::new(move || log.borrow_mut().push(("cleanup", value))))
+            })
+            .unwrap();
+        ui.reconcile_keys(root, &[2, 1]).unwrap();
+        assert_eq!(
+            ui.effect(scopes[1], 0, &[input.dependency()], |_| panic!(
+                "retained callback"
+            ))
+            .unwrap(),
+            effect
+        );
+        assert!(matches!(
+            ui.effect(scopes[1], 0, &[], |_| None),
+            Err(Error::InvalidEffect)
+        ));
+        assert!(matches!(
+            ui.reconcile_keys(root, &[2]),
+            Err(Error::SignalInUse)
+        ));
+        assert_eq!(*events.borrow(), [("run", 0)]);
+        ui.transaction(|tx| {
+            tx.set(input, 1)?;
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(*events.borrow(), [("run", 0), ("cleanup", 0), ("run", 1)]);
+        ui.reconcile_keys(root, &[]).unwrap();
+        assert_eq!(events.borrow().last(), Some(&("cleanup", 1)));
+        assert_eq!(ui.reactive().effect_count(), 0);
+        assert_eq!(ui.read(input), Err(Error::InvalidSignal));
+        drop(ui);
+        assert_eq!(events.borrow().len(), 4);
     }
 
     #[test]
