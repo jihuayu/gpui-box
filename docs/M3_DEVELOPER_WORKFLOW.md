@@ -836,4 +836,20 @@ boundaries.
 Native menu installation, durable storage, arbitrary module scaffolding,
 module-scoped runs, dynamic loading, assistive-reader speech and physical-device
 acceptance retain #49/#75/#72/#3/#7 gates. This template is a statically linked
-application example. Actual runtime evidence is recorded after qualification.
+application example.
+
+### Workbench qualification on November 12, 2026
+
+- All65Windows CLI cases and integrated `mise run check` pass after consuming
+  the component, tray and task-presentation deliveries. The external application
+  passes three provider/command collaboration/cleanup tests and strict Clippy.
+- A fresh spaces/Chinese-path application compiles and links Windows desktop
+  through the normal CLI in1m00s. Interactive desktop inspection remains pending
+  while Windows is locked.
+- Normal Android dev builds both ABIs, executes all37tasks in2m43s, installs and
+  cold-starts on API35 Android15 x86_64 in2134ms. Actual taps/text input filter
+  Welcome, open its document, append Runtime42 and save through the injected
+  provider. Portrait/landscape/portrait retains the query/editor and saved state.
+  System back returns to the filtered search. Reopening reads the saved content.
+  Semantic XML and inspected screenshots confirm both layouts. Rotation mode
+  returns to the original free policy. Physical-device testing remains deferred.
