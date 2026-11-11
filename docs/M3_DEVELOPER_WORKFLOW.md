@@ -663,6 +663,12 @@ Tab/Space toggles the checkbox, then Tab/Enter activates the specimen. Rotation
 policy is restored to its original free state. Initial screenshot inspection
 found the editor's default light theme in the dark preview. The template now
 sets the retained editor's initial theme explicitly before its first frame.
+The final rebuilt app cold-starts in2630ms and retains FinalPreview42, all five
+boolean states and one activation across both layouts. Large-text landscape
+verification exposed an unconstrained scroll viewport. The template now uses
+a bounded scroll viewport around intrinsic-height content. Actual touch swipes
+reach the motion readout while the fixed header stays visible. Both orientation
+snapshots verify the retained activation and0ms policy after scrolling.
 
 ## Reproducible external template qualification
 

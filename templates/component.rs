@@ -135,15 +135,32 @@ impl Render for ComponentPreview {
                 format!("Motion duration · {} ms", theme.transition_ms(200)),
                 theme,
             ));
-        let body = div()
-            .id("preview-body")
+        let content = div()
             .flex()
+            .items_start()
             .gap_4()
             .p_4()
             .when(layout == Layout::Compact, |element| element.flex_col())
-            .child(div().flex_1().min_w_0().child(controls))
-            .child(div().flex_1().min_w_0().child(specimen))
-            .overflow_y_scroll();
+            .child(
+                div()
+                    .min_w_0()
+                    .when(layout == Layout::Compact, |element| element.w_full())
+                    .when(layout == Layout::Wide, |element| element.flex_1())
+                    .child(controls),
+            )
+            .child(
+                div()
+                    .min_w_0()
+                    .when(layout == Layout::Compact, |element| element.w_full())
+                    .when(layout == Layout::Wide, |element| element.flex_1())
+                    .child(specimen),
+            );
+        let body = div()
+            .id("preview-body")
+            .flex_1()
+            .min_h_0()
+            .overflow_y_scroll()
+            .child(content);
         shell::safe_area(window)
             .size_full()
             .flex()
@@ -176,7 +193,13 @@ impl Render for ComponentPreview {
                 theme,
             ))
             .child(label("layout-status", format!("Layout · {layout:?}"), theme).p_3())
-            .child(shell::keyboard_avoidance(window, body).flex_1().min_h_0())
+            .child(
+                shell::keyboard_avoidance(window, body)
+                    .flex()
+                    .flex_col()
+                    .flex_1()
+                    .min_h_0(),
+            )
     }
 }
 
