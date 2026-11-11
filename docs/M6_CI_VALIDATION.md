@@ -132,3 +132,27 @@ checks. Final documentation-head checks are recorded in the implementation PR.
 [Hosted Android qualification](https://github.com/jihuayu/gpui-box/actions/runs/43057400731)
 
 [Android validation reports](https://github.com/jihuayu/gpui-box/actions/runs/43057400731/artifacts/13872052434)
+
+## External SDK and generated applications
+
+All three jobs run `mise run check:templates` after their repository checks.
+Linux/Windows select desktop and Android selects Android. The opt-in integration
+test drives the real CLI to export/verify committed HEAD, generates both
+starter/adaptive-v1 across three target sets in external spaces/Chinese paths,
+and verifies no-op generation plus retained source/native customizations. Four
+enabled combinations build through the normal CLI. Disabled targets must fail
+planning. Final SDK verification checks that those builds preserved the source
+closure. Desktop executables and both native APK ABIs are inspected, and
+artifact SHA-256 values are recorded.
+
+The existing14-day validation artifact includes per-command stdout/stderr,
+version/provenance/build receipts and explicit runtime-execution status. The
+fresh workspace and requested Cargo outputs live outside the checkout and remain
+available for diagnosis during the hosted job. Cargo metadata resolves the
+actual desktop output layout. Normal tool/dependency downloads
+use inherited caches/network settings. Hosted image packages remain part of the
+recorded qualification tuple. A template-build receipt records compilation and
+artifact evidence. Interactive, signed release/install/update, offline bootstrap,
+registry/native CLI publication and physical-device gates remain independent.
+
+[Local entry point and report contract](M3_DEVELOPER_WORKFLOW.md#reproducible-external-template-qualification)

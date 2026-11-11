@@ -5,6 +5,7 @@ import android.os.SystemClock
 import android.view.KeyEvent
 import android.view.WindowInsets
 import android.view.WindowInsetsAnimation
+import android.view.inputmethod.InputMethodManager
 import android.view.inputmethod.EditorInfo
 import android.widget.FrameLayout
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -19,7 +20,7 @@ import org.junit.runner.RunWith
 @Suppress("DEPRECATION")
 @RunWith(AndroidJUnit4::class)
 class ImeBackTest {
-    @get:Rule val activityRule = ActivityTestRule(MainActivity::class.java)
+    @get:Rule val activityRule = ActivityTestRule(MainActivity::class.java, false, false)
     private val instrumentation get() = InstrumentationRegistry.getInstrumentation()
 
     private fun view(): GpuiView {
@@ -28,16 +29,18 @@ class ImeBackTest {
     }
 
     private fun awaitMain(description: String, predicate: () -> Boolean) {
-        val deadline = SystemClock.uptimeMillis() + 10_000
+        val deadline = SystemClock.uptimeMillis() + 15_000
         var ready = false
-        var stable = 0
+        var readySince = 0L
         do {
             ready = false
             instrumentation.runOnMainSync { ready = predicate() }
-            stable = if (ready) stable + 1 else 0
-            if (stable < 3) SystemClock.sleep(50)
-        } while (stable < 3 && SystemClock.uptimeMillis() < deadline)
-        assertTrue(description, ready && stable == 3)
+            if (!ready) readySince = 0L
+            else if (readySince == 0L) readySince = SystemClock.uptimeMillis()
+            if (readySince != 0L && SystemClock.uptimeMillis() - readySince >= 500) return
+            SystemClock.sleep(50)
+        } while (SystemClock.uptimeMillis() < deadline)
+        fail(description)
     }
 
     private fun tap(view: GpuiView, y: Float) {
@@ -60,6 +63,7 @@ class ImeBackTest {
 
     @Test fun firstBackHidesKeyboardBeforeLaterBackNavigates() {
         instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_USE_ACCESSIBILITY)
+        activityRule.launchActivity(null)
         instrumentation.waitForIdleSync()
         val animations = mutableSetOf<WindowInsetsAnimation>()
         instrumentation.runOnMainSync {
@@ -76,6 +80,20 @@ class ImeBackTest {
             })
         }
         try {
+            // Bind the new Activity's editor before testing a hide/show cycle.
+            // Insets can initially report hidden while a previous window's
+            // asynchronous hide or this window's auto-show is still pending.
+            awaitMain("The Activity must own the foreground input connection") {
+                view().hasWindowFocus() && activityRule.activity.hasWindowFocus()
+            }
+            instrumentation.runOnMainSync { tap(view(), 300f) }
+            awaitMain("The focused editor must be served by the input method") {
+                view().context.getSystemService(InputMethodManager::class.java).isActive(view())
+            }
+            instrumentation.runOnMainSync { view().showKeyboard() }
+            awaitMain("The initial keyboard must finish appearing before blur") {
+                animations.isEmpty() && view().rootWindowInsets?.isVisible(WindowInsets.Type.ime()) == true
+            }
             repeat(2) { cycle ->
                 val expected = "IME back $cycle 你好🙂"
                 instrumentation.runOnMainSync {
