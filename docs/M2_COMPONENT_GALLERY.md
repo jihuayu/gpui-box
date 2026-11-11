@@ -82,5 +82,9 @@ integration remain substantial work.
   and private storage from #19/#22 have been merged. Their providers and remaining
   lifecycle/permissions modules retain their issue ownership.
 
+Integration also includes #20 permissions and #24 activation routing from
+PRs #31/#32. Their application/provider acceptance remains in the linked system
+issues and gallery integration gates.
+
 The model prototypes establish ownership and stale-result behavior. Their API
 and performance need further testing before a stable application-model contract.

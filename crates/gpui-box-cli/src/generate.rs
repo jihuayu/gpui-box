@@ -47,6 +47,13 @@ fn quoted(value: &str) -> String {
 fn kotlin_quoted(value: &str) -> String {
     quoted(value).replace('$', "\\$")
 }
+fn portable_path(value: &str) -> String {
+    if let Some(path) = value.strip_prefix("\\\\?\\UNC\\") {
+        format!("//{}", path.replace('\\', "/"))
+    } else {
+        value.trim_start_matches("\\\\?\\").replace('\\', "/")
+    }
+}
 
 pub fn create(root: &Path, distribution: PathBuf) -> Result<(), String> {
     if root.exists() {
@@ -127,11 +134,11 @@ pub fn generate(root: &Path, initial: bool) -> Result<(), String> {
     drop(lock);
     let config = AppConfig::load(root)?;
     let distribution = config.distribution(root)?;
-    let distribution = distribution
-        .to_str()
-        .ok_or("Distribution path must be UTF-8")?
-        .trim_start_matches("\\\\?\\")
-        .replace('\\', "/");
+    let distribution = portable_path(
+        distribution
+            .to_str()
+            .ok_or("Distribution path must be UTF-8")?,
+    );
     let mut files = BTreeMap::<String, Vec<u8>>::new();
     let mut add = |path: &str, value: String| {
         files.insert(path.into(), value.into_bytes());
@@ -339,4 +346,22 @@ include(":app")
         )?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::portable_path;
+
+    #[test]
+    fn canonical_windows_paths_remain_usable_by_gradle() {
+        assert_eq!(
+            portable_path(r"\\?\D:\Project files\gpui-box"),
+            "D:/Project files/gpui-box"
+        );
+        assert_eq!(
+            portable_path(r"\\?\UNC\server\share\gpui-box"),
+            "//server/share/gpui-box"
+        );
+        assert_eq!(portable_path("/home/user/gpui-box"), "/home/user/gpui-box");
+    }
 }

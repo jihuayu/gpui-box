@@ -107,6 +107,12 @@ Feature and release-profile configuration will extend this contract in M4.
   the API 35 Android 15 x86_64 Vulkan emulator. A second `build android` reported
   all 36 tasks up to date. The generated APK and an emulator screenshot were
   inspected locally.
+- A fresh `target/Generated Final App` repeated Windows and both-ABI Android
+  builds after template finalization. CLI installation and cold launch succeeded
+  on the same emulator. Screenshot inspection confirmed `Count 0` to `Count 1`
+  and the entered `TemplateQA` text. A second Android build reported all 36 tasks
+  up to date. Windows drive and UNC canonical-path normalization have a focused
+  regression test. A network-share build remains unqualified.
 - Windows runtime inspection verified rendering, pointer count changes, Chinese
   text entry and single Enter activation after rebuilding the current component
   implementation. Physical-device testing remains deferred.

@@ -154,7 +154,7 @@ clamping. InputConnection candidate UI with a real Chinese keyboard remains open
 
 | Check | Result |
 | --- | --- |
-| `mise run check` | Passed 30 host tests, one compile-fail doctest, formatting, strict Clippy and whitespace checks |
+| `mise run check` | Passed 50 host tests after integrating #31/#32, one compile-fail doctest, formatting, strict Clippy and whitespace checks |
 | `mise run check:components` | Passed two model tests and strict component/shared-gallery Clippy |
 | `mise run build:desktop` and desktop strict Clippy | Passed on Windows MSVC |
 | Android x86_64 strict Clippy | Passed for the backend and example JNI exports |
