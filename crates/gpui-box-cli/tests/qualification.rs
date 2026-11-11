@@ -206,9 +206,28 @@ impl Qualification {
                         }
                         apk
                     } else {
-                        self.build
-                            .join("debug")
-                            .join(format!("box-desktop{}", env::consts::EXE_SUFFIX))
+                        let bytes = self.run(
+                            &format!("{label}-cargo-metadata"),
+                            Command::new("mise").current_dir(&app).args([
+                                "exec",
+                                "--",
+                                "cargo",
+                                "metadata",
+                                "--no-deps",
+                                "--format-version",
+                                "1",
+                            ]),
+                            true,
+                        )?;
+                        let metadata: Value =
+                            serde_json::from_slice(&bytes).map_err(|error| error.to_string())?;
+                        PathBuf::from(
+                            metadata["target_directory"]
+                                .as_str()
+                                .ok_or("Cargo metadata omitted target_directory")?,
+                        )
+                        .join("debug")
+                        .join(format!("box-desktop{}", env::consts::EXE_SUFFIX))
                     };
                     if !artifact.is_file()
                         || fs::metadata(&artifact)

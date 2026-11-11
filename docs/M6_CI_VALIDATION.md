@@ -147,8 +147,9 @@ artifact SHA-256 values are recorded.
 
 The existing14-day validation artifact includes per-command stdout/stderr,
 version/provenance/build receipts and explicit runtime-execution status. The
-fresh workspace and isolated Cargo outputs live outside the checkout and remain
-available for diagnosis during the hosted job. Normal tool/dependency downloads
+fresh workspace and requested Cargo outputs live outside the checkout and remain
+available for diagnosis during the hosted job. Cargo metadata resolves the
+actual desktop output layout. Normal tool/dependency downloads
 use inherited caches/network settings. Hosted image packages remain part of the
 recorded qualification tuple. A template-build receipt records compilation and
 artifact evidence. Interactive, signed release/install/update, offline bootstrap,

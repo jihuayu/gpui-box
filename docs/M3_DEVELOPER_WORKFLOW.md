@@ -633,8 +633,10 @@ run the normal `gpui-box build TARGET` entry point and produce a nonempty deskto
 executable or APK containing both ARM64/x86_64 native libraries.
 
 Only freshly generated mise configurations from this checkout's templates are
-trusted by the harness. Cargo build outputs use an isolated workspace directory
-passed to child processes. Dependencies and tool downloads follow normal
+trusted by the harness. The harness requests an isolated Cargo workspace output
+directory through child environment and resolves desktop artifacts through Cargo
+metadata. Cargo wrappers/configuration retain their output-layout policy.
+Dependencies and tool downloads follow normal
 Cargo/mise/Gradle cache and network configuration. The SDK export uses committed
 content, so commit template/SDK changes before qualifying that source revision.
 The SDK includes its available license originals and provenance inventory.
