@@ -137,6 +137,16 @@ splits share the inspected signer. Split ZIP alignment passes. ARM64 ELF LOAD
 alignment is 0x4000. The emulator uses 4096-byte pages, so 16 KB runtime acceptance
 remains pending.
 
+The final code 4 APK installs and reports a successful cold start. Its split set
+also installs and exposes a live process and the expected Count 0/Activation 0
+semantic tree. Two `am start -W` waits after split installation timed out at about
+10.6 seconds on the loaded emulator. Preserve this launch-wait qualification gap
+alongside the earlier successful code 3 cold-start evidence. AAB jarsigner reports
+the expected local self-signed/short-lived QA certificate warnings and a
+JarFile/JarInputStream ordering warning from the AGP-produced bundle. Bundletool
+validation, certificate matching and native-content checks pass. These results
+retain the store/channel and publication review gates.
+
 The earlier Windows developer ZIP was extracted into a path containing spaces and
 Chinese characters. Every recursive checksum passed. Import inspection recorded
 VCRUNTIME140 and Windows system/GPU libraries. The process launches, but the
