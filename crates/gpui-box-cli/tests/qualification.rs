@@ -100,6 +100,29 @@ impl Qualification {
         if identity["upstream_revision"] != manifest["upstream_revision"] {
             return Err("CLI and SDK GPUI revisions differ".into());
         }
+        let registry = self.cli("registry-list", workspace, &["list"], true)?;
+        let registry_bytes =
+            fs::read(sdk.join("registry/official-v1.json")).map_err(|error| error.to_string())?;
+        let registry_digest = format!("{:x}", Sha256::digest(&registry_bytes));
+        if registry["snapshot_sha256"] != registry_digest {
+            return Err("Bundled CLI and exported SDK registry snapshots differ".into());
+        }
+        let resolution = self.cli(
+            "registry-resolve",
+            workspace,
+            &[
+                "registry",
+                "resolve",
+                "official/template/workbench",
+                "official/template/component",
+            ],
+            true,
+        )?;
+        if resolution["snapshot_sha256"] != registry_digest
+            || resolution["installation_applied"] != false
+        {
+            return Err("Registry resolution identity or effect differs".into());
+        }
         self.run(
             "rust-identity",
             Command::new("mise").current_dir(source).args([
@@ -282,7 +305,9 @@ impl Qualification {
         {
             return Err("Application builds changed the exported SDK".into());
         }
-        Ok(json!({"cli": identity, "sdk": manifest, "applications": applications}))
+        Ok(
+            json!({"cli": identity, "sdk": manifest, "registry": registry, "resolution": resolution, "applications": applications}),
+        )
     }
 }
 

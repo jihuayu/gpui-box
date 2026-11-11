@@ -906,4 +906,6 @@ snapshot/resolver groups and the empty-directory command scenario. Full
 `mise run check` and strict CLI Clippy pass. The final CLI suite repeats after
 source inventory dependency/license adjustments. No project files or tool/network
 processes are used by discovery/resolution. Hosted native template matrices
-continue to qualify the same exported SDK independently.
+also compare embedded CLI registry bytes with the exported SDK snapshot, run a
+combined template dependency resolution and record both inventories in their
+receipts before generated builds.

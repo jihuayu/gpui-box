@@ -3,7 +3,7 @@
   "sdk_version": "0.1.0-dev",
   "upstream_revision": "f8cfc7ed9e57503def9479138894f3139f5400cc",
   "rust_version": "1.98.1",
-  "source_revision": "c95aea6872f48cd3fbd2e5e737c42cdc11370a88",
+  "source_revision": "e2b5d4df51e24cf051a9d192ef399cbbd58b8ec1",
   "entries": [
     {
       "id": "official/capability/commands",
