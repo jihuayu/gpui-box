@@ -57,6 +57,14 @@ fn portable_path(value: &str) -> String {
 }
 
 pub fn create(root: &Path, distribution: PathBuf) -> Result<(), String> {
+    create_with_targets(root, distribution, vec!["desktop".into(), "android".into()])
+}
+
+pub fn create_with_targets(
+    root: &Path,
+    distribution: PathBuf,
+    targets: Vec<String>,
+) -> Result<(), String> {
     if root.exists() {
         return Err(format!(
             "Destination {} already exists. Choose a new directory.",
@@ -75,7 +83,7 @@ pub fn create(root: &Path, distribution: PathBuf) -> Result<(), String> {
         version: "0.1.0".into(),
         version_code: 1,
         distribution,
-        targets: vec!["desktop".into(), "android".into()],
+        targets,
         update_channel: "development".into(),
         permissions: vec![],
         assets: vec![PathBuf::from("assets")],
@@ -122,6 +130,98 @@ pub fn create(root: &Path, distribution: PathBuf) -> Result<(), String> {
     })();
     // Keep a failed staging directory for inspection. Never recursively delete caller paths.
     result
+}
+
+pub fn initialize(root: &Path, distribution: PathBuf, targets: Vec<String>) -> Result<(), String> {
+    let root = root
+        .canonicalize()
+        .map_err(|error| format!("Open init directory: {error}"))?;
+    if !root.is_dir() {
+        return Err("init requires an existing directory".into());
+    }
+    if root.join("gpui-box.json").exists() {
+        return Err("Project is already initialized. Use generate to update managed files.".into());
+    }
+    let name = root
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or("Init directory must have a UTF-8 name")?;
+    let staging = root.with_file_name(format!("{name}.gpui-box-init-{}", std::process::id()));
+    create_with_targets(&staging, distribution, targets)?;
+    // Use the caller's directory name rather than the temporary staging name.
+    let mut config = AppConfig::load(&staging)?;
+    config.name = name.into();
+    write(
+        &staging.join("gpui-box.json"),
+        &serde_json::to_vec_pretty(&config).map_err(|error| error.to_string())?,
+    )?;
+    generate(&staging, false)?;
+
+    let mut files = Vec::new();
+    let mut directories = vec![PathBuf::new()];
+    let mut staged_directories = Vec::new();
+    while let Some(relative) = directories.pop() {
+        for entry in fs::read_dir(staging.join(&relative)).map_err(|error| error.to_string())? {
+            let entry = entry.map_err(|error| error.to_string())?;
+            let path = relative.join(entry.file_name());
+            if entry
+                .file_type()
+                .map_err(|error| error.to_string())?
+                .is_dir()
+            {
+                directories.push(path);
+            } else {
+                files.push(path);
+            }
+        }
+        staged_directories.push(relative);
+    }
+    files.sort();
+    // Configuration is the completion marker, published after the complete tree.
+    files.sort_by_key(|path| path == Path::new("gpui-box.json"));
+    let lock_path = managed_path(&root, ".gpui-box-init.lock")?;
+    let lock = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&lock_path)
+        .map_err(|error| format!("Acquire init lock: {error}"))?;
+    let _guard = GenerationLock(lock_path);
+    drop(lock);
+    let mut publish = Vec::new();
+    for relative in &files {
+        let text = relative.to_str().ok_or("Init output must be UTF-8")?;
+        let destination = managed_path(&root, text)?;
+        if destination.exists() {
+            if matches!(text, "README.md" | "LICENSE" | ".gitignore") && destination.is_file() {
+                continue;
+            }
+            return Err(format!(
+                "Init conflicts with {}. Original preserved. Complete staged project retained at {}",
+                destination.display(),
+                staging.display()
+            ));
+        }
+        publish.push((relative, destination));
+    }
+    for (relative, destination) in &publish {
+        fs::create_dir_all(destination.parent().ok_or("Missing init parent")?)
+            .map_err(|error| error.to_string())?;
+        // A hard link publishes each file with exclusive-create semantics, including
+        // on Unix where rename would overwrite a concurrently created file.
+        fs::hard_link(staging.join(relative), destination).map_err(|error| format!("Init publication stopped at {}: {error}. Existing files preserved. Complete staged project retained at {}", destination.display(), staging.display()))?;
+    }
+    // Remove only the exact generated entries. Unexpected additions keep their
+    // directory intact, and failed initialization retains the full staging tree.
+    for relative in files {
+        fs::remove_file(staging.join(relative))
+            .map_err(|error| format!("Project initialized; staging cleanup failed: {error}"))?;
+    }
+    for relative in staged_directories.into_iter().rev() {
+        fs::remove_dir(staging.join(relative))
+            .map_err(|error| format!("Project initialized; staging cleanup failed: {error}"))?;
+    }
+    crate::outputln!("Initialized {}", root.display());
+    Ok(())
 }
 
 struct GenerationLock(PathBuf);
@@ -287,6 +387,15 @@ fn prepare(root: &Path) -> Result<PreparedGeneration, String> {
             .ok_or("Distribution path must be UTF-8")?,
     );
     let mut files = BTreeMap::<String, Vec<u8>>::new();
+    let desktop = config.targets.iter().any(|target| target == "desktop");
+    let android = config.targets.iter().any(|target| target == "android");
+    let mut members = vec!["app"];
+    if desktop {
+        members.push("desktop");
+    }
+    if android {
+        members.push("android");
+    }
     let mut add = |path: &str, value: String| {
         files.insert(path.into(), value.into_bytes());
     };
@@ -295,7 +404,7 @@ fn prepare(root: &Path) -> Result<PreparedGeneration, String> {
         format!(
             r#"[workspace]
 resolver = "3"
-members = ["app", "desktop", "android"]
+members = {members}
 [workspace.dependencies]
 gpui-box = {{ path = {facade}, default-features = false }}
 gpui = {{ path = {gpui}, default-features = false }}
@@ -307,13 +416,21 @@ debug = "limited"
 "#,
             facade = quoted(&format!("{distribution}/crates/gpui-box")),
             gpui = quoted(&format!("{distribution}/vendor/gpui/crates/gpui")),
-            components = quoted(&format!("{distribution}/components/gpui-box-components"))
+            components = quoted(&format!("{distribution}/components/gpui-box-components")),
+            members = serde_json::to_string(&members).expect("serialize members")
         ),
     );
-    add("app/Cargo.toml", "[package]\nname = \"box-app\"\nversion = \"0.1.0\"\nedition = \"2024\"\nlicense = \"Apache-2.0\"\n[dependencies]\ngpui.workspace = true\ngpui-box-components.workspace = true\n[target.'cfg(target_os = \"android\")'.dependencies]\ngpui-box = { workspace = true, features = [\"android\"] }\n".into());
-    add("desktop/Cargo.toml", "[package]\nname = \"box-desktop\"\nversion = \"0.1.0\"\nedition = \"2024\"\nlicense = \"Apache-2.0\"\n[dependencies]\ngpui-box = { workspace = true, features = [\"desktop\"] }\nbox-app = { path = \"../app\" }\n".into());
-    add("android/Cargo.toml", "[package]\nname = \"box-android\"\nversion = \"0.1.0\"\nedition = \"2024\"\nlicense = \"Apache-2.0\"\n[lib]\nname = \"gpui_box_android\"\ncrate-type = [\"cdylib\"]\n[target.'cfg(target_os = \"android\")'.dependencies]\ngpui-box = { workspace = true, features = [\"android\"] }\nbox-app = { path = \"../app\" }\n".into());
-    add(
+    let mut app = "[package]\nname = \"box-app\"\nversion = \"0.1.0\"\nedition = \"2024\"\nlicense = \"Apache-2.0\"\n[dependencies]\ngpui.workspace = true\ngpui-box-components.workspace = true\n".to_string();
+    if android {
+        app += "[target.'cfg(target_os = \"android\")'.dependencies]\ngpui-box = { workspace = true, features = [\"android\"] }\n";
+    }
+    add("app/Cargo.toml", app);
+    if desktop {
+        add("desktop/Cargo.toml", "[package]\nname = \"box-desktop\"\nversion = \"0.1.0\"\nedition = \"2024\"\nlicense = \"Apache-2.0\"\n[dependencies]\ngpui-box = { workspace = true, features = [\"desktop\"] }\nbox-app = { path = \"../app\" }\n".into());
+    }
+    if android {
+        add("android/Cargo.toml", "[package]\nname = \"box-android\"\nversion = \"0.1.0\"\nedition = \"2024\"\nlicense = \"Apache-2.0\"\n[lib]\nname = \"gpui_box_android\"\ncrate-type = [\"cdylib\"]\n[target.'cfg(target_os = \"android\")'.dependencies]\ngpui-box = { workspace = true, features = [\"android\"] }\nbox-app = { path = \"../app\" }\n".into());
+        add(
         "android-host/settings.gradle.kts",
         r#"pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
 dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
@@ -321,157 +438,159 @@ rootProject.name = "gpui-box-app"
 include(":app")
 "#.to_string(),
     );
-    add("android-host/build.gradle.kts", "plugins { id(\"com.android.application\") version \"8.10.1\" apply false; id(\"org.jetbrains.kotlin.android\") version \"2.1.20\" apply false }\n".into());
-    let mut host =
-        fs::read_to_string(Path::new(&distribution).join("platforms/android/app/build.gradle.kts"))
-            .map_err(|e| e.to_string())?;
-    host = host
-        .replace(
-            "rootProject.projectDir.resolve(\"../..\")",
-            "rootProject.projectDir.resolve(\"..\")",
+        add("android-host/build.gradle.kts", "plugins { id(\"com.android.application\") version \"8.10.1\" apply false; id(\"org.jetbrains.kotlin.android\") version \"2.1.20\" apply false }\n".into());
+        let mut host = fs::read_to_string(
+            Path::new(&distribution).join("platforms/android/app/build.gradle.kts"),
         )
-        .replace("dev.gpui.box.example", &config.application_id)
-        .replace(
-            "versionCode = 1",
-            &format!("versionCode = {}", config.version_code),
-        )
-        .replace(
-            "versionName = \"0.1.0-dev\"",
-            &format!("versionName = {}", quoted(&config.version)),
-        )
-        .replace("gpui-box-example-android", "box-android");
-    // A fresh application adds its own root packages to the seeded lockfile.
-    host = host.replace("\"build\", \"--locked\", \"-p\"", "\"build\", \"-p\"");
-    host = host.replace("    inputs.files(fileTree(repository.resolve(\"crates\"))", "    inputs.files(fileTree(repository.resolve(\"app\")) { include(\"**/*.rs\", \"**/Cargo.toml\") })\n    inputs.files(fileTree(repository.resolve(\"crates\"))");
-    host += "\nlistOf(buildRust, buildRustRelease).forEach { it.configure { inputs.files(fileTree(rootProject.file(\"../android\")) { include(\"**/*.rs\", \"**/Cargo.toml\") }); inputs.files(fileTree(rootProject.file(\"../assets\"))) } }\n";
-    host += &format!(
-        "\nlistOf(buildRust, buildRustRelease).forEach {{ it.configure {{ inputs.files(fileTree({}) {{ include(\"**/*.rs\", \"**/Cargo.toml\", \"**/*.wgsl\", \"**/*.hlsl\"); exclude(\"target/**\", \".git/**\", \"**/build/**\") }}) }} }}\n",
-        kotlin_quoted(&distribution)
-    );
-    host += &format!(
-        "\nandroid.sourceSets[\"main\"].java.srcDir({})\n",
-        kotlin_quoted(&format!(
-            "{distribution}/platforms/android/app/src/main/java"
-        ))
-    );
-    host += "\napply(from = rootProject.file(\"../android-custom.gradle.kts\"))\n";
-    for asset in &config.assets {
-        let path = asset
-            .to_str()
-            .ok_or("Asset paths must be UTF-8")?
-            .replace('\\', "/");
+        .map_err(|e| e.to_string())?;
+        host = host
+            .replace(
+                "rootProject.projectDir.resolve(\"../..\")",
+                "rootProject.projectDir.resolve(\"..\")",
+            )
+            .replace("dev.gpui.box.example", &config.application_id)
+            .replace(
+                "versionCode = 1",
+                &format!("versionCode = {}", config.version_code),
+            )
+            .replace(
+                "versionName = \"0.1.0-dev\"",
+                &format!("versionName = {}", quoted(&config.version)),
+            )
+            .replace("gpui-box-example-android", "box-android");
+        // A fresh application adds its own root packages to the seeded lockfile.
+        host = host.replace("\"build\", \"--locked\", \"-p\"", "\"build\", \"-p\"");
+        host = host.replace("    inputs.files(fileTree(repository.resolve(\"crates\"))", "    inputs.files(fileTree(repository.resolve(\"app\")) { include(\"**/*.rs\", \"**/Cargo.toml\") })\n    inputs.files(fileTree(repository.resolve(\"crates\"))");
+        host += "\nlistOf(buildRust, buildRustRelease).forEach { it.configure { inputs.files(fileTree(rootProject.file(\"../android\")) { include(\"**/*.rs\", \"**/Cargo.toml\") }); inputs.files(fileTree(rootProject.file(\"../assets\"))) } }\n";
         host += &format!(
-            "\nandroid.sourceSets[\"main\"].assets.srcDir(rootProject.file({}))\nlistOf(buildRust, buildRustRelease).forEach {{ it.configure {{ inputs.files(fileTree(rootProject.file({}))) }} }}\n",
-            kotlin_quoted(&format!("../{path}")),
-            kotlin_quoted(&format!("../{path}"))
+            "\nlistOf(buildRust, buildRustRelease).forEach {{ it.configure {{ inputs.files(fileTree({}) {{ include(\"**/*.rs\", \"**/Cargo.toml\", \"**/*.wgsl\", \"**/*.hlsl\"); exclude(\"target/**\", \".git/**\", \"**/build/**\") }}) }} }}\n",
+            kotlin_quoted(&distribution)
         );
-    }
-    add("android-host/app/build.gradle.kts", host);
-    let mut permission = if config
-        .permissions
-        .iter()
-        .any(|permission| permission == "internet")
-    {
-        "<uses-permission android:name=\"android.permission.INTERNET\" />".to_string()
-    } else {
-        String::new()
-    };
-    for declaration in &config.services.permissions {
-        for name in declaration.kind.android_permissions() {
-            permission += &format!("\n<uses-permission android:name=\"{name}\" />");
-        }
-    }
-    // Runtime permission intent must not silently exclude devices from stores.
-    // Applications can require hardware explicitly through native customization.
-    for (kind, feature) in [
-        (
-            crate::config::PermissionKind::Camera,
-            "android.hardware.camera",
-        ),
-        (
-            crate::config::PermissionKind::Camera,
-            "android.hardware.camera.autofocus",
-        ),
-        (
-            crate::config::PermissionKind::Microphone,
-            "android.hardware.microphone",
-        ),
-        (
-            crate::config::PermissionKind::LocationWhenInUse,
-            "android.hardware.location",
-        ),
-        (
-            crate::config::PermissionKind::LocationWhenInUse,
-            "android.hardware.location.gps",
-        ),
-        (
-            crate::config::PermissionKind::LocationWhenInUse,
-            "android.hardware.location.network",
-        ),
-    ] {
-        if config
-            .services
-            .permissions
-            .iter()
-            .any(|declaration| declaration.kind == kind)
-        {
-            permission += &format!(
-                "\n<uses-feature android:name=\"{feature}\" android:required=\"false\" />"
+        host += &format!(
+            "\nandroid.sourceSets[\"main\"].java.srcDir({})\n",
+            kotlin_quoted(&format!(
+                "{distribution}/platforms/android/app/src/main/java"
+            ))
+        );
+        host += "\napply(from = rootProject.file(\"../android-custom.gradle.kts\"))\n";
+        for asset in &config.assets {
+            let path = asset
+                .to_str()
+                .ok_or("Asset paths must be UTF-8")?
+                .replace('\\', "/");
+            host += &format!(
+                "\nandroid.sourceSets[\"main\"].assets.srcDir(rootProject.file({}))\nlistOf(buildRust, buildRustRelease).forEach {{ it.configure {{ inputs.files(fileTree(rootProject.file({}))) }} }}\n",
+                kotlin_quoted(&format!("../{path}")),
+                kotlin_quoted(&format!("../{path}"))
             );
         }
-    }
-    let mut registrations = String::new();
-    for scheme in &config.services.url_schemes {
-        registrations += &format!(
-            "<intent-filter><action android:name=\"android.intent.action.VIEW\"/><category android:name=\"android.intent.category.DEFAULT\"/><category android:name=\"android.intent.category.BROWSABLE\"/><data android:scheme=\"{scheme}\"/></intent-filter>\n"
+        add("android-host/app/build.gradle.kts", host);
+        let mut permission = if config
+            .permissions
+            .iter()
+            .any(|permission| permission == "internet")
+        {
+            "<uses-permission android:name=\"android.permission.INTERNET\" />".to_string()
+        } else {
+            String::new()
+        };
+        for declaration in &config.services.permissions {
+            for name in declaration.kind.android_permissions() {
+                permission += &format!("\n<uses-permission android:name=\"{name}\" />");
+            }
+        }
+        // Runtime permission intent must not silently exclude devices from stores.
+        // Applications can require hardware explicitly through native customization.
+        for (kind, feature) in [
+            (
+                crate::config::PermissionKind::Camera,
+                "android.hardware.camera",
+            ),
+            (
+                crate::config::PermissionKind::Camera,
+                "android.hardware.camera.autofocus",
+            ),
+            (
+                crate::config::PermissionKind::Microphone,
+                "android.hardware.microphone",
+            ),
+            (
+                crate::config::PermissionKind::LocationWhenInUse,
+                "android.hardware.location",
+            ),
+            (
+                crate::config::PermissionKind::LocationWhenInUse,
+                "android.hardware.location.gps",
+            ),
+            (
+                crate::config::PermissionKind::LocationWhenInUse,
+                "android.hardware.location.network",
+            ),
+        ] {
+            if config
+                .services
+                .permissions
+                .iter()
+                .any(|declaration| declaration.kind == kind)
+            {
+                permission += &format!(
+                    "\n<uses-feature android:name=\"{feature}\" android:required=\"false\" />"
+                );
+            }
+        }
+        let mut registrations = String::new();
+        for scheme in &config.services.url_schemes {
+            registrations += &format!(
+                "<intent-filter><action android:name=\"android.intent.action.VIEW\"/><category android:name=\"android.intent.category.DEFAULT\"/><category android:name=\"android.intent.category.BROWSABLE\"/><data android:scheme=\"{scheme}\"/></intent-filter>\n"
+            );
+        }
+        add(
+            "android-host/app/src/main/assets/gpui-box-services.json",
+            serde_json::to_string_pretty(&config.services).map_err(|error| error.to_string())?,
         );
-    }
-    add(
-        "android-host/app/src/main/assets/gpui-box-services.json",
-        serde_json::to_string_pretty(&config.services).map_err(|error| error.to_string())?,
-    );
-    let name = config
-        .name
-        .replace('\\', "\\\\")
-        .replace('\'', "\\'")
-        .replace('"', "\\\"")
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('"', "&quot;");
-    add(
-        "android-host/app/src/main/res/values/strings.xml",
-        format!("<resources><string name=\"app_name\">\"{name}\"</string></resources>\n"),
-    );
-    add(
-        "android-host/app/src/main/AndroidManifest.xml",
-        format!(
-            r#"<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+        let name = config
+            .name
+            .replace('\\', "\\\\")
+            .replace('\'', "\\'")
+            .replace('"', "\\\"")
+            .replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('"', "&quot;");
+        add(
+            "android-host/app/src/main/res/values/strings.xml",
+            format!("<resources><string name=\"app_name\">\"{name}\"</string></resources>\n"),
+        );
+        add(
+            "android-host/app/src/main/AndroidManifest.xml",
+            format!(
+                r#"<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 {permission}<uses-feature android:name="android.hardware.vulkan.level" android:version="1" android:required="true" />
 <application android:label="@string/app_name" android:theme="@android:style/Theme.Material.NoActionBar" android:allowBackup="false" android:enableOnBackInvokedCallback="true">
 <activity android:name="dev.gpui.box.MainActivity" android:exported="true" android:launchMode="singleTop" android:windowSoftInputMode="adjustResize"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>{registrations}</activity>
 </application></manifest>
 "#
-        ),
-    );
-    add("android-host/gradle.properties", "org.gradle.jvmargs=-Xmx3g -Dfile.encoding=UTF-8\norg.gradle.parallel=false\nandroid.useAndroidX=true\n".into());
-    for path in [
-        "gradlew",
-        "gradlew.bat",
-        "gradle/wrapper/gradle-wrapper.jar",
-        "gradle/wrapper/gradle-wrapper.properties",
-    ] {
-        files.insert(
-            format!("android-host/{path}"),
-            fs::read(
-                Path::new(&distribution)
-                    .join("platforms/android")
-                    .join(path),
-            )
-            .map_err(|error| error.to_string())?,
+            ),
         );
+        add("android-host/gradle.properties", "org.gradle.jvmargs=-Xmx3g -Dfile.encoding=UTF-8\norg.gradle.parallel=false\nandroid.useAndroidX=true\n# Rust/Java builds are qualified with Unicode project paths on Windows.\nandroid.overridePathCheck=true\n".into());
+        for path in [
+            "gradlew",
+            "gradlew.bat",
+            "gradle/wrapper/gradle-wrapper.jar",
+            "gradle/wrapper/gradle-wrapper.properties",
+        ] {
+            files.insert(
+                format!("android-host/{path}"),
+                fs::read(
+                    Path::new(&distribution)
+                        .join("platforms/android")
+                        .join(path),
+                )
+                .map_err(|error| error.to_string())?,
+            );
+        }
     }
-    for path in ["app/Cargo.toml", "desktop/Cargo.toml", "android/Cargo.toml"] {
-        let manifest = files.get_mut(path).expect("generated package");
+    for path in members.iter().map(|member| format!("{member}/Cargo.toml")) {
+        let manifest = files.get_mut(&path).expect("generated package");
         *manifest = String::from_utf8(std::mem::take(manifest))
             .expect("UTF-8 manifest")
             .replace(
@@ -521,10 +640,14 @@ include(":app")
         }
         changes.push(change);
     }
-    let state: BTreeMap<_, _> = files
-        .iter()
-        .map(|(path, content)| (path.clone(), hash(content)))
-        .collect();
+    // Disabled targets retain their files and ownership hashes so re-enabling
+    // them can distinguish the previous generated output from caller edits.
+    let mut state = previous;
+    state.extend(
+        files
+            .iter()
+            .map(|(path, content)| (path.clone(), hash(content))),
+    );
     let state = serde_json::to_vec_pretty(&state).map_err(|e| e.to_string())?;
     let metadata = file_change(root, ".gpui-box/generated.json", &state)?;
     Ok(PreparedGeneration {
@@ -645,26 +768,45 @@ fn generate_inner(
             .push(prepared.plan.metadata.path.clone());
     }
     if initial {
+        let config = AppConfig::load(root)?;
         write(
             &root.join("app/src/lib.rs"),
             include_bytes!("../../../templates/app.rs"),
         )?;
+        if config.targets.iter().any(|target| target == "desktop") {
+            write(
+                &root.join("desktop/src/main.rs"),
+                b"fn main() { gpui_box::application().run(box_app::open); }\n",
+            )?;
+        }
+        if config.targets.iter().any(|target| target == "android") {
+            write(&root.join("android/src/lib.rs"), b"#![cfg(target_os = \"android\")]\ngpui_box::android::android_entrypoint!(box_app::open);\n")?;
+            write(
+                &root.join("android-custom.gradle.kts"),
+                b"// Application-owned Android customization point. Preserved during generation.\n",
+            )?;
+            write(
+                &root.join("mise.android.toml"),
+                include_bytes!("../../../templates/mise.android.toml"),
+            )?;
+        }
+        let mise = if config.targets.iter().any(|target| target == "desktop") {
+            include_bytes!("../../../templates/mise.toml").as_slice()
+        } else {
+            b"[tools]\nrust = \"1.98.1\"\n"
+        };
+        write(&root.join("mise.toml"), mise)?;
         write(
-            &root.join("desktop/src/main.rs"),
-            b"fn main() { gpui_box::application().run(box_app::open); }\n",
-        )?;
-        write(&root.join("android/src/lib.rs"), b"#![cfg(target_os = \"android\")]\ngpui_box::android::android_entrypoint!(box_app::open);\n")?;
-        write(
-            &root.join("android-custom.gradle.kts"),
-            b"// Application-owned Android customization point. Preserved during generation.\n",
-        )?;
-        write(
-            &root.join("mise.toml"),
-            include_bytes!("../../../templates/mise.toml"),
-        )?;
-        write(
-            &root.join("mise.android.toml"),
-            include_bytes!("../../../templates/mise.android.toml"),
+            &root.join(".gpui-box/template.json"),
+            &serde_json::to_vec_pretty(&serde_json::json!({
+                "schema_version": 1,
+                "template": "starter",
+                "template_version": 1,
+                "cli_version": gpui_box::VERSION,
+                "upstream_revision": gpui_box::UPSTREAM_REVISION,
+                "targets": config.targets,
+            }))
+            .map_err(|error| error.to_string())?,
         )?;
         write(
             &root.join(".gitignore"),
@@ -672,7 +814,7 @@ fn generate_inner(
         )?;
         write(
             &root.join("README.md"),
-            include_bytes!("../../../templates/README.md"),
+            format!("Configured targets are {}. Platform commands below apply when their target is enabled.\n\n{}", config.targets.join(", "), include_str!("../../../templates/README.md")).as_bytes(),
         )?;
     }
     Ok(receipt)

@@ -428,6 +428,62 @@ and two nested child reports. Physical-device testing remains deferred. SDK
 closure, canonical schema/migrations, platform add/list and broader host/backend
 qualification retain the open #61/#62/#73/M3 gates.
 
+## Starter initialization and target selection
+
+The version-1 starter supports `new PATH --distribution PATH` and `init PATH
+--distribution PATH`. Both accept `--targets desktop`, `--targets android` or
+`--targets desktop,android`. The default remains both targets. Options accept one
+value each and repeated/unknown options fail before project creation. Only the
+selected platform manifests, workspace members, source entry points, native host
+and mise target tasks are created. Shared source/components/assets retain one
+GPUI identity and the existing fixed upstream patch. Android uses minimum and
+target API35 with compile API36. `.gpui-box/template.json` records starter ID,
+template/schema versions, CLI version, upstream revision and selected targets.
+Existing applications remain valid without this additive provenance file.
+
+`init` requires an existing directory. It builds a complete sibling staging
+project, uses the destination directory name as the application name and performs
+ownership preflight under an exclusive `.gpui-box-init.lock`. Existing README.md,
+LICENSE and .gitignore files are preserved byte-for-byte. Other colliding
+template files, linked output paths and active init locks cause failure before
+publication. Unrelated files and existing directories are preserved. Integrate
+the distribution's template guidance into retained .gitignore and README files
+as needed, preserving their application-specific content.
+
+Each new file is published through an exclusive hard link, which requires
+hard-link support on the project filesystem. `gpui-box.json` is published last
+as the completion marker. Publication can stop partway on filesystem failure or
+interruption. The complete sibling staging tree is retained for inspection and
+recovery. Published files share storage with that staging copy until its link is
+removed. Verify no initializer remains running before removing a stale init lock.
+For an interrupted init, compare the published files with staging and complete
+the missing copies while preserving application edits, then use `generate`.
+An ordinary retry rejects conflicting files. Successful publication removes only
+the exact generated staging entries. It uses no recursive caller-tree deletion.
+
+Repeated init reports an already-initialized project and directs the caller to
+`generate`. Configuration changes continue through generation plans/journals.
+Changing the selected targets later updates managed manifests. Disabled-target
+files and their ownership hashes are retained, allowing conflict-checked
+re-enablement. Old user-owned source/native customization files retain the
+existing preservation contract. Adding a target that the starter never created
+requires its source entry point and mise/native customization setup. Automated
+platform-add provisioning retains #73's gate.
+Existing Cargo workspaces require explicit application integration when their
+Cargo.toml conflicts. Adaptive/workbench/component templates, SDK closure and
+canonical schema migrations retain #63/#62/#61 acceptance gates.
+
+Windows CLI qualification passes 48 tests and strict Clippy. Added regressions
+cover single-target output/provenance, no-op generation, init with existing
+documents, repeated init, ownership conflicts, active locks and invalid options.
+Linux CI also runs linked-output rejection. External applications in paths with
+spaces and Chinese characters complete a Windows desktop compile/link and an
+Android ARM64/x86_64 debug APK build through the normal CLI. The Android build
+executes all 36 Gradle tasks. AGP's default Windows non-ASCII path rejection was
+encountered before compilation. The managed host now sets
+`android.overridePathCheck=true`, and that complete build qualifies the tested
+JDK17/AGP8.10.1/NDK30/mise tuple. Other tool versions retain their own validation.
+
 ## Read-only build plans
 
 Use `gpui-box build desktop --dry-run --json` or `gpui-box build android
