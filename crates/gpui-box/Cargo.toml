@@ -14,6 +14,8 @@ system = ["dep:gpui-system"]
 secrets = ["system", "dep:gpui-secrets"]
 app-data = ["system", "dep:gpui-app-data"]
 system-gpui = ["system", "gpui-system/gpui"]
+activation = ["system", "dep:gpui-activation"]
+activation-gpui = ["activation", "system-gpui", "gpui-activation/gpui"]
 permissions = ["system", "dep:gpui-permissions"]
 permissions-gpui = ["permissions", "system-gpui", "gpui-permissions/gpui"]
 android = ["dep:gpui", "dep:gpui-android"]
@@ -21,6 +23,7 @@ desktop = ["dep:gpui", "dep:gpui_platform", "gpui_platform/font-kit", "gpui_plat
 
 [dependencies]
 gpui-secrets = { workspace = true, optional = true }
+gpui-activation = { workspace = true, optional = true }
 gpui-app-data = { workspace = true, optional = true }
 gpui-system = { workspace = true, optional = true }
 gpui-permissions = { workspace = true, optional = true }
@@ -39,3 +42,7 @@ workspace = true
 [[example]]
 name = "settings"
 required-features = ["app-data"]
+
+[[example]]
+name = "activation"
+required-features = ["activation", "app-data"]

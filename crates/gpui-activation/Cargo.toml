@@ -1,0 +1,26 @@
+[package]
+name = "gpui-activation"
+description = "Validated URL opening and durable activation routing for gpui-box"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+gpui = ["dep:gpui", "gpui-system/gpui"]
+
+[dependencies]
+gpui-system.workspace = true
+gpui-app-data.workspace = true
+serde = { version = "1.0", features = ["derive"] }
+url = "2.5.8"
+gpui = { workspace = true, optional = true }
+
+[dev-dependencies]
+tempfile = "3.27"
+
+[lints]
+workspace = true
