@@ -109,7 +109,7 @@ pub fn doctor(root: &Path) -> Result<(), String> {
     );
     for declaration in &config.services.permissions {
         println!(
-            "CONFIGURED Android {:?} permission. Native provider runtime evidence remains pending in #20/#2.",
+            "CONFIGURED Android {:?} permission. Android host adapter is available. Runtime authorization is queried in the app. See #20/#2 for per-operation qualification.",
             declaration.kind
         );
     }

@@ -26,9 +26,15 @@ Place this object under `services`, then run `gpui-box generate`. It generates
 only the requested Android permissions and custom scheme intent filters, plus
 the managed `gpui-box-services.json` asset. Supported permission kinds are
 `notifications`, `camera`, `microphone`, `location_when_in_use` and `contacts`.
-The purpose is application metadata for contextual permission UI. Declaring a
-permission does not install its runtime provider. `doctor` reports configuration
-and outstanding native evidence separately.
+The purpose is application metadata for contextual permission UI. The Android
+host installs `permission_service()` in GPUI SystemServices before app launch.
+Use `gpui_box::android::permission_context()` for the current host attachment,
+then call the shared service through the permission crate. Hold/await the local
+request task. The gallery demonstrates explicit requests and settings recovery.
+`doctor` reports configuration and per-operation qualification separately.
+Android's system dialog uses its OS wording. Applications display their declared
+purpose context before requesting. Photos, biometrics and special-access settings
+need their operation-specific providers. Authorization is freshly queried.
 
 Android applications can subscribe to custom URL delivery through
 `gpui_box::android::on_activation`. Return acceptance after handing the stable

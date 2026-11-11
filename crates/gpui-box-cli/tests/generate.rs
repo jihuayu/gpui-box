@@ -205,6 +205,14 @@ fn typed_services_generate_requested_declarations_and_remove_obsolete_entries() 
     let manifest =
         fs::read_to_string(app.join("android-host/app/src/main/AndroidManifest.xml")).unwrap();
     assert!(manifest.contains("android.permission.CAMERA"));
+    assert!(
+        manifest.contains("android:name=\"android.hardware.camera\" android:required=\"false\"")
+    );
+    assert!(
+        manifest.contains(
+            "android:name=\"android.hardware.camera.autofocus\" android:required=\"false\""
+        )
+    );
     assert!(!manifest.contains("android.permission.RECORD_AUDIO"));
     assert!(manifest.contains("android:scheme=\"gpui-box-test\""));
     let declarations =
@@ -222,6 +230,7 @@ fn typed_services_generate_requested_declarations_and_remove_obsolete_entries() 
     let manifest =
         fs::read_to_string(app.join("android-host/app/src/main/AndroidManifest.xml")).unwrap();
     assert!(!manifest.contains("android.permission.CAMERA"));
+    assert!(!manifest.contains("android.hardware.camera"));
     assert!(!manifest.contains("gpui-box-test"));
 }
 

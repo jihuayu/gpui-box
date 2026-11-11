@@ -118,3 +118,16 @@ subscription disposal. Native-provider and gallery instrumentation add end-to-en
 checks for text selection, draft/commit isolation and retained text scaling.
 The earlier remaining checklist is historical. Implemented prototypes above
 supersede its state/query entries while wider acceptance remains open in #3.
+
+## Native permission recovery continuation
+
+The Android gallery includes notification and camera permission controls backed by
+the installed native service. Requests are explicit, statuses are semantic live
+regions and settings receipts describe handoff. A panel-owned task retains the
+bounded permission stream and is cancelled with its Entity. Foreground reconciliation
+updates displayed state after settings. Request callbacks update through weak
+Entity handles. Desktop compilation retains its existing shared gallery path.
+
+Notification denial/retry/permanent denial and settings-to-resume authorization,
+camera grant and already-granted no-prompt paths are covered by native instrumentation.
+Screen-reader speech and physical-device evidence remain deferred acceptance gates.

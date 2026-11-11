@@ -334,3 +334,45 @@ private storage and the activation inbox. Pending URL IDs survive Activity
 recreation with a 16-entry host queue and a 256-ID process duplicate window.
 Applications requiring durable routing must accept into their own persisted inbox.
 GPU recovery and physical qualification retain independent gates.
+
+## ADR-014 — Adapt Android permissions through the shared contextual service
+
+### Context
+
+The shared permission service owns request cancellation, UI lifetime validation,
+the logical prompt lane and scoped observation. Android supplies the runtime
+dialog and authoritative PackageManager state. Typed CLI declarations already
+carry permission intent and contextual purpose metadata.
+
+### Decision
+
+Install one process-owned Android PermissionService in SystemServices before
+application launch. Kotlin verifies both the generated service declaration and
+the manifest, then queries checkSelfPermission and policy/rationale observations.
+Support notifications, camera, microphone, foreground location and contacts.
+Approximate location maps to Limited. Enterprise policy maps to Restricted.
+Photos, biometrics and special access retain operation-specific providers.
+
+The Activity owns a native prompt lane. Post dialog presentation until Rust
+application borrows unwind. Correlate results with unique request IDs, release
+provider borrows before completing requests and re-query actual authorization.
+Surface replacement advances the host UiOwner and rejects old completions.
+An already-presented system dialog remains owned until Android returns it.
+Pending Activity state carries a process token to prevent old IDs from entering
+a new Rust process. Unstarted posted work is excluded from restored prompt state.
+
+Persist only actual denied-callback history for first/retry/permanent-denial
+classification. Every authorization decision still probes the OS. Settings handoff
+reports accepted presentation only. Regaining foreground focus reconciles observed
+permission state and emits changes through the existing bounded event streams.
+
+### Consequences
+
+Applications use explicit contextual buttons and retain local request tasks.
+Cancellation cannot close an Android-owned dialog or undo a grant. Native busy
+state prevents competing prompts while that dialog remains. A reclaimed process
+reconstructs service observations from the OS. Android may kill it after revocation.
+Per-operation runtime evidence stays in validation reports. The provider capability
+uses Compiled conservatively, and generic contract manifests retain their scope.
+AndroidX ActivityResult was considered. The existing Activity/JNI host uses its
+platform callback without adding a second Activity lifecycle owner.

@@ -3,6 +3,7 @@ mod bridge;
 mod dispatcher;
 mod entrypoint;
 mod host;
+mod permissions;
 mod platform;
 mod window;
 
@@ -13,6 +14,10 @@ pub use bridge::{
     save_state, take_saved_state, text, text_state, touch,
 };
 pub use host::{host_snapshot, host_state, lifecycle_service};
+pub use permissions::{
+    AndroidPermissionProvider, permission_context, permission_pending, permission_result,
+    permission_service,
+};
 pub use platform::AndroidPlatform;
 
 use std::cell::{Cell, RefCell};
