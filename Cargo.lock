@@ -1836,6 +1836,7 @@ dependencies = [
  "gpui-android",
  "gpui-app-data",
  "gpui-permissions",
+ "gpui-secrets",
  "gpui-system",
  "gpui_platform",
 ]
@@ -1892,6 +1893,15 @@ version = "0.1.0-dev"
 dependencies = [
  "gpui",
  "gpui-system",
+]
+
+[[package]]
+name = "gpui-secrets"
+version = "0.1.0-dev"
+dependencies = [
+ "gpui-system",
+ "windows-sys 0.61.2",
+ "zeroize",
 ]
 
 [[package]]
