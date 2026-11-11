@@ -134,6 +134,7 @@ pub fn accessibility_snapshot(generation: u64, enabled: bool) -> String {
             "focused": state.focus == Some(*id), "enabled": !node.is_disabled(),
             "focusable": node.supports_action(Action::Focus),
             "checked": node.toggled().map(|value| value == accesskit::Toggled::True),
+            "selected": node.is_selected(),
             "clickable": node.supports_action(Action::Click),
             "editable": node.supports_action(Action::SetValue) })
         })

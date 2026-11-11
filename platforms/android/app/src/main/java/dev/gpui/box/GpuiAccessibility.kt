@@ -61,6 +61,7 @@ class GpuiAccessibility(private val view: GpuiView) : AccessibilityNodeProvider(
             for ((id, node) in nodes) {
                 val prior = old[id] ?: continue
                 if (node.optBoolean("focused") && !prior.optBoolean("focused")) event(id, AccessibilityEvent.TYPE_VIEW_FOCUSED)
+                if (node.optBoolean("selected") && !prior.optBoolean("selected")) event(id, AccessibilityEvent.TYPE_VIEW_SELECTED)
                 if (node.optString("selection") != prior.optString("selection")) event(id, AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED)
                 if (node.optString("value") != prior.optString("value")) {
                     val type = if (node.optBoolean("editable")) AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED
@@ -121,6 +122,7 @@ class GpuiAccessibility(private val view: GpuiView) : AccessibilityNodeProvider(
             isVisibleToUser = view.isShown && visible
             isFocusable = node.optBoolean("focusable")
             isFocused = node.optBoolean("focused")
+            isSelected = node.optBoolean("selected")
             isAccessibilityFocused = focused == id
             contentDescription = node.optString("label").takeUnless { it == "null" }
             text = node.optString("value").takeUnless { it == "null" }
