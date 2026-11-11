@@ -2,6 +2,7 @@ mod config;
 mod generate;
 mod output;
 mod package;
+mod sdk;
 mod workflow;
 use output::CliError;
 use serde_json::{Value, json};
@@ -40,6 +41,30 @@ fn execute(arguments: &[String]) -> Result<Value, CliError> {
                 "desktop_targets": ["windows", "macos", "linux"],
                 "mobile_targets": ["android", "ios"]
             }));
+        }
+        [command, operation, destination, option, source]
+            if command == "sdk" && operation == "export" && option == "--source" =>
+        {
+            let manifest = sdk::export(&root.join(source), &root.join(destination))
+                .map_err(|error| CliError::new("SDK_EXPORT_FAILED", error))?;
+            outputln!(
+                "Exported committed SDK {} to {}",
+                manifest.source_revision,
+                destination
+            );
+            return serde_json::to_value(manifest)
+                .map_err(|error| CliError::new("SDK_EXPORT_FAILED", error.to_string()));
+        }
+        [command, operation, path] if command == "sdk" && operation == "verify" => {
+            let manifest = sdk::verify(&root.join(path))
+                .map_err(|error| CliError::new("SDK_VERIFICATION_FAILED", error))?;
+            outputln!(
+                "Verified SDK {} with {} committed files",
+                manifest.source_revision,
+                manifest.files.len()
+            );
+            return serde_json::to_value(manifest)
+                .map_err(|error| CliError::new("SDK_VERIFICATION_FAILED", error.to_string()));
         }
         [command, destination, options @ ..] if matches!(command.as_str(), "new" | "init") => {
             let mut distribution = None;
@@ -233,7 +258,7 @@ fn main() -> ExitCode {
 fn help() -> Value {
     const HELP: &str = "gpui-box - desktop and mobile developer tools\n\nUsage gpui-box COMMAND\n\n  new PATH --distribution PATH  Generate a desktop/Android app\n  generate                      Update unmodified managed files\n  doctor                        Inspect config and prerequisites\n  dev desktop|android           Run the application\n  build desktop|android         Build a development artifact\n  install android               Install on the selected device\n  package android               Assemble a debug APK\n  package android --release     Sign and inspect release APK/AAB\n  package desktop --portable    Bundle Windows development output\n  devices                       List Android devices\n  logs [--device SERIAL]        Follow application logs\n  info | --version | --help\n\nAndroid development workflows accept --device SERIAL. Release requires explicit signing environment variables and checksum-pinned GPUI_BOX_BUNDLETOOL. See docs/M4_ANDROID_PACKAGING.md in the distribution. Update channels follow M5.";
     let help = format!(
-        "{HELP}\n\nUse new PATH --distribution PATH [--targets desktop,android] for starter template v1. Use init PATH --distribution PATH [--targets desktop,android] in an existing directory. Both targets are the default. Existing README.md, LICENSE and .gitignore are preserved by init. Other template conflicts are rejected. Use generate --dry-run to inspect managed changes without writing files. Replay the saved result object with generate --plan PATH. Use build desktop|android --dry-run to preview generation and build commands. Add --json once for a schema-v1 response from finite commands. Diagnostics and child output go to stderr. dev/logs use human output."
+        "{HELP}\n\nUse sdk export PATH --source CHECKOUT to export committed sources, then sdk verify PATH to check their manifest. Use new PATH --distribution PATH [--targets desktop,android] for starter template v1. The distribution may be a source checkout or exported SDK. Use init PATH --distribution PATH [--targets desktop,android] in an existing directory. Both targets are the default. Existing README.md, LICENSE and .gitignore are preserved by init. Other template conflicts are rejected. Use generate --dry-run to inspect managed changes without writing files. Replay the saved result object with generate --plan PATH. Use build desktop|android --dry-run to preview generation and build commands. Add --json once for a schema-v1 response from finite commands. Diagnostics and child output go to stderr. dev/logs use human output."
     );
     outputln!("{help}");
     json!({"help": help, "response_schema_version": 1, "json_streaming_commands": false})

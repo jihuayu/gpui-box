@@ -213,7 +213,12 @@ impl AppConfig {
             .canonicalize()
             .map_err(|e| format!("Distribution path is unavailable: {e}"))?;
         if !path.join("vendor/gpui/UPSTREAM.json").is_file() {
-            return Err("distribution must point to a gpui-box source checkout".into());
+            return Err(
+                "distribution must point to a gpui-box source checkout or exported SDK".into(),
+            );
+        }
+        if std::fs::symlink_metadata(path.join("gpui-box-sdk.json")).is_ok() {
+            crate::sdk::verify(&path)?;
         }
         Ok(path)
     }

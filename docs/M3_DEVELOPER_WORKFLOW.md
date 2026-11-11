@@ -3,9 +3,10 @@
 ## Source-checkout application template
 
 Build `gpui-box-cli` using `mise run build`, then add its `target/debug` directory
-to PATH. `gpui-box new` requires the distribution source checkout. The generated
-app uses path dependencies on this checkout's facade, components and official
-GPUI source, sharing one engine identity. Keep that checkout at a known revision.
+to PATH. `gpui-box new` accepts a distribution source checkout or a verified
+exported SDK. The generated app uses path dependencies on its facade, components
+and official GPUI source, sharing one engine identity. Keep the distribution at
+a known revision.
 
 ```sh
 gpui-box new "My Application" --distribution /absolute/path/to/gpui-box
@@ -28,6 +29,76 @@ Set `ANDROID_HOME` to the SDK. Install platform-tools, platform 36,
 build-tools 36.0.0 and NDK 30.0.16248370, then run `sdkmanager --licenses`.
 Mise pins Rust 1.98.1, JDK 17.0.21+9, Gradle 8.13 and cargo-ndk 4.1.2.
 Windows also requires MSVC C++ Build Tools and a Windows SDK.
+
+## Committed source SDK export
+
+```sh
+gpui-box sdk export "/absolute/path/SDK with spaces" --source /path/to/gpui-box
+gpui-box sdk verify "/absolute/path/SDK with spaces"
+gpui-box new "External Application" --distribution "/absolute/path/SDK with spaces"
+```
+
+Export resolves the source checkout root's HEAD once and archives that commit.
+The SDK includes the complete committed source tree, preserving the facade,
+components, system contracts, upstream GPUI, native host, assets, templates,
+license records, root dependency patch and lockfile together. Uncommitted and
+untracked source changes are excluded. Committed archive attributes apply.
+Global/system attributes and host autocrlf defaults are disabled for export.
+Nonempty checkout-local `info/attributes` is rejected because it can override
+committed content. Keep exports outside the source checkout's build output.
+
+Root `gpui-box-sdk.json` records schema v1, full source/upstream revisions,
+exporter version, scope and a sorted SHA-256 digest for every exported file.
+Its content is deterministic for the same commit/exporter and contains no local
+source path. Verification checks manifest/provenance compatibility and required
+files, rejects changed/missing/unlisted files and linked/special entries, and
+enforces portable relative names and content bounds. Export limits are 10000
+archive entries, 64 MiB per file and 512 MiB total. Verification counts filesystem
+entries including directories toward its 10000-entry bound. Case-colliding,
+Windows-reserved, absolute and traversing archive paths are rejected.
+`sdk export` and `sdk verify` support finite `--json` responses with
+`SDK_EXPORT_FAILED` and `SDK_VERIFICATION_FAILED` errors. Help lists both commands.
+
+The destination parent must exist and be controlled by the caller. Export creates
+an exclusive sibling staging directory, verifies it and publishes by rename after
+checking that the destination remains absent. Use a stable destination parent
+during export. Existing destinations are rejected. Failed staging is retained at
+the path printed in the error, with no automatic recursive cleanup. A cleanup
+failure after publication explicitly identifies the published SDK. Source-checkout
+mode remains available. Treat exported SDKs as immutable inputs. Generation,
+including build/dev refresh, verifies an SDK when its root manifest is present.
+Keep application and build outputs outside the SDK. Build the CLI from the source
+checkout before exporting or use a separately qualified CLI executable.
+
+The manifest provides local content-integrity checks. Its bytes and revision
+claims require a trusted source or authenticated distribution channel. Registry
+and Git dependency caches, Rust/JDK/NDK/SDK/Gradle toolchains and native CLI
+executables are managed separately. Offline builds require those dependencies
+to be cached. Authenticated SDK download, content-addressed cache selection,
+native CLI publication and unresolved third-party license originals retain #62
+and #5 acceptance gates.
+
+### SDK qualification on November 12, 2026
+
+- CLI unit/integration coverage includes 58 Windows cases. New cases exercise
+  deterministic manifests across autocrlf settings, WIP/untracked exclusion,
+  existing destinations, modified/missing/unlisted files, unsupported schema,
+  traversal, incomplete sources, checkout-local attributes and reserved names.
+  Unix CI additionally covers links during export and verification.
+- Full `mise run check` passes with strict distribution-owned Clippy. The tested
+  source SDK revision is `fbdd3f45017662f333c76a523d4b368a0c4702af`, exported into
+  a path containing spaces and Chinese characters with 701 committed files.
+- A fresh external app in another spaces/Chinese path compiles and links Windows
+  desktop output through `gpui-box build desktop` with `CARGO_NET_OFFLINE=true`.
+  Desktop interaction is pending because Windows was locked during capture.
+- The same app completes Android ARM64/x86_64 construction through the CLI.
+  Cargo offline plus Gradle `--offline --rerun-tasks` executes all 36 tasks
+  successfully using cached dependencies. An ordinary offline repeat reports
+  36 tasks up to date. The SDK still verifies after both platform builds.
+- Normal `dev android --device emulator-5554` installs and cold-starts
+  `dev.example.gpuibox.sdkqa` on API35 Android15 x86_64, with validated
+  ActivityManager completion in 2624ms. Screenshot inspection and a real tap
+  confirm Count0 changes to Count1. Physical-device testing remains deferred.
 
 ## Configuration v1
 
