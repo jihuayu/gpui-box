@@ -343,6 +343,34 @@ GPU device loss, combined IME/predictive animation, TalkBack speech, ARM64 hardw
 and real Chinese keyboard candidate UI retain their independent acceptance gates.
 Physical-device testing remains deferred.
 
+## Software keyboard and system-back ordering
+
+ImeBackTest uses the actual API35 software keyboard and OS BACK dispatch with
+the existing GPUI editor and counter navigation listener. Across two cycles it
+enters Chinese and emoji text, waits for visible settled IME insets, sends BACK,
+and verifies keyboard dismissal preserves both the application navigation claim
+and draft. A later BACK after the hide animation settles consumes navigation
+while retaining the draft and Activity. A cancelled GPUI back gesture observes
+the listener without committing navigation. The host's backEnabled query tracks
+surface eligibility and is unsuitable as an application-listener assertion.
+
+The readiness observer tracks IME animations from onStart, prunes them against
+onProgress's running list and removes ended animations. It requires three stable
+samples before advancing. The test settles the counter's blur/hide transition
+before focusing the editor, including focus restored from a previous Activity.
+Early test versions used the wrong backEnabled assertion or retained cancelled
+animation preparation. Two initial full runs failed the new keyboard-readiness
+assertion. After correcting the observer, the focused test passes in17.464s and
+the complete API35 Android15 x86_64 suite passes23/23 in210.106s after app-data
+reset. The emulator retains its existing Vulkan GPU and4096-byte pages.
+
+Both native ABI builds and strict Clippy pass. Android lint reports zero errors
+and eight existing warnings. Integrated mise run check passes with the merged
+menu and power service contracts. Full predictive edge-gesture animation,
+TalkBack speech, real Chinese keyboard candidate UI, GPU loss and physical-device
+qualification retain their separate M1/M6 acceptance gates. Physical-device
+testing remains deferred.
+
 ## Actual screen sleep and wake lifecycle
 
 ScreenLifecycleTest exercises three real OS sleep/wake cycles through UiAutomation
