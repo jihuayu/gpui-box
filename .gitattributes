@@ -9,3 +9,7 @@
 *.otf binary
 # Preserve imported source bytes and its upstream whitespace conventions.
 vendor/gpui/** -text -whitespace
+# Preserve original supplemental license bytes and their recorded SHA-256.
+tooling/licenses/** -text -whitespace
+tooling/licenses/README.md text eol=lf
+tooling/licenses/sources.json text eol=lf
