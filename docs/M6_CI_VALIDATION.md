@@ -75,6 +75,12 @@ provisioning step to ten minutes. Logs are created before installation so a
 provisioning failure can still produce an artifact. The repository's normal
 developer APT configuration is outside this hosted workflow.
 
+A subsequent attempt confirmed DNS failures for archive.ubuntu.com and
+security.ubuntu.com directly. It failed in two minutes and uploaded its APT log.
+The workflow records DNS observations and retries index retrieval through the
+kernel.org Ubuntu mirror if the primary update fails. Ubuntu's signed package
+indexes and normal APT verification remain enabled for that fallback.
+
 [Initial provisioning failure](https://github.com/jihuayu/gpui-box/actions/runs/43036937740)
 
 Hosted qualification for the current revision is tracked in PR #91. Linux
