@@ -1,0 +1,28 @@
+[package]
+name = "gpui-diagnostics"
+description = "Structured diagnostics, crash records, bounded retention and recoverable export for gpui-box"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+gpui = ["dep:gpui", "gpui-system/gpui", "gpui-files/gpui"]
+
+[dependencies]
+gpui-system = { workspace = true }
+gpui-app-data = { workspace = true }
+gpui-files = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tempfile = "3.27"
+gpui = { workspace = true, optional = true }
+
+[target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }
+
+[lints]
+workspace = true

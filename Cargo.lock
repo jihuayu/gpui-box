@@ -2178,6 +2178,7 @@ dependencies = [
  "gpui-android",
  "gpui-app-data",
  "gpui-clipboard",
+ "gpui-diagnostics",
  "gpui-files",
  "gpui-lifecycle",
  "gpui-local-auth",
@@ -2256,6 +2257,19 @@ version = "0.1.0-dev"
 dependencies = [
  "gpui-system",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "gpui-diagnostics"
+version = "0.1.0-dev"
+dependencies = [
+ "gpui",
+ "gpui-app-data",
+ "gpui-files",
+ "gpui-system",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

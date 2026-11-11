@@ -81,3 +81,26 @@ pub use gpui_local_auth as local_auth;
 /// Signed update metadata and generation-correlated delivery contracts.
 #[cfg(feature = "updates")]
 pub use gpui_updates as updates;
+
+/// Structured diagnostics, crash records, bounded retention and recoverable export.
+#[cfg(feature = "diagnostics")]
+pub use gpui_diagnostics as diagnostics;
+
+#[cfg(test)]
+mod tests {
+    #[cfg(feature = "diagnostics")]
+    #[test]
+    fn diagnostics_facade_reexports_the_coordinated_contracts() {
+        assert_eq!(
+            crate::diagnostics::UPSTREAM_GPUI_REVISION,
+            crate::UPSTREAM_REVISION
+        );
+        assert_eq!(crate::diagnostics::PACKAGE_VERSION, crate::VERSION);
+        assert_eq!(crate::diagnostics::DiagnosticsOperation::ALL.len(), 5);
+        assert_eq!(crate::diagnostics::platform_support_matrix().len(), 30);
+        assert_eq!(
+            crate::diagnostics::redact_text("Bearer canary"),
+            "[REDACTED:bearer]"
+        );
+    }
+}
