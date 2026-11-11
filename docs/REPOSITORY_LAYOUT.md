@@ -14,6 +14,7 @@ crates/
   gpui-box-cli/             Distribution development tools
   gpui-android/             Distribution-owned Android platform integration
   gpui-app-data/            Application directories and recoverable settings
+  gpui-lifecycle/           Lifecycle, preferences and versioned restoration
   gpui-permissions/         Permission status, contextual requests, settings recovery
 components/                 Reusable UI packages, themes, and adaptive widgets
 examples/
