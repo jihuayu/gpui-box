@@ -1,3 +1,16 @@
 [tools]
 java = "temurin-17.0.21+9"
 "cargo:cargo-ndk" = "4.1.2"
+gradle = "8.13"
+
+[tasks."build:android"]
+description = "Build the ARM64 and x86_64 debug APK"
+run = "gradle -p platforms/android :app:assembleDebug"
+
+[tasks."test:android"]
+description = "Run UTF-16 and composition checks on a connected Android device"
+run = "gradle -p platforms/android :app:connectedDebugAndroidTest"
+
+[tasks."install:android"]
+description = "Build and install the debug example on a connected Android device"
+run = "gradle -p platforms/android :app:installDebug"

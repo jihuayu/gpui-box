@@ -6,5 +6,6 @@
 *.webp binary
 *.ico binary
 *.jar binary
+*.otf binary
 # Preserve imported source bytes and its upstream whitespace conventions.
 vendor/gpui/** -text -whitespace

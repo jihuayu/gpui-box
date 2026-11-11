@@ -1,0 +1,67 @@
+//! One Rust page shared by the desktop executable and Android native library.
+mod input;
+use gpui::*;
+
+struct Hello {
+    count: usize,
+    input: Entity<input::TextInput>,
+}
+impl Render for Hello {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .size_full()
+            .flex()
+            .flex_col()
+            .gap_4()
+            .p_6()
+            .bg(rgb(0x171d28))
+            .text_color(rgb(0xe8edf5))
+            .font_family("Noto Sans CJK SC")
+            .child(div().text_3xl().child("gpui-box"))
+            .child("Desktop and Android · One Rust view")
+            .child("你好，GPUI！中文渲染与输入")
+            .child(
+                div()
+                    .id("counter")
+                    .px_4()
+                    .py_3()
+                    .rounded_lg()
+                    .bg(rgb(0x245fc7))
+                    .cursor_pointer()
+                    .child(format!("Count: {} · Tap to increment", self.count))
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.count += 1;
+                        cx.notify();
+                    })),
+            )
+            .child("Text input")
+            .child(self.input.clone())
+            .child(
+                div()
+                    .text_sm()
+                    .child("Rotate or background the app to test surface replacement."),
+            )
+    }
+}
+
+pub fn open(cx: &mut App) {
+    cx.text_system()
+        .add_fonts(vec![std::borrow::Cow::Borrowed(include_bytes!(
+            "../assets/NotoSansSC-Regular.otf"
+        ))])
+        .expect("load bundled OFL font");
+    input::bind_keys(cx);
+    let bounds = Bounds::centered(None, size(px(720.), px(480.)), cx);
+    cx.open_window(
+        WindowOptions {
+            window_bounds: Some(WindowBounds::Windowed(bounds)),
+            ..Default::default()
+        },
+        |_, cx| {
+            let input = cx.new(input::TextInput::new);
+            cx.new(|_| Hello { count: 0, input })
+        },
+    )
+    .expect("open shared example");
+    cx.activate(true);
+}

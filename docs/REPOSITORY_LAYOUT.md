@@ -12,10 +12,14 @@ mise.android.toml           Optional Android JDK and cargo-ndk environment
 crates/
   gpui-box/                 Public facade and coordinated GPUI exports
   gpui-box-cli/             Distribution development tools
+  gpui-android/             Distribution-owned Android platform integration
 components/                 Reusable UI packages, themes, and adaptive widgets
 examples/
   desktop/                  Desktop application using the facade
+  hello/                    Shared Rust view and bundled OFL font
+  android/                  Android example cdylib and typed JNI exports
 platforms/                  Native hosts and packaging resources by platform
+  android/                  Kotlin SurfaceView host and Gradle APK project
 vendor/
   gpui/                     Copied official GPUI and its local dependency closure
     crates/                 Engine and existing desktop/mobile backends
@@ -28,10 +32,13 @@ docs/                       Architecture, roadmap, research, and contributor gui
 
 ## Ownership rules
 
-- `vendor/gpui` owns upstream engine and backend code, including the future
-  `gpui_android` backend. Keep imported crates together at one revision.
+- `vendor/gpui` owns copied upstream engine and backend code. Keep imported
+  crates together at one revision and record source patches in
+  `DOWNSTREAM_CHANGES.md`.
 - `crates` owns distribution APIs, application services, update delivery, and CLI
-  tooling. Add packages when real implementation begins.
+  tooling. The new `gpui-android` backend lives here while its distribution-owned
+  JNI/SurfaceView contract is developed. This refines the initial plan to place
+  it inside the upstream snapshot.
 - `components` owns reusable controls and themes. Platform-adaptive behavior lives
   here when it can use the common facade and services.
 - `platforms` owns OS host projects, resources, signing, and package integration.
@@ -48,6 +55,7 @@ dependencies. The `desktop` facade feature exposes GPUI types as `gpui_box::gpui
 and the native application constructor as `gpui_box::application`.
 
 Use `mise -E android install` and `mise -E android run setup:android` to provision
-the optional Android environment. Android host/runtime implementation remains
-tracked by the Android platform issues. Existing iOS source is included with the
+the optional Android environment. `mise -E android run build:android` builds the
+two-ABI APK and `test:android` runs connected instrumentation tests. See
+`platforms/android/README.md`. Existing iOS source is included with the
 upstream snapshot and requires Apple build infrastructure for validation.

@@ -39,7 +39,7 @@ mise run cli
 ```
 
 Rust 1.98.1 is pinned in `mise.toml`. The root Cargo workspace contains the
-`gpui-box` facade, the `gpui-box` CLI, and the desktop example. `Cargo.lock` records
+`gpui-box` facade, CLI, Android backend, and shared/desktop/Android examples. `Cargo.lock` records
 the coordinated dependency resolution. Project-owned Rust uses Apache-2.0,
 English identifiers, and shared package metadata.
 
@@ -64,19 +64,26 @@ The facade currently enables both X11 and Wayland for desktop builds.
 mise -E android install
 mise -E android run setup:android
 mise -E android run doctor:android
+mise -E android run build:android
+mise -E android run install:android
+mise -E android run test:android
 ```
 
 The optional Android environment pins Temurin JDK 17.0.21+9 and cargo-ndk 4.1.2.
-Android Studio or Google's command-line tools manage SDK/NDK installation and
-license acceptance. Set `ANDROID_HOME` to the SDK directory. The Android host and
-full Gradle/SDK/NDK tuple are implementation milestones in the project plan.
+Gradle 8.13 is also managed by mise. Android Studio or Google's command-line
+tools manage SDK/NDK installation and license acceptance. Set `ANDROID_HOME` to
+the SDK directory. The Kotlin SurfaceView host calls the GPUI main-thread runtime
+through typed JNI and renders the same Rust page as the desktop example.
+Enable the facade's `android` feature for `gpui_box::android`.
+See [Android setup](platforms/android/README.md) and
+[M0 validation](docs/M0_ANDROID_VALIDATION.md).
 
 ## Current initialization
 
 The facade exposes distribution version/source information and opt-in desktop
 GPUI exports. The initial CLI implements help, version, and `info`. The desktop
-example opens a GPUI window through the facade. Component packages, application
-services, mobile hosts, packaging, and update providers are tracked by the roadmap
+example and Android host share Chinese text, a counter, and an editable field.
+Component packages, application services, release packaging, and update providers are tracked by the roadmap
 and will be added in their owning directories as implementation progresses.
 
 ## Documentation

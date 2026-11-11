@@ -12,7 +12,9 @@ licenses are retained beside their assets.
 is adapted to contain the selected packages and inherited dependencies/lints.
 `UPSTREAM.json` records the source revision, archive digest, copied files, and
 per-file content hashes. License symlinks are materialized as regular files for
-Windows portability. Imported Rust files retain their original content.
+Windows portability. [Downstream changes](DOWNSTREAM_CHANGES.md) records the
+Android target-gate patch. All other imported Rust files retain their original
+content.
 
 The distribution root uses path dependencies on this source. Root tasks scope
 formatting, tests, and linting to distribution packages. Run upstream-specific
