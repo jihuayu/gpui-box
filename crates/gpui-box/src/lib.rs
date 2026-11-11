@@ -90,8 +90,25 @@ pub use gpui_diagnostics as diagnostics;
 #[cfg(feature = "menus")]
 pub use gpui_menus as menus;
 
+/// Power, session and thermal observations with lifecycle-bound wake leases.
+#[cfg(feature = "power")]
+pub use gpui_power as power;
+
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "power")]
+    #[test]
+    fn power_facade_reexports_the_coordinated_contracts() {
+        assert_eq!(
+            crate::power::UPSTREAM_GPUI_REVISION,
+            crate::UPSTREAM_REVISION
+        );
+        assert_eq!(crate::power::PACKAGE_VERSION, crate::VERSION);
+        assert_eq!(crate::power::PowerOperation::ALL.len(), 5);
+        assert_eq!(crate::power::platform_support_matrix().len(), 30);
+        assert_eq!(crate::power::DEFAULT_POWER_EVENT_CAPACITY, 64);
+    }
+
     #[cfg(feature = "diagnostics")]
     #[test]
     fn diagnostics_facade_reexports_the_coordinated_contracts() {
