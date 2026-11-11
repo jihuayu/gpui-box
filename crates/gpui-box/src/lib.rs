@@ -57,3 +57,7 @@ pub use gpui_secrets as secrets;
 /// Foreground, user-initiated plain-text clipboard operations.
 #[cfg(feature = "clipboard")]
 pub use gpui_clipboard as clipboard;
+
+/// Authorized file picking, opaque resources and safe save/export.
+#[cfg(feature = "files")]
+pub use gpui_files as files;

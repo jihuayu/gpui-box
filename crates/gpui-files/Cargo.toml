@@ -1,0 +1,22 @@
+[package]
+name = "gpui-files"
+description = "Authorized file picking, opaque resource handles and safe save/export for gpui-box"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+gpui = ["dep:gpui", "gpui-system/gpui"]
+
+[dependencies]
+gpui-app-data = { workspace = true }
+gpui-system = { workspace = true }
+gpui = { workspace = true, optional = true }
+tempfile = "3"
+
+[lints]
+workspace = true

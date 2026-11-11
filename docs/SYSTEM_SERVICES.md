@@ -128,6 +128,14 @@ permission contract build on these primitives in `crates/gpui-permissions`.
 See [`SYSTEM_PERMISSIONS.md`](SYSTEM_PERMISSIONS.md). That crate keeps
 file-picker grants resource-scoped under #23 and installs no native provider.
 
+Authorized file picking, opaque resource handles, bounded streaming, safe save
+semantics, durable grant recovery and consumer export leases build on these
+primitives in `crates/gpui-files`. See [`SYSTEM_FILES.md`](SYSTEM_FILES.md).
+Picker grants remain resource-scoped and are never promoted into app-wide
+`PermissionKind` state. Blocking stream I/O requires a background
+`OperationContext`, and public `Debug`/error output never contains native paths,
+`content://` URIs or security-scoped bookmarks.
+
 Application lifecycle, system preferences, foreground-use accounting and
 versioned UI restoration build on these primitives in `crates/gpui-lifecycle`.
 See [`SYSTEM_LIFECYCLE.md`](SYSTEM_LIFECYCLE.md). That crate installs no native
@@ -168,9 +176,11 @@ Validation commands:
 
 ```sh
 cargo +1.98.1 fmt --all -- --check
-cargo +1.98.1 test --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-activation -p gpui-secrets -p gpui-lifecycle
-cargo +1.98.1 clippy --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-activation -p gpui-secrets -p gpui-lifecycle --all-targets -- -D warnings
+cargo +1.98.1 test --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-activation -p gpui-secrets -p gpui-lifecycle -p gpui-files
+cargo +1.98.1 clippy --locked -p gpui-box -p gpui-box-cli -p gpui-android -p gpui-system -p gpui-app-data -p gpui-permissions -p gpui-activation -p gpui-secrets -p gpui-lifecycle -p gpui-files --all-targets -- -D warnings
 cargo +1.98.1 check --locked -p gpui-box --features system-gpui
+cargo +1.98.1 check --locked -p gpui-files --features gpui --all-targets
+cargo +1.98.1 check --locked -p gpui-box --features "app-data permissions-gpui lifecycle-gpui activation-gpui secrets files-gpui"
 cargo +1.98.1 check --locked -p gpui-box --features system --target aarch64-linux-android
 cargo +1.98.1 run --locked -p gpui-system --example fake_service
 ```
