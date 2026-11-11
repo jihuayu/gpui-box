@@ -120,15 +120,63 @@ pub extern "system" fn Java_dev_gpui_box_NativeBridge_edit(
     mut env: JNIEnv,
     _: JClass,
     generation: jlong,
+    session: jlong,
     operation: jint,
     value: JString,
     a: jint,
     b: jint,
-) {
+) -> jboolean {
     match env.get_string(&value) {
-        Ok(value) => gpui_android::edit(generation as u64, operation, &String::from(value), a, b),
+        Ok(value) => gpui_android::edit(
+            generation as u64,
+            session as u64,
+            operation,
+            &String::from(value),
+            a,
+            b,
+        ) as jboolean,
         Err(error) => {
             let _ = env.throw_new("java/lang/IllegalArgumentException", error.to_string());
+            0
         }
     }
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_gpui_box_NativeBridge_inputSession(
+    _: JNIEnv,
+    _: JClass,
+    generation: jlong,
+) -> jlong {
+    gpui_android::input_session(generation as u64) as jlong
+}
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_gpui_box_NativeBridge_backEnabled(
+    _: JNIEnv,
+    _: JClass,
+    generation: jlong,
+) -> jboolean {
+    gpui_android::back_enabled(generation as u64) as jboolean
+}
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_gpui_box_NativeBridge_back(
+    _: JNIEnv,
+    _: JClass,
+    generation: jlong,
+) -> jboolean {
+    gpui_android::back(generation as u64) as jboolean
+}
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_gpui_box_NativeBridge_memoryWarning(_: JNIEnv, _: JClass) {
+    gpui_android::memory_warning();
+}
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_gpui_box_NativeBridge_clipboardAction(
+    _: JNIEnv,
+    _: JClass,
+    generation: jlong,
+    session: jlong,
+    operation: jint,
+) -> jboolean {
+    gpui_android::clipboard_action(generation as u64, session as u64, operation) as jboolean
 }

@@ -4,8 +4,10 @@
 
 The platform skeleton and minimal runnable example are implemented. The shared
 Rust page runs on Windows x86_64 and the Android x86_64 emulator. Both Android
-ARM64 and x86_64 native libraries are packaged in the debug APK. M0 remains open
-until ARM64 hardware and a real Chinese IME candidate-selection flow are tested.
+ARM64 and x86_64 native libraries are packaged in the debug APK. The project owner
+revised the phase scope on November 11, 2026 to require Android API 35 and defer
+physical-device testing. M0 is complete against the revised emulator-based gate.
+ARM64 hardware and real Chinese IME candidate-UI qualification are deferred work.
 
 ## Implementation
 
@@ -131,9 +133,10 @@ across surface replacement, Chinese font loading, and GPUI raw-touch routing.
 No additional renderer is required for this slice. HCPP/AHardwareBuffer
 composition remains a separate later milestone.
 
-The next acceptance run must use an ARM64 device, exercise a Chinese keyboard's
-real composing/candidate/commit flow, and validate the chosen minimum API level.
-Process-death restoration, multi-field IME sessions, animated edge-to-edge
-insets, accessibility, native services, and GPU device-loss recovery remain
-explicit follow-up platform work. Existing milestone estimates remain planning
-ranges pending those hardware results.
+The configured minimum and native build platform are API 35, matching the tested
+emulator. Future hardware qualification will exercise an ARM64 device and a
+Chinese keyboard's real composing/candidate/commit flow. Process-death
+restoration, animated edge-to-edge insets, accessibility, and GPU device-loss
+recovery remain follow-up platform work. Input-session and service progress is
+recorded in [M1 validation](M1_ANDROID_VALIDATION.md). Existing milestone estimates
+remain planning ranges pending hardware and accessibility results.

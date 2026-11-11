@@ -19,6 +19,8 @@ remain first-class parallel tracks in the same repository.
 
 - The repository manages desktop and mobile together, including common components.
 - Android is the mobile target for the first phase.
+- Android requires API 35 or newer. Physical-device testing is deferred during
+  the current implementation phase, as requested on November 11, 2026.
 - The distribution includes common components, packaging, updates, and extensions
   that simplify application development.
 - mise manages development tools and task entry points.
@@ -32,8 +34,8 @@ These are planning decisions made by the author and can be adjusted during revie
 | Area | Proposed baseline | Reason |
 | --- | --- | --- |
 | Desktop targets | Windows, macOS, Linux, starting local validation on Windows x86_64 | First-class distribution targets with per-platform evidence |
-| Android minimum | Evaluate API 26 as a starting candidate | M0 determines the actual floor from dependencies, APIs, and device evidence |
-| Android SDK | compileSdk 36 and targetSdk 36 | Initial candidate, subject to current Android tooling and distribution requirements at M0 |
+| Android minimum | API 35 | Confirmed project requirement, validated with an API 35 emulator |
+| Android SDK | compileSdk 36 and targetSdk 35 | Build-tested M0 tool tuple |
 | Android NDK | r30, revision 30.0.16248370 | Current LTS listed by Android during research, subject to dependency verification |
 | Android ABIs | arm64-v8a for devices and x86_64 for emulators | Covers primary development and distribution paths |
 | Rust | 1.98.1 | Matches the inspected GPUI upstream toolchain |
@@ -308,7 +310,7 @@ tooling work can expand once M0 confirms the dependency graph and Android host.
 
 | Milestone | Deliverables | Required evidence |
 | --- | --- | --- |
-| M0, Android feasibility | Preserved official workspace, exact dependency graph, main-thread Kotlin host, Runtime/View/Surface ownership, rendered shared view and IME prototype, tool tuple | Same Rust page with Chinese text, counter, and input on Windows, arm64 device, and x86_64 emulator, CJK composition, rotate/recreate/background-resume checks, stale-generation rejection, renderer decision report |
+| M0, Android feasibility | Preserved official workspace, exact dependency graph, main-thread Kotlin host, Runtime/View/Surface ownership, rendered shared view and IME prototype, tool tuple | Shared Chinese/counter/input page on Windows and API 35 x86_64 emulator, ARM64 cross-build, CJK composing-protocol tests, rotate/recreate/background-resume checks, stale-generation rejection, renderer decision report. Physical devices and real Chinese IME candidate UI are deferred |
 | M1, platform foundation | Lifecycle, input, text, insets, clipboard, back navigation, logging, accessibility bridge | Automated lifecycle/input tests plus device recordings for keyboard, gestures, surface recreation, state restore, and TalkBack basics |
 | M2, components and app shell | Initial catalog, themes, adaptive layouts, navigation, minimal app services | Shared gallery on Windows/Android, pointer/touch/keyboard cases, large text, CJK, and screen-reader navigation |
 | M3, developer workflow | CLI, versioned app config, app template, SDK diagnostics, build/install/log workflow | A fresh generated project runs on Windows and Android using documented mise/CLI commands, including a path containing spaces |
@@ -341,9 +343,10 @@ time. M7, M8, and the C0–C5 native-composition track are estimated separately.
 - Windows x86_64 checks the development host, shared code, gallery, and CLI.
 - Linux CI checks platform-neutral packages and Android cross-compilation.
 - An Android x86_64 emulator runs automated installation, lifecycle, and UI smoke tests.
-- At least two arm64 devices from different GPU vendors exercise rendering, input,
-  and suspend/resume. Include the minimum API, a recent Android version, and a
-  16 KB page-size environment across physical devices and emulator coverage.
+- Future release qualification includes at least two arm64 devices from different
+  GPU vendors for rendering, input, and suspend/resume. Include API 35, a recent
+  Android version, and a 16 KB page-size environment. Physical-device testing is
+  deferred during the current implementation phase.
 - Emulator graphics are evaluated separately from physical-device support.
 
 Add Rust formatting, Clippy, tests, dependency audits, feature-combination builds,
@@ -384,7 +387,7 @@ compatibility before choosing an implementation dependency.
 | --- | --- |
 | GPUI internals change across snapshots | Exact release pins, bounded patch queue, compatibility tests, dedicated upgrades |
 | Kit and GPUI use different package identities | Resolve and inspect one complete dependency graph in M0 |
-| Android renderer or text stack is unsuitable | Real-device M0 with text input, surface recreation, and a written renderer decision |
+| Android renderer or text stack is unsuitable | API 35 emulator M0 with text input and surface recreation, followed by hardware qualification before release |
 | JNI references survive activity destruction | Generation-aware ownership, explicit detach/teardown, recreation stress tests |
 | Desktop assumptions leak into components | Target feature isolation, Android compilation, touch and accessibility tests |
 | Build tools drift | mise pins, wrapper checksum, explicit SDK/NDK tuple, reproducible clean builds |
@@ -394,17 +397,16 @@ compatibility before choosing an implementation dependency.
 
 ## 7. Immediate implementation backlog
 
-1. Verify the imported GPUI source closure and its recorded provenance.
-2. Pin the Android build tuple and provision SDK/NDK through documented tooling.
-3. Extend the initialized Rust workspace and desktop example into the shared gallery.
-4. Implement the main-thread Kotlin host and independent Runtime/View/Surface
-   state machines, then render a real GPUI frame.
-5. Demonstrate CJK input, touch, back navigation, rotation, and background recovery.
-6. Run on Windows, an arm64 phone, and an x86_64 emulator.
-7. Publish the M0 evidence and update the remaining estimates before expanding scope.
+1. Complete M1 focus/session isolation, clipboard, back dispatch, memory callbacks,
+   and emulator regressions.
+2. Add text configuration/action keys, animated insets, process restoration, and
+   GPU recovery with focused acceptance tests.
+3. Connect AccessKit to Android accessibility and exercise TalkBack.
+4. Grow the shared component gallery while preserving desktop compatibility.
+5. Perform deferred ARM64 hardware and real Chinese IME candidate-UI qualification
+   when physical testing resumes.
 
-The current repository initialization delivers this plan, architecture decisions,
-research references, mise configuration, Git attributes/ignore rules, and the
-Apache-2.0 license. The initialization now also includes copied GPUI source,
-a root Rust workspace, public facade, CLI, and desktop example. M0 continues
-with Android host and device feasibility checks.
+M0 implementation and its revised emulator-based acceptance are recorded in
+[M0 validation](M0_ANDROID_VALIDATION.md). M1 implementation progress is tracked
+in GitHub issue #2. The milestone estimates remain provisional until hardware
+qualification and accessibility integration have been measured.

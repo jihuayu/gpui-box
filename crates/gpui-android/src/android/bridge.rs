@@ -6,7 +6,7 @@ use super::{
 use gpui::*;
 use jni::{
     JNIEnv, JavaVM,
-    objects::{GlobalRef, JClass, JObject, JValue},
+    objects::{GlobalRef, JClass, JObject, JString, JValue},
 };
 use ndk::native_window::NativeWindow;
 use std::{cell::RefCell, rc::Rc, sync::OnceLock};
@@ -57,6 +57,54 @@ pub(super) fn post(command: i32) {
     })();
     if let Err(error) = result {
         log::error!("Android host request failed: {error}");
+    }
+}
+
+pub(super) fn read_clipboard() -> Option<String> {
+    let host = HOST.get()?;
+    let result = (|| -> jni::errors::Result<Option<String>> {
+        let mut env = host.vm.attach_current_thread()?;
+        let class: &JClass = host.class.as_obj().into();
+        let result = env.call_static_method(class, "readClipboard", "()Ljava/lang/String;", &[]);
+        if result.is_err() && env.exception_check()? {
+            env.exception_clear()?;
+        }
+        let value = result?.l()?;
+        if value.is_null() {
+            return Ok(None);
+        }
+        let value = JString::from(value);
+        Ok(Some(env.get_string(&value)?.into()))
+    })();
+    match result {
+        Ok(value) => value,
+        Err(error) => {
+            log::error!("Android clipboard read failed: {error}");
+            None
+        }
+    }
+}
+
+pub(super) fn write_clipboard(text: &str) {
+    let Some(host) = HOST.get() else { return };
+    let result = (|| -> jni::errors::Result<()> {
+        let mut env = host.vm.attach_current_thread()?;
+        let class: &JClass = host.class.as_obj().into();
+        let text = env.new_string(text)?;
+        let result = env.call_static_method(
+            class,
+            "writeClipboard",
+            "(Ljava/lang/String;)V",
+            &[JValue::Object(&text)],
+        );
+        if result.is_err() && env.exception_check()? {
+            env.exception_clear()?;
+        }
+        result?;
+        Ok(())
+    })();
+    if let Err(error) = result {
+        log::error!("Android clipboard write failed: {error}");
     }
 }
 
@@ -164,6 +212,119 @@ pub fn lifecycle(generation: u64, resumed: bool) {
     }
 }
 
+/// Returns zero when the current window has no eligible focused editor.
+pub fn input_session(generation: u64) -> u64 {
+    let Some(window) = window(generation).filter(|w| w.visible.get()) else {
+        return 0;
+    };
+    window
+        .input_handler
+        .with(|h| {
+            if h.query_accepts_focused_text_input() {
+                window.input_epoch.get()
+            } else {
+                0
+            }
+        })
+        .unwrap_or(0)
+}
+
+pub fn back_enabled(generation: u64) -> bool {
+    window(generation).is_some_and(|w| w.visible.get())
+}
+
+pub fn back(generation: u64) -> bool {
+    let Some(window) = window(generation).filter(|w| w.visible.get()) else {
+        return false;
+    };
+    let handled = if window.back_enabled.get() {
+        window.back.with(|callback| callback()).is_some()
+    } else {
+        // Android's committed button/gesture can also use GPUI's portable
+        // back listeners. Progress animation is a separate host capability.
+        let event = BackGestureEvent {
+            phase: BackGesturePhase::Started,
+            start_position: point(window.size.get().width / 2., window.size.get().height / 2.),
+            progress: 0.,
+        };
+        let claimed = window
+            .input
+            .with(|callback| callback(PlatformInput::BackGesture(event.clone())))
+            .is_some_and(|result| result.default_prevented);
+        if claimed {
+            window.input.with(|callback| {
+                callback(PlatformInput::BackGesture(BackGestureEvent {
+                    phase: BackGesturePhase::Committed,
+                    progress: 1.,
+                    ..event
+                }))
+            });
+        }
+        claimed
+    };
+    post(0);
+    handled
+}
+
+pub fn memory_warning() {
+    if let Some(runtime) = runtime() {
+        runtime.platform.memory_warning.with(|callback| callback());
+        post(0);
+    }
+}
+
+/// Android context-menu commands share the platform clipboard implementation
+/// used by ordinary GPUI copy/paste actions. Operations are select-all/copy/cut/paste.
+pub fn clipboard_action(generation: u64, session: u64, operation: i32) -> bool {
+    if session == 0 || input_session(generation) != session {
+        return false;
+    }
+    let Some(window) = window(generation) else {
+        return false;
+    };
+    let paste = if operation == 3 {
+        read_clipboard()
+    } else {
+        None
+    };
+    let accepted = window
+        .input_handler
+        .with(|handler| {
+            let Some(selection) = handler.selected_text_range(true) else {
+                return false;
+            };
+            match operation {
+                0 => {
+                    let length = handler.text_length_utf16().unwrap_or(0);
+                    handler.set_selected_text_range(0..length);
+                }
+                1 | 2 => {
+                    if selection.range.is_empty() {
+                        return false;
+                    }
+                    let Some(text) = handler.text_for_range(selection.range.clone(), &mut None)
+                    else {
+                        return false;
+                    };
+                    write_clipboard(&text);
+                    if operation == 2 {
+                        handler.replace_text_in_range(Some(selection.range), "");
+                    }
+                }
+                3 => {
+                    let Some(text) = paste else { return false };
+                    handler.replace_text_in_range(Some(selection.range), &text);
+                }
+                _ => return false,
+            }
+            true
+        })
+        .unwrap_or(false);
+    post(4);
+    post(0);
+    accepted
+}
+
 pub fn touch(generation: u64, id: u64, phase: i32, x: f32, y: f32) {
     let Some(window) = window(generation) else {
         return;
@@ -214,9 +375,12 @@ pub fn text_state(generation: u64) -> [i32; 4] {
 
 /// IME offsets and cursor arguments use UTF-16 code units, as Android does.
 /// Operations are commit, compose, finish, selection, delete, composing-region.
-pub fn edit(generation: u64, operation: i32, value: &str, a: i32, b: i32) {
+pub fn edit(generation: u64, session: u64, operation: i32, value: &str, a: i32, b: i32) -> bool {
+    if !(0..=5).contains(&operation) || session == 0 || input_session(generation) != session {
+        return false;
+    }
     let Some(window) = window(generation) else {
-        return;
+        return false;
     };
     window.input_handler.with(|h| {
         let Some(selection) = h.selected_text_range(true) else {
@@ -274,4 +438,5 @@ pub fn edit(generation: u64, operation: i32, value: &str, a: i32, b: i32) {
     });
     post(4);
     post(0);
+    true
 }

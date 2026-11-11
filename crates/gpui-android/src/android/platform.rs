@@ -19,6 +19,7 @@ pub struct AndroidPlatform {
     foreground: ForegroundExecutor,
     text: Arc<dyn PlatformTextSystem>,
     pub(super) lifecycle: CallbackSlot<Box<dyn FnMut(AppLifecyclePhase)>>,
+    pub(super) memory_warning: CallbackSlot<Box<dyn FnMut()>>,
 }
 
 impl AndroidPlatform {
@@ -31,6 +32,7 @@ impl AndroidPlatform {
                 "Noto Sans CJK SC",
             )),
             lifecycle: CallbackSlot::default(),
+            memory_warning: CallbackSlot::default(),
         }
     }
 }
@@ -139,6 +141,9 @@ impl Platform for AndroidPlatform {
     fn on_app_lifecycle(&self, callback: Box<dyn FnMut(AppLifecyclePhase)>) {
         self.lifecycle.set(callback);
     }
+    fn on_memory_warning(&self, callback: Box<dyn FnMut()>) {
+        self.memory_warning.set(callback);
+    }
     fn set_menus(&self, _: Vec<Menu>, _: &Keymap) {}
     fn set_dock_menu(&self, _: Vec<MenuItem>, _: &Keymap) {}
     fn on_app_menu_action(&self, _: Box<dyn FnMut(&dyn Action)>) {}
@@ -168,10 +173,12 @@ impl Platform for AndroidPlatform {
         true
     }
     fn read_from_clipboard(&self) -> Option<ClipboardItem> {
-        None
+        super::bridge::read_clipboard().map(ClipboardItem::new_string)
     }
-    fn write_to_clipboard(&self, _: ClipboardItem) {
-        log::warn!("Android clipboard is not implemented");
+    fn write_to_clipboard(&self, item: ClipboardItem) {
+        if let Some(text) = item.text() {
+            super::bridge::write_clipboard(&text);
+        }
     }
     fn write_credentials(&self, _: &str, _: &str, _: &[u8]) -> Task<Result<()>> {
         Task::ready(Err(anyhow::anyhow!(

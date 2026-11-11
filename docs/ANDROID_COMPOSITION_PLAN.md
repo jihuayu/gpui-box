@@ -22,7 +22,7 @@ The proposed initial capability tiers are as follows.
 | --- | --- | --- |
 | Self-rendered | GPUI WGPU, standard Android SurfaceView presentation | Base Android renderer/device matrix |
 | Basic native embedding | Native host overlay above GPUI, rectangular bounds, constrained ordering | C1 native-view lifecycle, input, and accessibility checks |
-| System composition, experimental | AHB-backed GPUI base/overlay layers, native View hierarchy, synchronized transactions | API 34+ candidate policy, verified Vulkan interop, C0 and C2 gates |
+| System composition, experimental | AHB-backed GPUI base/overlay layers, native View hierarchy, synchronized transactions | API 35+ distribution floor, verified Vulkan interop, C0 and C2 gates |
 | Expanded mixed composition | Additional supported clips/transforms or GPU layers | C4 correctness and performance evidence per capability |
 
 These tiers are independent of a device's general ability to run gpui-box. Capability
@@ -33,7 +33,7 @@ is validated before displaying a page.
 
 Flutter documents HCPP as experimental, opt-in, and available from Flutter 3.44.
 Its documented requirements include API 34+ and Impeller with Vulkan. Those
-requirements describe Flutter's implementation. gpui-box initially uses API 34+ as
+requirements describe Flutter's implementation. gpui-box uses API 35+ as
 its experimental eligibility policy and validates every Android API and Vulkan
 feature it actually calls. [Flutter platform views](https://docs.flutter.dev/platform-integration/android/platform-views)
 
@@ -190,7 +190,7 @@ submission identity and consumer references before handoff. Copy any needed stat
 and acquire owned handles during the callback's valid lifetime.
 [NDK surface-control contracts](https://developer.android.com/ndk/reference/group/native-activity)
 
-Keep API 34 compatibility through the applicable completion/statistics path.
+Validate the applicable completion/statistics path on API 35 and newer.
 `ASurfaceTransaction_setBufferWithRelease()` is an API 36 capability and needs a
 guarded adapter if adopted. C0 must verify the Java/NDK transaction bridge and
 ownership semantics on every supported API level. After the platform consumes a
@@ -241,7 +241,7 @@ native surfaces.
 
 | Milestone | Deliverables | Exit evidence |
 | --- | --- | --- |
-| C0, interop spike | AHB target, external fences, tested Java/NDK transaction bridge, renderer decision | Actual GPUI pixels presented from AHB and safely reused, API 34/current device runs, validation-layer logs and resource accounting |
+| C0, interop spike | AHB target, external fences, tested Java/NDK transaction bridge, renderer decision | Actual GPUI pixels presented from AHB and safely reused, API 35/current device runs, validation-layer logs and resource accounting |
 | C1, basic NativeView | Generation-aware registry, WebView element, rectangle placement, focus and teardown | Shared gallery page scrolls/moves native content, keyboard and TalkBack work, detach/recreate cancels stale callbacks |
 | C2, synchronized composition | Base/overlay AHB layers, sealed frame queue, traversal gating, present/release ledger | Sustained native scrolling with moving GPUI overlay, correct frame-ID pairing, no early reuse under injected callback reordering |
 | C3, resilience and fallback | Runtime probes, strict/basic/auto selection, bounded budgets, loss/reset paths | Older/non-eligible supported devices use basic tier, forced failures recover without leaks or stale geometry |

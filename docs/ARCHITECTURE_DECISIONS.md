@@ -15,7 +15,8 @@ incompatible types if multiple GPUI package identities enter the graph.
 
 Provide an application-facing `gpui-box` facade over a tested, fixed dependency set.
 Anchor platform work to official Zed GPUI, preserving its workspace and coordinated
-crate set at one pinned revision. Add `gpui_android` inside that workspace and keep
+crate set at one pinned revision. Maintain `gpui-android` under the distribution's
+root `crates` directory and keep
 necessary upstream changes in a documented patch queue. Use optional compatible
 Kit layers once the official baseline works. Select the exact package graph
 during M0 and make graph inspection a release check. Official source is copied directly under `vendor/gpui`, including its local
@@ -78,7 +79,8 @@ consistent setup across Windows and CI.
 Pin shared Rust tools and tasks in `mise.toml`. Pin Temurin Java and cargo-ndk
 in the opt-in `mise.android.toml` environment for Android development.
 Let Android SDK tooling manage SDK packages and license acceptance, with explicit
-SDK/NDK pins added by M0. Let the Gradle Wrapper own Gradle. Avoid duplicate Rust
+SDK/NDK pins added by M0. Pin Gradle 8.13 in both the Android mise environment and
+the checked-in wrapper, including the wrapper distribution checksum. Avoid duplicate Rust
 version declarations unless a documented consumer requires one.
 
 ### Consequences
@@ -201,7 +203,7 @@ Follow the base Android release with C0–C5 in ANDROID_COMPOSITION_PLAN.md. Pro
 AHB/WGPU target and external-fence interoperability first. Preserve a basic
 native-overlay tier, then add an opt-in system tier using sealed frames,
 generation-aware ownership, bounded queues, ViewRoot synchronization, and exact
-release tracking. Treat API 34+ as the initial system-tier candidate policy while
+release tracking. Use the distribution-wide API 35+ floor for the system tier while
 checking the actual minimum for each called API.
 
 ### Consequences
@@ -234,3 +236,24 @@ Desktop development uses the base Rust mise environment. Android tools are opt-i
 Each platform has separate build/device validation while sharing source, APIs,
 components, and release management. Imported source is versioned directly with
 provenance and retained license material.
+
+## ADR-011 — Require Android API 35 and stage device qualification
+
+### Context
+
+On November 11, 2026, the project owner selected API 35 as the minimum and
+deferred physical-device tests during the current implementation phase.
+
+### Decision
+
+Use minSdk 35, targetSdk 35, compileSdk 36, and cargo-ndk platform 35. Complete M0
+with Windows and API 35 x86_64 emulator execution, both Android ABI builds, and
+automated IME protocol/lifecycle evidence. Track ARM64 hardware, real Chinese
+keyboard candidate UI, and vendor-specific renderer qualification as deferred
+release work. Keep physical-test status explicit in milestone reports.
+
+### Consequences
+
+The host can directly use modern WindowInsets and system-back APIs. Emulator
+evidence supports continued platform development. Hardware qualification remains
+a separate prerequisite for declaring supported release devices.

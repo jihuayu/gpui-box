@@ -2,6 +2,8 @@ package dev.gpui.box
 
 import android.os.Handler
 import android.os.Looper
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.view.Surface
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicLong
@@ -12,25 +14,62 @@ object NativeBridge {
     private var view = WeakReference<GpuiView>(null)
     private val generations = AtomicLong()
     private val contacts = AtomicLong()
+    private val attachments = AtomicLong()
+    private val surfaces = AtomicLong()
     init { System.loadLibrary("gpui_box_android"); initialize() }
 
-    fun bind(value: GpuiView) { checkMain(); view = WeakReference(value) }
-    fun unbind(value: GpuiView) { checkMain(); if (view.get() === value) view.clear() }
+    fun bind(value: GpuiView) {
+        checkMain()
+        attachments.incrementAndGet()
+        surfaces.set(0)
+        view = WeakReference(value)
+    }
+    fun unbind(value: GpuiView) {
+        checkMain()
+        if (view.get() === value) {
+            attachments.incrementAndGet()
+            view.clear()
+        }
+    }
+    fun surfaceAttached(value: GpuiView, generation: Long) {
+        checkMain()
+        if (view.get() === value) surfaces.set(generation)
+    }
+    fun surfaceDetached(generation: Long) {
+        checkMain()
+        surfaces.compareAndSet(generation, 0)
+    }
     fun nextGeneration(): Long = generations.incrementAndGet()
     fun nextContact(): Long = contacts.incrementAndGet()
     fun checkMain() { check(Looper.myLooper() === Looper.getMainLooper()) }
 
     @JvmStatic fun request(command: Int) {
+        val attachment = attachments.get()
+        val surface = surfaces.get()
         handler.post {
             val current = view.get() ?: return@post
+            if (command != 0 && (attachments.get() != attachment || surfaces.get() != surface)) return@post
             when (command) {
                 0 -> current.scheduleFrame()
                 1 -> current.showKeyboard()
                 2 -> current.hideKeyboard()
                 3 -> (current.context as? MainActivity)?.finish()
                 4 -> current.updateSelection()
+                5 -> current.syncInputSession()
+                6 -> (current.context as? MainActivity)?.updateBackRegistration()
             }
         }
+    }
+    @JvmStatic fun readClipboard(): String? {
+        checkMain()
+        val context = view.get()?.context ?: return null
+        val clip = context.getSystemService(ClipboardManager::class.java).primaryClip ?: return null
+        return if (clip.itemCount > 0) clip.getItemAt(0).coerceToText(context)?.toString() else null
+    }
+    @JvmStatic fun writeClipboard(text: String) {
+        checkMain()
+        view.get()?.context?.getSystemService(ClipboardManager::class.java)
+            ?.setPrimaryClip(ClipData.newPlainText("gpui-box", text))
     }
     @JvmStatic external fun initialize()
     @JvmStatic external fun attach(surface: Surface, generation: Long, width: Int, height: Int, density: Float)
@@ -41,5 +80,10 @@ object NativeBridge {
     @JvmStatic external fun touch(generation: Long, id: Long, phase: Int, x: Float, y: Float)
     @JvmStatic external fun text(generation: Long): String
     @JvmStatic external fun textState(generation: Long): IntArray
-    @JvmStatic external fun edit(generation: Long, operation: Int, text: String, a: Int, b: Int)
+    @JvmStatic external fun inputSession(generation: Long): Long
+    @JvmStatic external fun edit(generation: Long, session: Long, operation: Int, text: String, a: Int, b: Int): Boolean
+    @JvmStatic external fun backEnabled(generation: Long): Boolean
+    @JvmStatic external fun back(generation: Long): Boolean
+    @JvmStatic external fun memoryWarning()
+    @JvmStatic external fun clipboardAction(generation: Long, session: Long, operation: Int): Boolean
 }

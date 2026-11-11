@@ -4,7 +4,8 @@ mod platform;
 mod window;
 
 pub use bridge::{
-    attach, detach, edit, frame, initialize, lifecycle, resize, text, text_state, touch,
+    attach, back, back_enabled, clipboard_action, detach, edit, frame, initialize, input_session,
+    lifecycle, memory_warning, resize, text, text_state, touch,
 };
 pub use platform::AndroidPlatform;
 

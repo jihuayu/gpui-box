@@ -48,6 +48,10 @@ pub(super) struct WindowState {
     pub handle: Cell<Option<AnyWindowHandle>>,
     pub visible: Cell<bool>,
     pub input_handler: CallbackSlot<PlatformInputHandler>,
+    input_focus: Cell<Option<FocusId>>,
+    pub input_epoch: Cell<u64>,
+    pub back_enabled: Cell<bool>,
+    pub back: CallbackSlot<Box<dyn FnMut()>>,
     pub request_frame: CallbackSlot<Box<dyn FnMut(RequestFrameOptions)>>,
     pub input: CallbackSlot<Box<dyn FnMut(PlatformInput) -> DispatchEventResult>>,
     pub resized: CallbackSlot<ResizeCallback>,
@@ -106,6 +110,10 @@ impl WindowState {
             handle: Cell::new(None),
             visible: Cell::new(true),
             input_handler: CallbackSlot::default(),
+            input_focus: Cell::new(None),
+            input_epoch: Cell::new(1),
+            back_enabled: Cell::new(false),
+            back: CallbackSlot::default(),
             request_frame: CallbackSlot::default(),
             input: CallbackSlot::default(),
             resized: CallbackSlot::default(),
@@ -186,6 +194,9 @@ impl WindowState {
     }
     pub fn set_visible(&self, visible: bool) {
         if self.visible.replace(visible) != visible {
+            if !visible {
+                self.invalidate_input();
+            }
             self.visibility.with(|cb| {
                 cb(if visible {
                     WindowVisibility::Visible
@@ -195,6 +206,11 @@ impl WindowState {
             });
             self.active.with(|cb| cb(visible));
         }
+    }
+    pub fn invalidate_input(&self) {
+        self.input_epoch
+            .set(self.input_epoch.get().wrapping_add(1).max(1));
+        post(5);
     }
     pub fn frame(&self, generation: u64) {
         if self.visible.get() && self.session.borrow().accepts(generation) {
@@ -283,6 +299,9 @@ impl PlatformWindow for AndroidWindow {
         Capslock::default()
     }
     fn set_input_handler(&mut self, handler: PlatformInputHandler) {
+        if self.0.input_focus.replace(handler.focus_id()) != handler.focus_id() {
+            self.0.invalidate_input();
+        }
         self.0.input_handler.set(handler);
     }
     fn take_input_handler(&mut self) -> Option<PlatformInputHandler> {
@@ -372,7 +391,18 @@ impl PlatformWindow for AndroidWindow {
     fn hide_soft_keyboard(&self) {
         post(2);
     }
-    fn text_input_state_changed(&self, _: TextInputStateChange) {
+    fn text_input_state_changed(&self, change: TextInputStateChange) {
+        if change == TextInputStateChange::FocusLost {
+            self.0.input_focus.set(None);
+            self.0.invalidate_input();
+        }
         post(4);
+    }
+    fn set_back_handler(&self, callback: Box<dyn FnMut()>) {
+        self.0.back.set(callback);
+    }
+    fn set_back_enabled(&self, enabled: bool) {
+        self.0.back_enabled.set(enabled);
+        post(6);
     }
 }

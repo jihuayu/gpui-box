@@ -18,6 +18,8 @@ class GpuiView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
     private var attached = false
     private var resumed = false
     private var pendingFrame = false
+    private var inputSession = 0L
+    private var connection: GpuiInputConnection? = null
     private val contacts = SparseLongArray()
     private val choreographer = Choreographer.getInstance()
     private val frameCallback = Choreographer.FrameCallback {
@@ -39,10 +41,12 @@ class GpuiView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
             NativeBridge.resize(generation, width, height, resources.displayMetrics.density)
         } else {
             generation = NativeBridge.nextGeneration()
+            NativeBridge.surfaceAttached(this, generation)
             NativeBridge.attach(holder.surface, generation, width, height, resources.displayMetrics.density)
             attached = true
         }
         NativeBridge.lifecycle(generation, resumed)
+        (context as? MainActivity)?.updateBackRegistration()
         scheduleFrame()
     }
     override fun surfaceDestroyed(holder: SurfaceHolder) {
@@ -50,14 +54,23 @@ class GpuiView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
         cancelContacts()
         choreographer.removeFrameCallback(frameCallback)
         pendingFrame = false
+        closeInputConnection()
         // Synchronous JNI barrier. Native code must stop using this Surface.
         if (attached) NativeBridge.detach(generation)
         attached = false
+        NativeBridge.surfaceDetached(generation)
+        (context as? MainActivity)?.updateBackRegistration()
     }
     fun setResumed(value: Boolean) {
+        if (!value) closeInputConnection()
         resumed = value
         if (attached) NativeBridge.lifecycle(generation, value)
-        if (value) scheduleFrame() else cancelContacts()
+        if (value) {
+            scheduleFrame()
+            syncInputSession()
+        } else {
+            cancelContacts()
+        }
     }
     fun scheduleFrame() {
         if (attached && resumed && !pendingFrame) {
@@ -93,36 +106,70 @@ class GpuiView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
         scheduleFrame()
         return true
     }
-    override fun onCheckIsTextEditor() = true
+    override fun onCheckIsTextEditor(): Boolean {
+        NativeBridge.checkMain()
+        return attached && resumed && NativeBridge.inputSession(generation) != 0L
+    }
     override fun onCreateInputConnection(info: EditorInfo): InputConnection? {
-        if (!attached) return null
+        NativeBridge.checkMain()
+        val session = if (attached && resumed) NativeBridge.inputSession(generation) else 0L
+        closeInputConnection()
+        if (session == 0L) return null
+        inputSession = session
         info.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
         info.imeOptions = EditorInfo.IME_ACTION_DONE or EditorInfo.IME_FLAG_NO_EXTRACT_UI
         val state = NativeBridge.textState(generation)
         info.initialSelStart = state[0]
         info.initialSelEnd = state[1]
-        return GpuiInputConnection(this, generation)
+        return GpuiInputConnection(this, generation, session).also { connection = it }
     }
-    fun showKeyboard() { requestFocus(); ime.restartInput(this); ime.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT) }
+    private fun closeInputConnection() {
+        connection?.closeConnection()
+        connection = null
+        inputSession = 0L
+    }
+    fun acceptsInput(value: GpuiInputConnection, surface: Long, session: Long): Boolean {
+        NativeBridge.checkMain()
+        return connection === value && attached && resumed && generation == surface &&
+            session != 0L && NativeBridge.inputSession(surface) == session
+    }
+    fun syncInputSession() {
+        NativeBridge.checkMain()
+        val session = if (attached && resumed) NativeBridge.inputSession(generation) else 0L
+        if (inputSession == session) return
+        closeInputConnection()
+        inputSession = session
+        ime.restartInput(this)
+    }
+    fun showKeyboard() {
+        if (attached && resumed) NativeBridge.frame(generation)
+        if (!onCheckIsTextEditor()) return
+        requestFocus()
+        syncInputSession()
+        ime.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
+    }
     fun hideKeyboard() { ime.hideSoftInputFromWindow(windowToken, 0) }
     fun updateSelection() {
         if (!attached) return
+        syncInputSession()
+        if (connection?.isBatchEditing == true) return
         val state = NativeBridge.textState(generation)
         ime.updateSelection(this, state[0], state[1], state[2], state[3])
     }
     override fun onKeyDown(code: Int, event: KeyEvent): Boolean {
         if (!attached) return super.onKeyDown(code, event)
+        syncInputSession()
+        val connection = connection ?: (onCreateInputConnection(EditorInfo()) as? GpuiInputConnection)
+            ?: return super.onKeyDown(code, event)
         if (code == KeyEvent.KEYCODE_DEL) {
             val state = NativeBridge.textState(generation)
-            val connection = GpuiInputConnection(this, generation)
             if (state[0] != state[1]) connection.commitText("", 1)
             else connection.deleteSurroundingTextInCodePoints(1, 0)
             return true
         }
         val character = event.unicodeChar
         if (character > 0 && !event.isCtrlPressed) {
-            NativeBridge.edit(generation, 0, String(Character.toChars(character)), 1, 0)
-            return true
+            return connection.commitText(String(Character.toChars(character)), 1)
         }
         return super.onKeyDown(code, event)
     }

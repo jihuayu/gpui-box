@@ -9,7 +9,7 @@ android {
     ndkVersion = "30.0.16248370"
     defaultConfig {
         applicationId = "dev.gpui.box.example"
-        minSdk = 26
+        minSdk = 35
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0-dev"
@@ -34,7 +34,7 @@ val buildRust by tasks.registering(Exec::class) {
     environment("ANDROID_NDK_HOME", androidComponents.sdkComponents.sdkDirectory.get()
         .dir("ndk/30.0.16248370").asFile.absolutePath)
     commandLine("mise", "-E", "android", "exec", "--", "cargo", "ndk",
-        "--platform", "26", "-t", "arm64-v8a", "-t", "x86_64",
+        "--platform", "35", "-t", "arm64-v8a", "-t", "x86_64",
         "-o", layout.buildDirectory.dir("rustJniLibs").get().asFile.absolutePath,
         "build", "--locked", "-p", "gpui-box-example-android")
 }

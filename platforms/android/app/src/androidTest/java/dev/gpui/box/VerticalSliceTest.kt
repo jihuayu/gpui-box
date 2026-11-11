@@ -31,6 +31,7 @@ class VerticalSliceTest {
             NativeBridge.touch(generation, Long.MAX_VALUE - 1, 2, 100f * density, 300f * density)
             NativeBridge.frame(generation)
             val connection = view.onCreateInputConnection(EditorInfo())!!
+            assertTrue(connection.finishComposingText())
             val length = NativeBridge.text(generation).length
             assertTrue(connection.setSelection(0, length))
             assertTrue(connection.commitText("", 1))
@@ -53,7 +54,7 @@ class VerticalSliceTest {
             assertTrue(connection.deleteSurroundingTextInCodePoints(1, 0))
             assertEquals("你好！", NativeBridge.text(generation))
             // A stale surface generation cannot change the current field.
-            NativeBridge.edit(generation - 1, 0, "stale", 1, 0)
+            assertFalse(NativeBridge.edit(generation - 1, NativeBridge.inputSession(generation), 0, "stale", 1, 0))
             assertEquals("你好！", NativeBridge.text(generation))
             NativeBridge.frame(generation)
         }

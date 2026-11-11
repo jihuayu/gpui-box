@@ -20,11 +20,12 @@ platform, display, window, dispatcher, native surface, and text-input bridge.
 | NDK | 30.0.16248370 |
 | JNI crate | 0.21.1 |
 | Rust NDK crate | 0.9.0 |
-| Minimum / target API | 26 / 35 |
+| Minimum / target API | 35 / 35 |
 | Packaged ABIs | arm64-v8a, x86_64 |
 
-API 26 is the configured native build floor. Runtime validation currently covers
-API 35. Minimum-API device compatibility still requires validation.
+API 35 is the project minimum and cargo-ndk native build platform. Runtime
+validation covers the API 35 emulator. Physical-device testing is deferred for
+the current implementation phase.
 The initial SDK tooling emitted an SDK XML schema-version warning. The recorded
 build and instrumentation run succeed with this tuple.
 
@@ -82,6 +83,20 @@ configuration remains unverified.
   UTF-16 offsets and queries Rust for text. Java host requests post work before
   returning to native code. Callback slots release their borrow before entering
   GPUI application code.
+- An input connection belongs to a surface generation, a stable GPUI focus epoch,
+  and a host connection instance. Replacement, pause, detach, and focus changes
+  reject old connections. Repainting the same field preserves its focus epoch.
+- Nested batch edits defer selection notifications until the outer batch ends.
+  Context-menu select-all/copy/cut/paste uses the same Rust text model and Android
+  plain-text clipboard service as GPUI application clipboard actions.
+- Queued UI requests carry view-attachment and surface identities. Frame wakeups
+  can target the current view. Keyboard, selection, and finish requests are
+  discarded after attachment or surface replacement.
+- System back first dismisses the visible IME, then invokes an enabled platform
+  back handler or GPUI's portable committed back gesture, then finishes the host
+  when unclaimed. Predictive-back progress animation remains follow-up work.
+- Activity trim-memory and low-memory notifications reach GPUI memory-warning
+  subscribers on the main Looper.
 - The M0 host fits the SurfaceView inside system bars and keyboard insets. Full
   edge-to-edge safe-area and animated GPUI WindowInsets delivery are future work.
 
@@ -89,11 +104,11 @@ configuration remains unverified.
 
 This is a single-window platform skeleton. The display reports a provisional
 60 Hz refresh interval. Background timers use individual sleeping threads.
-Clipboard, credentials, file pickers, URL intents, accessibility, system back
-navigation integration, memory-pressure handling, GPU device-loss recovery,
-process-death persistence, and complete IME configuration/session switching
+Credentials, file pickers, URL intents, accessibility, predictive-back animation,
+GPU device-loss recovery, process-death persistence, and complete IME configuration
 remain platform work. Runtime state survives Activity recreation within a live
 process. A new process starts with the example's initial state.
 
 See [M0 validation](../../docs/M0_ANDROID_VALIDATION.md) for commands, results,
-renderer decision, and outstanding device acceptance.
+renderer decision, and deferred device qualification. See
+[M1 validation](../../docs/M1_ANDROID_VALIDATION.md) for subsequent platform work.

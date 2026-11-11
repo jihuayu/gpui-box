@@ -74,15 +74,20 @@ Gradle 8.13 is also managed by mise. Android Studio or Google's command-line
 tools manage SDK/NDK installation and license acceptance. Set `ANDROID_HOME` to
 the SDK directory. The Kotlin SurfaceView host calls the GPUI main-thread runtime
 through typed JNI and renders the same Rust page as the desktop example.
+Android requires API 35 or newer. The current phase uses emulator validation
+and cross-builds both ABIs, with physical-device qualification deferred.
 Enable the facade's `android` feature for `gpui_box::android`.
 See [Android setup](platforms/android/README.md) and
 [M0 validation](docs/M0_ANDROID_VALIDATION.md).
 
-## Current initialization
+## Implementation status
 
 The facade exposes distribution version/source information and opt-in desktop
 GPUI exports. The initial CLI implements help, version, and `info`. The desktop
-example and Android host share Chinese text, a counter, and an editable field.
+example and Android host share Chinese text, a counter, and two editable fields.
+M0 is complete against the API 35 emulator gate. M1 adds focus-scoped input
+connections, nested batch edits, Android plain-text clipboard access, committed
+system-back routing, and memory-warning delivery. M1 remains in progress.
 Component packages, application services, release packaging, and update providers are tracked by the roadmap
 and will be added in their owning directories as implementation progresses.
 
@@ -91,6 +96,7 @@ and will be added in their owning directories as implementation progresses.
 - [Repository layout](docs/REPOSITORY_LAYOUT.md)
 - [Project plan](docs/PROJECT_PLAN.md)
 - [Architecture decisions](docs/ARCHITECTURE_DECISIONS.md)
+- [M1 Android validation](docs/M1_ANDROID_VALIDATION.md)
 - [Reference research](docs/REFERENCES.md)
 - [Later Android native composition](docs/ANDROID_COMPOSITION_PLAN.md)
 - [GitHub roadmap](https://github.com/jihuayu/gpui-box/issues/17)
