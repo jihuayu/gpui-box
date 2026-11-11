@@ -1,6 +1,10 @@
 //! Integrated persistent UI → FramePacket → GPU arena lifecycle validation.
-use gpui_box::retained::{wgpu::WgpuFrameRenderer, *};
+use gpui_box::retained::{
+    wgpu::{CompositorPolicy, WgpuFrameRenderer},
+    *,
+};
 use std::{error::Error, fs, path::PathBuf};
+mod retained_bench;
 
 fn compare(
     renderer: &mut WgpuFrameRenderer,
@@ -391,6 +395,248 @@ fn main() -> Result<(), Box<dyn Error>> {
         &output,
         &mut results,
     )?;
+    renderer.set_policy(CompositorPolicy::Damage)?;
+    let mut clipped = UiTree::new(
+        Style {
+            size: taffy::Size {
+                width: percent(1.0),
+                height: percent(1.0),
+            },
+            ..Default::default()
+        },
+        0x171d28ff,
+    )?;
+    let viewport = clipped.append(
+        clipped.root(),
+        Style {
+            position: taffy::Position::Absolute,
+            inset: taffy::Rect {
+                left: length(16.0),
+                top: length(16.0),
+                right: taffy::LengthPercentageAuto::auto(),
+                bottom: taffy::LengthPercentageAuto::auto(),
+            },
+            size: taffy::Size {
+                width: length(96.0),
+                height: length(48.0),
+            },
+            ..Default::default()
+        },
+        0x444444ff,
+    )?;
+    let child_style = Style {
+        size: taffy::Size {
+            width: length(64.0),
+            height: length(32.0),
+        },
+        flex_shrink: 0.0,
+        ..Default::default()
+    };
+    let first = clipped.append(viewport, child_style.clone(), 0xeeaa4480)?;
+    clipped.append(viewport, child_style, 0x4488ff80)?;
+    let mut tx = Transaction::default();
+    tx.clip(
+        viewport,
+        Some(Rect {
+            x: 0.0,
+            y: 0.0,
+            width: 96.0,
+            height: 48.0,
+        }),
+    );
+    clipped.commit(tx, BackendCapabilities::default())?;
+    let mut current = clipped.frame([320.0, 160.0])?;
+    renderer.submit(&current, [320, 160], 1.0)?;
+    compare(
+        &mut renderer,
+        &current,
+        [320, 160],
+        1.0,
+        "clip-initial",
+        &output,
+        &mut results,
+    )?;
+    let mut tx = Transaction::default();
+    tx.color(first, 0xcc554480);
+    clipped.commit(tx, BackendCapabilities::default())?;
+    current = clipped.frame([320.0, 160.0])?;
+    let partial = renderer.submit(&current, [320, 160], 1.0)?.unwrap();
+    assert!(partial.gpu.partial && partial.gpu.drawn_pixels < 320 * 160);
+    assert_eq!(partial.gpu.uploaded_bytes, 160);
+    compare(
+        &mut renderer,
+        &current,
+        [320, 160],
+        1.0,
+        "damage-color",
+        &output,
+        &mut results,
+    )?;
+    let mut tx = Transaction::default();
+    tx.scroll(viewport, [24.0, 0.0]);
+    clipped.commit(tx, BackendCapabilities::default())?;
+    current = clipped.frame([320.0, 160.0])?;
+    assert_eq!((current.layout_runs, current.recorded_chunks), (0, 0));
+    assert!(
+        renderer
+            .submit(&current, [320, 160], 1.0)?
+            .unwrap()
+            .gpu
+            .partial
+    );
+    compare(
+        &mut renderer,
+        &current,
+        [320, 160],
+        1.0,
+        "damage-scroll",
+        &output,
+        &mut results,
+    )?;
+    let mut tx = Transaction::default();
+    tx.clip(
+        viewport,
+        Some(Rect {
+            x: 0.0,
+            y: 0.0,
+            width: 48.0,
+            height: 48.0,
+        }),
+    );
+    clipped.commit(tx, BackendCapabilities::default())?;
+    current = clipped.frame([320.0, 160.0])?;
+    assert!(
+        renderer
+            .submit(&current, [320, 160], 1.0)?
+            .unwrap()
+            .gpu
+            .partial
+    );
+    compare(
+        &mut renderer,
+        &current,
+        [320, 160],
+        1.0,
+        "damage-clip-shrink",
+        &output,
+        &mut results,
+    )?;
+    let mut style = clipped.style(first)?.clone();
+    style.size.width = length(16.0);
+    let mut tx = Transaction::default();
+    tx.style(first, style);
+    clipped.commit(tx, BackendCapabilities::default())?;
+    current = clipped.frame([320.0, 160.0])?;
+    renderer.submit(&current, [320, 160], 1.0)?;
+    compare(
+        &mut renderer,
+        &current,
+        [320, 160],
+        1.0,
+        "damage-layout-shrink",
+        &output,
+        &mut results,
+    )?;
+    let mut tx = Transaction::default();
+    tx.translation(viewport, [12.0, 4.0]);
+    clipped.commit(tx, BackendCapabilities::default())?;
+    current = clipped.frame([320.0, 160.0])?;
+    assert!(
+        renderer
+            .submit(&current, [320, 160], 1.0)?
+            .unwrap()
+            .gpu
+            .partial
+    );
+    compare(
+        &mut renderer,
+        &current,
+        [320, 160],
+        1.0,
+        "damage-old-new",
+        &output,
+        &mut results,
+    )?;
+    let mut tx = Transaction::default();
+    tx.scroll(viewport, [1000.0, 0.0]);
+    clipped.commit(tx, BackendCapabilities::default())?;
+    current = clipped.frame([320.0, 160.0])?;
+    let unchanged = renderer.submit(&current, [320, 160], 1.0)?.unwrap();
+    assert_eq!(unchanged.gpu.drawn_pixels, 0);
+    compare(
+        &mut renderer,
+        &current,
+        [320, 160],
+        1.0,
+        "damage-no-visible-change",
+        &output,
+        &mut results,
+    )?;
+    renderer.submit(&current, [400, 200], 1.25)?;
+    let mut tx = Transaction::default();
+    tx.translation(first, [3.25, 2.75]);
+    clipped.commit(tx, BackendCapabilities::default())?;
+    current = clipped.frame([320.0, 160.0])?;
+    assert!(
+        renderer
+            .submit(&current, [400, 200], 1.25)?
+            .unwrap()
+            .gpu
+            .partial
+    );
+    compare(
+        &mut renderer,
+        &current,
+        [400, 200],
+        1.25,
+        "damage-fractional",
+        &output,
+        &mut results,
+    )?;
+    renderer.set_policy(CompositorPolicy::Auto {
+        max_damage_fraction: 0.1,
+    })?;
+    renderer.submit(&current, [400, 200], 1.25)?;
+    let mut tx = Transaction::default();
+    tx.color(clipped.root(), 0x221144ff);
+    clipped.commit(tx, BackendCapabilities::default())?;
+    current = clipped.frame([320.0, 160.0])?;
+    assert!(
+        !renderer
+            .submit(&current, [400, 200], 1.25)?
+            .unwrap()
+            .gpu
+            .partial
+    );
+    compare(
+        &mut renderer,
+        &current,
+        [400, 200],
+        1.25,
+        "adaptive-full",
+        &output,
+        &mut results,
+    )?;
+    let mut tx = Transaction::default();
+    tx.color(first, 0x33cc8880);
+    clipped.commit(tx, BackendCapabilities::default())?;
+    current = clipped.frame([320.0, 160.0])?;
+    assert!(
+        renderer
+            .submit(&current, [400, 200], 1.25)?
+            .unwrap()
+            .gpu
+            .partial
+    );
+    compare(
+        &mut renderer,
+        &current,
+        [400, 200],
+        1.25,
+        "adaptive-damage",
+        &output,
+        &mut results,
+    )?;
     fs::write(
         output.join("validation.json"),
         serde_json::to_vec_pretty(&results)?,
@@ -399,5 +645,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         "{} hardware pixel scenarios passed; one-color bytes=160, batch bytes=480 in one range; bounded frames=3",
         results.len()
     );
+    let benchmark = retained_bench::run()?;
+    fs::write(
+        output.join("damage-benchmark.json"),
+        serde_json::to_vec_pretty(&benchmark)?,
+    )?;
     Ok(())
 }

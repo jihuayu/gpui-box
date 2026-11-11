@@ -44,7 +44,7 @@ with a complete frame snapshot.
 
 ## Validation
 
-The hardware executable passed 16 whole-image comparisons against the original
+The first hardware stage passed 16 whole-image comparisons against the original
 full GPUI renderer. Cases cover initial synchronization, color updates, adjacent
 batch updates, parent translation, child reorder, removal/replacement, 32 queued
 updates with slot reuse, a dropped base frame, renderer reset, target resize and
@@ -92,17 +92,21 @@ continue to be integrated.
 
 ## Remaining scope
 
-Current retained GPU records cover rectangle geometry, solid background color
-and inherited translation. They accept alpha with the existing ordered blending
-semantics. Separate transform/clip/effect/scroll trees, group opacity, text/image
+Current retained GPU records cover rectangle geometry, solid background color,
+inherited translation, rectangular clipping and resolved scroll. They accept
+alpha with the existing ordered blending semantics. The subsequent
+[property/damage stage](RETAINED_PROPERTIES_DAMAGE.md) extends the original
+16-case evidence with 10 pixel scenarios and completed-work timing comparisons.
+Group opacity, full affine transforms, property indirection on the GPU, text/image
 resources and the remaining primitive types are still in the active goal.
 
 Frame generation and validation currently scan the full snapshot. The consumer
 uploads only changed instances after sequential updates, but a complete CPU
 scene update still has this traversal. Highly fragmented draw order can create
 many draw calls. Segmented order storage and selective geometry updates remain
-performance work. This validation measures correctness and upload payloads.
-Continuous frame latency, throughput, cache budgets and other native platform
+performance work. The original validation measures correctness and upload payloads;
+the property/damage stage adds a bounded-queue throughput comparison.
+Continuous animation latency, cache budgets and other native platform
 backends require their own measurements.
 
 Renderer reset exercises allocation-epoch reconstruction with the available

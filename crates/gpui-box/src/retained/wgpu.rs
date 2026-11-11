@@ -4,7 +4,9 @@ use super::{
     *,
 };
 use gpui::{Bounds, ContentMask, DevicePixels, Quad, ScaledPixels, Scene, point, rgba, size};
-use gpui_wgpu::{QuadBatch, QuadSubmission, QuadWrite, RetainedImage, RetainedQuadRenderer};
+use gpui_wgpu::{
+    QuadBatch, QuadRedraw, QuadSubmission, QuadWrite, RetainedImage, RetainedQuadRenderer,
+};
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
     ops::Range,
@@ -14,6 +16,7 @@ use std::{
 struct Record {
     bounds: Rect,
     color: u32,
+    clip: Option<Rect>,
 }
 
 impl Record {
@@ -27,10 +30,89 @@ impl Record {
         };
         Quad {
             bounds,
-            content_mask: ContentMask { bounds },
+            content_mask: ContentMask {
+                bounds: self.clip.map_or(bounds, |clip| Bounds {
+                    origin: point(ScaledPixels(clip.x), ScaledPixels(clip.y)),
+                    size: size(ScaledPixels(clip.width), ScaledPixels(clip.height)),
+                }),
+            },
             background: rgba(self.color).into(),
             ..Default::default()
         }
+    }
+}
+
+fn record(item: &PaintItem, color: u32, scale: f32) -> Record {
+    let scaled = |bounds: Rect| Rect {
+        x: bounds.x * scale,
+        y: bounds.y * scale,
+        width: bounds.width * scale,
+        height: bounds.height * scale,
+    };
+    Record {
+        bounds: scaled(item.bounds),
+        color,
+        clip: item.clip.map(scaled),
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub enum CompositorPolicy {
+    #[default]
+    Full,
+    Damage,
+    Auto {
+        max_damage_fraction: f32,
+    },
+}
+
+fn choose_redraw(
+    policy: CompositorPolicy,
+    damage: Damage,
+    surface: [u32; 2],
+    scale: f32,
+    force_full: bool,
+) -> QuadRedraw {
+    if force_full || damage.full || policy == CompositorPolicy::Full {
+        return QuadRedraw::Full;
+    }
+    let Some(bounds) = damage.bounds else {
+        return QuadRedraw::Unchanged;
+    };
+    // Conservative coverage includes a device-pixel fringe for edge AA.
+    let x = (bounds.x * scale - 1.0)
+        .floor()
+        .clamp(0.0, surface[0] as f32) as u32;
+    let y = (bounds.y * scale - 1.0)
+        .floor()
+        .clamp(0.0, surface[1] as f32) as u32;
+    let right = ((bounds.x + bounds.width) * scale + 1.0)
+        .ceil()
+        .clamp(0.0, surface[0] as f32) as u32;
+    let bottom = ((bounds.y + bounds.height) * scale + 1.0)
+        .ceil()
+        .clamp(0.0, surface[1] as f32) as u32;
+    let width = right.saturating_sub(x);
+    let height = bottom.saturating_sub(y);
+    if width == 0 || height == 0 {
+        return QuadRedraw::Unchanged;
+    }
+    if let CompositorPolicy::Auto {
+        max_damage_fraction,
+    } = policy
+    {
+        let full_area = (u64::from(surface[0]) * u64::from(surface[1])) as f64;
+        if (u64::from(width) * u64::from(height)) as f64
+            >= full_area * f64::from(max_damage_fraction)
+        {
+            return QuadRedraw::Full;
+        }
+    }
+    QuadRedraw::Damage {
+        x,
+        y,
+        width,
+        height,
     }
 }
 
@@ -55,6 +137,8 @@ pub struct WgpuFrameRenderer {
     leases: VecDeque<(u64, FramePacket)>,
     max_in_flight: usize,
     failed: bool,
+    reference: Option<RetainedQuadRenderer>,
+    policy: CompositorPolicy,
 }
 
 impl WgpuFrameRenderer {
@@ -71,11 +155,28 @@ impl WgpuFrameRenderer {
             leases: VecDeque::new(),
             max_in_flight,
             failed: false,
+            reference: None,
+            policy: CompositorPolicy::Full,
         })
     }
 
     pub fn adapter_info(&self) -> gpui_wgpu::wgpu::AdapterInfo {
         self.backend.adapter_info()
+    }
+
+    pub fn set_policy(&mut self, policy: CompositorPolicy) -> Result<(), Error> {
+        if let CompositorPolicy::Auto {
+            max_damage_fraction,
+        } = policy
+            && (!max_damage_fraction.is_finite() || !(0.0..=1.0).contains(&max_damage_fraction))
+        {
+            return Err(Error::InvalidFrame);
+        }
+        if self.policy != policy {
+            self.policy = policy;
+            self.source = None;
+        }
+        Ok(())
     }
 
     fn collect(&mut self) -> Result<(), Error> {
@@ -161,15 +262,7 @@ impl WgpuFrameRenderer {
             }
             for (index, command) in item.commands.iter().enumerate() {
                 let DisplayCommand::Fill(color) = command;
-                let record = Record {
-                    bounds: Rect {
-                        x: item.bounds.x * scale,
-                        y: item.bounds.y * scale,
-                        width: item.bounds.width * scale,
-                        height: item.bounds.height * scale,
-                    },
-                    color: *color,
-                };
+                let record = record(item, *color, scale);
                 if let Some(handle) = handles.get(index) {
                     self.arena.update(*handle, record).map_err(gpu_error)?;
                 } else {
@@ -213,6 +306,13 @@ impl WgpuFrameRenderer {
                     DevicePixels(surface[0] as i32),
                     DevicePixels(surface[1] as i32),
                 ),
+                redraw: choose_redraw(
+                    self.policy,
+                    frame.damage,
+                    surface,
+                    scale,
+                    full_resync || self.surface != surface,
+                ),
             })
             .map_err(gpu_error)?;
         self.arena.acknowledge();
@@ -235,6 +335,17 @@ impl WgpuFrameRenderer {
         Ok(image)
     }
 
+    /// Poll completions while the producer is idle and release finished frame leases.
+    pub fn poll(&mut self) -> Result<(), Error> {
+        self.collect()
+    }
+
+    /// Wait for all queued work, excluding texture readback.
+    pub fn finish(&mut self) -> Result<(), Error> {
+        self.backend.finish().map_err(gpu_error)?;
+        self.collect()
+    }
+
     pub fn reference_image(
         &mut self,
         frame: &FramePacket,
@@ -246,22 +357,16 @@ impl WgpuFrameRenderer {
         for item in frame.items.iter() {
             for command in item.commands.iter() {
                 let DisplayCommand::Fill(color) = command;
-                scene.insert_primitive(
-                    Record {
-                        bounds: Rect {
-                            x: item.bounds.x * scale,
-                            y: item.bounds.y * scale,
-                            width: item.bounds.width * scale,
-                            height: item.bounds.height * scale,
-                        },
-                        color: *color,
-                    }
-                    .quad(),
-                );
+                scene.insert_primitive(record(item, *color, scale).quad());
             }
         }
         scene.finish();
-        self.backend
+        if self.reference.is_none() {
+            self.reference = Some(RetainedQuadRenderer::new(1).map_err(gpu_error)?);
+        }
+        self.reference
+            .as_mut()
+            .expect("reference backend")
             .reference_image(
                 &scene,
                 size(
@@ -277,6 +382,7 @@ impl WgpuFrameRenderer {
         let mut replacement = Self::new(self.max_in_flight)?;
         replacement.latest = self.latest;
         replacement.retired_sources = self.retired_sources.clone();
+        replacement.policy = self.policy;
         *self = replacement;
         Ok(())
     }
@@ -293,14 +399,14 @@ fn validate(frame: &FramePacket, surface: [u32; 2], scale: f32) -> Result<(), Er
     }
     let mut nodes = BTreeSet::new();
     for item in frame.items.iter().chain(frame.updates.iter()) {
-        let b = item.bounds;
-        if [b.x, b.y, b.width, b.height]
-            .iter()
-            .any(|v| !(*v * scale).is_finite())
-            || b.width < 0.0
-            || b.height < 0.0
-        {
-            return Err(Error::InvalidFrame);
+        for b in [Some(item.bounds), item.clip].into_iter().flatten() {
+            if !b.valid()
+                || [b.x, b.y, b.width, b.height, b.x + b.width, b.y + b.height]
+                    .iter()
+                    .any(|v| !(*v * scale).is_finite())
+            {
+                return Err(Error::InvalidFrame);
+            }
         }
     }
     for item in frame.items.iter() {
@@ -318,12 +424,17 @@ fn validate(frame: &FramePacket, surface: [u32; 2], scale: f32) -> Result<(), Er
     let mut updates = BTreeSet::new();
     for item in frame.updates.iter() {
         if !updates.insert(item.node)
-            || current
-                .get(&item.node)
-                .is_none_or(|value| value.bounds != item.bounds || value.commands != item.commands)
+            || current.get(&item.node).is_none_or(|value| {
+                value.bounds != item.bounds
+                    || value.commands != item.commands
+                    || value.clip != item.clip
+            })
         {
             return Err(Error::InvalidFrame);
         }
+    }
+    if frame.damage.bounds.is_some_and(|bounds| !bounds.valid()) {
+        return Err(Error::InvalidFrame);
     }
     if frame
         .removed
@@ -346,6 +457,59 @@ fn validate(frame: &FramePacket, surface: [u32; 2], scale: f32) -> Result<(), Er
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn redraw_covers_fractional_edges_and_auto_falls_back_for_large_damage() {
+        let damage = Damage {
+            full: false,
+            bounds: Some(Rect {
+                x: 10.25,
+                y: 12.25,
+                width: 4.0,
+                height: 6.0,
+            }),
+        };
+        assert_eq!(
+            choose_redraw(CompositorPolicy::Damage, damage, [100, 100], 1.5, false),
+            QuadRedraw::Damage {
+                x: 14,
+                y: 17,
+                width: 9,
+                height: 12
+            }
+        );
+        assert_eq!(
+            choose_redraw(
+                CompositorPolicy::Auto {
+                    max_damage_fraction: 0.01
+                },
+                damage,
+                [100, 100],
+                1.5,
+                false
+            ),
+            QuadRedraw::Full
+        );
+        assert_eq!(
+            choose_redraw(
+                CompositorPolicy::Damage,
+                Damage::default(),
+                [100, 100],
+                1.0,
+                false
+            ),
+            QuadRedraw::Unchanged
+        );
+        assert_eq!(
+            choose_redraw(
+                CompositorPolicy::Damage,
+                Damage::default(),
+                [100, 100],
+                1.0,
+                true
+            ),
+            QuadRedraw::Full
+        );
+    }
     #[test]
     fn consumer_rejects_mixed_tree_deltas_and_invalid_revisions() {
         let mut tree = UiTree::new(Style::default(), 0xff0000ff).unwrap();

@@ -17,6 +17,19 @@ pub struct QuadBatch {
     pub writes: Vec<QuadWrite>,
     pub order: Option<Vec<Range<u32>>>,
     pub size: Size<DevicePixels>,
+    pub redraw: QuadRedraw,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum QuadRedraw {
+    Full,
+    Damage {
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+    },
+    Unchanged,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -28,6 +41,8 @@ pub struct QuadSubmission {
     pub draw_calls: usize,
     pub in_flight: usize,
     pub buffer_generation: u64,
+    pub drawn_pixels: u64,
+    pub partial: bool,
 }
 
 struct Flight {
@@ -36,6 +51,7 @@ struct Flight {
     // Explicit leases keep replaced allocations alive through completion.
     _buffer: wgpu::Buffer,
     _binding: wgpu::BindGroup,
+    _clear: Option<(wgpu::Buffer, wgpu::BindGroup)>,
 }
 
 pub struct RetainedQuadRenderer {
@@ -51,6 +67,8 @@ pub struct RetainedQuadRenderer {
     flights: VecDeque<Flight>,
     max_in_flight: usize,
     failed: bool,
+    clear: Option<(wgpu::Buffer, InstanceBinding)>,
+    force_full: bool,
 }
 
 impl RetainedQuadRenderer {
@@ -82,6 +100,8 @@ impl RetainedQuadRenderer {
             flights: VecDeque::new(),
             max_in_flight,
             failed: false,
+            clear: None,
+            force_full: true,
         })
     }
 
@@ -145,6 +165,23 @@ impl RetainedQuadRenderer {
             .serial
             .checked_add(1)
             .context("submission serial exhausted")?;
+        if let QuadRedraw::Damage {
+            x,
+            y,
+            width,
+            height,
+        } = batch.redraw
+        {
+            anyhow::ensure!(
+                width > 0
+                    && height > 0
+                    && x.checked_add(width)
+                        .is_some_and(|end| end <= batch.size.width.0 as u32)
+                    && y.checked_add(height)
+                        .is_some_and(|end| end <= batch.size.height.0 as u32),
+                "invalid damage scissor"
+            );
+        }
         self.completed_serial()?;
         if self.flights.len() >= self.max_in_flight {
             let oldest = self
@@ -160,10 +197,34 @@ impl RetainedQuadRenderer {
             self.completed_serial()?;
         }
         self.failed = true;
-        if self.size != Some(batch.size) {
+        let size_changed = self.size != Some(batch.size);
+        if size_changed {
             // Set shared globals and target through the same reference path.
             self.renderer.render(&Scene::default(), batch.size)?;
             self.size = Some(batch.size);
+            let (buffer, binding) = allocation(&self.renderer, 1);
+            let bounds = Bounds {
+                origin: gpui::point(ScaledPixels(0.0), ScaledPixels(0.0)),
+                size: gpui::size(
+                    ScaledPixels(batch.size.width.0 as f32),
+                    ScaledPixels(batch.size.height.0 as f32),
+                ),
+            };
+            let clear = Quad {
+                bounds,
+                content_mask: gpui::ContentMask { bounds },
+                background: gpui::rgba(0x000000ff).into(),
+                ..Default::default()
+            };
+            let clear_records = [clear];
+            // SAFETY: This initialized Quad uses the same GPU ABI as normal draws.
+            self.renderer
+                .context
+                .queue
+                .write_buffer(&buffer, 0, unsafe {
+                    WgpuRendererCore::instance_bytes(&clear_records)
+                });
+            self.clear = Some((buffer, binding));
         }
         let grown = capacity > self.mirror.len();
         if grown {
@@ -215,7 +276,12 @@ impl RetainedQuadRenderer {
                 .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("retained_quad_frame"),
                 });
-        {
+        let redraw = if size_changed || self.force_full {
+            QuadRedraw::Full
+        } else {
+            batch.redraw
+        };
+        if redraw != QuadRedraw::Unchanged {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("retained_quad_pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -223,12 +289,31 @@ impl RetainedQuadRenderer {
                     resolve_target: None,
                     depth_slice: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        load: if redraw == QuadRedraw::Full {
+                            wgpu::LoadOp::Clear(wgpu::Color::BLACK)
+                        } else {
+                            wgpu::LoadOp::Load
+                        },
                         store: wgpu::StoreOp::Store,
                     },
                 })],
                 ..Default::default()
             });
+            if let QuadRedraw::Damage {
+                x,
+                y,
+                width,
+                height,
+            } = redraw
+            {
+                pass.set_scissor_rect(x, y, width, height);
+                core.draw_instances(
+                    &self.clear.as_ref().context("clear allocation missing")?.1,
+                    &core.resources.pipelines.quads,
+                    0..1,
+                    &mut pass,
+                );
+            }
             for range in &self.order {
                 core.draw_instances(
                     &self.binding,
@@ -248,18 +333,34 @@ impl RetainedQuadRenderer {
             submission,
             _buffer: self.buffer.clone(),
             _binding: self.binding.bind_group.clone(),
+            _clear: self
+                .clear
+                .as_ref()
+                .map(|(buffer, binding)| (buffer.clone(), binding.bind_group.clone())),
         });
         self.serial = serial;
         self.renderer.check_gpu_errors()?;
         self.failed = false;
+        self.force_full = false;
+        let drawn_pixels = match redraw {
+            QuadRedraw::Full => batch.size.width.0 as u64 * batch.size.height.0 as u64,
+            QuadRedraw::Damage { width, height, .. } => u64::from(width) * u64::from(height),
+            QuadRedraw::Unchanged => 0,
+        };
         Ok(QuadSubmission {
             serial,
             completed: self.completed.load(Ordering::Acquire),
             uploaded_bytes,
             upload_ranges,
-            draw_calls: self.order.len(),
+            draw_calls: if redraw == QuadRedraw::Unchanged {
+                0
+            } else {
+                self.order.len() + usize::from(redraw != QuadRedraw::Full)
+            },
             in_flight: self.flights.len(),
             buffer_generation: self.generation,
+            drawn_pixels,
+            partial: matches!(redraw, QuadRedraw::Damage { .. }),
         })
     }
 
@@ -272,6 +373,17 @@ impl RetainedQuadRenderer {
             bytes,
         );
         bytes.len() as u64
+    }
+
+    /// Wait for submitted work without a texture readback.
+    pub fn finish(&mut self) -> Result<u64> {
+        if let Some(latest) = self.flights.back() {
+            self.renderer.context.device.poll(wgpu::PollType::Wait {
+                submission_index: Some(latest.submission.clone()),
+                timeout: Some(Duration::from_secs(30)),
+            })?;
+        }
+        self.completed_serial()
     }
 
     pub fn image(&mut self) -> Result<image::RgbaImage> {
@@ -287,6 +399,7 @@ impl RetainedQuadRenderer {
     ) -> Result<image::RgbaImage> {
         self.renderer.render(scene, size)?;
         self.size = Some(size);
+        self.force_full = true;
         self.renderer.read_image()
     }
 }

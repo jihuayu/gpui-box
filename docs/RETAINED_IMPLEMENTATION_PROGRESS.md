@@ -5,6 +5,8 @@ The active implementation goal covers the complete runtime requested on
 
 The subsequent [GPU integration stage](RETAINED_GPU_INTEGRATION.md) connects
 FramePacket deltas to persistent quad allocations and bounded in-flight submits.
+The [clip, scroll and damage stage](RETAINED_PROPERTIES_DAMAGE.md) adds shared
+property chains, normal UI scroll events and measured partial GPU redraw.
 
 ## Current integrated foundation
 
@@ -14,7 +16,7 @@ The owner validates property transactions before applying changes, coalesces
 field writes and compares final values with committed state. A transaction that
 restores the previous value requests no frame.
 
-Color, layout style, translation and child reordering produce independent update
+Color, layout style, translation, clip, scroll and child reordering produce independent update
 intents. Style changes enter Taffy through its normal setters. Color and
 translation skip layout. Child reorder preserves node identity. Immutable
 `FramePacket` values contain owned paint items and shared local command chunks.
@@ -47,14 +49,14 @@ click test passed pixel comparison at the actual window scale.
 | P0–P5 routing | Rectangle color/translation/style/reorder intents and backend capability input | General primitive capabilities, explicit fallback reasons, semantic/resource channels and actual GPU patch dispatch |
 | Logical / Render Tree | Persistent one-to-one rectangle identity, children, removal and generation | Separate logical scopes and render identities, portals, keyed reconciliation, event/semantics lifetime and legacy islands |
 | Persistent Taffy | Long-lived nodes, style/children setters, root cache and resize handling | Owned text/image/custom measure snapshots, baseline/overflow dependencies, independent islands and layout visit counters |
-| Paint chunks / property trees | Shared local fill commands and inherited translation | Stable chunk IDs, separate clip/effect/scroll trees, selective geometry extraction and spatial indices |
+| Paint chunks / property trees | Shared local fill commands; sparse transform/clip/scroll chains with inherited state, clip-aware geometry/hit testing | Stable chunk IDs, effect tree, full affine transforms, selective geometry extraction and spatial indices |
 | GPU arena | Generic CPU allocation table with generations and deferred slot reuse, WGPU geometric growth and completion-held buffer/binding leases | General resource/material records, budgets, compaction and other backends |
-| Batch GPU updates | Adjacent upload merging, actual 160/480-byte writes and 10,000-object batch translation pixel verification | Sustained 60/120Hz animation, throughput/latency comparison and tuning |
-| P2 property / composite | Translation reuses command chunks and updates hit geometry | GPU transform/opacity/scroll, group isolation and NativeView geometry |
+| Batch GPU updates | Adjacent upload merging, actual 160/480-byte writes and 10,000-object batch translation pixel verification; completed-work Full/Damage/Auto A/B | Sustained 60/120Hz animation, fragmented order throughput and tuning |
+| P2 property / composite | Translation/clip/scroll reuse commands and update GPU instances and hit geometry; scroll clamped to layout extent | GPU property indirection, group opacity/isolation and NativeView geometry |
 | Text / images / complex primitives | Existing legacy GPUI functionality and previous source audit | New retained primitive types, resource events, shaping and pixel regressions |
 | Flex / responsive contract | Pinned Taffy style input and persistent resize | Public subset validation, RTL/baseline/rounding tests, environment subscriptions, constraint/container queries and adaptive structures |
-| Damage / cache / compositor | Existing full-frame GPUI fallback | Old/new ink damage, buffer preservation rules, raster cache budgets, eviction and strategy A/B |
-| FramePacket / frames in flight | Owned snapshots plus base-revision deltas, skip-frame resync, stale-frame rejection, bounded queue, completion retirement and explicit renderer reset | Forced device/surface loss, resource epochs, background completion pumping and producer queue coalescing |
+| Damage / cache / compositor | Old/new clipped ink damage; preserved offscreen target, scissored clear/replay; explicit Full/Damage/area-threshold Auto policies and hardware A/B | Raster cache budgets/eviction, measured cost model, multiple damage regions, native surface buffer-age contract |
+| FramePacket / frames in flight | Owned snapshots plus base-revision deltas, skip-frame resync, stale-frame rejection, bounded queue, completion retirement, explicit poll/finish and renderer reset | Forced device/surface loss, resource epochs, host idle-completion scheduling and producer queue coalescing |
 
 ## Verification and present limits
 
@@ -70,7 +72,7 @@ or segmented before claiming a sublinear complete scene-update path.
 
 The initial style surface exposes the pinned Taffy Style. The full gpui-box Flex
 API and constrained CSS subset remain pending. Geometry currently contains
-floating-point border bounds and translation. Clip, opacity, resources and
+floating-point border bounds, translation, rectangular clip and scroll. Group opacity, resources and
 accessibility are tracked above for their subsequent implementation stages.
 
 The progress table uses implementation and verification evidence. The active goal

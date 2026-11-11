@@ -1,11 +1,15 @@
 //! Normal GPUI event → retained transaction → persistent layout → paint adapter.
 use gpui::*;
-use gpui_box::retained::{BackendCapabilities, DisplayCommand, NodeId, Style, Transaction, UiTree};
+use gpui_box::retained::{
+    BackendCapabilities, DisplayCommand, NodeId, Rect, Style, Transaction, UiTree, length, taffy,
+};
 use std::{cell::RefCell, rc::Rc};
 
 pub struct RetainedDemo {
     tree: Rc<RefCell<UiTree>>,
     tile: NodeId,
+    viewport: NodeId,
+    scrolled: bool,
     alternate: bool,
     last_commit: String,
     #[cfg(feature = "retained-wgpu")]
@@ -28,11 +32,57 @@ impl RetainedDemo {
         let mut transaction = Transaction::default();
         transaction.style(tree.root(), root);
         transaction.style(tile, style);
+        let viewport = tree
+            .append(
+                tree.root(),
+                Style {
+                    position: taffy::Position::Absolute,
+                    inset: taffy::Rect {
+                        left: length(16.0),
+                        top: length(4.0),
+                        right: taffy::LengthPercentageAuto::auto(),
+                        bottom: taffy::LengthPercentageAuto::auto(),
+                    },
+                    size: taffy::Size {
+                        width: length(96.0),
+                        height: length(24.0),
+                    },
+                    ..Default::default()
+                },
+                0x334455ff,
+            )
+            .expect("create scroll viewport");
+        for color in [0xeeaa4480, 0x4488ff80] {
+            tree.append(
+                viewport,
+                Style {
+                    size: taffy::Size {
+                        width: length(64.0),
+                        height: length(24.0),
+                    },
+                    flex_shrink: 0.0,
+                    ..Default::default()
+                },
+                color,
+            )
+            .expect("create scroll content");
+        }
+        transaction.clip(
+            viewport,
+            Some(Rect {
+                x: 0.0,
+                y: 0.0,
+                width: 96.0,
+                height: 24.0,
+            }),
+        );
         tree.commit(transaction, BackendCapabilities::default())
             .unwrap();
         Self {
             tree: Rc::new(RefCell::new(tree)),
             tile,
+            viewport,
+            scrolled: false,
             alternate: false,
             last_commit: "Ready".into(),
             #[cfg(feature = "retained-wgpu")]
@@ -111,6 +161,26 @@ impl Render for RetainedDemo {
                         debug_assert!(!commit.request_frame);
                     })),
             )
+            .child(
+                div()
+                    .id("retained-scroll")
+                    .debug_selector(|| "retained-scroll".into())
+                    .cursor_pointer()
+                    .child("Scroll clipped content")
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.scrolled = !this.scrolled;
+                        let mut tx = Transaction::default();
+                        tx.scroll(this.viewport, [if this.scrolled { 24.0 } else { 0.0 }, 0.0]);
+                        let commit = this
+                            .tree
+                            .borrow_mut()
+                            .commit(tx, BackendCapabilities::default())
+                            .expect("commit scroll");
+                        if commit.request_frame {
+                            cx.notify();
+                        }
+                    })),
+            )
             .child(self.last_commit.clone())
             .child(
                 canvas(
@@ -134,21 +204,29 @@ impl Render for RetainedDemo {
                     },
                     |bounds, frame, window, _| {
                         for item in frame.items.iter() {
-                            for command in item.commands.iter() {
-                                match command {
-                                    DisplayCommand::Fill(color) => window.paint_quad(fill(
-                                        Bounds {
-                                            origin: bounds.origin
-                                                + point(px(item.bounds.x), px(item.bounds.y)),
-                                            size: size(
-                                                px(item.bounds.width),
-                                                px(item.bounds.height),
-                                            ),
-                                        },
-                                        rgba(*color),
-                                    )),
+                            let mask = item.clip.map(|clip| ContentMask {
+                                bounds: Bounds {
+                                    origin: bounds.origin + point(px(clip.x), px(clip.y)),
+                                    size: size(px(clip.width), px(clip.height)),
+                                },
+                            });
+                            window.with_content_mask(mask, |window| {
+                                for command in item.commands.iter() {
+                                    match command {
+                                        DisplayCommand::Fill(color) => window.paint_quad(fill(
+                                            Bounds {
+                                                origin: bounds.origin
+                                                    + point(px(item.bounds.x), px(item.bounds.y)),
+                                                size: size(
+                                                    px(item.bounds.width),
+                                                    px(item.bounds.height),
+                                                ),
+                                            },
+                                            rgba(*color),
+                                        )),
+                                    }
                                 }
-                            }
+                            });
                         }
                     },
                 )
@@ -191,6 +269,18 @@ mod tests {
         });
         assert_eq!(after.revision, repeated.revision);
         assert!(std::sync::Arc::ptr_eq(&after.items, &repeated.items));
+        let scroll = cx.debug_bounds("retained-scroll").unwrap();
+        cx.simulate_click(scroll.center(), Modifiers::default());
+        cx.run_until_parked();
+        let scrolled = view.read_with(cx, |view, _| {
+            view.tree.borrow().published_frame().unwrap().clone()
+        });
+        assert_eq!((scrolled.layout_runs, scrolled.recorded_chunks), (0, 0));
+        assert_ne!(after.items[3].bounds, scrolled.items[3].bounds);
+        assert!(std::sync::Arc::ptr_eq(
+            &after.items[3].commands,
+            &scrolled.items[3].commands
+        ));
     }
 
     #[cfg(feature = "retained-wgpu")]
@@ -219,6 +309,31 @@ mod tests {
         assert!(
             after.as_raw() == reference.as_raw(),
             "UI frame and full renderer pixels differ"
+        );
+        gpu.borrow_mut()
+            .set_policy(gpui_box::retained::wgpu::CompositorPolicy::Damage)
+            .unwrap();
+        gpu.borrow_mut()
+            .submit(&frame, [after.width(), after.height()], scale)
+            .unwrap();
+        let scroll = cx.debug_bounds("retained-scroll").unwrap();
+        cx.simulate_click(scroll.center(), Modifiers::default());
+        cx.run_until_parked();
+        let scrolled = view.read_with(cx, |view, _| {
+            view.tree.borrow().published_frame().unwrap().clone()
+        });
+        let image = gpu.borrow_mut().image().unwrap();
+        assert!(
+            image.as_raw() != after.as_raw(),
+            "scroll changes GPU pixels"
+        );
+        let reference = gpu
+            .borrow_mut()
+            .reference_image(&scrolled, [image.width(), image.height()], scale)
+            .unwrap();
+        assert!(
+            image.as_raw() == reference.as_raw(),
+            "scroll damage matches full renderer"
         );
     }
 }

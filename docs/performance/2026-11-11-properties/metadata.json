@@ -1,0 +1,48 @@
+{
+  "started_at": "2026-11-11T17:54:28.7030250+08:00",
+  "base_commit": "29df4170f5cbff369440ed38bb29a6507e0dd83c",
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.1\nLLVM version: 22.1.8",
+  "source_hashes": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "3A0346E016F8D1B0DA669A6FAB1A97B788EADF4449DCF74397DE7B21A3DA14A8"
+    },
+    {
+      "path": "crates/gpui-box/Cargo.toml",
+      "sha256": "1030EDC8BB52118A7C4BB69E8A6BC38A5C722977EFDE3849C8C27B421ED2A30D"
+    },
+    {
+      "path": "crates/gpui-box/src/retained.rs",
+      "sha256": "8A4FF47C84244BD01B7ABC3E13068F5E9D51EA48CB3288D67DC02B0A251EC90F"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/arena.rs",
+      "sha256": "8C658F226E11E12BF755F3A8B92739CC1766A34F5EB54E445C81324FD61247B6"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/wgpu.rs",
+      "sha256": "B3986F84648A104D4726BA18AE2DCA9E4C7C2973026C344CA889BA25D128FBBE"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/properties.rs",
+      "sha256": "9E947751EBB36D220D95CD39422C1305124C97221D74DEB66B6091559A681AB4"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained.rs",
+      "sha256": "008D7975306A7E62E9BEBECEDC5053F117CA4F58896E1DDCE72C5183975D81EB"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer.rs",
+      "sha256": "C245731DB85557E7ED992E1341F1185AA2445BAF14FD425C6BC56214469B3545"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_gpu.rs",
+      "sha256": "78344E4ACA938F70A29C50DC90916751CFEAAFFAFB05E127354BE9730001BB17"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_bench.rs",
+      "sha256": "C2F231E42C09E771584A5C3AB8CE93C8D7FFF63F930057955C08BE485B5AA80A"
+    }
+  ],
+  "scope": "Retained UI frames, hardware pixel comparisons, upload payload counts, in-flight lifecycle"
+}

@@ -8,10 +8,13 @@ use std::{
         atomic::{AtomicU64, Ordering},
     },
 };
+pub use taffy;
 pub use taffy::Style;
 use taffy::prelude::*;
 pub use taffy::style_helpers::{length, percent};
 pub mod arena;
+mod properties;
+pub use properties::{Damage, PropertyNode, PropertyState, PropertyTrees};
 #[cfg(all(feature = "retained-wgpu", not(target_family = "wasm")))]
 pub mod wgpu;
 
@@ -42,6 +45,8 @@ pub struct PaintItem {
     pub node: NodeId,
     pub bounds: Rect,
     pub commands: Arc<[DisplayCommand]>,
+    pub clip: Option<Rect>,
+    pub properties: PropertyState,
 }
 
 /// Owned output can be read after the producing tree has changed or been dropped.
@@ -56,6 +61,8 @@ pub struct FramePacket {
     pub updates: Arc<[PaintItem]>,
     pub removed: Arc<[NodeId]>,
     pub order: Option<Arc<[NodeId]>>,
+    pub properties: Arc<PropertyTrees>,
+    pub damage: Damage,
 }
 
 impl FramePacket {
@@ -64,7 +71,7 @@ impl FramePacket {
             .iter()
             .rev()
             .find(|item| {
-                let b = item.bounds;
+                let b = item.visible_bounds();
                 x >= b.x && y >= b.y && x < b.x + b.width && y < b.y + b.height
             })
             .map(|item| item.node)
@@ -101,6 +108,8 @@ pub enum Patch {
     Style(NodeId, Box<Style>),
     Translation(NodeId, [f32; 2]),
     Reorder(NodeId, Vec<NodeId>),
+    Clip(NodeId, Option<Rect>),
+    Scroll(NodeId, [f32; 2]),
 }
 
 #[derive(Default)]
@@ -117,6 +126,14 @@ impl Transaction {
     }
     pub fn translation(&mut self, node: NodeId, translation: [f32; 2]) {
         self.patches.push(Patch::Translation(node, translation));
+    }
+    /// Intersect this subtree with a rectangle in the node's border-box coordinates.
+    pub fn clip(&mut self, node: NodeId, clip: Option<Rect>) {
+        self.patches.push(Patch::Clip(node, clip));
+    }
+    /// Scroll descendants by a nonnegative offset, clamped to Taffy's content extent.
+    pub fn scroll(&mut self, node: NodeId, offset: [f32; 2]) {
+        self.patches.push(Patch::Scroll(node, offset));
     }
     /// Reorder the existing children of one parent, preserving their identity.
     pub fn reorder(&mut self, parent: NodeId, children: Vec<NodeId>) {
@@ -136,6 +153,8 @@ pub enum Error {
     InvalidFrame,
     StaleFrame,
     Gpu(String),
+    InvalidClip,
+    InvalidScroll,
 }
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -157,6 +176,8 @@ struct Node {
     color: u32,
     translation: [f32; 2],
     chunk: Option<Arc<[DisplayCommand]>>,
+    clip: Option<Rect>,
+    scroll: [f32; 2],
 }
 struct Slot {
     generation: u64,
@@ -183,6 +204,8 @@ struct Pending {
     style: Option<Style>,
     translation: Option<[f32; 2]>,
     children: Option<Vec<NodeId>>,
+    clip: Option<Option<Rect>>,
+    scroll: Option<[f32; 2]>,
 }
 
 impl UiTree {
@@ -211,6 +234,8 @@ impl UiTree {
                     color: rgba,
                     translation: [0.0; 2],
                     chunk: None,
+                    clip: None,
+                    scroll: [0.0; 2],
                 }),
             }],
             free: vec![],
@@ -285,6 +310,8 @@ impl UiTree {
             color: rgba,
             translation: [0.0; 2],
             chunk: None,
+            clip: None,
+            scroll: [0.0; 2],
         });
         self.node_mut(parent).children.push(id);
         self.revision = next;
@@ -330,7 +357,9 @@ impl UiTree {
                 Patch::Color(id, _)
                 | Patch::Style(id, _)
                 | Patch::Translation(id, _)
-                | Patch::Reorder(id, _) => *id,
+                | Patch::Reorder(id, _)
+                | Patch::Clip(id, _)
+                | Patch::Scroll(id, _) => *id,
             };
             self.node(id)?;
             let entry = pending.entry(id).or_default();
@@ -342,6 +371,21 @@ impl UiTree {
                         return Err(Error::InvalidTranslation);
                     }
                     entry.translation = Some(translation);
+                }
+                Patch::Clip(_, clip) => {
+                    if clip.is_some_and(|clip| !clip.valid()) {
+                        return Err(Error::InvalidClip);
+                    }
+                    entry.clip = Some(clip);
+                }
+                Patch::Scroll(_, offset) => {
+                    if offset
+                        .iter()
+                        .any(|value| !value.is_finite() || *value < 0.0)
+                    {
+                        return Err(Error::InvalidScroll);
+                    }
+                    entry.scroll = Some(offset);
                 }
                 Patch::Reorder(_, children) => {
                     let mut previous = self.node(id)?.children.clone();
@@ -365,7 +409,9 @@ impl UiTree {
             let color_changed = entry.color.is_some_and(|color| color != node.color);
             let property_changed = entry
                 .translation
-                .is_some_and(|value| value != node.translation);
+                .is_some_and(|value| value != node.translation)
+                || entry.clip.is_some_and(|value| value != node.clip)
+                || entry.scroll.is_some_and(|value| value != node.scroll);
             let structure_changed = entry
                 .children
                 .as_ref()
@@ -430,7 +476,16 @@ impl UiTree {
                 ));
             }
             if property_changed {
-                self.node_mut(id).translation = entry.translation.expect("changed property");
+                let node = self.node_mut(id);
+                if let Some(value) = entry.translation {
+                    node.translation = value;
+                }
+                if let Some(value) = entry.clip {
+                    node.clip = value;
+                }
+                if let Some(value) = entry.scroll {
+                    node.scroll = value;
+                }
                 result.routes.push((id, UpdatePath::PropertyPatch));
             }
         }
@@ -441,7 +496,8 @@ impl UiTree {
         if viewport.iter().any(|n| !n.is_finite() || *n < 0.0) {
             return Err(Error::InvalidViewport);
         }
-        if self.viewport != Some(viewport) {
+        let viewport_changed = self.viewport != Some(viewport);
+        if viewport_changed {
             self.advance()?;
             self.layout_dirty = true;
             self.viewport = Some(viewport);
@@ -463,15 +519,66 @@ impl UiTree {
             )?;
         }
         let mut items = Vec::new();
-        let mut stack = vec![(self.root, [0.0, 0.0])];
+        let mut stack = vec![(
+            self.root,
+            [0.0, 0.0],
+            Some(Rect {
+                x: 0.0,
+                y: 0.0,
+                width: viewport[0],
+                height: viewport[1],
+            }),
+            PropertyState::default(),
+        )];
+        let mut properties = PropertyTrees::default();
         let mut recorded_chunks = 0;
-        while let Some((id, origin)) = stack.pop() {
+        while let Some((id, origin, inherited_clip, mut state)) = stack.pop() {
             let node = self.node(id)?;
             let layout = *self.layout.layout(node.layout)?;
             let x = origin[0] + layout.location.x + node.translation[0];
             let y = origin[1] + layout.location.y + node.translation[1];
+            if node.translation != [0.0; 2] {
+                properties.transforms.insert(
+                    id,
+                    PropertyNode {
+                        parent: state.transform,
+                        value: node.translation,
+                    },
+                );
+                state.transform = Some(id);
+            }
+            let clip = node.clip.map(|clip| clip.translated([x, y]));
+            if let Some(local_clip) = node.clip {
+                properties.clips.insert(
+                    id,
+                    PropertyNode {
+                        parent: state.clip,
+                        value: local_clip,
+                    },
+                );
+                state.clip = Some(id);
+            }
+            let clip = match (inherited_clip, clip) {
+                (Some(a), Some(b)) => Some(a.intersect(b)),
+                (a, b) => a.or(b),
+            };
+            let paint_state = state;
+            let scroll = [
+                node.scroll[0].min(layout.scroll_width()),
+                node.scroll[1].min(layout.scroll_height()),
+            ];
+            if node.scroll != [0.0; 2] {
+                properties.scrolls.insert(
+                    id,
+                    PropertyNode {
+                        parent: state.scroll,
+                        value: scroll,
+                    },
+                );
+                state.scroll = Some(id);
+            }
             for child in node.children.iter().rev() {
-                stack.push((*child, [x, y]));
+                stack.push((*child, [x - scroll[0], y - scroll[1]], clip, state));
             }
             let node = self.node_mut(id);
             let commands = node
@@ -490,6 +597,8 @@ impl UiTree {
                     height: layout.size.height,
                 },
                 commands,
+                clip,
+                properties: paint_state,
             });
         }
         let previous: BTreeMap<_, _> = self
@@ -501,9 +610,11 @@ impl UiTree {
         let updates = items
             .iter()
             .filter(|item| {
-                previous
-                    .get(&item.node)
-                    .is_none_or(|old| old.bounds != item.bounds || old.commands != item.commands)
+                previous.get(&item.node).is_none_or(|old| {
+                    old.bounds != item.bounds
+                        || old.commands != item.commands
+                        || old.clip != item.clip
+                })
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -520,6 +631,8 @@ impl UiTree {
                 .map(|item| item.node)
                 .eq(order.iter().copied())
         });
+        let damage =
+            properties::damage(self.frame.as_ref(), &items, viewport_changed, order_changed);
         let frame = FramePacket {
             tree: self.identity,
             base_revision: self.frame.as_ref().map(|frame| frame.revision),
@@ -530,6 +643,8 @@ impl UiTree {
             updates: updates.into(),
             removed: removed.into(),
             order: order_changed.then(|| order.into()),
+            properties: Arc::new(properties),
+            damage,
         };
         self.layout_dirty = false;
         self.dirty = false;

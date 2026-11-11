@@ -59,3 +59,14 @@ Validation includes same-backend pixel comparison for resizing, growth,
 transparency, reordering, deletion/reuse, dropped frames, explicit reconstruction
 and a 10,000-object batch. The desktop test app exercises click-to-offscreen-GPU
 submission. Native window surface presentation remains separate integration work.
+
+### Preserved offscreen target and damage redraw
+
+The retained consumer accepts Full, rectangular Damage and Unchanged redraws.
+Damage redraw loads the preserved offscreen texture, clears only the scissor
+with an opaque black quad, and replays ordered instances through the same GPUI
+quad shader. Resize and reconstruction force a full clear/redraw. A separate
+reference renderer prevents pixel checks from overwriting the live target.
+An explicit `finish` waits for completion without readback for throughput A/B.
+Clear allocations remain leased through queued work. This implementation does
+not assume preserved pixels on a native swapchain or implement group opacity.
