@@ -78,6 +78,10 @@ pub use gpui_sharing as sharing;
 #[cfg(feature = "local-auth")]
 pub use gpui_local_auth as local_auth;
 
+/// Browser OAuth 2.0/OIDC, PKCE, account token vault and passkey request flows.
+#[cfg(feature = "auth")]
+pub use gpui_auth as auth;
+
 /// Signed update metadata and generation-correlated delivery contracts.
 #[cfg(feature = "updates")]
 pub use gpui_updates as updates;
@@ -201,5 +205,18 @@ mod tests {
             crate::diagnostics::redact_text("Bearer canary"),
             "[REDACTED:bearer]"
         );
+    }
+
+    #[cfg(feature = "auth")]
+    #[test]
+    fn auth_facade_reexports_the_coordinated_contracts() {
+        assert_eq!(
+            crate::auth::UPSTREAM_GPUI_REVISION,
+            crate::UPSTREAM_REVISION
+        );
+        assert_eq!(crate::auth::PACKAGE_VERSION, crate::VERSION);
+        assert_eq!(crate::auth::AuthPlatform::ALL.len(), 6);
+        assert_eq!(crate::auth::AuthOperation::ALL.len(), 10);
+        assert_eq!(crate::auth::platform_support_matrix().len(), 60);
     }
 }

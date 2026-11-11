@@ -32,6 +32,8 @@ system = ["dep:gpui-system"]
 secrets = ["system", "dep:gpui-secrets"]
 local-auth = ["system", "lifecycle", "secrets", "dep:gpui-local-auth"]
 local-auth-gpui = ["local-auth", "system-gpui", "lifecycle-gpui", "gpui-local-auth/gpui"]
+auth = ["system", "activation", "secrets", "permissions", "lifecycle", "dep:gpui-auth"]
+auth-gpui = ["auth", "system-gpui", "activation-gpui", "permissions-gpui", "lifecycle-gpui", "gpui-auth/gpui"]
 app-data = ["system", "dep:gpui-app-data"]
 lifecycle = ["system", "dep:gpui-lifecycle"]
 lifecycle-gpui = ["lifecycle", "system-gpui", "gpui-lifecycle/gpui"]
@@ -64,6 +66,7 @@ gpui-permissions = { workspace = true, optional = true }
 gpui-accessibility = { workspace = true, optional = true }
 gpui-files = { workspace = true, optional = true }
 gpui-local-auth = { workspace = true, optional = true }
+gpui-auth = { workspace = true, optional = true }
 gpui-updates = { workspace = true, optional = true }
 gpui-diagnostics = { workspace = true, optional = true }
 gpui-menus = { workspace = true, optional = true }

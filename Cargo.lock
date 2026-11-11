@@ -2170,6 +2170,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpui-auth"
+version = "0.1.0-dev"
+dependencies = [
+ "gpui",
+ "gpui-activation",
+ "gpui-lifecycle",
+ "gpui-permissions",
+ "gpui-secrets",
+ "gpui-system",
+]
+
+[[package]]
 name = "gpui-box"
 version = "0.1.0-dev"
 dependencies = [
@@ -2178,6 +2190,7 @@ dependencies = [
  "gpui-activation",
  "gpui-android",
  "gpui-app-data",
+ "gpui-auth",
  "gpui-box-components",
  "gpui-clipboard",
  "gpui-diagnostics",
