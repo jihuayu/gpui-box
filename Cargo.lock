@@ -2069,6 +2069,9 @@ dependencies = [
  "gpui-activation",
  "gpui-android",
  "gpui-app-data",
+ "gpui-clipboard",
+ "gpui-files",
+ "gpui-lifecycle",
  "gpui-permissions",
  "gpui-secrets",
  "gpui-system",
@@ -2120,6 +2123,32 @@ dependencies = [
  "gpui",
  "gpui-android",
  "gpui-box-components",
+]
+
+[[package]]
+name = "gpui-clipboard"
+version = "0.1.0-dev"
+dependencies = [
+ "gpui-system",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "gpui-files"
+version = "0.1.0-dev"
+dependencies = [
+ "gpui",
+ "gpui-app-data",
+ "gpui-system",
+ "tempfile",
+]
+
+[[package]]
+name = "gpui-lifecycle"
+version = "0.1.0-dev"
+dependencies = [
+ "gpui",
+ "gpui-system",
 ]
 
 [[package]]

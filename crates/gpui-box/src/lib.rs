@@ -13,6 +13,10 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 #[cfg(feature = "system")]
 pub use gpui_system as system;
 
+/// Lifecycle, preference, restoration and foreground-use contracts.
+#[cfg(feature = "lifecycle")]
+pub use gpui_lifecycle as lifecycle;
+
 /// Permission status, contextual requests and settings recovery.
 #[cfg(feature = "permissions")]
 pub use gpui_permissions as permissions;
@@ -49,3 +53,11 @@ pub use gpui_activation as activation;
 /// Account-scoped secure credentials, with explicit native provider policies.
 #[cfg(feature = "secrets")]
 pub use gpui_secrets as secrets;
+
+/// Foreground, user-initiated plain-text clipboard operations.
+#[cfg(feature = "clipboard")]
+pub use gpui_clipboard as clipboard;
+
+/// Authorized file picking, opaque resources and safe save/export.
+#[cfg(feature = "files")]
+pub use gpui_files as files;
