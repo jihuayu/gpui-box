@@ -1,5 +1,8 @@
 # Rendering performance experiments
 
+The follow-up [single-quad GPU upload prototype](GPU_PROTOTYPE.md) runs actual
+hardware WGPU comparisons and pixel checks through an opt-in backend feature.
+
 This is a research tool for the [rendering RFC](https://app.notion.com/p/415d83088d4e818290cddca2f104e65c).
 It changes no engine behavior. Layout cases execute the same pinned Taffy 0.15.0
 as GPUI. `gpui-scene` cases execute the checked-in `Scene` implementation directly.

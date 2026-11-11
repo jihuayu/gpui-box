@@ -1,5 +1,6 @@
 [package]
 name = "gpui-box-rendering-perf"
+default-run = "gpui-box-rendering-perf"
 description = "Source-backed CPU experiments for the retained-rendering RFC"
 version.workspace = true
 edition.workspace = true
@@ -11,12 +12,21 @@ publish.workspace = true
 [features]
 default = []
 gpui-scene = ["dep:gpui"]
+gpu-backend = ["gpui-scene", "dep:gpui_wgpu"]
+gpu-prototype = ["gpu-backend", "gpui_wgpu/quad-patch-prototype", "dep:serde_json"]
 
 [dependencies]
 gpui = { workspace = true, optional = true }
+gpui_wgpu = { path = "../../vendor/gpui/crates/gpui_wgpu", optional = true }
+serde_json = { version = "1", optional = true }
 # Match the pinned GPUI version and layout features, including disabled rounding
 # in the normal cases. The rounding case is a separately labelled control.
 taffy = { version = "=0.15.0", default-features = false, features = ["std", "taffy_tree", "flexbox", "grid", "block_layout", "float_layout", "content_size"] }
 
 [lints]
 workspace = true
+
+[[bin]]
+name = "quad-patch-gpu"
+path = "src/gpu.rs"
+required-features = ["gpu-prototype"]

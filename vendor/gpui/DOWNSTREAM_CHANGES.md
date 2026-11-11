@@ -21,3 +21,25 @@ Verification on 2026-11-11 found 410 of 411 source entries matching their origin
 hashes. `crates/gpui/src/gpui.rs` is the single intentionally modified entry.
 The reduced workspace manifest and materialized license links are the existing
 initial-import adaptations.
+
+## Single-quad GPU upload experiment
+
+The opt-in `gpui_wgpu/quad-patch-prototype` feature adds a fixed-scene opaque
+solid-quad experiment. It shares the existing Quad ABI, pipelines, shaders,
+headless pixel readback and full `render_frame` reference path. A dedicated
+storage buffer and stable binding support either full-array uploads or a single
+160-byte quad write. Session-scoped handles reject foreign and retired scenes.
+The queue orders writes with prior submitted reads. GPU errors poison a session
+until it is recreated.
+
+`wgpu_renderer.rs` adds feature-gated instance-write counters, CPU spans and
+render-pass timestamps. `wgpu_context.rs` exposes two helpers within the crate
+and extends headless feature gates. `gpui_wgpu.rs` exports the experiment behind
+the feature. The experiment has its own hardware device with timestamp support
+when available. Default platform builds retain their existing runtime path.
+
+The experiment is driven by `tooling/rendering-perf` at the distribution root.
+Its report records actual adapter, source hashes, pixel comparisons and timing
+scope. `UPSTREAM.json` continues to identify the original import bytes. The
+410/411 count above describes the earlier M0 audit before this experimental
+patch, rather than the current checkout's hash match count.

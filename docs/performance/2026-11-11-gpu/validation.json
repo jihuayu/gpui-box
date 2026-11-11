@@ -1,0 +1,110 @@
+[
+  {
+    "nodes": 300,
+    "slot": 0,
+    "pixel_equal": true,
+    "changed_pixels": 9
+  },
+  {
+    "nodes": 300,
+    "slot": 150,
+    "pixel_equal": true,
+    "changed_pixels": 9
+  },
+  {
+    "nodes": 300,
+    "slot": 299,
+    "pixel_equal": true,
+    "changed_pixels": 9
+  },
+  {
+    "nodes": 300,
+    "slot": 100,
+    "pixel_equal": true,
+    "changed_pixels": 9
+  },
+  {
+    "nodes": 300,
+    "slot": 42,
+    "pixel_equal": true,
+    "changed_pixels": 9
+  },
+  {
+    "nodes": 300,
+    "slot": 150,
+    "pixel_equal": true,
+    "changed_pixels": 9
+  },
+  {
+    "nodes": 3000,
+    "slot": 0,
+    "pixel_equal": true,
+    "changed_pixels": 9
+  },
+  {
+    "nodes": 3000,
+    "slot": 1500,
+    "pixel_equal": true,
+    "changed_pixels": 9
+  },
+  {
+    "nodes": 3000,
+    "slot": 2999,
+    "pixel_equal": true,
+    "changed_pixels": 9
+  },
+  {
+    "nodes": 3000,
+    "slot": 1000,
+    "pixel_equal": true,
+    "changed_pixels": 9
+  },
+  {
+    "nodes": 3000,
+    "slot": 428,
+    "pixel_equal": true,
+    "changed_pixels": 9
+  },
+  {
+    "nodes": 3000,
+    "slot": 1500,
+    "pixel_equal": true,
+    "changed_pixels": 9
+  },
+  {
+    "nodes": 30000,
+    "slot": 0,
+    "pixel_equal": true,
+    "changed_pixels": 9
+  },
+  {
+    "nodes": 30000,
+    "slot": 15000,
+    "pixel_equal": true,
+    "changed_pixels": 9
+  },
+  {
+    "nodes": 30000,
+    "slot": 29999,
+    "pixel_equal": true,
+    "changed_pixels": 9
+  },
+  {
+    "nodes": 30000,
+    "slot": 10000,
+    "pixel_equal": true,
+    "changed_pixels": 9
+  },
+  {
+    "nodes": 30000,
+    "slot": 4285,
+    "pixel_equal": true,
+    "changed_pixels": 9
+  },
+  {
+    "nodes": 30000,
+    "slot": 15000,
+    "pixel_equal": true,
+    "changed_pixels": 9
+  }
+]

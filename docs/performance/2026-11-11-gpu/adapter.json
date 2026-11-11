@@ -1,0 +1,16 @@
+{
+  "name": "NVIDIA GeForce GTX 1650 Ti",
+  "backend": "Vulkan",
+  "device_type": "DiscreteGpu",
+  "driver": "NVIDIA",
+  "driver_info": "571.96",
+  "vendor": 4318,
+  "device": 8085,
+  "target": [
+    1200,
+    400
+  ],
+  "samples": 201,
+  "rounds": 3,
+  "method": "per-update CPU timing; one outstanding submission, completion wait; render-pass GPU timestamps exclude upload and readback; three paths in rotating order"
+}

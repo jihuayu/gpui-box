@@ -1849,6 +1849,8 @@ name = "gpui-box-rendering-perf"
 version = "0.1.0-dev"
 dependencies = [
  "gpui",
+ "gpui_wgpu",
+ "serde_json",
  "taffy",
 ]
 
@@ -2072,6 +2074,7 @@ dependencies = [
  "etagere",
  "gpui",
  "gpui_util",
+ "image",
  "itertools",
  "log",
  "parking_lot",

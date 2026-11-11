@@ -16,6 +16,9 @@ use std::ops::Range;
 use std::rc::Rc;
 use std::sync::Arc;
 
+#[cfg(all(not(target_family = "wasm"), feature = "quad-patch-prototype"))]
+pub mod quad_patch_prototype;
+
 const MAX_INSTANCE_BUFFER_SIZE: u64 = 256 * 1024 * 1024;
 
 const INSTANCE_TEXTURE_TEXEL_SIZE: u64 = 16;
@@ -211,6 +214,10 @@ impl WgpuResources {
 }
 
 struct WgpuRendererCore {
+    #[cfg(all(not(target_family = "wasm"), feature = "quad-patch-prototype"))]
+    prototype_metrics: quad_patch_prototype::Metrics,
+    #[cfg(all(not(target_family = "wasm"), feature = "quad-patch-prototype"))]
+    prototype_timer: Option<quad_patch_prototype::GpuTimer>,
     resources: WgpuResources,
     atlas: Arc<WgpuAtlas>,
     path_globals_offset: u64,
@@ -1362,6 +1369,10 @@ impl WgpuRendererCore {
         let max_texture_size = device.limits().max_texture_dimension_2d;
 
         Self {
+            #[cfg(all(not(target_family = "wasm"), feature = "quad-patch-prototype"))]
+            prototype_metrics: Default::default(),
+            #[cfg(all(not(target_family = "wasm"), feature = "quad-patch-prototype"))]
+            prototype_timer: None,
             resources: WgpuResources {
                 device,
                 queue,
@@ -1505,6 +1516,8 @@ impl WgpuRendererCore {
         frame_view: &wgpu::TextureView,
         clear_color: wgpu::Color,
     ) -> Result<wgpu::SubmissionIndex> {
+        #[cfg(all(not(target_family = "wasm"), feature = "quad-patch-prototype"))]
+        let upload_start = std::time::Instant::now();
         let mut instance_offset = 0;
         let instance_bindings = self
             .write_instances(scene, &mut instance_offset)
@@ -1520,6 +1533,10 @@ impl WgpuRendererCore {
                     scene.polychrome_sprites.len(),
                 )
             })?;
+        #[cfg(all(not(target_family = "wasm"), feature = "quad-patch-prototype"))]
+        {
+            self.prototype_metrics.upload_ns += upload_start.elapsed().as_nanos() as u64;
+        }
         self.prepare_texture_bind_groups(scene);
 
         let mut encoder =
@@ -1532,6 +1549,8 @@ impl WgpuRendererCore {
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("main_pass"),
+                #[cfg(all(not(target_family = "wasm"), feature = "quad-patch-prototype"))]
+                timestamp_writes: self.prototype_timer.as_ref().map(|timer| timer.writes()),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: frame_view,
                     resolve_target: None,
@@ -1640,10 +1659,20 @@ impl WgpuRendererCore {
             }
         }
 
+        #[cfg(all(not(target_family = "wasm"), feature = "quad-patch-prototype"))]
+        if let Some(timer) = &self.prototype_timer {
+            timer.resolve(&mut encoder);
+        }
+        #[cfg(all(not(target_family = "wasm"), feature = "quad-patch-prototype"))]
+        let submit_start = std::time::Instant::now();
         let submission = self
             .resources()
             .queue
             .submit(std::iter::once(encoder.finish()));
+        #[cfg(all(not(target_family = "wasm"), feature = "quad-patch-prototype"))]
+        {
+            self.prototype_metrics.submit_ns = submit_start.elapsed().as_nanos() as u64;
+        }
         Ok(submission)
     }
 
@@ -1964,6 +1993,11 @@ impl WgpuRendererCore {
             0
         };
 
+        #[cfg(all(not(target_family = "wasm"), feature = "quad-patch-prototype"))]
+        {
+            self.prototype_metrics.instance_bytes += data.len() as u64;
+            self.prototype_metrics.instance_writes += u64::from(!data.is_empty());
+        }
         let resources = self.resources();
         if !data.is_empty() {
             match &resources.instance_data {
@@ -2312,7 +2346,12 @@ impl WgpuRenderer {
 
 #[cfg(all(
     not(target_family = "wasm"),
-    any(test, feature = "bench-support", feature = "test-support")
+    any(
+        test,
+        feature = "bench-support",
+        feature = "test-support",
+        feature = "quad-patch-prototype"
+    )
 ))]
 struct HeadlessRenderTarget {
     texture: wgpu::Texture,
@@ -2321,7 +2360,12 @@ struct HeadlessRenderTarget {
 
 #[cfg(all(
     not(target_family = "wasm"),
-    any(test, feature = "bench-support", feature = "test-support")
+    any(
+        test,
+        feature = "bench-support",
+        feature = "test-support",
+        feature = "quad-patch-prototype"
+    )
 ))]
 impl HeadlessRenderTarget {
     fn size(&self) -> Size<DevicePixels> {
@@ -2334,7 +2378,12 @@ impl HeadlessRenderTarget {
 
 #[cfg(all(
     not(target_family = "wasm"),
-    any(test, feature = "bench-support", feature = "test-support")
+    any(
+        test,
+        feature = "bench-support",
+        feature = "test-support",
+        feature = "quad-patch-prototype"
+    )
 ))]
 pub struct WgpuHeadlessRenderer {
     context: WgpuContext,
@@ -2345,7 +2394,12 @@ pub struct WgpuHeadlessRenderer {
 
 #[cfg(all(
     not(target_family = "wasm"),
-    any(test, feature = "bench-support", feature = "test-support")
+    any(
+        test,
+        feature = "bench-support",
+        feature = "test-support",
+        feature = "quad-patch-prototype"
+    )
 ))]
 impl WgpuHeadlessRenderer {
     pub fn new() -> anyhow::Result<Self> {

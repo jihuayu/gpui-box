@@ -94,6 +94,7 @@ and will be added in their owning directories as implementation progresses.
 ## Documentation
 
 - [Rendering performance research and reproducible CPU experiments](docs/RENDERING_PERFORMANCE_RESEARCH.md)
+- [Single-quad GPU upload prototype and hardware comparison](docs/GPU_QUAD_PATCH_RESULTS.md)
 - [Repository layout](docs/REPOSITORY_LAYOUT.md)
 - [Project plan](docs/PROJECT_PLAN.md)
 - [Architecture decisions](docs/ARCHITECTURE_DECISIONS.md)

@@ -183,7 +183,12 @@ impl WgpuContext {
 
     #[cfg(all(
         not(target_family = "wasm"),
-        any(test, feature = "bench-support", feature = "test-support")
+        any(
+            test,
+            feature = "bench-support",
+            feature = "test-support",
+            feature = "quad-patch-prototype"
+        )
     ))]
     pub(crate) fn new_headless() -> anyhow::Result<(Self, wgpu::TextureFormat)> {
         // Creating a device takes tens of milliseconds, and benchmarks create a headless
@@ -205,7 +210,12 @@ impl WgpuContext {
 
     #[cfg(all(
         not(target_family = "wasm"),
-        any(test, feature = "bench-support", feature = "test-support")
+        any(
+            test,
+            feature = "bench-support",
+            feature = "test-support",
+            feature = "quad-patch-prototype"
+        )
     ))]
     fn create_headless() -> anyhow::Result<(Self, wgpu::TextureFormat)> {
         let instance = Self::instance(None);
@@ -271,7 +281,12 @@ impl WgpuContext {
 
     #[cfg(all(
         not(target_family = "wasm"),
-        any(test, feature = "bench-support", feature = "test-support")
+        any(
+            test,
+            feature = "bench-support",
+            feature = "test-support",
+            feature = "quad-patch-prototype"
+        )
     ))]
     /// Both candidates are 8-bit RGBA-ordered or BGRA-ordered formats: headless readback
     /// copies rows as 4 bytes per pixel and only swizzles, so no other formats may be added
@@ -293,7 +308,7 @@ impl WgpuContext {
     }
 
     #[cfg(not(target_family = "wasm"))]
-    fn from_native_adapter_and_device(
+    pub(crate) fn from_native_adapter_and_device(
         instance: wgpu::Instance,
         adapter: wgpu::Adapter,
         device: wgpu::Device,
@@ -684,7 +699,9 @@ impl WgpuContext {
         ))
     }
 
-    fn select_color_texture_format(adapter: &wgpu::Adapter) -> anyhow::Result<wgpu::TextureFormat> {
+    pub(crate) fn select_color_texture_format(
+        adapter: &wgpu::Adapter,
+    ) -> anyhow::Result<wgpu::TextureFormat> {
         let required_usages = wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST;
         let bgra_features = adapter.get_texture_format_features(wgpu::TextureFormat::Bgra8Unorm);
         let rgba_features = adapter.get_texture_format_features(wgpu::TextureFormat::Rgba8Unorm);
