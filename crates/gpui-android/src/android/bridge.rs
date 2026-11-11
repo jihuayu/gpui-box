@@ -148,6 +148,20 @@ pub(super) fn read_clipboard() -> Option<String> {
     }
 }
 
+pub(super) fn storage_directories() -> anyhow::Result<String> {
+    let host = HOST
+        .get()
+        .ok_or_else(|| anyhow::anyhow!("Android host is not installed"))?;
+    let mut env = host.vm.attach_current_thread()?;
+    let class: &JClass = host.class.as_obj().into();
+    let result = env.call_static_method(class, "storageDirectories", "()Ljava/lang/String;", &[]);
+    if result.is_err() && env.exception_check()? {
+        env.exception_clear()?;
+    }
+    let value = JString::from(result?.l()?);
+    Ok(env.get_string(&value)?.into())
+}
+
 pub(super) fn write_clipboard(text: &str) {
     let Some(host) = HOST.get() else { return };
     let result = (|| -> jni::errors::Result<()> {

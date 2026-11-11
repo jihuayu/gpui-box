@@ -13,6 +13,7 @@ gpui.workspace = true
 gpui-lifecycle = { workspace = true, features = ["gpui"] }
 gpui-permissions = { workspace = true, features = ["gpui"] }
 gpui-system = { workspace = true, features = ["gpui"] }
+gpui-app-data.workspace = true
 gpui_wgpu = { path = "../../vendor/gpui/crates/gpui_wgpu" }
 anyhow = "1.0"
 accesskit = "0.24.0"

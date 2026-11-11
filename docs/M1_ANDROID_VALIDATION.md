@@ -379,3 +379,22 @@ The emulator uses the same Android15/Vulkan/4096-byte-page environment described
 above. Hardware secure lock/unlock, GPU loss, combined IME/back animation,
 TalkBack speech, real Chinese keyboard candidate UI and physical-device
 qualification retain their independent acceptance gates.
+
+## Android private storage root integration
+
+The host installs application context before surface launch and exposes
+worker-only root discovery through `gpui_box::android::app_data_roots`. Existing
+AppData owns settings, locks, cache eviction and export leases. Durable
+control/config/data/logs and temporary exports use disjoint no-backup children.
+Cache has its separate native cache root. Discovery rejects main-Looper calls,
+and application context survives Activity recreation without retaining Activity.
+
+The Android example's instrumentation-only JNI probe saves/reloads Chinese and
+emoji JSON through actual Rust AppData, closes/reopens ownership, clears cache
+without deleting a leased export and explicitly cleans released exports. A
+second process launch increments the previous saved visits. Focused runs pass,
+and the complete API35 Android15 x86_64 suite passes22/22 in69.168s. Both ABI
+builds and strict Clippy pass. UI-thread rejection and JNI exception clearing
+retain explicit test coverage. Backup/transfer/direct-boot/uninstall journeys,
+hardware persistence and gallery business-storage adoption retain #22's gates.
+Physical-device testing remains deferred.

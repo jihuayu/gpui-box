@@ -2145,6 +2145,7 @@ dependencies = [
  "anyhow",
  "futures",
  "gpui",
+ "gpui-app-data",
  "gpui-lifecycle",
  "gpui-permissions",
  "gpui-system",
@@ -2220,6 +2221,8 @@ version = "0.1.0-dev"
 dependencies = [
  "gpui-box",
  "gpui-box-example-hello",
+ "gpui-system",
+ "serde_json",
 ]
 
 [[package]]

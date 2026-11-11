@@ -12,5 +12,7 @@ crate-type = ["cdylib"]
 [target.'cfg(target_os = "android")'.dependencies]
 gpui-box = { workspace = true, features = ["android"] }
 gpui-box-example-hello.workspace = true
+gpui-system.workspace = true
+serde_json = "1"
 
 [lints]
