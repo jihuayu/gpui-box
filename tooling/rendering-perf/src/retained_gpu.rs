@@ -7,6 +7,7 @@ use std::{error::Error, fs, path::PathBuf};
 mod retained_bench;
 mod retained_extraction;
 mod retained_glyph_bench;
+mod retained_hit_index;
 mod retained_image;
 mod retained_layers;
 mod retained_logical;
@@ -705,6 +706,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     fs::write(
         output.join("validation-benchmark.json"),
         serde_json::to_vec_pretty(&retained_validation::benchmark()?)?,
+    )?;
+    fs::write(
+        output.join("hit-index-benchmark.json"),
+        serde_json::to_vec_pretty(&retained_hit_index::benchmark()?)?,
     )?;
     Ok(())
 }

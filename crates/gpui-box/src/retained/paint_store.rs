@@ -1,6 +1,9 @@
 //! Copy-on-write paint pages. Node indices remain stable until layout/order changes.
 use super::*;
 use std::ops::{Index, IndexMut};
+use std::sync::OnceLock;
+mod hit_index;
+pub use hit_index::HitTestStats;
 
 const PAGE_ITEMS: usize = 64;
 
@@ -19,6 +22,7 @@ pub enum FrameBuildPolicy {
 pub struct PaintItems {
     pages: Vec<Arc<Vec<PaintItem>>>,
     len: usize,
+    hit_index: OnceLock<Arc<hit_index::HitNode>>,
 }
 impl From<Vec<PaintItem>> for PaintItems {
     fn from(items: Vec<PaintItem>) -> Self {
@@ -32,7 +36,11 @@ impl From<Vec<PaintItem>> for PaintItems {
             }
             pages.push(Arc::new(page));
         }
-        Self { pages, len }
+        Self {
+            pages,
+            len,
+            hit_index: OnceLock::new(),
+        }
     }
 }
 impl PaintItems {
@@ -68,13 +76,25 @@ impl PaintItems {
         stats: &mut FrameBuildStats,
     ) -> Self {
         let mut result = self.clone();
+        result.hit_index = OnceLock::new();
+        let mut dirty_pages = vec![];
         for (index, item) in updates {
+            if dirty_pages.last() != Some(&(index / PAGE_ITEMS)) {
+                dirty_pages.push(index / PAGE_ITEMS);
+            }
             let page = &mut result.pages[index / PAGE_ITEMS];
             if Arc::strong_count(page) > 1 {
                 stats.copied_pages += 1;
                 stats.copied_items += page.len();
             }
             Arc::make_mut(page)[index % PAGE_ITEMS] = item.clone();
+        }
+        if let Some(index) = self.hit_index.get() {
+            // Pages are ordered; internal indexed publication supplies sorted patches.
+            dirty_pages.sort_unstable();
+            dirty_pages.dedup();
+            let patched = hit_index::HitNode::patch(index, &result.pages, &dirty_pages);
+            let _ = result.hit_index.set(patched);
         }
         result
     }
@@ -87,6 +107,7 @@ impl Index<usize> for PaintItems {
 }
 impl IndexMut<usize> for PaintItems {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        self.hit_index.take();
         &mut Arc::make_mut(&mut self.pages[index / PAGE_ITEMS])[index % PAGE_ITEMS]
     }
 }

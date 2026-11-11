@@ -1,0 +1,228 @@
+{
+  "started_at": "2026-11-11T23:25:25.0760104+08:00",
+  "base_commit": "49a58540e58dd6233bff220c627fe9ffe993b893",
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.1\nLLVM version: 22.1.8",
+  "source_hashes": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "769E6577FD28A97F045051C683B610C5D064805BBC623F08B29D914273250BC0"
+    },
+    {
+      "path": "crates/gpui-box/Cargo.toml",
+      "sha256": "4F13B6D16070F45087C5EDA52288987053EF1BC561D81C3EE0E4572F7B609564"
+    },
+    {
+      "path": "crates/gpui-box/src/retained.rs",
+      "sha256": "B7C4DDCB602788E7274228D83FFED1316704ECE0E1DD17FC41763BAC97C9EDFF"
+    },
+    {
+      "path": "examples/hello/src/retained_demo.rs",
+      "sha256": "F16D5B3EA46A4F8C3A3E502BD32662265C18F6F9CD18AA2574C8F1ACD8C974FB"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/arena.rs",
+      "sha256": "8C658F226E11E12BF755F3A8B92739CC1766A34F5EB54E445C81324FD61247B6"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/wgpu.rs",
+      "sha256": "58E3145511B1CA65E543B8AF1487737B1624A63A0A365C4D59BCC34F88B231DB"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/properties.rs",
+      "sha256": "07C1F0CE2D760FCEB425EB0EA660B50B2F8C4A51F90950A291109ACC1822E06D"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/wgpu/validation.rs",
+      "sha256": "B582E123A3E3EE8B5A0158C1C88936EFCEDA0740C997D1EF54915BCCF4AB792B"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive.rs",
+      "sha256": "3BEC53B3190DC1545688266405AE238B47D26DC9DCEBF0F8039C5BA9F5C2247D"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/logical.rs",
+      "sha256": "DDC0A7EB46590C2BE50D59AC8BE0C3F71B8F786776014BDA1EF88888C83A6854"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/measure.rs",
+      "sha256": "B61D50011149C6490AAEC2722D0DA4E8167E35710FFAABF833952D3A494DF1B0"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/paint_store.rs",
+      "sha256": "A4E7ACB332E86E66711EC6DE9124B834FFE38EADB6C8EFF3B954BE0AD4C8F167"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/paint_store/hit_index.rs",
+      "sha256": "62468DA888AE6A974C210B321E2A015FC771E8AE5B899C7AF083F3249699D90D"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/extraction.rs",
+      "sha256": "4D2E2A2B5077EDAF372D8EDAFEAB64FD44D8C5CD47266FE405DBFE42E2B9C832"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/extraction_tests.rs",
+      "sha256": "BCCF754635B4BA91442F9CDDD9FEBC7334A64DF732F6F6DD7F32E0DE7E9D2044"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/responsive.rs",
+      "sha256": "8A6988EE32F256368358631A399EF484D07DA46FA10CBCF9D32E64F512002928"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/primitive.rs",
+      "sha256": "1CB5957CCEA54B4B533C218E0AF52796AAF6B461C2B06A76718E843F12E5AFB6"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/frame_queue.rs",
+      "sha256": "A99C566CE40B19D7049273006A99677E3610A2E96DFAC17D063006BFC08AD1DA"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/image.rs",
+      "sha256": "B6219AF2A6F0D25BA97DF9493EDF256679EA328D36021E6B5EB588EAB90C539E"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/paragraph.rs",
+      "sha256": "D106F13B4DC233E5A53D375CCFF72501BF66F3375FC4F3A356115E7EEF695653"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/text.rs",
+      "sha256": "1180044A51FA259C355C07B8F3A824CA4F09FD41493C05DFC228217AFB4AD6EB"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui/src/text_system.rs",
+      "sha256": "71E61F30A447A50FCE57D4B75608AEC5D5264E13F05FB20B6BF0E835C3CDB2E1"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui/src/text_system/line.rs",
+      "sha256": "AE962FDEC63CA8B107FAE18EE6AA6335CD7C23C8A1573516350C71DCADD63DC8"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui/src/text_system/line_layout.rs",
+      "sha256": "BF5C37F8B3F4523CE1D9B5892D26A22BBA4864F2070C21A99778EF546C439A1D"
+    },
+    {
+      "path": "examples/hello/Cargo.toml",
+      "sha256": "5063944DCB6792976790E554C3438DAEF142896313D4980DAC1553ABA117E972"
+    },
+    {
+      "path": "examples/hello/src/retained_paragraph_tests.rs",
+      "sha256": "7BE78BADF51EDFEA2646BFF470F5E1B1AB5B57D1219036DAD1599DC328EA111B"
+    },
+    {
+      "path": "examples/hello/assets/NotoSansSC-Regular.otf",
+      "sha256": "2C76254F6FC379FDDFCE0A7E84FB5385BB135D3E399294F6EEB6680D0365B74B"
+    },
+    {
+      "path": "tooling/rendering-perf/Cargo.toml",
+      "sha256": "7B8564C142759757F1850A0E865E591C04629D8B7CEB80C19D049AF4D0E78D73"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained.rs",
+      "sha256": "17661F28752141183A49236D73B56FA2D6B914D2739DECFF99ACBDF6FC7D3243"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer.rs",
+      "sha256": "C245731DB85557E7ED992E1341F1185AA2445BAF14FD425C6BC56214469B3545"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/cosmic_text_system.rs",
+      "sha256": "D2AA5BA630E17613676715EA8C24CCCE1A27BFA10A2C78BB68F91E1E120B9566"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/wgpu/composition.rs",
+      "sha256": "5ED02794F0708802137A1735FE4B74AB4230876F67AF2287C35EAD451FC5119F"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/layers.rs",
+      "sha256": "9DAD484EF2642B887328EE939398494A8CA84C0CE1D0F14CAD228660700CDA51"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/layers.wgsl",
+      "sha256": "926DEC661523F1EA0C65CE6D96CD6E64BC1CC5AF7505F1839DC2FB6AAA9B0131"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/images.rs",
+      "sha256": "1142F88877A5D9803E1FA8D3C80E30ADCECA9A7DC7E3F458D56B199684CE007A"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/images.wgsl",
+      "sha256": "E1328373DE45931CFE819A0B3CC2904B3EA87B737B617894411BB5C15571B7AF"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/glyphs.rs",
+      "sha256": "9316FE8208BC704693B418448EF4D7324A6F6EE62636C03FE89DFEEB567E232C"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/glyphs.wgsl",
+      "sha256": "2864C29F6B622C02565A8B308D663E9034345073E8C88CE9F01BAEBE2763972C"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_gpu.rs",
+      "sha256": "0E2FA5AACE57D50167C3705A162CD4C8878D198862384773F38E1386FD48C01A"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_bench.rs",
+      "sha256": "C2F231E42C09E771584A5C3AB8CE93C8D7FFF63F930057955C08BE485B5AA80A"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_layers.rs",
+      "sha256": "DB47A4BC3B80D8270D094DBB532C9162AFB30CBA85A37B8814A9E0E9773D0B84"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_reactive.rs",
+      "sha256": "4FB60D401D826E6A5D6DADCD5F29EFB7956F73F01ED59D516442E9816FC79638"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_logical.rs",
+      "sha256": "7068CCDAECA72FEB46CAA7BD8FA4AD444D7C10FAAE4EF6E26D40C3B6A4994F19"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_measure.rs",
+      "sha256": "4A64C8EC9163AE7078A813177CC4FBF39C3335E94B9B0811B6291B1D9713E910"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_responsive.rs",
+      "sha256": "D75A6AD0F7A8ECE7B969B167A349D6B80245AF31665BC28CBA6743AC0CF2A9D6"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_primitive.rs",
+      "sha256": "3E2131C3A8EDA6DB9A2C367C058D1A268F73587958042776B52555B2EA3A8CDA"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_queue.rs",
+      "sha256": "BA47911EAD99E6C68B9397B0DF43210728497EE3E155C43DBDFFBF08650D1558"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_image.rs",
+      "sha256": "8CAFA2B7D840FA7DF3E835A5C95A0C248FBB083520C82D5EDE3BCC0E31216721"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_text.rs",
+      "sha256": "2345A5CDC9E344229EA0DEBADE06F323AF811B073F945B791D7176AACE113DFD"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_glyph_bench.rs",
+      "sha256": "97863116860ABDEFE95E8C041E401CE3042D054C52DD1948D34F0F6439468452"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_paint_store.rs",
+      "sha256": "8C158614F4CB8F7D61834124AD17A50DA9B6961F2323B57ED0F494E03CDA4C03"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_extraction.rs",
+      "sha256": "FADEE2A5B0F210313EF66560BBDC10EF0D3C2F2AE7539842C79C6A6772CE7CEE"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_validation.rs",
+      "sha256": "00C26429F567DBF55FB36B38108CC7C2735D57D5854C20200FE2CB3D008FFDB7"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_hit_index.rs",
+      "sha256": "2DEEB485E306862C6E304F0C4A6E9547C3D8164C0350420B5D954B70064F9022"
+    },
+    {
+      "path": "tooling/rendering-perf/run-retained-gpu.ps1",
+      "sha256": "3E8098069826DC1D35B7EF8C87E2A1860F99BFD04DA684D8039F17C6D3C5B223"
+    }
+  ],
+  "scope": "Retained UI frames, hardware pixel comparisons, upload payload counts, in-flight lifecycle"
+}

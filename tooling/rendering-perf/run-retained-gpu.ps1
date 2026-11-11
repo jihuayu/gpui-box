@@ -14,6 +14,7 @@ try {
         'crates/gpui-box/src/retained/logical.rs',
         'crates/gpui-box/src/retained/measure.rs',
         'crates/gpui-box/src/retained/paint_store.rs',
+        'crates/gpui-box/src/retained/paint_store/hit_index.rs',
         'crates/gpui-box/src/retained/extraction.rs',
         'crates/gpui-box/src/retained/extraction_tests.rs',
         'crates/gpui-box/src/retained/responsive.rs',
@@ -50,6 +51,7 @@ try {
         'tooling/rendering-perf/src/retained_paint_store.rs',
         'tooling/rendering-perf/src/retained_extraction.rs',
         'tooling/rendering-perf/src/retained_validation.rs',
+        'tooling/rendering-perf/src/retained_hit_index.rs',
         'tooling/rendering-perf/run-retained-gpu.ps1')
     $hashes = foreach ($source in $sources) {
         [ordered]@{path = $source; sha256 = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash}

@@ -22,7 +22,7 @@ mod extraction;
 mod extraction_tests;
 mod measure;
 mod paint_store;
-pub use paint_store::{FrameBuildPolicy, FrameBuildStats, PaintItems};
+pub use paint_store::{FrameBuildPolicy, FrameBuildStats, HitTestStats, PaintItems};
 #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
 pub mod paragraph;
 #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
@@ -101,14 +101,10 @@ pub struct FramePacket {
 
 impl FramePacket {
     pub fn hit_test(&self, x: f32, y: f32) -> Option<NodeId> {
-        self.items
-            .iter()
-            .rev()
-            .find(|item| {
-                let b = item.visible_bounds();
-                x >= b.x && y >= b.y && x < b.x + b.width && y < b.y + b.height
-            })
-            .map(|item| item.node)
+        self.items.hit_test(x, y).0
+    }
+    pub fn hit_test_with_stats(&self, x: f32, y: f32) -> (Option<NodeId>, HitTestStats) {
+        self.items.hit_test(x, y)
     }
 }
 
