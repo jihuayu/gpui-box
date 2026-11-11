@@ -1,0 +1,34 @@
+# Rust and distribution output
+/target/
+/dist/
+
+# Android and Gradle local state
+.gradle/
+.kotlin/
+.cxx/
+**/build/
+local.properties
+captures/
+*.apk
+*.aab
+*.apks
+
+# Local credentials and signing material
+.env
+.env.*
+!.env.example
+mise.local.toml
+.mise.local.toml
+*.keystore
+*.jks
+*.p12
+*.pem
+key.properties
+keystore.properties
+
+# Editor and operating-system state
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp

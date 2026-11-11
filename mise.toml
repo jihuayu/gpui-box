@@ -1,0 +1,33 @@
+min_version = "2026.7.5"
+
+[tools]
+rust = "1.98.1"
+java = "temurin-17.0.21+9"
+"cargo:cargo-ndk" = "4.1.2"
+
+[tasks."setup:rust"]
+description = "Install Rust components and first-phase Android targets"
+run = [
+  "rustup component add rustfmt clippy",
+  "rustup target add aarch64-linux-android x86_64-linux-android",
+]
+
+[tasks.doctor]
+description = "Report development tools and installed Rust targets"
+run = [
+  "mise --version",
+  "git --version",
+  "rustc --version",
+  "cargo --version",
+  "java -version",
+  "cargo ndk --version",
+  "rustup target list --installed",
+]
+
+[tasks.check]
+description = "Validate the planning repository configuration and whitespace"
+run = [
+  "mise tasks validate",
+  "git diff --check",
+  "git diff --cached --check",
+]
