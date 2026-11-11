@@ -27,6 +27,8 @@ pub struct RetainedDemo {
     opacity: Signal<f32>,
     #[cfg(feature = "retained-wgpu")]
     presented_image: Rc<RefCell<Option<std::sync::Arc<RenderImage>>>>,
+    #[cfg(feature = "retained-wgpu")]
+    frame_queue: std::sync::Arc<gpui_box::retained::frame_queue::FrameQueue>,
 }
 
 impl RetainedDemo {
@@ -225,6 +227,8 @@ impl RetainedDemo {
             opacity,
             #[cfg(feature = "retained-wgpu")]
             presented_image: Rc::new(RefCell::new(None)),
+            #[cfg(feature = "retained-wgpu")]
+            frame_queue: std::sync::Arc::new(gpui_box::retained::frame_queue::FrameQueue::new()),
         }
     }
 
@@ -255,6 +259,8 @@ impl Render for RetainedDemo {
         let gpu = self.gpu.clone();
         #[cfg(feature = "retained-wgpu")]
         let presented_image = self.presented_image.clone();
+        #[cfg(feature = "retained-wgpu")]
+        let frame_queue = self.frame_queue.clone();
         #[cfg(feature = "retained-wgpu")]
         let effect_button = self.gpu.as_ref().map(|_| {
             div()
@@ -440,9 +446,14 @@ impl Render for RetainedDemo {
                                 (f32::from(bounds.size.width) * scale).ceil().max(1.0) as u32,
                                 (f32::from(bounds.size.height) * scale).ceil().max(1.0) as u32,
                             ];
-                            gpu.borrow_mut()
-                                .submit(&frame, surface, scale)
-                                .expect("submit UI frame to GPU");
+                            frame_queue.publish(frame.clone()).expect("publish visual packet");
+                            if let Some(packet) = frame_queue.take_latest().expect("consume visual packet") {
+                                gpu.borrow_mut().submit(&packet, surface, scale).expect("submit UI frame to GPU");
+                            } else {
+                                // Scale/surface demand can change without a new
+                                // logical revision; same-packet submit handles it.
+                                gpu.borrow_mut().submit(&frame, surface, scale).expect("refresh surface geometry");
+                            }
                         }
                         #[cfg(feature = "retained-wgpu")]
                         let raster = gpu

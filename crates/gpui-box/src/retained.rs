@@ -13,6 +13,7 @@ pub use taffy::Style;
 use taffy::prelude::*;
 pub use taffy::style_helpers::{length, percent};
 pub mod arena;
+pub mod frame_queue;
 pub mod logical;
 mod measure;
 pub use measure::{CustomMeasureSnapshot, ImageIntrinsicSize, LayoutStats, MeasureSnapshot};
@@ -237,6 +238,7 @@ pub enum Error {
     InvalidBreakpoint,
     UnsafeContainerQuery,
     InvalidPrimitive,
+    FrameQueuePoisoned,
 }
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

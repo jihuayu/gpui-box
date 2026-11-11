@@ -233,13 +233,15 @@ impl WgpuFrameRenderer {
         {
             return Err(Error::StaleFrame);
         }
+        // Completion collection must also run on equal frames: no new visual
+        // submission is required to retire the previous immutable frame leases.
+        self.collect()?;
         if self.source == Some((frame.tree, frame.revision))
             && self.scale == scale
             && self.surface == surface
         {
             return Ok(None);
         }
-        self.collect()?;
         let full_resync = self.source.is_none()
             || self.source != frame.base_revision.map(|revision| (frame.tree, revision))
             || self.scale != scale;

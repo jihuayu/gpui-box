@@ -21,6 +21,8 @@ The [decorated quad stage](RETAINED_DECORATED_QUADS.md) adds uniform rounded
 fills/inside borders and explicit update-route reasons.
 The [material patch stage](RETAINED_MATERIAL_PATCH.md) preserves command identity
 for supported solid/decorated color changes while updating the owned material.
+The [visual frame queue stage](RETAINED_FRAME_QUEUE.md) coalesces pending output,
+checks skipped-base resync and verifies old-snapshot completion retirement.
 
 ## Current integrated foundation
 
@@ -70,7 +72,7 @@ click test passed pixel comparison at the actual window scale.
 | Text / images / complex primitives | Solid/decorated quads with uniform rounded corners/inside borders; legacy GPUI functionality; owned intrinsic image/fixed-content measurement | Retained glyph/image/path/shadow types, decoded resources, font epochs, shaping/wrapping and corresponding pixels |
 | Flex / responsive contract | Opt-in validated Flex subset, separate layout/scale environment, threshold-equality rules, RTL/actual-window resize, bounded fixed content-box queries with dependency rejection | Broad Flex conformance/rounding, full environment subscriptions, constraint builders, general query dependency graph and adaptive structures; indexed rule dispatch |
 | Damage / cache / compositor | Old/new clipped ink/effect damage; preserved offscreen target, scissored clear/replay; Full/Damage/area-threshold Auto; isolated layer content cache and cached/uncached A/B; live-layer 256 MiB guard | Tight layer bounds, cross-frame physical memory accounting, cache admission/LRU, measured cost model, multiple damage regions, native surface buffer-age contract |
-| FramePacket / frames in flight | Owned snapshots plus base-revision deltas, skip-frame resync, stale-frame rejection, bounded queue, completion retirement, explicit poll/finish and renderer reset | Forced device/surface loss, resource epochs, host idle-completion scheduling and producer queue coalescing |
+| FramePacket / frames in flight | Owned snapshots/base deltas, skip-frame resync, stale rejection, single-pending producer coalescing and wake intent, bounded GPU queue, completion/weak-reference retirement, poll/finish/reset | Forced device/surface loss, resource epochs, host wake/idle-completion scheduling and deferring superseded snapshot production |
 
 ## Verification and present limits
 

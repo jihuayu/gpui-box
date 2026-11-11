@@ -9,6 +9,7 @@ mod retained_layers;
 mod retained_logical;
 mod retained_measure;
 mod retained_primitive;
+mod retained_queue;
 mod retained_reactive;
 mod retained_responsive;
 
@@ -652,6 +653,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_measure::run(&mut renderer, &output, &mut results)?;
     retained_responsive::run(&mut renderer, &output, &mut results)?;
     retained_primitive::run(&mut renderer, &output, &mut results)?;
+    retained_queue::run(&mut renderer, &output, &mut results)?;
     fs::write(
         output.join("validation.json"),
         serde_json::to_vec_pretty(&results)?,
