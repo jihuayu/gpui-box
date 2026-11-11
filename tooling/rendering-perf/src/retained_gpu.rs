@@ -7,6 +7,7 @@ use std::{error::Error, fs, path::PathBuf};
 mod retained_bench;
 mod retained_layers;
 mod retained_logical;
+mod retained_measure;
 mod retained_reactive;
 
 fn compare(
@@ -26,6 +27,7 @@ fn compare(
     );
     actual.save(output.join(format!("{name}.png")))?;
     results.push(serde_json::json!({"case":name,"pixel_equal":true,"revision":frame.revision,"layout_runs":frame.layout_runs,"recorded_chunks":frame.recorded_chunks,
+        "leaf_layouts":frame.layout_stats.leaf_layouts,"measure_calls":frame.layout_stats.measure_calls,
         "reference": if frame.properties.effects.is_empty() { "original full GPUI renderer" } else { "fresh full isolated renderer; no reused cache" }}));
     Ok(())
 }
@@ -644,6 +646,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_layers::run(&mut renderer, &output, &mut results)?;
     retained_reactive::run(&mut renderer, &output, &mut results)?;
     retained_logical::run(&mut renderer, &output, &mut results)?;
+    retained_measure::run(&mut renderer, &output, &mut results)?;
     fs::write(
         output.join("validation.json"),
         serde_json::to_vec_pretty(&results)?,

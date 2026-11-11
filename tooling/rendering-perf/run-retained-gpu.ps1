@@ -11,6 +11,7 @@ try {
         'crates/gpui-box/src/retained/arena.rs', 'crates/gpui-box/src/retained/wgpu.rs', 'crates/gpui-box/src/retained/properties.rs',
         'crates/gpui-box/src/retained/reactive.rs',
         'crates/gpui-box/src/retained/logical.rs',
+        'crates/gpui-box/src/retained/measure.rs',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained.rs',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer.rs',
         'crates/gpui-box/src/retained/wgpu/composition.rs',
@@ -18,7 +19,7 @@ try {
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/layers.wgsl',
         'tooling/rendering-perf/src/retained_gpu.rs', 'tooling/rendering-perf/src/retained_bench.rs',
         'tooling/rendering-perf/src/retained_layers.rs', 'tooling/rendering-perf/src/retained_reactive.rs',
-        'tooling/rendering-perf/src/retained_logical.rs')
+        'tooling/rendering-perf/src/retained_logical.rs', 'tooling/rendering-perf/src/retained_measure.rs')
     $hashes = foreach ($source in $sources) {
         [ordered]@{path = $source; sha256 = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash}
     }

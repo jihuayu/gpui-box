@@ -1,7 +1,8 @@
 //! Normal GPUI event → retained transaction → persistent layout → paint adapter.
 use gpui::*;
 use gpui_box::retained::{
-    BackendCapabilities, DisplayCommand, Rect, Style, Transaction, UiTree, length,
+    BackendCapabilities, CustomMeasureSnapshot, DisplayCommand, MeasureSnapshot, Rect, Style,
+    Transaction, UiTree, length,
     logical::LogicalUi,
     reactive::{Property, Signal},
     taffy,
@@ -12,6 +13,7 @@ pub struct RetainedDemo {
     tree: Rc<RefCell<LogicalUi>>,
     color: Signal<u32>,
     scroll: Signal<[f32; 2]>,
+    measure: Signal<Option<MeasureSnapshot>>,
     last_commit: String,
     reversed: bool,
     #[cfg(test)]
@@ -94,6 +96,34 @@ impl RetainedDemo {
         tree.bind(color, Property::color(tile)).expect("bind color");
         tree.bind(scroll, Property::scroll(viewport))
             .expect("bind scroll");
+        let measure = tree
+            .state(root_scope, 3, || {
+                Some(MeasureSnapshot::Fixed(CustomMeasureSnapshot {
+                    width: 24.0,
+                    height: 12.0,
+                    baseline: None,
+                }))
+            })
+            .unwrap();
+        let measured = tree
+            .append_render(
+                root_scope,
+                tree.root_render(),
+                Style {
+                    position: taffy::Position::Absolute,
+                    inset: taffy::Rect {
+                        left: length(128.0),
+                        top: length(4.0),
+                        right: taffy::LengthPercentageAuto::auto(),
+                        bottom: taffy::LengthPercentageAuto::auto(),
+                    },
+                    ..Default::default()
+                },
+                0xdd66aaff,
+            )
+            .expect("create measured leaf");
+        tree.bind(measure, Property::measure(measured))
+            .expect("bind owned measurement");
         #[cfg(feature = "retained-wgpu")]
         let opacity = {
             let opacity = tree.state(root_scope, 2, || 1.0).unwrap();
@@ -135,6 +165,7 @@ impl RetainedDemo {
             tree: Rc::new(RefCell::new(tree)),
             color,
             scroll,
+            measure,
             last_commit: "Ready".into(),
             reversed: false,
             #[cfg(test)]
@@ -290,6 +321,26 @@ impl Render for RetainedDemo {
                     })),
             )
             .children(effect_button)
+            .child(
+                div()
+                    .id("retained-measure")
+                    .debug_selector(|| "retained-measure".into())
+                    .cursor_pointer()
+                    .child("Update owned intrinsic measurement")
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        let measure = this.measure;
+                        let result = this.tree.borrow_mut().transaction(|tx| {
+                            let large = matches!(tx.read(measure)?, Some(MeasureSnapshot::Fixed(value)) if value.width == 24.0);
+                            tx.set(measure, Some(MeasureSnapshot::Fixed(CustomMeasureSnapshot {
+                                width: if large { 48.0 } else { 24.0 },
+                                height: if large { 20.0 } else { 12.0 },
+                                baseline: None,
+                            })))?;
+                            Ok(())
+                        }).expect("commit intrinsic input");
+                        if result.commit.request_frame { cx.notify(); }
+                    })),
+            )
             .child(
                 div()
                     .id("retained-keyed")
@@ -516,6 +567,21 @@ mod tests {
             );
             assert_eq!(output.recorded_chunks, 0);
         });
+        let measured = cx.debug_bounds("retained-measure").unwrap();
+        cx.simulate_click(measured.center(), Modifiers::default());
+        cx.run_until_parked();
+        view.read_with(cx, |view, _| {
+            let tree = view.tree.borrow();
+            let frame = tree.published_frame().unwrap();
+            assert_eq!((frame.layout_runs, frame.recorded_chunks), (1, 0));
+            assert!(frame.layout_stats.measure_calls > 0);
+            assert!(
+                frame
+                    .items
+                    .iter()
+                    .any(|item| item.bounds.width == 48.0 && item.bounds.height == 20.0)
+            );
+        });
     }
 
     #[cfg(feature = "retained-wgpu")]
@@ -624,6 +690,22 @@ mod tests {
         assert!(
             actual.as_raw() == reference.as_raw(),
             "normal keyed click reaches GPU"
+        );
+        let measure = cx.debug_bounds("retained-measure").unwrap();
+        cx.simulate_click(measure.center(), Modifiers::default());
+        cx.run_until_parked();
+        let measured = view.read_with(cx, |view, _| {
+            view.tree.borrow().published_frame().unwrap().clone()
+        });
+        let actual = gpu.borrow_mut().image().unwrap();
+        let reference = gpu
+            .borrow_mut()
+            .reference_image(&measured, [actual.width(), actual.height()], scale)
+            .unwrap();
+        assert_eq!((measured.layout_runs, measured.recorded_chunks), (1, 0));
+        assert!(
+            actual.as_raw() == reference.as_raw(),
+            "normal measure click reaches GPU"
         );
     }
 }

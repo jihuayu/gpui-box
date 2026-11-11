@@ -14,6 +14,8 @@ use taffy::prelude::*;
 pub use taffy::style_helpers::{length, percent};
 pub mod arena;
 pub mod logical;
+mod measure;
+pub use measure::{CustomMeasureSnapshot, ImageIntrinsicSize, LayoutStats, MeasureSnapshot};
 mod properties;
 pub mod reactive;
 pub use properties::{Damage, PropertyNode, PropertyState, PropertyTrees};
@@ -60,6 +62,7 @@ pub struct FramePacket {
     pub items: Arc<[PaintItem]>,
     pub layout_runs: u64,
     pub recorded_chunks: u64,
+    pub layout_stats: LayoutStats,
     pub updates: Arc<[PaintItem]>,
     pub removed: Arc<[NodeId]>,
     pub order: Option<Arc<[NodeId]>>,
@@ -113,6 +116,7 @@ pub enum Patch {
     Clip(NodeId, Option<Rect>),
     Scroll(NodeId, [f32; 2]),
     Opacity(NodeId, f32),
+    Measure(NodeId, Option<MeasureSnapshot>),
 }
 
 impl Patch {
@@ -124,7 +128,8 @@ impl Patch {
             | Self::Reorder(id, _)
             | Self::Clip(id, _)
             | Self::Scroll(id, _)
-            | Self::Opacity(id, _) => *id,
+            | Self::Opacity(id, _)
+            | Self::Measure(id, _) => *id,
         }
     }
 }
@@ -156,6 +161,10 @@ impl Transaction {
     pub fn opacity(&mut self, node: NodeId, opacity: f32) {
         self.patches.push(Patch::Opacity(node, opacity));
     }
+    /// Replace an owned intrinsic input. Only leaf render nodes accept measures.
+    pub fn measure(&mut self, node: NodeId, snapshot: Option<MeasureSnapshot>) {
+        self.patches.push(Patch::Measure(node, snapshot));
+    }
     /// Reorder the existing children of one parent, preserving their identity.
     pub fn reorder(&mut self, parent: NodeId, children: Vec<NodeId>) {
         self.patches.push(Patch::Reorder(parent, children));
@@ -183,6 +192,8 @@ pub enum Error {
     InvalidScope,
     DuplicateKey,
     ScopeInUse,
+    InvalidMeasure,
+    MeasuredNodeHasChildren,
 }
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -207,6 +218,7 @@ struct Node {
     clip: Option<Rect>,
     scroll: [f32; 2],
     opacity: f32,
+    measure: Option<MeasureSnapshot>,
 }
 struct Slot {
     generation: u64,
@@ -218,7 +230,7 @@ pub struct UiTree {
     identity: u64,
     slots: Vec<Slot>,
     free: Vec<usize>,
-    layout: TaffyTree<()>,
+    layout: TaffyTree<MeasureSnapshot>,
     root: NodeId,
     revision: u64,
     dirty: bool,
@@ -236,6 +248,7 @@ struct Pending {
     clip: Option<Option<Rect>>,
     scroll: Option<[f32; 2]>,
     opacity: Option<f32>,
+    measure: Option<Option<MeasureSnapshot>>,
 }
 
 impl UiTree {
@@ -267,6 +280,7 @@ impl UiTree {
                     clip: None,
                     scroll: [0.0; 2],
                     opacity: 1.0,
+                    measure: None,
                 }),
             }],
             free: vec![],
@@ -314,6 +328,9 @@ impl UiTree {
     }
 
     pub fn append(&mut self, parent: NodeId, style: Style, rgba: u32) -> Result<NodeId, Error> {
+        if self.node(parent)?.measure.is_some() {
+            return Err(Error::MeasuredNodeHasChildren);
+        }
         let parent_layout = self.node(parent)?.layout;
         let next = self
             .revision
@@ -344,6 +361,7 @@ impl UiTree {
             clip: None,
             scroll: [0.0; 2],
             opacity: 1.0,
+            measure: None,
         });
         self.node_mut(parent).children.push(id);
         self.revision = next;
@@ -424,6 +442,15 @@ impl UiTree {
                     }
                     entry.opacity = Some(opacity);
                 }
+                Patch::Measure(_, snapshot) => {
+                    if let Some(snapshot) = &snapshot {
+                        snapshot.validate()?;
+                        if !self.node(id)?.children.is_empty() {
+                            return Err(Error::MeasuredNodeHasChildren);
+                        }
+                    }
+                    entry.measure = Some(snapshot);
+                }
                 Patch::Reorder(_, children) => {
                     let mut previous = self.node(id)?.children.clone();
                     let mut proposed = children.clone();
@@ -454,7 +481,16 @@ impl UiTree {
                 .children
                 .as_ref()
                 .is_some_and(|children| *children != node.children);
-            if style_changed || color_changed || property_changed || structure_changed {
+            let measure_changed = entry
+                .measure
+                .as_ref()
+                .is_some_and(|value| *value != node.measure);
+            if style_changed
+                || color_changed
+                || property_changed
+                || structure_changed
+                || measure_changed
+            {
                 changed.push((
                     id,
                     entry,
@@ -462,6 +498,7 @@ impl UiTree {
                     color_changed,
                     property_changed,
                     structure_changed,
+                    measure_changed,
                 ));
             }
         }
@@ -478,8 +515,15 @@ impl UiTree {
             request_frame: true,
             routes: vec![],
         };
-        for (id, entry, style_changed, color_changed, property_changed, structure_changed) in
-            changed
+        for (
+            id,
+            entry,
+            style_changed,
+            color_changed,
+            property_changed,
+            structure_changed,
+            measure_changed,
+        ) in changed
         {
             if structure_changed {
                 let children = entry.children.expect("changed children");
@@ -492,11 +536,21 @@ impl UiTree {
                 self.layout_dirty = true;
                 result.routes.push((id, UpdatePath::ReconcileStructure));
             }
-            if style_changed {
-                let style = *entry.style.expect("changed style");
+            if style_changed || measure_changed {
+                let node = self.node(id)?;
+                let style = entry
+                    .style
+                    .map(|style| *style)
+                    .unwrap_or_else(|| node.style.clone());
+                let snapshot = entry.measure.unwrap_or_else(|| node.measure.clone());
+                let layout = node.layout;
                 self.layout
-                    .set_style(self.node(id)?.layout, style.clone())?;
+                    .set_style(layout, measure::effective_style(&style, snapshot.as_ref()))?;
+                if measure_changed {
+                    self.layout.set_node_context(layout, snapshot.clone())?;
+                }
                 self.node_mut(id).style = style;
+                self.node_mut(id).measure = snapshot;
                 self.layout_dirty = true;
                 result.routes.push((id, UpdatePath::Relayout));
             }
@@ -547,15 +601,20 @@ impl UiTree {
             let mut cached = self.frame.as_ref().expect("prepared frame").clone();
             cached.layout_runs = 0;
             cached.recorded_chunks = 0;
+            cached.layout_stats = LayoutStats::default();
             return Ok(cached);
         }
         let layout_runs = u64::from(self.layout_dirty);
+        let mut layout_stats = LayoutStats::default();
         if self.layout_dirty {
-            self.layout.compute_layout(
+            self.layout.compute_layout_with_measure(
                 self.node(self.root)?.layout,
                 Size {
                     width: AvailableSpace::Definite(viewport[0]),
                     height: AvailableSpace::Definite(viewport[1]),
+                },
+                |inputs, _, snapshot, style| {
+                    measure::layout_leaf(inputs, snapshot.as_deref(), style, &mut layout_stats)
                 },
             )?;
         }
@@ -696,6 +755,7 @@ impl UiTree {
             items: items.into(),
             layout_runs,
             recorded_chunks,
+            layout_stats,
             updates: updates.into(),
             removed: removed.into(),
             order: order_changed.then(|| order.into()),

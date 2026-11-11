@@ -1,0 +1,53 @@
+{
+  "started_at": "2026-11-11T19:09:44.2655302+08:00",
+  "base_commit": "c4b1f408486b771635ec380e416f46de7ac90b8d",
+  "cpu": {
+    "Name": "AMD Ryzen 7 4800H with Radeon Graphics         ",
+    "NumberOfCores": 8,
+    "NumberOfLogicalProcessors": 16
+  },
+  "os": {
+    "Caption": "Microsoft Windows 11 企业版 LTSC",
+    "Version": "10.0.26100",
+    "BuildNumber": "26100"
+  },
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.1\nLLVM version: 22.1.8",
+  "source_hashes": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "3A0346E016F8D1B0DA669A6FAB1A97B788EADF4449DCF74397DE7B21A3DA14A8"
+    },
+    {
+      "path": "crates/gpui-box/src/retained.rs",
+      "sha256": "3589F3F53235347304C2B04B496F38191C2EC0437CCCD5539416F021C1C6DC69"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/measure.rs",
+      "sha256": "BA0FF25DA180EF4DC1E3BF673355FB2777E2909100779A6F7DA3B8B5D5F3E5E3"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/properties.rs",
+      "sha256": "A06C9993E400EBF2E7E66589A76A07CD4F3EB5900ED281B15AF34952C51FE91F"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/logical.rs",
+      "sha256": "C44DB1DD0998A7884EF94142CA18DA0B2A76D6543293E7F339A82841F6C332BA"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive.rs",
+      "sha256": "43FA7D7392AA57764DA9781D82A8703E960FBFB1163037570AAFF48021273B64"
+    },
+    {
+      "path": "tooling/rendering-perf/src/measure.rs",
+      "sha256": "CD0680B3291E68E1C576CFC705D8DA8C681B5662D20F0B5DD0A3CDEB36F2F295"
+    },
+    {
+      "path": "tooling/rendering-perf/Cargo.toml",
+      "sha256": "A0C9E13E4F259EBC9B045D458DFA4CA726BAFD224C108B866FA96E268A4A5DA6"
+    },
+    {
+      "path": "tooling/rendering-perf/run-measure.ps1",
+      "sha256": "73C9BF1D9F34B90B24A0F22A520931F86453793301F20F208511B714AA817C25"
+    }
+  ]
+}

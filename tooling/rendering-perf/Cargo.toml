@@ -43,3 +43,8 @@ required-features = ["retained-gpu"]
 name = "reactive-runtime-perf"
 path = "src/reactive.rs"
 required-features = ["retained-runtime"]
+
+[[bin]]
+name = "measure-runtime-perf"
+path = "src/measure.rs"
+required-features = ["retained-runtime"]

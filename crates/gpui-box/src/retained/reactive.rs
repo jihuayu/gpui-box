@@ -36,6 +36,7 @@ enum Field {
     Clip,
     Scroll,
     Opacity,
+    Measure,
 }
 
 /// Typed property endpoint. A render property has at most one signal writer.
@@ -93,6 +94,15 @@ impl Property<f32> {
             node,
             field: Field::Opacity,
             write: |node, value, tx| tx.opacity(node, *value),
+        }
+    }
+}
+impl Property<Option<MeasureSnapshot>> {
+    pub fn measure(node: NodeId) -> Self {
+        Self {
+            node,
+            field: Field::Measure,
+            write: |node, value, tx| tx.measure(node, value.clone()),
         }
     }
 }
