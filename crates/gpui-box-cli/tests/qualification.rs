@@ -119,7 +119,7 @@ impl Qualification {
             true,
         )?;
         let mut applications = Vec::new();
-        for template in ["starter", "adaptive"] {
+        for template in ["starter", "adaptive", "component"] {
             for targets in ["desktop", "android", "desktop,android"] {
                 let label = format!("{template}-{}", targets.replace(',', "-"));
                 let app = workspace.join(format!("Application {label} 有 空格"));

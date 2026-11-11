@@ -60,19 +60,22 @@ fn portable_path(value: &str) -> String {
 pub enum Template {
     Starter,
     Adaptive,
+    Component,
 }
 impl Template {
     pub fn parse(value: &str) -> Result<Self, String> {
         match value {
             "starter" => Ok(Self::Starter),
             "adaptive" => Ok(Self::Adaptive),
-            _ => Err("--template supports starter and adaptive".into()),
+            "component" => Ok(Self::Component),
+            _ => Err("--template supports starter, adaptive and component".into()),
         }
     }
     pub fn id(self) -> &'static str {
         match self {
             Self::Starter => "starter",
             Self::Adaptive => "adaptive",
+            Self::Component => "component",
         }
     }
 }
@@ -806,6 +809,7 @@ fn generate_inner(
             match template {
                 Template::Starter => include_bytes!("../../../templates/app.rs").as_slice(),
                 Template::Adaptive => include_bytes!("../../../templates/adaptive.rs").as_slice(),
+                Template::Component => include_bytes!("../../../templates/component.rs").as_slice(),
             },
         )?;
         if config.targets.iter().any(|target| target == "desktop") {
@@ -852,6 +856,7 @@ fn generate_inner(
             format!("Template {} v1. Configured targets are {}. Platform commands below apply when their target is enabled.\n\n{}{}", template.id(), config.targets.join(", "), include_str!("../../../templates/README.md"), match template {
                 Template::Starter => "",
                 Template::Adaptive => "\n## Adaptive example\n\nThe shared application retains its selected item and input entity across compact/wide layout changes. Compact navigation opens one detail page with Back, Escape and Android back handling. Wide layouts show both panes. Change the window width or rotate Android to exercise the 720 logical-pixel breakpoint. Keep business persistence in an application service. Process-death restoration requires the documented snapshot hooks.\n",
+                Template::Component => "\n## Component author preview\n\nEdit the specimen in app/src/lib.rs while retaining shared input/focus/semantic behavior in gpui-box-components. The preview exposes dark/light, high contrast, reduced motion and large-text states, an editable field, checkbox and activation counter. Resize across 720 logical pixels or rotate Android for compact/wide layout. Use Tab/Shift+Tab, Enter/Space and Escape to inspect keyboard behavior. Confirm labels and checked states with the platform accessibility tree, then run an actual screen reader separately. Preview state survives window resizing and Android Activity recreation. Process-death persistence and registry publication require their own integration.\n",
             }).as_bytes(),
         )?;
     }
