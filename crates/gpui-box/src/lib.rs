@@ -103,6 +103,10 @@ pub use gpui_tray as tray;
 #[cfg(feature = "dnd")]
 pub use gpui_dnd as dnd;
 
+/// System proxy, trust, connectivity and scoped revalidation policy.
+#[cfg(feature = "network")]
+pub use gpui_network as network;
+
 /// Taskbar, Dock, badge, attention and notification task presentation.
 #[cfg(feature = "task-presentation")]
 pub use gpui_task_presentation as task_presentation;
@@ -144,6 +148,21 @@ mod tests {
         assert_eq!(crate::dnd::platform_support_matrix().len(), 36);
         assert_eq!(crate::dnd::DEFAULT_DND_EVENT_CAPACITY, 64);
         assert_eq!(crate::dnd::MAX_ACTIVE_STREAM_LEASES, 64);
+    }
+
+    #[cfg(feature = "network")]
+    #[test]
+    fn network_facade_reexports_the_coordinated_contracts() {
+        assert_eq!(
+            crate::network::UPSTREAM_GPUI_REVISION,
+            crate::UPSTREAM_REVISION
+        );
+        assert_eq!(crate::network::PACKAGE_VERSION, crate::VERSION);
+        assert_eq!(crate::network::NetworkOperation::ALL.len(), 6);
+        assert_eq!(crate::network::PlatformTarget::ALL.len(), 6);
+        assert_eq!(crate::network::platform_support_matrix().len(), 36);
+        assert_eq!(crate::network::DEFAULT_NETWORK_EVENT_CAPACITY, 64);
+        assert_eq!(crate::network::MAX_PROXY_AUTH_ATTEMPTS, 2);
     }
 
     #[cfg(feature = "task-presentation")]

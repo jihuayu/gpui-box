@@ -1,0 +1,29 @@
+[package]
+name = "gpui-network"
+description = "System proxy resolution, trust policy, connectivity, captive-portal and scoped revalidation contracts for gpui-box"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+gpui = ["dep:gpui", "gpui-system/gpui", "gpui-lifecycle/gpui"]
+
+[dependencies]
+gpui-system = { workspace = true }
+gpui-lifecycle = { workspace = true }
+gpui-secrets = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }
+gpui = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json = "1.0"
+
+[target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }
+
+[lints]
+workspace = true
