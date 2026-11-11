@@ -11,6 +11,8 @@ try {
         'examples/hello/src/retained_demo/delivery_check.rs',
         'examples/desktop/src/main.rs',
         'crates/gpui-box/src/retained/arena.rs', 'crates/gpui-box/src/retained/wgpu.rs', 'crates/gpui-box/src/retained/properties.rs',
+        'crates/gpui-box/src/retained/properties/store.rs',
+        'crates/gpui-box/src/retained/properties/store/tests.rs',
         'crates/gpui-box/src/retained/wgpu/validation.rs',
         'crates/gpui-box/src/retained/reactive.rs',
         'crates/gpui-box/src/retained/edit.rs',
@@ -76,6 +78,9 @@ try {
         'tooling/rendering-perf/src/retained_glyph_bench.rs',
         'tooling/rendering-perf/src/retained_paint_store.rs',
         'tooling/rendering-perf/src/retained_extraction.rs',
+        'tooling/rendering-perf/src/properties.rs',
+        'tooling/rendering-perf/src/retained_properties.rs',
+        'tooling/rendering-perf/src/retained_property_gpu.rs',
         'tooling/rendering-perf/src/retained_validation.rs',
         'tooling/rendering-perf/src/retained_hit_index.rs',
         'tooling/rendering-perf/run-retained-gpu.ps1')

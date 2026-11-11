@@ -1,5 +1,7 @@
 //! Shared sparse visual-property chains and conservative frame damage.
 use super::*;
+mod store;
+pub use store::{PropertyIter, PropertyMap};
 
 impl Rect {
     pub fn intersect(self, other: Self) -> Self {
@@ -70,10 +72,89 @@ pub struct PropertyNode<T> {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct PropertyTrees {
-    pub transforms: BTreeMap<NodeId, PropertyNode<[f32; 2]>>,
-    pub clips: BTreeMap<NodeId, PropertyNode<Rect>>,
-    pub scrolls: BTreeMap<NodeId, PropertyNode<[f32; 2]>>,
-    pub effects: BTreeMap<NodeId, PropertyNode<f32>>,
+    pub transforms: PropertyMap<[f32; 2]>,
+    pub clips: PropertyMap<Rect>,
+    pub scrolls: PropertyMap<[f32; 2]>,
+    pub effects: PropertyMap<f32>,
+}
+
+pub(super) trait PropertyOutput {
+    fn record(
+        &mut self,
+        id: NodeId,
+        transform: Option<PropertyNode<[f32; 2]>>,
+        clip: Option<PropertyNode<Rect>>,
+        scroll: Option<PropertyNode<[f32; 2]>>,
+        effect: Option<PropertyNode<f32>>,
+    );
+}
+
+impl PropertyOutput for PropertyTrees {
+    fn record(
+        &mut self,
+        id: NodeId,
+        transform: Option<PropertyNode<[f32; 2]>>,
+        clip: Option<PropertyNode<Rect>>,
+        scroll: Option<PropertyNode<[f32; 2]>>,
+        effect: Option<PropertyNode<f32>>,
+    ) {
+        fn set<T: Clone + PartialEq>(
+            map: &mut PropertyMap<T>,
+            id: NodeId,
+            value: Option<PropertyNode<T>>,
+        ) {
+            if let Some(value) = value {
+                map.insert(id, value);
+            } else {
+                map.remove(&id);
+            }
+        }
+        set(&mut self.transforms, id, transform);
+        set(&mut self.clips, id, clip);
+        set(&mut self.scrolls, id, scroll);
+        set(&mut self.effects, id, effect);
+    }
+}
+
+#[derive(Default)]
+pub(super) struct PropertyBuilder {
+    transforms: Vec<(NodeId, PropertyNode<[f32; 2]>)>,
+    clips: Vec<(NodeId, PropertyNode<Rect>)>,
+    scrolls: Vec<(NodeId, PropertyNode<[f32; 2]>)>,
+    effects: Vec<(NodeId, PropertyNode<f32>)>,
+}
+impl PropertyOutput for PropertyBuilder {
+    fn record(
+        &mut self,
+        id: NodeId,
+        transform: Option<PropertyNode<[f32; 2]>>,
+        clip: Option<PropertyNode<Rect>>,
+        scroll: Option<PropertyNode<[f32; 2]>>,
+        effect: Option<PropertyNode<f32>>,
+    ) {
+        if let Some(value) = transform {
+            self.transforms.push((id, value));
+        }
+        if let Some(value) = clip {
+            self.clips.push((id, value));
+        }
+        if let Some(value) = scroll {
+            self.scrolls.push((id, value));
+        }
+        if let Some(value) = effect {
+            self.effects.push((id, value));
+        }
+    }
+}
+impl PropertyBuilder {
+    pub(super) fn finish(self) -> PropertyTrees {
+        PropertyTrees {
+            transforms: PropertyMap::from_entries(self.transforms),
+            clips: PropertyMap::from_entries(self.clips),
+            scrolls: PropertyMap::from_entries(self.scrolls),
+            effects: PropertyMap::from_entries(self.effects),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]

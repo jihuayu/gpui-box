@@ -13,9 +13,10 @@ unchanged parent's published origin, intersected clip and property ancestry,
 including the parent's clamped scroll offset. Old property entries inside the
 subtree are removed before extraction; newly active chains replace them.
 Removing a transform, clip, scroll or opacity node correctly reconnects its
-descendants to inherited chains. Properties remain sparse immutable maps, copied
-when any visible property subtree changes. This map copy scales with the total
-property count; GPU property resolution remains separate acceptance work.
+descendants to inherited chains. The [persistent-map follow-up](RETAINED_PERSISTENT_PROPERTIES.md)
+replaces the original whole-map copy with shared immutable AVL paths. Extraction
+sets or removes each current entry directly, retaining equal entries and roots;
+GPU property resolution remains separate acceptance work.
 
 Comparison only visits extracted candidates. Paint changes enter the GPU item
 delta. Property ancestry changes patch the immutable pages even if geometry is

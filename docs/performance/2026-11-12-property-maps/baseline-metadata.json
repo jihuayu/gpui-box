@@ -1,0 +1,34 @@
+{
+  "binary_sha256": "AA907C47638AC53C49B9E43088620A702C657CC58E4822C5F34EB12F1D4B7E72",
+  "base_commit": "6d5c8d97f91342edc0178e1039921ac5099e7934",
+  "source_hashes": [
+    {
+      "sha256": "0CDD2F1663D00D3E86C9E8D9D0292F54E004EAB65580D6EFAD9B7A7E6744B3DD",
+      "path": "crates/gpui-box/src/retained.rs"
+    },
+    {
+      "sha256": "A4E7ACB332E86E66711EC6DE9124B834FFE38EADB6C8EFF3B954BE0AD4C8F167",
+      "path": "crates/gpui-box/src/retained/paint_store.rs"
+    },
+    {
+      "sha256": "07C1F0CE2D760FCEB425EB0EA660B50B2F8C4A51F90950A291109ACC1822E06D",
+      "path": "crates/gpui-box/src/retained/properties.rs"
+    },
+    {
+      "sha256": "4D2E2A2B5077EDAF372D8EDAFEAB64FD44D8C5CD47266FE405DBFE42E2B9C832",
+      "path": "crates/gpui-box/src/retained/extraction.rs"
+    },
+    {
+      "sha256": "3931FE01F09D00792897CF4C336B90944596E169995793E4279F68C294015019",
+      "path": "tooling/rendering-perf/src/properties.rs"
+    },
+    {
+      "sha256": "FB5B5A417CA0DDA39ABA845AFC38EE6BA41EDF5B7BEAE13C1B4D2DEE789E871A",
+      "path": "tooling/rendering-perf/src/retained_properties.rs"
+    },
+    {
+      "sha256": "EBA3F3C4F7BFBB25C4509F0E3EE503C86A7ADF4F74ACDFF9D0ED179C51A2B445",
+      "path": "tooling/rendering-perf/Cargo.toml"
+    }
+  ]
+}

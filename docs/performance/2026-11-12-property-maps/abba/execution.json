@@ -1,0 +1,34 @@
+[
+  {
+    "compile_collisions": [],
+    "exit_code": 0,
+    "label": "old-1",
+    "binary_sha256": "AA907C47638AC53C49B9E43088620A702C657CC58E4822C5F34EB12F1D4B7E72",
+    "started_at": "2026-11-12T03:19:30.1596877+08:00",
+    "finished_at": "2026-11-12T03:19:38.5417420+08:00"
+  },
+  {
+    "compile_collisions": [],
+    "exit_code": 0,
+    "label": "new-1",
+    "binary_sha256": "0731EEC5D1166F919B2D1FAF18135EE17929B47D16E045A72EE62140AC96DC83",
+    "started_at": "2026-11-12T03:19:38.8383732+08:00",
+    "finished_at": "2026-11-12T03:19:45.5131865+08:00"
+  },
+  {
+    "compile_collisions": [],
+    "exit_code": 0,
+    "label": "new-2",
+    "binary_sha256": "0731EEC5D1166F919B2D1FAF18135EE17929B47D16E045A72EE62140AC96DC83",
+    "started_at": "2026-11-12T03:19:45.7753628+08:00",
+    "finished_at": "2026-11-12T03:19:52.1957316+08:00"
+  },
+  {
+    "compile_collisions": [],
+    "exit_code": 0,
+    "label": "old-2",
+    "binary_sha256": "AA907C47638AC53C49B9E43088620A702C657CC58E4822C5F34EB12F1D4B7E72",
+    "started_at": "2026-11-12T03:19:52.4404774+08:00",
+    "finished_at": "2026-11-12T03:19:58.7217916+08:00"
+  }
+]

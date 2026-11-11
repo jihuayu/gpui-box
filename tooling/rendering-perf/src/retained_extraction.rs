@@ -207,6 +207,6 @@ pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
         }
     }
     Ok(
-        serde_json::json!({"scope":"CPU transaction and FramePacket publication on the same persistent tree. Property subtree extraction vs forced full extraction; 3 rotating rounds, 6 warmups + 20 samples per mode per round. Transaction construction, initial layout, GPU consumer/planning/draw/presentation excluded. Complete final items/properties compared outside timing. Page directory and sparse property-map clones remain.","cases":cases}),
+        serde_json::json!({"scope":"CPU transaction and FramePacket publication on the same persistent tree. Property subtree extraction vs forced full extraction; 3 rotating rounds, 6 warmups + 20 samples per mode per round. Transaction construction, initial layout, GPU consumer/planning/draw/presentation excluded. Complete final items/properties compared outside timing. Page directory copied; persistent property maps share unchanged paths.","cases":cases}),
     )
 }

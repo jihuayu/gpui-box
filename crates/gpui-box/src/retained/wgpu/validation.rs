@@ -7,7 +7,7 @@ pub struct ValidationStats {
     pub validated_pages: usize,
     pub reused_pages: usize,
     pub validated_items: usize,
-    /// Effect-reference checks may still walk the scene when property maps change.
+    /// Effect-reference checks may still walk the scene when the effect map changes.
     pub effect_reference_items: usize,
 }
 
@@ -71,7 +71,11 @@ impl ValidationCache {
                     stats.validated_items += 1;
                 }
             }
-            if Arc::ptr_eq(&frame.properties, &old.properties) {
+            if frame
+                .properties
+                .effects
+                .shares_root(&old.properties.effects)
+            {
                 for index in changed {
                     for item in frame.items.pages()[*index].iter() {
                         validate_effect_reference(item, &frame.properties)?;
@@ -382,5 +386,38 @@ mod tests {
         );
         let (_, _, other) = fixture();
         assert!(cache.check(&other, [100; 2], 1.0, true).unwrap().full_scan);
+    }
+
+    #[test]
+    fn independent_property_snapshots_reuse_only_owned_unchanged_effect_roots() {
+        let (mut tree, nodes, _) = fixture();
+        let mut tx = Transaction::default();
+        tx.opacity(nodes[10], 0.5);
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+        let before = tree.frame([100.0; 2]).unwrap();
+        let mut cache = ValidationCache::default();
+        cache.check(&before, [100; 2], 1.0, true).unwrap();
+        let mut tx = Transaction::default();
+        tx.translation(nodes[70], [1.0, 1.0]);
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+        let moved = tree.frame([100.0; 2]).unwrap();
+        assert!(!Arc::ptr_eq(&before.properties, &moved.properties));
+        let stats = cache.check(&moved, [100; 2], 1.0, true).unwrap();
+        assert_eq!(stats.effect_reference_items, 64);
+        let mut malformed = moved.clone();
+        Arc::make_mut(&mut malformed.properties)
+            .effects
+            .remove(&nodes[10]);
+        assert_eq!(
+            cache.check(&malformed, [100; 2], 1.0, true),
+            Err(Error::InvalidFrame)
+        );
+        assert_eq!(
+            cache
+                .check(&moved, [100; 2], 1.0, true)
+                .unwrap()
+                .effect_reference_items,
+            0
+        );
     }
 }

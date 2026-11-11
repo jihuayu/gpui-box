@@ -36,7 +36,9 @@ pub mod reactive;
 pub mod responsive;
 pub use edit::{TreeEdit, TreeEditCommit};
 mod structure;
-pub use properties::{Damage, PropertyNode, PropertyState, PropertyTrees};
+pub use properties::{
+    Damage, PropertyIter, PropertyMap, PropertyNode, PropertyState, PropertyTrees,
+};
 pub use structure::StructureTransaction;
 #[cfg(all(feature = "retained-wgpu", not(target_family = "wasm")))]
 pub mod wgpu;
@@ -905,7 +907,7 @@ impl UiTree {
                 },
             )?;
         }
-        let mut properties = PropertyTrees::default();
+        let mut properties = properties::PropertyBuilder::default();
         let mut recorded_chunks = 0;
         let items = self.extract_subtree(
             self.root,
@@ -920,6 +922,7 @@ impl UiTree {
             &mut properties,
             &mut recorded_chunks,
         )?;
+        let properties = properties.finish();
         let previous: BTreeMap<_, _> = self
             .frame
             .as_ref()

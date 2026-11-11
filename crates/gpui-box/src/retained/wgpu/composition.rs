@@ -130,7 +130,10 @@ impl CompositionCache {
                 && old.items.page_count() == frame.items.page_count()
         });
         let reusable = reusable.is_some_and(|old| {
-            let effects_same = Arc::ptr_eq(&old.properties, &frame.properties)
+            let effects_same = old
+                .properties
+                .effects
+                .shares_root(&frame.properties.effects)
                 || (old.properties.effects.len() == frame.properties.effects.len()
                     && old
                         .properties

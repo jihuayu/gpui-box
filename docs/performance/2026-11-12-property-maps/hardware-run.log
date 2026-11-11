@@ -1,0 +1,38 @@
+   Compiling ztracing v0.1.0 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\ztracing)
+   Compiling ztracing_macro v0.1.0 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\ztracing_macro)
+   Compiling gpui_util v0.1.0 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\gpui_util)
+   Compiling derive_refineable v0.1.0 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\refineable\derive_refineable)
+   Compiling gpui v0.2.2 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\gpui)
+   Compiling scheduler v0.1.0 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\scheduler)
+   Compiling http_client v0.1.0 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\http_client)
+   Compiling gpui_shared_string v0.1.0 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\gpui_shared_string)
+   Compiling gpui_macros v0.1.0 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\gpui_macros)
+warning: linker stdout: 正在创建库 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\release\build\ztracing_macro/6eb23f79695dd41b\out\ztracing_macro-dc71a7ca94a7eca9.dll.lib 和对象 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\release\build\ztracing_macro/6eb23f79695dd41b\out\ztracing_macro-dc71a7ca94a7eca9.dll.exp
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `ztracing_macro` (lib) generated 1 warning
+   Compiling collections v0.1.0 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\collections)
+   Compiling sum_tree v0.1.0 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\sum_tree)
+warning: linker stdout: 正在创建库 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\release\build\derive_refineable/77bf108187bda48b\out\derive_refineable-c5105e4f0aa12865.dll.lib 和对象 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\release\build\derive_refineable/77bf108187bda48b\out\derive_refineable-c5105e4f0aa12865.dll.exp
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `derive_refineable` (lib) generated 1 warning
+   Compiling refineable v0.1.0 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\refineable)
+warning: linker stdout: 正在创建库 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\release\build\gpui_macros/1b4f6d65ef10a743\out\gpui_macros-a027f7b9e7c3e239.dll.lib 和对象 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\release\build\gpui_macros/1b4f6d65ef10a743\out\gpui_macros-a027f7b9e7c3e239.dll.exp
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `gpui_macros` (lib) generated 1 warning
+   Compiling gpui_wgpu v0.1.0 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\gpui_wgpu)
+   Compiling gpui-box v0.1.0-dev (D:\oss\ggpui-worktrees\rendering-performance-research\crates\gpui-box)
+   Compiling gpui-box-rendering-perf v0.1.0-dev (D:\oss\ggpui-worktrees\rendering-performance-research\tooling\rendering-perf)
+    Finished `release` profile [optimized] target(s) in 1m 28s
+Integrated retained GPU Vulkan NVIDIA GeForce GTX 1650 Ti
+162 hardware pixel scenarios passed; one-color bytes=160, batch bytes=480 in one range; bounded frames=3
+grid-576-1080p: [{"policy":"full","completed_frame_mean_us":1198.575833333333,"round_completed_frame_mean_us":[1592.25,1114.0974999999999,889.3800000000001],"speedup_vs_full":1.0,"commit_and_frame":{"median_us":21.2,"p95_us":28.2},"submit_including_backpressure":{"median_us":974.5,"p95_us":2088.3},"redraw_region_pixels":2073600,"draw_calls":1,"uploaded_bytes_per_change":160,"pixel_equal":true},{"policy":"damage","completed_frame_mean_us":354.14666666666665,"round_completed_frame_mean_us":[156.0525,513.9675,392.42],"speedup_vs_full":3.3844052370016184,"commit_and_frame":{"median_us":13.4,"p95_us":27.5},"submit_including_backpressure":{"median_us":223.7,"p95_us":825.0},"redraw_region_pixels":676,"draw_calls":2,"uploaded_bytes_per_change":160,"pixel_equal":true},{"policy":"auto-35pct","completed_frame_mean_us":425.37083333333334,"round_completed_frame_mean_us":[268.825,649.1075,358.18],"speedup_vs_full":2.817719832695001,"commit_and_frame":{"median_us":17.200000000000003,"p95_us":29.099999999999998},"submit_including_backpressure":{"median_us":311.4,"p95_us":1066.2},"redraw_region_pixels":676,"draw_calls":2,"uploaded_bytes_per_change":160,"pixel_equal":true}]
+overdraw-32-1080p: [{"policy":"full","completed_frame_mean_us":5417.7108333333335,"round_completed_frame_mean_us":[6301.0875,4944.5725,5007.4725],"speedup_vs_full":1.0,"commit_and_frame":{"median_us":19.3,"p95_us":30.5},"submit_including_backpressure":{"median_us":4889.799999999999,"p95_us":9886.199999999999},"redraw_region_pixels":2073600,"draw_calls":1,"uploaded_bytes_per_change":160,"pixel_equal":true},{"policy":"damage","completed_frame_mean_us":1170.0466666666666,"round_completed_frame_mean_us":[296.4625,368.71750000000003,2844.96],"speedup_vs_full":4.630337393950099,"commit_and_frame":{"median_us":21.6,"p95_us":36.0},"submit_including_backpressure":{"median_us":340.1,"p95_us":763.6},"redraw_region_pixels":676,"draw_calls":2,"uploaded_bytes_per_change":160,"pixel_equal":true},{"policy":"auto-35pct","completed_frame_mean_us":337.2308333333333,"round_completed_frame_mean_us":[346.59000000000003,454.88,210.2225],"speedup_vs_full":16.06528910711506,"commit_and_frame":{"median_us":19.400000000000002,"p95_us":33.4},"submit_including_backpressure":{"median_us":313.59999999999997,"p95_us":600.5999999999999},"redraw_region_pixels":676,"draw_calls":2,"uploaded_bytes_per_change":160,"pixel_equal":true}]
+overdraw-32-2160p: [{"policy":"full","completed_frame_mean_us":21945.132500000003,"round_completed_frame_mean_us":[22790.0125,22954.1125,20091.2725],"speedup_vs_full":1.0,"commit_and_frame":{"median_us":22.6,"p95_us":53.199999999999996},"submit_including_backpressure":{"median_us":18975.5,"p95_us":67380.09999999999},"redraw_region_pixels":8294400,"draw_calls":1,"uploaded_bytes_per_change":160,"pixel_equal":true},{"policy":"damage","completed_frame_mean_us":695.1299999999999,"round_completed_frame_mean_us":[415.0799999999999,1266.2949999999998,404.015],"speedup_vs_full":31.569825068692197,"commit_and_frame":{"median_us":20.7,"p95_us":31.0},"submit_including_backpressure":{"median_us":346.0,"p95_us":2274.4},"redraw_region_pixels":676,"draw_calls":2,"uploaded_bytes_per_change":160,"pixel_equal":true},{"policy":"auto-35pct","completed_frame_mean_us":1372.9575,"round_completed_frame_mean_us":[2495.3324999999995,418.32,1205.22],"speedup_vs_full":15.98383963086986,"commit_and_frame":{"median_us":20.7,"p95_us":32.9},"submit_including_backpressure":{"median_us":331.59999999999997,"p95_us":3845.7999999999997},"redraw_region_pixels":676,"draw_calls":2,"uploaded_bytes_per_change":160,"pixel_equal":true}]
+Layer cache A/B: {"surface":[1920,1080],"uncached_mean_us":5556.249166666666,"cached_mean_us":522.02,"speedup":10.64374768527387,"uncached_rounds_us":[6246.5199999999995,5192.0175,5230.21],"cached_rounds_us":[586.9725000000001,519.65,459.4375],"instance_upload_bytes":0,"property_upload_bytes":16,"cached_rasterized_layers":0,"pixel_equal":true}
+Layer cache A/B: {"surface":[3840,2160],"uncached_mean_us":20789.103333333336,"cached_mean_us":831.1958333333332,"speedup":25.011077413565804,"uncached_rounds_us":[20766.935,20804.475,20795.9],"cached_rounds_us":[825.9199999999998,841.05,826.6175000000001],"instance_upload_bytes":0,"property_upload_bytes":16,"cached_rasterized_layers":0,"pixel_equal":true}

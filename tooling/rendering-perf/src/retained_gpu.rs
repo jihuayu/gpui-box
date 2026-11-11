@@ -21,6 +21,8 @@ mod retained_logical;
 mod retained_measure;
 mod retained_paint_store;
 mod retained_primitive;
+mod retained_properties;
+mod retained_property_gpu;
 mod retained_queue;
 mod retained_reactive;
 mod retained_responsive;
@@ -679,6 +681,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_text::run(&mut renderer, &output, &mut results)?;
     retained_paint_store::run(&mut renderer, &output, &mut results)?;
     retained_extraction::run(&mut renderer, &output, &mut results)?;
+    retained_property_gpu::run(&mut renderer, &output, &mut results)?;
     retained_validation::run(&mut renderer, &output, &mut results)?;
     retained_image_deltas::run(&mut renderer, &output, &mut results)?;
     retained_composition::run(&mut renderer, &output, &mut results)?;
@@ -734,6 +737,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     fs::write(
         output.join("extraction-benchmark.json"),
         serde_json::to_vec_pretty(&retained_extraction::benchmark()?)?,
+    )?;
+    fs::write(
+        output.join("property-benchmark.json"),
+        serde_json::to_vec_pretty(&retained_properties::benchmark()?)?,
     )?;
     fs::write(
         output.join("validation-benchmark.json"),

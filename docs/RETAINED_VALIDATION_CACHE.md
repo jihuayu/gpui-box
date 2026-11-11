@@ -11,9 +11,11 @@ Node reorder/replacement or scale/tree changes rebuild validation and the index.
 All changed-page items recheck geometry, scale overflow, quad decoration and text
 pairing/scale. Update payloads are checked against the current snapshot through
 the persistent index, including property ancestry. Headers, duplicate updates,
-removals and explicit order remain checked on every call. A changed property-map
-Arc rechecks effect definitions, cycles and all item effect references; otherwise
-only changed-page references need checking. A failed check does not advance the
+removals and explicit order remain checked on every call. A changed effect-map
+root rechecks effect definitions, cycles and all item effect references; otherwise
+only changed-page references need checking. The [persistent-property stage](RETAINED_PERSISTENT_PROPERTIES.md)
+checks the actual cache-owned immutable effect root independently of the outer
+property Arc, so translation/clip/scroll changes can retain that validation. A failed check does not advance the
 cache. Backend failures/reset retain the existing renderer recovery contract;
 reset creates an empty validation cache. Stale-frame rejection remains separate.
 
@@ -39,7 +41,7 @@ forced full validation; both upload 160 bytes and match original full GPUI pixel
 These are scoped wall-clock submission timings, including remaining CPU/backend
 work; they exclude UI publication and native presentation. They are not GPU-only
 timestamps or sustained FPS. All property references may still be visited on
-property-map changes, while composition, resource collection and backend guards
+effect-map changes, while composition, resource collection and backend guards
 retain scene-wide work. The cache retains the most recent validated snapshot
 until replacement/reset/drop, independently of completion leases; it does not
 retain an unbounded frame history or provide physical memory budgeting.

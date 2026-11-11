@@ -164,13 +164,6 @@ impl UiTree {
         for &(start, end, id) in &disjoint {
             let (origin, clip, state) = self.subtree_context(id, &before)?;
             let props = Arc::get_mut(&mut properties).expect("private property snapshot");
-            for index in start..end {
-                let node = before.items[index].node;
-                props.transforms.remove(&node);
-                props.clips.remove(&node);
-                props.scrolls.remove(&node);
-                props.effects.remove(&node);
-            }
             let extracted =
                 self.extract_subtree(id, origin, clip, state, props, &mut recorded_chunks)?;
             debug_assert_eq!(extracted.len(), end - start);

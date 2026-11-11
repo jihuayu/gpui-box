@@ -1,0 +1,347 @@
+{
+  "scope": "CPU commit and FramePacket publication with four sparse property records per leaf; same persistent tree, selective vs forced full extraction, three rotating rounds, 6 warmups + 20 samples each. Construction, initial layout, GPU validation/planning/draw/presentation excluded. Old snapshot retained throughout; final items/properties/damage verified outside timing. Samples include previous producer snapshot retirement and page-directory copy.",
+  "order": [
+    "old-1",
+    "new-1",
+    "new-2",
+    "old-2"
+  ],
+  "cases": [
+    {
+      "nodes": 1001,
+      "property_entries": 4000,
+      "case": "translation",
+      "changed_nodes": 1,
+      "policy": "selective",
+      "old": {
+        "samples": 120,
+        "median_us": 59.0,
+        "p95_us": 126.6,
+        "total_median_us": 60.0,
+        "run_medians_us": [
+          57.9,
+          60.699999999999996
+        ]
+      },
+      "new": {
+        "samples": 120,
+        "median_us": 3.4,
+        "p95_us": 6.0,
+        "total_median_us": 4.4,
+        "run_medians_us": [
+          4.199999999999999,
+          2.9000000000000004
+        ]
+      },
+      "observed_ratio": 17.352941176470587
+    },
+    {
+      "nodes": 1001,
+      "property_entries": 4000,
+      "case": "translation",
+      "changed_nodes": 1,
+      "policy": "full",
+      "old": {
+        "samples": 120,
+        "median_us": 1392.9,
+        "p95_us": 2002.4,
+        "total_median_us": 1397.1999999999998,
+        "run_medians_us": [
+          1401.0,
+          1363.6
+        ]
+      },
+      "new": {
+        "samples": 120,
+        "median_us": 1987.3,
+        "p95_us": 3129.2999999999997,
+        "total_median_us": 1992.1000000000001,
+        "run_medians_us": [
+          2150.2000000000003,
+          1762.8999999999999
+        ]
+      },
+      "observed_ratio": 0.7009007195692649
+    },
+    {
+      "nodes": 1001,
+      "property_entries": 4000,
+      "case": "opacity",
+      "changed_nodes": 1,
+      "policy": "selective",
+      "old": {
+        "samples": 120,
+        "median_us": 56.7,
+        "p95_us": 70.1,
+        "total_median_us": 57.599999999999994,
+        "run_medians_us": [
+          57.5,
+          55.699999999999996
+        ]
+      },
+      "new": {
+        "samples": 120,
+        "median_us": 1.2,
+        "p95_us": 1.4,
+        "total_median_us": 1.9,
+        "run_medians_us": [
+          1.2,
+          1.1
+        ]
+      },
+      "observed_ratio": 47.25000000000001
+    },
+    {
+      "nodes": 1001,
+      "property_entries": 4000,
+      "case": "opacity",
+      "changed_nodes": 1,
+      "policy": "full",
+      "old": {
+        "samples": 120,
+        "median_us": 1314.6,
+        "p95_us": 1939.9,
+        "total_median_us": 1318.3,
+        "run_medians_us": [
+          1342.3,
+          1287.8
+        ]
+      },
+      "new": {
+        "samples": 120,
+        "median_us": 1815.7,
+        "p95_us": 2415.3,
+        "total_median_us": 1818.6000000000001,
+        "run_medians_us": [
+          1938.8999999999999,
+          1736.2
+        ]
+      },
+      "observed_ratio": 0.7240182849589689
+    },
+    {
+      "nodes": 1001,
+      "property_entries": 4000,
+      "case": "translation",
+      "changed_nodes": 128,
+      "policy": "selective",
+      "old": {
+        "samples": 120,
+        "median_us": 310.0,
+        "p95_us": 563.2,
+        "total_median_us": 351.7,
+        "run_medians_us": [
+          366.2,
+          254.60000000000002
+        ]
+      },
+      "new": {
+        "samples": 120,
+        "median_us": 132.10000000000002,
+        "p95_us": 319.5,
+        "total_median_us": 161.0,
+        "run_medians_us": [
+          133.8,
+          130.29999999999998
+        ]
+      },
+      "observed_ratio": 2.34670704012112
+    },
+    {
+      "nodes": 1001,
+      "property_entries": 4000,
+      "case": "translation",
+      "changed_nodes": 128,
+      "policy": "full",
+      "old": {
+        "samples": 120,
+        "median_us": 1399.2,
+        "p95_us": 2157.9,
+        "total_median_us": 1506.9,
+        "run_medians_us": [
+          1467.1000000000001,
+          1373.6
+        ]
+      },
+      "new": {
+        "samples": 120,
+        "median_us": 1810.7,
+        "p95_us": 2392.8,
+        "total_median_us": 1920.1000000000001,
+        "run_medians_us": [
+          1876.4,
+          1769.6000000000001
+        ]
+      },
+      "observed_ratio": 0.7727398243773127
+    },
+    {
+      "nodes": 10001,
+      "property_entries": 40000,
+      "case": "translation",
+      "changed_nodes": 1,
+      "policy": "selective",
+      "old": {
+        "samples": 120,
+        "median_us": 2297.8999999999996,
+        "p95_us": 5820.7,
+        "total_median_us": 2302.7,
+        "run_medians_us": [
+          4337.599999999999,
+          2011.0000000000002
+        ]
+      },
+      "new": {
+        "samples": 120,
+        "median_us": 4.0,
+        "p95_us": 5.4,
+        "total_median_us": 4.5,
+        "run_medians_us": [
+          4.0,
+          4.0
+        ]
+      },
+      "observed_ratio": 574.4749999999999
+    },
+    {
+      "nodes": 10001,
+      "property_entries": 40000,
+      "case": "translation",
+      "changed_nodes": 1,
+      "policy": "full",
+      "old": {
+        "samples": 120,
+        "median_us": 19683.699999999997,
+        "p95_us": 38287.799999999996,
+        "total_median_us": 19693.2,
+        "run_medians_us": [
+          25170.3,
+          18814.1
+        ]
+      },
+      "new": {
+        "samples": 120,
+        "median_us": 22450.899999999998,
+        "p95_us": 26511.7,
+        "total_median_us": 22456.1,
+        "run_medians_us": [
+          22870.5,
+          22085.899999999998
+        ]
+      },
+      "observed_ratio": 0.8767443621413841
+    },
+    {
+      "nodes": 10001,
+      "property_entries": 40000,
+      "case": "opacity",
+      "changed_nodes": 1,
+      "policy": "selective",
+      "old": {
+        "samples": 120,
+        "median_us": 2662.7000000000003,
+        "p95_us": 5601.5,
+        "total_median_us": 2667.5,
+        "run_medians_us": [
+          4393.5,
+          2420.5
+        ]
+      },
+      "new": {
+        "samples": 120,
+        "median_us": 1.1,
+        "p95_us": 1.5999999999999999,
+        "total_median_us": 1.7,
+        "run_medians_us": [
+          1.5,
+          1.1
+        ]
+      },
+      "observed_ratio": 2420.6363636363635
+    },
+    {
+      "nodes": 10001,
+      "property_entries": 40000,
+      "case": "opacity",
+      "changed_nodes": 1,
+      "policy": "full",
+      "old": {
+        "samples": 120,
+        "median_us": 24318.4,
+        "p95_us": 40949.600000000006,
+        "total_median_us": 24325.5,
+        "run_medians_us": [
+          34159.4,
+          21869.9
+        ]
+      },
+      "new": {
+        "samples": 120,
+        "median_us": 21407.4,
+        "p95_us": 25488.899999999998,
+        "total_median_us": 21415.0,
+        "run_medians_us": [
+          21565.8,
+          21304.7
+        ]
+      },
+      "observed_ratio": 1.135981015910386
+    },
+    {
+      "nodes": 10001,
+      "property_entries": 40000,
+      "case": "translation",
+      "changed_nodes": 128,
+      "policy": "selective",
+      "old": {
+        "samples": 120,
+        "median_us": 2541.4,
+        "p95_us": 3290.2999999999997,
+        "total_median_us": 2591.2000000000003,
+        "run_medians_us": [
+          2661.3,
+          2440.2999999999997
+        ]
+      },
+      "new": {
+        "samples": 120,
+        "median_us": 155.0,
+        "p95_us": 245.9,
+        "total_median_us": 183.3,
+        "run_medians_us": [
+          156.5,
+          155.0
+        ]
+      },
+      "observed_ratio": 16.396129032258067
+    },
+    {
+      "nodes": 10001,
+      "property_entries": 40000,
+      "case": "translation",
+      "changed_nodes": 128,
+      "policy": "full",
+      "old": {
+        "samples": 120,
+        "median_us": 19833.300000000003,
+        "p95_us": 24926.3,
+        "total_median_us": 19894.7,
+        "run_medians_us": [
+          20665.4,
+          19644.2
+        ]
+      },
+      "new": {
+        "samples": 120,
+        "median_us": 22514.800000000003,
+        "p95_us": 28300.4,
+        "total_median_us": 22622.9,
+        "run_medians_us": [
+          25145.7,
+          21559.9
+        ]
+      },
+      "observed_ratio": 0.8809005631851049
+    }
+  ]
+}

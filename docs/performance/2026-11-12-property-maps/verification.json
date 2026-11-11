@@ -1,0 +1,12 @@
+{
+  "source_hashes_verified": 86,
+  "hardware_pixel_cases": 162,
+  "core_combined_tests_passed": 108,
+  "gallery_tests_passed": 12,
+  "clippy": "passed -D warnings",
+  "source_hash_mismatches": [],
+  "cpu_baseline_features": "retained-runtime",
+  "cpu_candidate_features": "retained-runtime",
+  "cpu_harness_hash_identical_to_baseline": true,
+  "native_presentation_fps_claim": false
+}

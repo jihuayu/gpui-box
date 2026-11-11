@@ -258,3 +258,80 @@ fn hidden_property_changes_stay_invisible_until_layout_restore() {
     assert!(restored.properties.effects.contains_key(&id));
     assert_eq!(restored.items[1].bounds.x, 3.0);
 }
+
+#[test]
+fn local_map_edits_share_unmodified_kinds_and_retired_generations_stay_in_old_frames() {
+    let (mut tree, branches) = fixture();
+    let (group, rows) = &branches[0];
+    let leaf = rows[0].1[0];
+    let mut tx = Transaction::default();
+    for id in [*group, leaf] {
+        tx.translation(id, [1.0, 2.0]);
+        tx.opacity(id, 0.5);
+        tx.clip(
+            id,
+            Some(Rect {
+                x: 0.0,
+                y: 0.0,
+                width: 40.0,
+                height: 20.0,
+            }),
+        );
+        tx.scroll(id, [1.0, 0.0]);
+    }
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    let original = tree.frame([800.0, 600.0]).unwrap();
+    let mut tx = Transaction::default();
+    tx.translation(leaf, [3.0, 4.0]);
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    let moved = tree.frame([800.0, 600.0]).unwrap();
+    assert_eq!(moved.build_stats.extracted_nodes, 1);
+    assert!(
+        moved
+            .properties
+            .effects
+            .shares_root(&original.properties.effects)
+    );
+    assert!(
+        moved
+            .properties
+            .clips
+            .shares_root(&original.properties.clips)
+    );
+    assert!(
+        moved
+            .properties
+            .scrolls
+            .shares_root(&original.properties.scrolls)
+    );
+    assert!(
+        !moved
+            .properties
+            .transforms
+            .shares_root(&original.properties.transforms)
+    );
+    let mut tx = Transaction::default();
+    tx.translation(*group, [0.0; 2]);
+    tx.clip(*group, None);
+    tx.scroll(*group, [0.0; 2]);
+    tx.opacity(*group, 1.0);
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    let reset = tree.frame([800.0, 600.0]).unwrap();
+    assert_eq!(reset.properties.transforms[&leaf].parent, None);
+    assert_eq!(reset.properties.effects[&leaf].parent, None);
+    assert_eq!(reset.properties.clips[&leaf].parent, None);
+    assert_eq!(reset.properties.scrolls[&leaf].parent, None);
+    assert_eq!(original.properties.effects[&leaf].parent, Some(*group));
+    assert_eq!(original.properties.transforms[&leaf].value, [1.0, 2.0]);
+    tree.remove(leaf).unwrap();
+    let new = tree.append(rows[0].0, Style::default(), 0).unwrap();
+    assert_eq!(new.slot, leaf.slot);
+    assert_ne!(new.generation, leaf.generation);
+    let mut tx = Transaction::default();
+    tx.opacity(new, 0.7);
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    let current = tree.frame([800.0, 600.0]).unwrap();
+    assert!(!current.properties.effects.contains_key(&leaf));
+    assert_eq!(current.properties.effects[&new].value, 0.7);
+    assert_eq!(original.properties.effects[&leaf].value, 0.5);
+}

@@ -61,6 +61,11 @@ path = "src/measure.rs"
 required-features = ["retained-runtime"]
 
 [[bin]]
+name = "property-runtime-perf"
+path = "src/properties.rs"
+required-features = ["retained-runtime"]
+
+[[bin]]
 name = "paragraph-runtime-perf"
 path = "src/paragraph.rs"
 required-features = ["retained-text"]

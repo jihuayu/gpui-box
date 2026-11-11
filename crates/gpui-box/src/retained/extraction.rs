@@ -8,7 +8,7 @@ impl UiTree {
         origin: [f32; 2],
         inherited_clip: Option<Rect>,
         state: PropertyState,
-        properties: &mut PropertyTrees,
+        properties: &mut impl properties::PropertyOutput,
         recorded_chunks: &mut u64,
     ) -> Result<Vec<PaintItem>, Error> {
         let mut items = vec![];
@@ -21,39 +21,30 @@ impl UiTree {
             let layout = *self.layout.layout(node.layout)?;
             let x = origin[0] + layout.location.x + node.translation[0];
             let y = origin[1] + layout.location.y + node.translation[1];
-            if node.translation != [0.0; 2] {
-                properties.transforms.insert(
-                    id,
-                    PropertyNode {
-                        parent: state.transform,
-                        value: node.translation,
-                    },
-                );
+            let transform_property = (node.translation != [0.0; 2]).then_some(PropertyNode {
+                parent: state.transform,
+                value: node.translation,
+            });
+            if transform_property.is_some() {
                 state.transform = Some(id);
             }
             let clip = node.clip.map(|clip| clip.translated([x, y]));
-            if let Some(local_clip) = node.clip {
-                properties.clips.insert(
-                    id,
-                    PropertyNode {
-                        parent: state.clip,
-                        value: local_clip,
-                    },
-                );
+            let clip_property = node.clip.map(|value| PropertyNode {
+                parent: state.clip,
+                value,
+            });
+            if clip_property.is_some() {
                 state.clip = Some(id);
             }
             let clip = match (inherited_clip, clip) {
                 (Some(a), Some(b)) => Some(a.intersect(b)),
                 (a, b) => a.or(b),
             };
-            if node.opacity != 1.0 {
-                properties.effects.insert(
-                    id,
-                    PropertyNode {
-                        parent: state.effect,
-                        value: node.opacity,
-                    },
-                );
+            let effect_property = (node.opacity != 1.0).then_some(PropertyNode {
+                parent: state.effect,
+                value: node.opacity,
+            });
+            if effect_property.is_some() {
                 state.effect = Some(id);
             }
             let paint_state = state;
@@ -61,16 +52,20 @@ impl UiTree {
                 node.scroll[0].min(layout.scroll_width()),
                 node.scroll[1].min(layout.scroll_height()),
             ];
-            if node.scroll != [0.0; 2] {
-                properties.scrolls.insert(
-                    id,
-                    PropertyNode {
-                        parent: state.scroll,
-                        value: scroll,
-                    },
-                );
+            let scroll_property = (node.scroll != [0.0; 2]).then_some(PropertyNode {
+                parent: state.scroll,
+                value: scroll,
+            });
+            if scroll_property.is_some() {
                 state.scroll = Some(id);
             }
+            properties.record(
+                id,
+                transform_property,
+                clip_property,
+                scroll_property,
+                effect_property,
+            );
             for child in node.children.iter().rev() {
                 stack.push((*child, [x - scroll[0], y - scroll[1]], clip, state));
             }
