@@ -66,7 +66,10 @@ impl<O> Capability<O> {
     /// Useful to providers after freshly probing conditions; callers cannot use
     /// an old snapshot to bypass the provider's execution-time validation.
     pub fn check(&self) -> Result<(), SystemError> {
-        if matches!(self.support, Support::Unsupported | Support::Unknown) {
+        if matches!(
+            self.support,
+            Support::Unsupported | Support::Unknown | Support::FallbackAvailable
+        ) {
             return Err(SystemError::new(
                 ErrorCode::Unsupported,
                 "Operation is not supported",

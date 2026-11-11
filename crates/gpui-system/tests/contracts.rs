@@ -97,6 +97,13 @@ fn execution_rechecks_conditions_and_registry_is_typed() {
     for (capability, code) in [
         (
             Capability {
+                support: Support::FallbackAvailable,
+                ..capability()
+            },
+            ErrorCode::Unsupported,
+        ),
+        (
+            Capability {
                 support: Support::Unsupported,
                 ..capability()
             },
