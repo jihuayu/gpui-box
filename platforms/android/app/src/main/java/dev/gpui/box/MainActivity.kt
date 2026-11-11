@@ -100,6 +100,7 @@ class MainActivity : Activity() {
     }
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
+        NativeBridge.installStorageContext(this)
         state?.getByteArray("gpui-box.application-state")?.let(NativeBridge::restoreState)
         gpui = GpuiView(this)
         services = GpuiServices(this)

@@ -4,12 +4,14 @@ import android.os.Handler
 import android.os.Looper
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.Context
 import android.view.Surface
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicLong
 
 /** Stable, process-owned bridge. Requests always unwind Rust before host work. */
 object NativeBridge {
+    @Volatile private var storageApplication: android.app.Application? = null
     private val handler = Handler(Looper.getMainLooper())
     private var view = WeakReference<GpuiView>(null)
     private val generations = AtomicLong()
@@ -18,6 +20,23 @@ object NativeBridge {
     private val surfaces = AtomicLong()
     val permissionProcessToken: String = java.util.UUID.randomUUID().toString()
     init { System.loadLibrary("gpui_box_android"); initialize() }
+
+    fun installStorageContext(context: Context) {
+        checkMain()
+        storageApplication = context.applicationContext as android.app.Application
+    }
+    /** Worker-only application roots. Never retain an Activity for storage. */
+    @JvmStatic fun storageDirectories(): String {
+        check(Looper.myLooper() !== Looper.getMainLooper()) { "Private storage requires a worker" }
+        val context = checkNotNull(storageApplication) { "Private storage host is not installed" }
+        val durable = java.io.File(context.noBackupFilesDir, "gpui-box")
+        return org.json.JSONObject().apply {
+            for (name in listOf("control", "config", "data", "logs", "temporary")) {
+                put(name, java.io.File(durable, name).absolutePath)
+            }
+            put("cache", java.io.File(context.cacheDir, "gpui-box").absolutePath)
+        }.toString()
+    }
 
     fun bind(value: GpuiView) {
         checkMain()

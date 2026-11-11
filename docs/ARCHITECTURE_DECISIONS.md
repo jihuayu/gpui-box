@@ -480,3 +480,29 @@ Crash recovery may retain bytes beyond the last reported offset, and the final
 digest remains authoritative. Private roots and filesystem atomic rename remain
 storage prerequisites. Native transport negotiation, APK identity/signature/URI
 binding and durable installer reconciliation require platform adapters.
+
+## ADR-018 — Resolve Android storage from application context on workers
+
+### Context
+
+The shared AppData service already owns bounded settings, recovery, lifetime
+locks, account partitioning and export leases. Android needs authoritative
+private roots without retaining Activity or doing storage work in GPUI callbacks.
+
+### Decision
+
+Install application context before native surface launch. Query its no-backup
+and cache directory getters through a worker JNI call. Supply disjoint no-backup
+control/config/data/logs/temporary roots and a separate cache root to the existing
+AppData constructor. Expose roots and existing storage types through the Android
+facade. Reject UI-thread discovery. Keep opened service lifetime and registry
+installation under the application's ownership.
+
+### Consequences
+
+Activity recreation retains stable roots without Activity/surface references.
+No-backup temporary exports survive ordinary OS cache eviction until explicit
+lease cleanup. Durable business content uses credential-encrypted app storage,
+excluded from Auto Backup. Applications requiring backup or direct-boot data need
+explicit policies and separate providers. Backup/device-transfer, locked-boot,
+uninstall and hardware filesystem behavior retain independent runtime gates.

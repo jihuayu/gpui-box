@@ -5,6 +5,7 @@ mod entrypoint;
 mod host;
 mod permissions;
 mod platform;
+mod storage;
 mod window;
 
 pub use bridge::{
@@ -13,12 +14,14 @@ pub use bridge::{
     memory_warning, on_activation, on_saved_state, open_url_event, resize, restore_state,
     save_state, take_saved_state, text, text_state, touch,
 };
+pub use gpui_app_data as app_data;
 pub use host::{host_snapshot, host_state, lifecycle_service};
 pub use permissions::{
     AndroidPermissionProvider, permission_context, permission_pending, permission_result,
     permission_service,
 };
 pub use platform::AndroidPlatform;
+pub use storage::app_data_roots;
 
 use std::cell::{Cell, RefCell};
 

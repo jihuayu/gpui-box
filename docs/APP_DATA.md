@@ -105,7 +105,7 @@ physical volume or power-cut test.
 | Platform | Directory provider | Evidence / remaining work |
 | --- | --- | --- |
 | Windows | Known folders via dirs; explicit roots supported | Runtime tests on Windows x86_64 using temporary roots; native resolution read-only smoke test. Packaged identity/ACL and abrupt-power-loss qualification pending #4/#5/#8. |
-| Android | Host-injected app-private files/cache roots and policy | Cross-compile contract; host wiring, backup policy and emulator runtime acceptance pending #2/#22. No inferred desktop fallback. |
+| Android | Host application-context no-backup roots with separate cache | `gpui_box::android::app_data_roots` resolves on workers after Activity host setup. Two-ABI compilation and emulator storage qualification are tracked under #2/#22. No inferred desktop fallback. |
 | macOS | dirs Application Support/config/cache mapping | Contract only; sandbox/container and runtime qualification pending #8. |
 | Linux | dirs XDG mapping | Contract only; environment/filesystem/runtime qualification pending #8. |
 | iOS | Host-injected container roots and policy | Contract only; backup/protection attributes and device qualification pending #9. |
@@ -117,3 +117,44 @@ host configuration returns `InvalidConfiguration`. Backup archives, database
 transactions, live provider callbacks, migration backups and UI gallery workflows
 remain separate work; this slice provides recoverable versioned settings and a
 persistence adapter rather than a general database.
+
+## Android application-context roots
+
+The Android Activity installs its application context into NativeBridge before
+surface/application launch. `gpui_box::android::app_data_roots()` attaches the
+calling worker to the JVM and queries that context. It returns existing AppData
+DirectoryRoots and exposes the same storage types through
+`gpui_box::android::app_data`. Perform discovery, `AppData::open`, settings and
+cleanup on a worker. Retain one opened AppData owner and clone it for users.
+Discovery on the main Looper is rejected. Missing host context returns
+Unavailable. JNI query exceptions are cleared and mapped to a typed error.
+
+Control/config/data/logs/temporary use disjoint children of
+`Context.noBackupFilesDir/gpui-box`. Cache uses `Context.cacheDir/gpui-box`.
+Temporary export leases use no-backup storage so OS cache eviction cannot remove
+an active export. Explicit export cleanup remains the existing AppData policy.
+The native roots carry HostManaged backup policy and sandboxed application
+ownership. AppData labels cache/temporary as Regenerable. The current generated
+host also disables application backup. No-backup files are excluded from Android
+Auto Backup. Device transfer, OEM behavior, credential-encrypted locked-boot
+availability, uninstall/reinstall retention and backup/restore journeys retain
+separate qualification. These roots become available after ordinary Activity
+creation and provide credential-encrypted application storage.
+
+The bridge retains application context across Activity recreation, with no
+Activity reference or surface dependency. Discovery leaves directory creation,
+canonical containment and lifetime locking to AppData. Platform directory getters
+can perform I/O, so discovery also belongs on the worker. The shared registry may
+receive a cloned opened handle through the application's foreground owner. Native
+roots are application-scoped. Existing DataScope handles account partitioning.
+
+The API35 Android15 x86_64 emulator runs the example-only JNI storage probe on
+the instrumentation worker. It opens real host roots, saves Chinese/emoji JSON,
+releases lifetime locks, reopens and reloads settings, evicts a cache file while
+preserving a leased export, then explicitly removes the released export. Two
+separate instrumentation process launches retain and increment saved visits
+(2 then4 before application-data reset). The full suite passes22/22 in69.168s.
+Both ARM64/x86_64 native builds and strict Android Clippy pass. The test bridge
+lives only in the Android example. Generated applications use the public roots
+API on their own workers. Actual backup, device transfer, hardware storage and
+direct-boot behavior retain the gates described above.
