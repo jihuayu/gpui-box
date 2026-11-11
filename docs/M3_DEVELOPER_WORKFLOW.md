@@ -586,7 +586,7 @@ gpui-box new "Adaptive Application" --distribution /path/to/sdk --template adapt
 gpui-box init /path/to/existing/app --distribution /path/to/sdk --template adaptive --targets android
 ```
 
-`new` and `init` accept `--template starter|adaptive`. Starter remains the default
+`new` and `init` accept `--template starter|adaptive|component`. Starter remains the default
 with both desktop and Android targets. The adaptive template reuses the same
 workspace/native generation, SDK verification, target selection, font assets and
 init ownership protections. Its JSON result and `.gpui-box/template.json` record
