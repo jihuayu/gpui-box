@@ -347,7 +347,7 @@ impl WgpuFrameRenderer {
                     })
                     .collect(),
                 cache_layers: self.cache_layers,
-                glyphs: glyph_batches(frame, scale)?,
+                glyphs: glyph_updates(frame, scale, full_resync)?,
                 size: size(
                     DevicePixels(surface[0] as i32),
                     DevicePixels(surface[1] as i32),
@@ -473,13 +473,34 @@ fn has_text(frame: &FramePacket) -> bool {
         false
     }
 }
-fn glyph_batches(frame: &FramePacket, scale: f32) -> Result<Vec<gpui_wgpu::GlyphBatch>, Error> {
-    let batches = vec![];
+fn glyph_updates(
+    frame: &FramePacket,
+    scale: f32,
+    reset: bool,
+) -> Result<gpui_wgpu::GlyphUpdates, Error> {
+    let mut updates = gpui_wgpu::GlyphUpdates {
+        reset,
+        ..Default::default()
+    };
+    let items = if reset { &frame.items } else { &frame.updates };
+    if !reset {
+        updates.removed = frame
+            .removed
+            .iter()
+            .map(|node| [node.tree, node.slot as u64, node.generation])
+            .collect();
+    }
     #[cfg(feature = "retained-text")]
     {
-        let mut batches = batches;
-        for item in frame.items.iter() {
+        for item in items.iter() {
             let Some(text) = &item.text else {
+                if !reset {
+                    updates.removed.push([
+                        item.node.tree,
+                        item.node.slot as u64,
+                        item.node.generation,
+                    ]);
+                }
                 continue;
             };
             let chunk = item.glyphs.as_ref().ok_or(Error::InvalidFrame)?;
@@ -489,7 +510,7 @@ fn glyph_batches(frame: &FramePacket, scale: f32) -> Result<Vec<gpui_wgpu::Glyph
                 width: i32::MAX as f32 / scale,
                 height: i32::MAX as f32 / scale,
             });
-            batches.push(gpui_wgpu::GlyphBatch {
+            updates.batches.push(gpui_wgpu::GlyphBatch {
                 id: [item.node.tree, item.node.slot as u64, item.node.generation],
                 clip: [
                     clip.x * scale,
@@ -500,25 +521,15 @@ fn glyph_batches(frame: &FramePacket, scale: f32) -> Result<Vec<gpui_wgpu::Glyph
                 color: text.color,
                 origin: [item.content_bounds.x, item.content_bounds.y],
                 scale,
-                glyphs: chunk
-                    .glyphs
-                    .iter()
-                    .map(|glyph| gpui_wgpu::RetainedGlyph {
-                        resource: glyph.bitmap.id(),
-                        size: glyph.bitmap.size,
-                        mask: glyph.bitmap.mask().clone(),
-                        origin: glyph.origin,
-                        offset: glyph.bitmap.offset,
-                    })
-                    .collect(),
+                geometry: chunk.gpu_geometry()?,
             });
         }
-        Ok(batches)
+        Ok(updates)
     }
     #[cfg(not(feature = "retained-text"))]
     {
-        let _ = (frame, scale);
-        Ok(batches)
+        let _ = (items, scale);
+        Ok(updates)
     }
 }
 

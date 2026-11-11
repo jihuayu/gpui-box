@@ -9,7 +9,7 @@ use std::{
 pub type RetainedImage = image::RgbaImage;
 mod glyphs;
 mod images;
-pub use glyphs::{GlyphBatch, GlyphDrawId, RetainedGlyph};
+pub use glyphs::{GlyphBatch, GlyphDrawId, GlyphGeometry, GlyphUpdates, RetainedGlyph};
 mod layers;
 pub use images::{QuadImage, QuadImageId};
 use layers::LayerCache;
@@ -25,7 +25,7 @@ pub struct QuadBatch {
     pub order: Option<Vec<QuadDraw>>,
     pub layers: Vec<QuadLayer>,
     pub images: Vec<QuadImage>,
-    pub glyphs: Vec<GlyphBatch>,
+    pub glyphs: GlyphUpdates,
     pub cache_layers: bool,
     pub size: Size<DevicePixels>,
     pub redraw: QuadRedraw,
@@ -68,6 +68,9 @@ pub struct QuadSubmission {
     pub glyph_material_ranges: usize,
     pub glyph_property_bytes: u64,
     pub glyph_property_ranges: usize,
+    pub glyph_batch_updates: usize,
+    pub glyph_rebuilt_instances: usize,
+    pub glyph_validated_instances: usize,
 }
 
 struct Flight {
@@ -200,7 +203,7 @@ impl RetainedQuadRenderer {
                 .limits()
                 .max_texture_dimension_2d,
         )?;
-        let glyph_ids = self.glyphs.validate(
+        let (glyph_ids, validated_glyphs) = self.glyphs.validate(
             &batch.glyphs,
             self.renderer
                 .context
@@ -345,9 +348,10 @@ impl RetainedQuadRenderer {
         let image_stats = self
             .images
             .prepare(&self.renderer, batch.images, batch.size);
-        let glyph_stats = self
+        let mut glyph_stats = self
             .glyphs
             .prepare(&self.renderer, batch.glyphs, batch.size)?;
+        glyph_stats.validated_glyphs = validated_glyphs;
         let layer_stats = self.layers.render(
             &self.renderer,
             &self.binding,
@@ -460,6 +464,9 @@ impl RetainedQuadRenderer {
             glyph_material_ranges: glyph_stats.material_ranges,
             glyph_property_bytes: glyph_stats.property_bytes,
             glyph_property_ranges: glyph_stats.property_ranges,
+            glyph_batch_updates: glyph_stats.batch_updates,
+            glyph_rebuilt_instances: glyph_stats.rebuilt_glyphs,
+            glyph_validated_instances: glyph_stats.validated_glyphs,
         })
     }
 

@@ -248,6 +248,8 @@ impl TextResource {
         let chunk = Arc::new(GlyphChunk {
             glyphs: glyphs.into(),
             ink,
+            #[cfg(feature = "retained-wgpu")]
+            gpu: Default::default(),
         });
         if cache.len() == 4 {
             cache.pop_front();
@@ -273,6 +275,36 @@ pub struct PositionedGlyph {
 pub struct GlyphChunk {
     pub glyphs: Arc<[PositionedGlyph]>,
     pub ink: Option<Rect>,
+    #[cfg(feature = "retained-wgpu")]
+    gpu: std::sync::OnceLock<(Arc<[PositionedGlyph]>, Arc<gpui_wgpu::GlyphGeometry>)>,
+}
+#[cfg(feature = "retained-wgpu")]
+impl GlyphChunk {
+    pub(super) fn gpu_geometry(&self) -> Result<Arc<gpui_wgpu::GlyphGeometry>, Error> {
+        if self.gpu.get().is_none() {
+            let geometry = gpui_wgpu::GlyphGeometry::new(
+                self.glyphs
+                    .iter()
+                    .map(|glyph| gpui_wgpu::RetainedGlyph {
+                        resource: glyph.bitmap.id(),
+                        size: glyph.bitmap.size,
+                        mask: glyph.bitmap.mask().clone(),
+                        origin: glyph.origin,
+                        offset: glyph.bitmap.offset,
+                    })
+                    .collect(),
+            )
+            .map_err(|error| Error::Gpu(error.to_string()))?;
+            let _ = self.gpu.set((self.glyphs.clone(), geometry));
+        }
+        let (source, geometry) = self.gpu.get().expect("initialized glyph geometry");
+        // The public CPU glyph array must not be replaced after conversion.
+        // Retaining it also prevents in-place mutation through Arc::get_mut.
+        if !Arc::ptr_eq(source, &self.glyphs) {
+            return Err(Error::InvalidTextResource);
+        }
+        Ok(geometry.clone())
+    }
 }
 
 impl PaintItem {
@@ -294,5 +326,55 @@ impl PaintItem {
             width: glyph.bitmap.size[0] as f32,
             height: glyph.bitmap.size[1] as f32,
         }
+    }
+}
+
+#[cfg(all(test, feature = "retained-wgpu"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cached_gpu_geometry_is_immutable_and_does_not_retain_its_chunk() {
+        let bitmap = Arc::new(GlyphBitmap {
+            id: u64::MAX,
+            offset: [0, -1],
+            size: [2, 2],
+            mask: vec![255; 4].into(),
+        });
+        let weak_mask = Arc::downgrade(bitmap.mask());
+        let glyphs: Arc<[PositionedGlyph]> = vec![PositionedGlyph {
+            origin: [0.0, 1.0],
+            bitmap,
+            font: gpui::FontId(0),
+            glyph: gpui::GlyphId(1),
+            font_size: gpui::px(16.0),
+        }]
+        .into();
+        let mut chunk = GlyphChunk {
+            glyphs,
+            ink: None,
+            gpu: Default::default(),
+        };
+        let first = chunk.gpu_geometry().unwrap();
+        assert!(Arc::ptr_eq(&first, &chunk.gpu_geometry().unwrap()));
+        assert!(
+            Arc::get_mut(&mut chunk.glyphs).is_none(),
+            "converted source cannot be mutated in place"
+        );
+        chunk.glyphs = Arc::from([]);
+        assert!(matches!(
+            chunk.gpu_geometry(),
+            Err(Error::InvalidTextResource)
+        ));
+        drop(chunk);
+        assert!(
+            weak_mask.upgrade().is_some(),
+            "backend geometry owns the exact mask after chunk disposal"
+        );
+        drop(first);
+        assert!(
+            weak_mask.upgrade().is_none(),
+            "no geometry/source ownership cycle"
+        );
     }
 }

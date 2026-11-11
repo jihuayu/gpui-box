@@ -37,6 +37,9 @@ color-only writes to one 16-byte record per text node with zero geometry upload.
 The [glyph property follow-up](performance/2026-11-11-glyph-properties/README.md)
 uses 32-byte origin/scale/clip slots and 48-byte local glyph records, keeping
 translation/clip changes out of the glyph geometry buffer.
+The [glyph delta stage](RETAINED_GLYPH_DELTAS.md) owns immutable backend chunks,
+retains unmodified draws and shared mask references, and skips per-glyph
+validation/reconstruction for material/property-only updates.
 
 ## Current integrated foundation
 
@@ -79,7 +82,7 @@ click test passed pixel comparison at the actual window scale.
 | P0–P5 routing | Solid/decorated-quad color, paint, property, layout, reorder and decoded-image resource intents; reason records; P1 reuses commands with 0 layout/recording and stable instance dispatch | General primitive/material capabilities, semantic channels, general asynchronous resource invalidation and eliminate full snapshot scanning |
 | Logical / Render Tree | Independent generation-checked scopes, zero/multiple outputs and portals, keyed reorder retaining state/render/chunks, subtree source/binding/output cleanup; gallery and hardware validation | Atomic structural batches, portal reparenting, event/focus/semantics lifetime and legacy islands; eliminate whole-scope/order scans |
 | Persistent Taffy | Long-lived nodes, style/children setters, owned image/fixed/shaped paragraph snapshots, constraint-dependent wrap, baseline/overflow updates, actual leaf/measure-call counts, root cache and resize handling | General constraint-dependent custom inputs, paragraph conformance, independent islands, full node visits/cache-hit counters |
-| Paint chunks / property trees | Shared local fill commands; sparse transform/clip/scroll/effect chains with inherited state, clip-aware geometry/hit testing | Stable chunk IDs, full affine transforms, selective geometry extraction and spatial indices |
+| Paint chunks / property trees | Shared local fill commands; immutable cached glyph geometry and base-relative backend updates preserving unmodified draws; sparse transform/clip/scroll/effect chains with inherited state, clip-aware geometry/hit testing | General stable chunk IDs/store, full affine transforms, selective scene extraction and spatial indices |
 | GPU arena | Generic CPU allocation table with generations and deferred slot reuse, WGPU geometric growth and completion-held buffer/binding leases | General resource/material records, budgets, compaction and other backends |
 | Batch GPU updates | Adjacent upload merging; 10,000-object translation and 10,000-signal color pixel verification; CPU per-signal/coalesced/typed-batch comparison; completed-work redraw A/B | Sustained 60/120Hz animation, general batch/fragmented order throughput and tuning |
 | P2 property / composite | Translation/clip/scroll reuse commands and update GPU instances/hit geometry; glyph local geometry uses independent 32-byte node origin/clip records; isolated subtree opacity supports nesting and 16-byte property-only updates | General shared GPU transform/clip trees, affine properties, texture import for window presentation and NativeView geometry |

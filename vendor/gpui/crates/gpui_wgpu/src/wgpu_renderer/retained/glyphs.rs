@@ -2,6 +2,7 @@
 use super::*;
 use std::collections::{BTreeMap, BTreeSet};
 pub type GlyphDrawId = [u64; 3];
+#[derive(Debug)]
 pub struct RetainedGlyph {
     pub resource: u64,
     pub size: [u32; 2],
@@ -9,13 +10,75 @@ pub struct RetainedGlyph {
     pub origin: [f32; 2],
     pub offset: [i32; 2],
 }
+/// Validated immutable local geometry. Clones retain exact glyph/mask identity;
+/// mutable node origin, clip and color belong to GlyphBatch instead.
+#[derive(Debug)]
+pub struct GlyphGeometry {
+    glyphs: Vec<RetainedGlyph>,
+    unique: BTreeMap<u64, usize>,
+    min_origin: [f32; 2],
+    max_origin: [f32; 2],
+    max_edge: u32,
+}
+impl GlyphGeometry {
+    pub fn new(glyphs: Vec<RetainedGlyph>) -> Result<Arc<Self>> {
+        let mut unique = BTreeMap::<u64, usize>::new();
+        let mut min_origin = [f32::INFINITY; 2];
+        let mut max_origin = [f32::NEG_INFINITY; 2];
+        let mut max_edge = 0;
+        for (index, glyph) in glyphs.iter().enumerate() {
+            anyhow::ensure!(
+                glyph.size.iter().all(|n| *n > 0 && *n <= 1024),
+                "invalid glyph dimensions"
+            );
+            anyhow::ensure!(
+                glyph.mask.len() as u64 == u64::from(glyph.size[0]) * u64::from(glyph.size[1]),
+                "invalid gray glyph bytes"
+            );
+            anyhow::ensure!(
+                glyph.origin.iter().all(|n| n.is_finite()),
+                "invalid local glyph origin"
+            );
+            if let Some(old) = unique.insert(glyph.resource, index) {
+                let old = &glyphs[old];
+                anyhow::ensure!(
+                    old.size == glyph.size && Arc::ptr_eq(&old.mask, &glyph.mask),
+                    "mutable glyph resource"
+                );
+            }
+            for axis in 0..2 {
+                min_origin[axis] = min_origin[axis].min(glyph.origin[axis]);
+                max_origin[axis] = max_origin[axis].max(glyph.origin[axis]);
+            }
+            max_edge = max_edge.max(glyph.size[0]).max(glyph.size[1]);
+        }
+        if glyphs.is_empty() {
+            min_origin = [0.0; 2];
+            max_origin = [0.0; 2];
+        }
+        Ok(Arc::new(Self {
+            glyphs,
+            unique,
+            min_origin,
+            max_origin,
+            max_edge,
+        }))
+    }
+}
 pub struct GlyphBatch {
     pub id: GlyphDrawId,
     pub clip: [f32; 4],
     pub color: u32,
     pub origin: [f32; 2],
     pub scale: f32,
-    pub glyphs: Vec<RetainedGlyph>,
+    pub geometry: Arc<GlyphGeometry>,
+}
+/// Base-relative resource updates; reset supplies the complete live draw set.
+#[derive(Default)]
+pub struct GlyphUpdates {
+    pub reset: bool,
+    pub removed: Vec<GlyphDrawId>,
+    pub batches: Vec<GlyphBatch>,
 }
 #[derive(Clone, Copy, Debug, Default, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 #[repr(C)]
@@ -35,13 +98,13 @@ struct Tile {
     allocation: etagere::AllocId,
     bounds: [u32; 4],
     pixels: Arc<[u8]>,
+    references: usize,
 }
 struct Draw {
     start: u32,
     capacity: u32,
-    instances: Vec<Instance>,
     runs: Vec<(usize, Range<u32>)>,
-    resources: Vec<u64>,
+    geometry: Arc<GlyphGeometry>,
     material: u32,
 }
 pub(super) type GlyphLease = (
@@ -61,6 +124,9 @@ pub(super) struct GlyphStats {
     pub material_ranges: usize,
     pub property_bytes: u64,
     pub property_ranges: usize,
+    pub batch_updates: usize,
+    pub rebuilt_glyphs: usize,
+    pub validated_glyphs: usize,
     pub changed: BTreeSet<GlyphDrawId>,
 }
 pub(super) struct GlyphCache {
@@ -80,6 +146,8 @@ pub(super) struct GlyphCache {
     pipeline: wgpu::RenderPipeline,
     edge: u32,
     size: Option<Size<DevicePixels>>,
+    glyph_count: usize,
+    mask_bytes: u64,
 }
 impl GlyphCache {
     pub fn new(renderer: &WgpuHeadlessRenderer) -> Self {
@@ -200,6 +268,8 @@ impl GlyphCache {
             pipeline,
             edge,
             size: None,
+            glyph_count: 0,
+            mask_bytes: 0,
         }
     }
     fn buffer(device: &wgpu::Device, capacity: usize) -> wgpu::Buffer {
@@ -262,72 +332,138 @@ impl GlyphCache {
             ],
         })
     }
+    fn removals(&self, updates: &GlyphUpdates) -> BTreeSet<GlyphDrawId> {
+        if updates.reset {
+            let live: BTreeSet<_> = updates.batches.iter().map(|batch| batch.id).collect();
+            self.draws
+                .keys()
+                .filter(|id| !live.contains(*id))
+                .copied()
+                .collect()
+        } else {
+            updates.removed.iter().copied().collect()
+        }
+    }
     pub fn validate(
         &self,
-        batches: &[GlyphBatch],
+        updates: &GlyphUpdates,
         max_bytes: u64,
-    ) -> Result<BTreeSet<GlyphDrawId>> {
-        let mut ids = BTreeSet::new();
-        let mut unique = BTreeMap::<u64, &RetainedGlyph>::new();
-        let mut count = 0u64;
-        for batch in batches {
-            anyhow::ensure!(ids.insert(batch.id), "duplicate glyph draw");
+    ) -> Result<(BTreeSet<GlyphDrawId>, usize)> {
+        anyhow::ensure!(
+            !updates.reset || updates.removed.is_empty(),
+            "reset with explicit removals"
+        );
+        let removals = self.removals(updates);
+        anyhow::ensure!(
+            updates.reset || removals.len() == updates.removed.len(),
+            "duplicate glyph removal"
+        );
+        let mut ids: BTreeSet<_> = self
+            .draws
+            .keys()
+            .filter(|id| !removals.contains(*id))
+            .copied()
+            .collect();
+        let mut writes = BTreeSet::new();
+        let mut count = self.glyph_count as i64;
+        let mut changes = BTreeMap::<u64, i64>::new();
+        let mut definitions = BTreeMap::<u64, &RetainedGlyph>::new();
+        let mut validated = 0;
+        let mut release = |geometry: &GlyphGeometry| {
+            count -= geometry.glyphs.len() as i64;
+            for id in geometry.unique.keys() {
+                *changes.entry(*id).or_default() -= 1;
+            }
+        };
+        for id in &removals {
+            if let Some(draw) = self.draws.get(id) {
+                release(&draw.geometry);
+            }
+        }
+        // Accumulate replacements before additions to retain shared mask identities.
+        for batch in &updates.batches {
+            anyhow::ensure!(
+                writes.insert(batch.id) && !removals.contains(&batch.id),
+                "duplicate/conflicting glyph update"
+            );
+            if let Some(old) = self.draws.get(&batch.id)
+                && !Arc::ptr_eq(&old.geometry, &batch.geometry)
+            {
+                release(&old.geometry);
+            }
+        }
+        for batch in &updates.batches {
             anyhow::ensure!(valid_rect(batch.clip), "invalid glyph clip");
             anyhow::ensure!(
-                batch.origin.iter().all(|value| value.is_finite())
+                batch.origin.iter().all(|n| n.is_finite())
                     && batch.scale.is_finite()
                     && batch.scale > 0.0,
                 "invalid glyph properties"
             );
-            count += batch.glyphs.len() as u64;
-            for glyph in &batch.glyphs {
-                anyhow::ensure!(
-                    glyph.size.iter().all(|n| *n > 0 && *n <= self.edge),
-                    "glyph too large for page"
-                );
-                anyhow::ensure!(
-                    glyph.mask.len() as u64 == u64::from(glyph.size[0]) * u64::from(glyph.size[1]),
-                    "invalid gray glyph bytes"
-                );
-                anyhow::ensure!(
-                    glyph.origin.iter().zip(batch.origin).zip(glyph.offset).all(
-                        |((local, origin), offset)| (((local + origin) * batch.scale).round()
-                            + offset as f32)
-                            .is_finite()
-                    ),
-                    "invalid glyph bounds"
-                );
-                if let Some(old) = unique.insert(glyph.resource, glyph) {
+            let geometry = &batch.geometry;
+            anyhow::ensure!(geometry.max_edge <= self.edge, "glyph too large for page");
+            for axis in 0..2 {
+                for local in [geometry.min_origin[axis], geometry.max_origin[axis]] {
+                    // Integer bitmap offsets are bounded by i32, so adding them
+                    // cannot overflow a finite f32 baseline at this magnitude.
                     anyhow::ensure!(
-                        old.size == glyph.size && Arc::ptr_eq(&old.mask, &glyph.mask),
-                        "mutable glyph resource"
-                    );
-                }
-                if let Some(old) = self.tiles.get(&glyph.resource) {
-                    anyhow::ensure!(
-                        old.bounds[2..] == glyph.size && Arc::ptr_eq(&old.pixels, &glyph.mask),
-                        "mutable cached glyph"
+                        ((local + batch.origin[axis]) * batch.scale).is_finite(),
+                        "invalid glyph bounds"
                     );
                 }
             }
+            let same = self
+                .draws
+                .get(&batch.id)
+                .is_some_and(|old| Arc::ptr_eq(&old.geometry, geometry));
+            if !same {
+                validated += geometry.glyphs.len();
+                count += geometry.glyphs.len() as i64;
+                for (id, index) in &geometry.unique {
+                    let glyph = &geometry.glyphs[*index];
+                    *changes.entry(*id).or_default() += 1;
+                    if let Some(old) = definitions.insert(*id, glyph) {
+                        anyhow::ensure!(
+                            old.size == glyph.size && Arc::ptr_eq(&old.mask, &glyph.mask),
+                            "mutable glyph resource"
+                        );
+                    }
+                    if let Some(old) = self.tiles.get(id) {
+                        anyhow::ensure!(
+                            old.bounds[2..] == glyph.size && Arc::ptr_eq(&old.pixels, &glyph.mask),
+                            "mutable cached glyph"
+                        );
+                    }
+                }
+            }
+            ids.insert(batch.id);
+        }
+        let mut bytes = self.mask_bytes as i64;
+        for (id, change) in changes {
+            let old = self.tiles.get(&id);
+            let before = old.map_or(0, |tile| tile.references as i64);
+            let after = before + change;
+            anyhow::ensure!(after >= 0, "glyph resource reference underflow");
+            if before == 0 && after > 0 {
+                bytes += definitions[&id].mask.len() as i64;
+            }
+            if before > 0 && after == 0 {
+                bytes -= old.unwrap().pixels.len() as i64;
+            }
         }
         anyhow::ensure!(
-            count * 48 <= max_bytes / 2,
+            count >= 0 && count as u64 * 48 <= max_bytes / 2,
             "glyph instance budget exceeded"
         );
         anyhow::ensure!(
-            batches.len() as u64 * 32 <= max_bytes / 2,
+            ids.len() as u64 * 32 <= max_bytes / 2,
             "glyph material budget exceeded"
         );
         anyhow::ensure!(
-            unique
-                .values()
-                .map(|glyph| glyph.mask.len() as u64)
-                .sum::<u64>()
-                <= 32 * 1024 * 1024,
+            (0..=32 * 1024 * 1024).contains(&bytes),
             "live glyph mask budget exceeded"
         );
-        Ok(ids)
+        Ok((ids, validated))
     }
     fn tile(
         &mut self,
@@ -436,64 +572,104 @@ impl GlyphCache {
                 allocation: allocation.id,
                 bounds,
                 pixels: glyph.mask.clone(),
+                references: 0,
             },
         );
         stats.atlas_bytes += glyph.mask.len() as u64;
         stats.atlas_uploads += 1;
         Ok(())
     }
+    fn release(&mut self, geometry: &GlyphGeometry, touched: &mut BTreeSet<u64>) {
+        self.glyph_count -= geometry.glyphs.len();
+        for id in geometry.unique.keys() {
+            self.tiles
+                .get_mut(id)
+                .expect("retained glyph tile")
+                .references -= 1;
+            touched.insert(*id);
+        }
+    }
     pub fn prepare(
         &mut self,
         renderer: &WgpuHeadlessRenderer,
-        batches: Vec<GlyphBatch>,
+        updates: GlyphUpdates,
         size: Size<DevicePixels>,
     ) -> Result<GlyphStats> {
-        let mut stats = GlyphStats::default();
-        let live: BTreeSet<_> = batches
-            .iter()
-            .flat_map(|batch| batch.glyphs.iter().map(|glyph| glyph.resource))
+        let mut stats = GlyphStats {
+            batch_updates: updates.batches.len(),
+            ..Default::default()
+        };
+        let mut touched = BTreeSet::new();
+        for id in self.removals(&updates) {
+            if let Some(draw) = self.draws.remove(&id) {
+                self.release(&draw.geometry, &mut touched);
+                self.free.push(draw.start..draw.start + draw.capacity);
+                self.free_materials.push(draw.material);
+            }
+        }
+        for batch in &updates.batches {
+            if let Some(draw) = self.draws.get(&batch.id)
+                && !Arc::ptr_eq(&draw.geometry, &batch.geometry)
+            {
+                let geometry = draw.geometry.clone();
+                self.release(&geometry, &mut touched);
+            }
+        }
+        // Protect reused resources from eviction before packing new masks.
+        let mut additions = BTreeMap::<u64, (usize, &RetainedGlyph)>::new();
+        for batch in &updates.batches {
+            if self
+                .draws
+                .get(&batch.id)
+                .is_some_and(|old| Arc::ptr_eq(&old.geometry, &batch.geometry))
+            {
+                continue;
+            }
+            for (id, index) in &batch.geometry.unique {
+                let entry = additions
+                    .entry(*id)
+                    .or_insert((0, &batch.geometry.glyphs[*index]));
+                entry.0 += 1;
+            }
+        }
+        for (id, (references, _)) in &additions {
+            if let Some(tile) = self.tiles.get_mut(id) {
+                tile.references += references;
+            }
+        }
+        let dead: Vec<_> = touched
+            .into_iter()
+            .filter(|id| self.tiles[id].references == 0)
             .collect();
-        let dead: Vec<_> = self
-            .tiles
-            .keys()
-            .filter(|id| !live.contains(id))
-            .copied()
-            .collect();
+        let reclaim_pages = !dead.is_empty();
         for id in dead {
             let tile = self.tiles.remove(&id).unwrap();
+            self.mask_bytes -= tile.pixels.len() as u64;
             self.pages[tile.page]
                 .as_mut()
                 .unwrap()
                 .allocator
                 .deallocate(tile.allocation);
         }
-        let used: BTreeSet<_> = self.tiles.values().map(|tile| tile.page).collect();
-        for (index, page) in self.pages.iter_mut().enumerate() {
-            if !used.contains(&index) {
-                *page = None;
+        if reclaim_pages {
+            let used: BTreeSet<_> = self.tiles.values().map(|tile| tile.page).collect();
+            for (index, page) in self.pages.iter_mut().enumerate() {
+                if !used.contains(&index) {
+                    *page = None;
+                }
             }
         }
-        let ids: BTreeSet<_> = batches.iter().map(|batch| batch.id).collect();
-        let dead: Vec<_> = self
-            .draws
-            .keys()
-            .filter(|id| !ids.contains(*id))
-            .copied()
-            .collect();
-        for id in dead {
-            let draw = self.draws.remove(&id).unwrap();
-            self.free.push(draw.start..draw.start + draw.capacity);
-            self.free_materials.push(draw.material);
+        for (id, (references, glyph)) in additions {
+            if !self.tiles.contains_key(&id) {
+                self.tile(renderer, glyph, &mut stats)?;
+                self.tiles.get_mut(&id).unwrap().references = references;
+                self.mask_bytes += glyph.mask.len() as u64;
+            }
         }
         let mut dirty = vec![];
         let mut material_dirty = vec![];
         let mut property_dirty = vec![];
-        for batch in batches {
-            for glyph in &batch.glyphs {
-                self.tile(renderer, glyph, &mut stats)?;
-            }
-            let mut instances = vec![];
-            let mut runs: Vec<(usize, Range<u32>)> = vec![];
+        for batch in updates.batches {
             let previous = self.draws.remove(&batch.id);
             let material = previous.as_ref().map_or_else(
                 || {
@@ -532,7 +708,18 @@ impl GlyphCache {
                 property_dirty.push(material..material + 1);
                 stats.changed.insert(batch.id);
             }
-            for glyph in &batch.glyphs {
+            if previous
+                .as_ref()
+                .is_some_and(|old| Arc::ptr_eq(&old.geometry, &batch.geometry))
+            {
+                self.draws.insert(batch.id, previous.unwrap());
+                continue;
+            }
+            stats.rebuilt_glyphs += batch.geometry.glyphs.len();
+            self.glyph_count += batch.geometry.glyphs.len();
+            let mut instances = vec![];
+            let mut runs: Vec<(usize, Range<u32>)> = vec![];
+            for glyph in &batch.geometry.glyphs {
                 let tile = &self.tiles[&glyph.resource];
                 let index = instances.len() as u32;
                 instances.push(Instance {
@@ -553,43 +740,31 @@ impl GlyphCache {
                     runs.push((tile.page, index..index + 1));
                 }
             }
-            let resources: Vec<_> = batch.glyphs.iter().map(|glyph| glyph.resource).collect();
             let needed = (instances.len() as u32).max(1).next_power_of_two();
-            let (start, capacity, changed) = if let Some(previous) = previous {
+            let (start, capacity) = if let Some(previous) = previous {
                 if previous.capacity >= needed {
-                    (
-                        previous.start,
-                        previous.capacity,
-                        previous.instances != instances
-                            || previous.runs != runs
-                            || previous.resources != resources,
-                    )
+                    (previous.start, previous.capacity)
                 } else {
                     self.free
                         .push(previous.start..previous.start + previous.capacity);
-                    let start = self.allocate(needed);
-                    (start, needed, true)
+                    (self.allocate(needed), needed)
                 }
             } else {
-                let start = self.allocate(needed);
-                (start, needed, true)
+                (self.allocate(needed), needed)
             };
-            if changed {
-                stats.changed.insert(batch.id);
-                if !instances.is_empty() {
-                    self.mirror[start as usize..start as usize + instances.len()]
-                        .copy_from_slice(&instances);
-                    dirty.push(start..start + instances.len() as u32);
-                }
+            stats.changed.insert(batch.id);
+            if !instances.is_empty() {
+                self.mirror[start as usize..start as usize + instances.len()]
+                    .copy_from_slice(&instances);
+                dirty.push(start..start + instances.len() as u32);
             }
             self.draws.insert(
                 batch.id,
                 Draw {
                     start,
                     capacity,
-                    instances,
                     runs,
-                    resources,
+                    geometry: batch.geometry,
                     material,
                 },
             );

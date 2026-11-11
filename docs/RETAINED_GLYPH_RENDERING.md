@@ -7,6 +7,8 @@ separates node colors from glyph geometry. The full implementation goal remains 
 [acceptance table](RETAINED_IMPLEMENTATION_PROGRESS.md).
 The [glyph property update](performance/2026-11-11-glyph-properties/README.md)
 also separates node origin/scale/clip, reusing local geometry on translation.
+The [glyph delta stage](RETAINED_GLYPH_DELTAS.md) retains immutable backend
+geometry and skips per-glyph reconstruction/validation on property/material updates.
 
 `GlyphRasterizer` captures the real platform `TextSystem`. It prepares immutable
 `TextResource` values from a `ParagraphSnapshot`, rasterizing the actual shaped
@@ -71,7 +73,8 @@ resolves integer device-pixel baseline placement using the same halfway-away-fro
 rounding as the CPU oracle, including negative coordinates. Rewrap writes affected
 local geometry. Property changes independently invalidate raster content and merge
 adjacent writes; property buffers/bindings also remain leased through completion.
-This separation reduces upload size while full CPU glyph planning still remains.
+The subsequent delta stage also avoids repeating CPU per-glyph planning for
+matching immutable geometry. Full paint-item/draw-order scans still remain.
 
 Live guards cover 32 MiB of unique bitmap data, 64 atlas pages and the device
 storage-buffer limit. They do not form a physical cross-frame budget. Packing
@@ -86,9 +89,9 @@ positions through `Window::paint_glyph`; the legacy backend's AA/subpixel policy
 is separate and is not claimed pixel-identical to the retained integer-origin
 contract. Direct GPU texture import/presentation remains required.
 
-Validation includes 44 core tests, ten shared-example tests including real click
-dispatch and real Cosmic/Noto shaping/rasterization, plus 107 hardware pixel
-scenarios. Twenty-four hardware cases cover text: Unicode/combining characters,
+Validation includes 45 core tests, ten shared-example tests including real click
+dispatch and real Cosmic/Noto shaping/rasterization, plus 112 hardware pixel
+scenarios. Twenty-nine hardware cases cover text: Unicode/combining characters,
 color/alpha, damage translation, clip, rewrap, shared masks, isolated opacity and
 cache reuse, resource replacement, skipped base, explicit reset, device scale,
 quad occlusion, removal/retirement, overlapping in-flight replacements, multiple
@@ -110,8 +113,9 @@ scale rejection, final-value routing, overflow damage and atomic image/text swap
 against a cold GPU cache for the same 450-glyph full redraw. They include submit
 and GPU completion, not shaping, mask rasterization, transaction/extraction,
 reset construction, readback or window presentation. Cache reuse saves measured
-work, but full scene validation, glyph planning and instance comparison still
-scan the packet. No sublinear text-update or end-to-end FPS claim follows.
+work. Current matching glyph chunks skip per-glyph validation/reconstruction,
+but full scene validation and draw planning still scan paint items. No sublinear
+complete scene-update or end-to-end FPS claim follows.
 
 Remaining text acceptance includes rich text/font runs and decorations, full
 bidi and alignment contracts, editing/selection/caret/IME, color glyphs, LCD and

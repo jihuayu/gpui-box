@@ -42,6 +42,7 @@ try {
         'tooling/rendering-perf/src/retained_queue.rs',
         'tooling/rendering-perf/src/retained_image.rs',
         'tooling/rendering-perf/src/retained_text.rs',
+        'tooling/rendering-perf/src/retained_glyph_bench.rs',
         'tooling/rendering-perf/run-retained-gpu.ps1')
     $hashes = foreach ($source in $sources) {
         [ordered]@{path = $source; sha256 = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash}

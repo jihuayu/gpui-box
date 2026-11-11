@@ -5,6 +5,7 @@ use gpui_box::retained::{
 };
 use std::{error::Error, fs, path::PathBuf};
 mod retained_bench;
+mod retained_glyph_bench;
 mod retained_image;
 mod retained_layers;
 mod retained_logical;
@@ -682,6 +683,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     fs::write(
         output.join("text-benchmark.json"),
         serde_json::to_vec_pretty(&retained_text::benchmark()?)?,
+    )?;
+    fs::write(
+        output.join("glyph-geometry-benchmark.json"),
+        serde_json::to_vec_pretty(&retained_glyph_bench::run()?)?,
     )?;
     Ok(())
 }

@@ -2,7 +2,7 @@
 use super::*;
 use gpui_box::retained::{paragraph::ParagraphSnapshot, text::*};
 use std::{borrow::Cow, sync::Arc, time::Instant};
-fn context() -> Result<(gpui::WindowTextSystem, GlyphRasterizer), Box<dyn Error>> {
+pub(super) fn context() -> Result<(gpui::WindowTextSystem, GlyphRasterizer), Box<dyn Error>> {
     let system = Arc::new(gpui::TextSystem::new(Arc::new(
         gpui_wgpu::CosmicTextSystem::new_without_system_fonts("Noto Sans CJK SC"),
     )));
@@ -14,7 +14,7 @@ fn context() -> Result<(gpui::WindowTextSystem, GlyphRasterizer), Box<dyn Error>
         GlyphRasterizer::new(system),
     ))
 }
-fn text(
+pub(super) fn text(
     context: &gpui::WindowTextSystem,
     raster: &mut GlyphRasterizer,
     value: &str,
@@ -136,11 +136,157 @@ fn cpu_oracle(
     }
     assert!(non_background > 50, "font mask must produce actual ink");
 }
+fn backend_delta_validation() -> Result<(), Box<dyn Error>> {
+    use gpui_wgpu::{
+        GlyphBatch, GlyphGeometry, GlyphUpdates, QuadBatch, QuadDraw, QuadRedraw, RetainedGlyph,
+        RetainedQuadRenderer,
+    };
+    let geometry = |resource, mask: Arc<[u8]>| {
+        GlyphGeometry::new(vec![RetainedGlyph {
+            resource,
+            size: [2, 2],
+            mask,
+            origin: [0.0, 0.0],
+            offset: [0, 0],
+        }])
+    };
+    let pixels: Arc<[u8]> = vec![255; 4].into();
+    let a = geometry(u64::MAX - 1, pixels.clone())?;
+    let b = geometry(u64::MAX - 2, vec![255; 4].into())?;
+    let draw = |id, geometry: Arc<GlyphGeometry>, x, color| GlyphBatch {
+        id: [9, id, 0],
+        geometry,
+        origin: [x, 0.0],
+        scale: 1.0,
+        clip: [0.0, 0.0, 32.0, 16.0],
+        color,
+    };
+    let submit = |updates| QuadBatch {
+        capacity: 0,
+        writes: vec![],
+        order: Some(vec![
+            QuadDraw::Glyphs([9, 0, 0]),
+            QuadDraw::Glyphs([9, 1, 0]),
+        ]),
+        layers: vec![],
+        images: vec![],
+        glyphs: updates,
+        cache_layers: true,
+        size: gpui::size(gpui::DevicePixels(32), gpui::DevicePixels(16)),
+        redraw: QuadRedraw::Full,
+    };
+    let mut renderer = RetainedQuadRenderer::new(3)?;
+    renderer.submit(submit(GlyphUpdates {
+        reset: true,
+        removed: vec![],
+        batches: vec![
+            draw(0, a.clone(), 0.0, 0xff0000ff),
+            draw(1, b.clone(), 4.0, 0x00ff00ff),
+        ],
+    }))?;
+    // Swap disjoint mask owners in one update. Neither tile may be freed/reuploaded.
+    let swapped = renderer.submit(submit(GlyphUpdates {
+        reset: false,
+        removed: vec![],
+        batches: vec![
+            draw(0, b.clone(), 0.0, 0xff0000ff),
+            draw(1, a.clone(), 4.0, 0x00ff00ff),
+        ],
+    }))?;
+    assert_eq!(swapped.glyph_atlas_bytes, 0);
+    let image = renderer.image()?;
+    assert_eq!(image.get_pixel(0, 0).0, [255, 0, 0, 255]);
+    assert_eq!(image.get_pixel(4, 0).0, [0, 255, 0, 255]);
+    // A caller cannot redefine cached resource bytes using a new immutable geometry.
+    let redefined = geometry(u64::MAX - 1, vec![0; 4].into())?;
+    assert!(
+        renderer
+            .submit(submit(GlyphUpdates {
+                reset: false,
+                removed: vec![],
+                batches: vec![draw(0, redefined, 0.0, 0xffffffff)]
+            }))
+            .is_err()
+    );
+    assert!(
+        renderer
+            .submit(submit(GlyphUpdates {
+                reset: false,
+                removed: vec![],
+                batches: vec![
+                    draw(0, b.clone(), 0.0, 0xffffffff),
+                    draw(0, b.clone(), 0.0, 0xffffffff)
+                ]
+            }))
+            .is_err()
+    );
+    assert!(
+        renderer
+            .submit(submit(GlyphUpdates {
+                reset: false,
+                removed: vec![[9, 0, 0]],
+                batches: vec![draw(0, b.clone(), 0.0, 0xffffffff)]
+            }))
+            .is_err()
+    );
+    let valid = renderer.submit(submit(GlyphUpdates {
+        reset: false,
+        removed: vec![],
+        batches: vec![draw(0, b, 0.0, 0x0000ffff)],
+    }))?;
+    assert_eq!(
+        (valid.glyph_rebuilt_instances, valid.glyph_material_bytes),
+        (0, 16)
+    );
+    assert_eq!(renderer.image()?.get_pixel(0, 0).0, [0, 0, 255, 255]);
+    assert!(
+        GlyphGeometry::new(vec![RetainedGlyph {
+            resource: 1,
+            size: [2, 2],
+            mask: pixels.clone(),
+            origin: [f32::NAN, 0.0],
+            offset: [0, 0]
+        }])
+        .is_err()
+    );
+    assert!(
+        GlyphGeometry::new(vec![RetainedGlyph {
+            resource: 1,
+            size: [2, 3],
+            mask: pixels.clone(),
+            origin: [0.0, 0.0],
+            offset: [0, 0]
+        }])
+        .is_err()
+    );
+    assert!(
+        GlyphGeometry::new(vec![
+            RetainedGlyph {
+                resource: 1,
+                size: [2, 2],
+                mask: pixels,
+                origin: [0.0, 0.0],
+                offset: [0, 0]
+            },
+            RetainedGlyph {
+                resource: 1,
+                size: [2, 2],
+                mask: vec![255; 4].into(),
+                origin: [3.0, 0.0],
+                offset: [0, 0]
+            }
+        ])
+        .is_err()
+    );
+    renderer.finish()?;
+    Ok(())
+}
 pub(super) fn run(
     renderer: &mut WgpuFrameRenderer,
     output: &std::path::Path,
     results: &mut Vec<serde_json::Value>,
 ) -> Result<(), Box<dyn Error>> {
+    backend_delta_validation()?;
     let (context, mut raster) = context()?;
     let a = text(
         &context,
@@ -192,6 +338,14 @@ pub(super) fn run(
         frame.items[1].glyphs.as_ref().unwrap()
     ));
     let color = renderer.submit(&frame, [400, 220], 1.0)?.unwrap();
+    assert_eq!(
+        (
+            color.gpu.glyph_batch_updates,
+            color.gpu.glyph_rebuilt_instances,
+            color.gpu.glyph_validated_instances
+        ),
+        (1, 0, 0)
+    );
     assert_eq!(color.gpu.glyph_atlas_bytes, 0);
     assert_eq!(
         (
@@ -219,6 +373,10 @@ pub(super) fn run(
     )?;
     results.last_mut().unwrap()["glyph_material_bytes"] = color.gpu.glyph_material_bytes.into();
     results.last_mut().unwrap()["glyph_instance_bytes"] = color.gpu.glyph_instance_bytes.into();
+    results.last_mut().unwrap()["glyph_rebuilt_instances"] =
+        color.gpu.glyph_rebuilt_instances.into();
+    results.last_mut().unwrap()["glyph_validated_instances"] =
+        color.gpu.glyph_validated_instances.into();
     let mut tx = Transaction::default();
     tx.translation(node, [4.25, 3.25]);
     tree.commit(tx, BackendCapabilities::default())?;
@@ -331,6 +489,14 @@ pub(super) fn run(
     tree.commit(tx, BackendCapabilities::default())?;
     frame = tree.frame([400.0, 220.0])?;
     let opacity = renderer.submit(&frame, [400, 220], 1.0)?.unwrap();
+    assert_eq!(
+        (
+            opacity.gpu.glyph_batch_updates,
+            opacity.gpu.glyph_rebuilt_instances,
+            opacity.gpu.glyph_validated_instances
+        ),
+        (0, 0, 0)
+    );
     assert_eq!(
         (
             opacity.gpu.glyph_atlas_bytes,
@@ -685,6 +851,122 @@ pub(super) fn run(
         compare(renderer, &frame, [400, 220], 1.0, name, output, results)?;
         results.last_mut().unwrap()["glyph_property_bytes"] = 32.into();
     }
+    // Unchanged draws retain their masks while only another draw is updated.
+    let mut partial = UiTree::new(style(0.0, 0.0, 400.0, Some(220.0)), 0x000000ff)?;
+    let shared = text(&context, &mut raster, "unchanged 中文", 1.0)?;
+    let changed = text(&context, &mut raster, "replacement 字形", 1.0)?;
+    let left = partial.append(partial.root(), style(4.0, 0.0, 190.0, None), 0)?;
+    let right = partial.append(partial.root(), style(204.0, 0.0, 190.0, None), 0)?;
+    set(&mut partial, left, &shared, 0xffdd88ff)?;
+    set(&mut partial, right, &shared, 0xffdd88ff)?;
+    renderer.submit(&partial.frame([400.0, 220.0])?, [400, 220], 1.0)?;
+    set(&mut partial, left, &shared, 0x88ddffff)?;
+    let frame = partial.frame([400.0, 220.0])?;
+    let submit = renderer.submit(&frame, [400, 220], 1.0)?.unwrap();
+    assert_eq!(
+        (
+            submit.gpu.glyph_batch_updates,
+            submit.gpu.glyph_validated_instances,
+            submit.gpu.glyph_rebuilt_instances
+        ),
+        (1, 0, 0)
+    );
+    cpu_oracle(&frame, [400, 220], 1.0, &renderer.image()?);
+    compare(
+        renderer,
+        &frame,
+        [400, 220],
+        1.0,
+        "text-delta-retains-unchanged",
+        output,
+        results,
+    )?;
+    set(&mut partial, left, &changed, 0x88ddffff)?;
+    renderer.submit(&partial.frame([400.0, 220.0])?, [400, 220], 1.0)?;
+    partial.remove(left)?;
+    let frame = partial.frame([400.0, 220.0])?;
+    let submit = renderer.submit(&frame, [400, 220], 1.0)?.unwrap();
+    assert_eq!(
+        (
+            submit.gpu.glyph_atlas_bytes,
+            submit.gpu.glyph_batch_updates,
+            submit.gpu.glyph_rebuilt_instances
+        ),
+        (0, 0, 0)
+    );
+    cpu_oracle(&frame, [400, 220], 1.0, &renderer.image()?);
+    compare(
+        renderer,
+        &frame,
+        [400, 220],
+        1.0,
+        "text-delta-shared-owner-removal",
+        output,
+        results,
+    )?;
+    let mut tx = Transaction::default();
+    tx.text(right, None);
+    partial.commit(tx, BackendCapabilities::default())?;
+    partial.frame([400.0, 220.0])?;
+    set(&mut partial, right, &shared, 0x88ddffff)?;
+    let frame = partial.frame([400.0, 220.0])?;
+    let submit = renderer.submit(&frame, [400, 220], 1.0)?.unwrap();
+    assert!(submit.full_resync);
+    assert_eq!(
+        (
+            submit.gpu.glyph_atlas_bytes,
+            submit.gpu.glyph_rebuilt_instances
+        ),
+        (0, 0)
+    );
+    compare(
+        renderer,
+        &frame,
+        [400, 220],
+        1.0,
+        "text-delta-resync-reuses-geometry",
+        output,
+        results,
+    )?;
+    let visible_style = partial.style(right)?.clone();
+    let mut hidden_style = visible_style.clone();
+    hidden_style.display = taffy::Display::None;
+    let mut tx = Transaction::default();
+    tx.style(right, hidden_style);
+    partial.commit(tx, BackendCapabilities::default())?;
+    let hidden = partial.frame([400.0, 220.0])?;
+    renderer.submit(&hidden, [400, 220], 1.0)?;
+    assert!(
+        renderer
+            .image()?
+            .pixels()
+            .all(|pixel| pixel.0 == [0, 0, 0, 255])
+    );
+    compare(
+        renderer,
+        &hidden,
+        [400, 220],
+        1.0,
+        "text-delta-display-none",
+        output,
+        results,
+    )?;
+    let mut tx = Transaction::default();
+    tx.style(right, visible_style);
+    partial.commit(tx, BackendCapabilities::default())?;
+    let restored = partial.frame([400.0, 220.0])?;
+    let submit = renderer.submit(&restored, [400, 220], 1.0)?.unwrap();
+    assert!(submit.gpu.glyph_atlas_bytes > 0 && submit.gpu.glyph_rebuilt_instances > 0);
+    cpu_oracle(&restored, [400, 220], 1.0, &renderer.image()?);
+    compare(
+        renderer,
+        &restored,
+        [400, 220],
+        1.0,
+        "text-delta-display-restore",
+        output,
+        results,
+    )?;
     Ok(())
 }
 
@@ -705,6 +987,9 @@ pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
     let mut instance_bytes = [vec![], vec![], vec![]];
     let mut material_bytes = [vec![], vec![], vec![]];
     let mut property_bytes = [vec![], vec![], vec![]];
+    let mut rebuilt = [vec![], vec![], vec![]];
+    let mut validated = [vec![], vec![], vec![]];
+    let mut submit_cpu = [vec![], vec![], vec![]];
     let mut baseline_pixels = None;
     for round in 0..3 {
         for mode in (0..3).map(|index| (index + round) % 3) {
@@ -736,6 +1021,7 @@ pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
                 }
                 let start = Instant::now();
                 let submit = renderer.submit(&frame, [800, 600], 1.0)?.unwrap();
+                let cpu_elapsed = start.elapsed().as_secs_f64() * 1e6;
                 renderer.finish()?;
                 if i >= 6 {
                     let elapsed = start.elapsed().as_secs_f64() * 1e6;
@@ -745,6 +1031,9 @@ pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
                     instance_bytes[mode].push(submit.gpu.glyph_instance_bytes);
                     material_bytes[mode].push(submit.gpu.glyph_material_bytes);
                     property_bytes[mode].push(submit.gpu.glyph_property_bytes);
+                    rebuilt[mode].push(submit.gpu.glyph_rebuilt_instances);
+                    validated[mode].push(submit.gpu.glyph_validated_instances);
+                    submit_cpu[mode].push(cpu_elapsed);
                 }
             }
             round_samples.sort_by(f64::total_cmp);
@@ -795,7 +1084,11 @@ pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
                 _ => 64,
             }
         );
-        cases.push(serde_json::json!({"mode":match mode {0=>"reuse glyph atlas and instances; material-only color",1=>"warm atlas; material and outside-ink clip properties",_=>"cold renderer uploads same glyph masks"},"samples":samples[mode].len(),"median_us":samples[mode][samples[mode].len()/2],"p95_us":samples[mode][samples[mode].len()*95/100],"atlas_bytes_per_frame":atlas_bytes[mode][0],"instance_bytes_per_frame":instance_bytes[mode][0],"material_bytes_per_frame":material_bytes[mode][0],"property_bytes_per_frame":property_bytes[mode][0],"sorted_samples_us":samples[mode],"round_medians_us":round_medians[mode],"pixel_equal":true}));
+        let expected = if mode == 2 { 450 } else { 0 };
+        assert!(rebuilt[mode].iter().all(|count| *count == expected));
+        assert!(validated[mode].iter().all(|count| *count == expected));
+        submit_cpu[mode].sort_by(f64::total_cmp);
+        cases.push(serde_json::json!({"mode":match mode {0=>"reuse glyph atlas and instances; material-only color",1=>"warm atlas; material and outside-ink clip properties",_=>"cold renderer uploads same glyph masks"},"samples":samples[mode].len(),"median_us":samples[mode][samples[mode].len()/2],"p95_us":samples[mode][samples[mode].len()*95/100],"submit_cpu_median_us":submit_cpu[mode][submit_cpu[mode].len()/2],"submit_cpu_sorted_samples_us":submit_cpu[mode],"atlas_bytes_per_frame":atlas_bytes[mode][0],"instance_bytes_per_frame":instance_bytes[mode][0],"material_bytes_per_frame":material_bytes[mode][0],"property_bytes_per_frame":property_bytes[mode][0],"rebuilt_glyphs_per_frame":rebuilt[mode][0],"validated_glyphs_per_frame":validated[mode][0],"sorted_samples_us":samples[mode],"round_medians_us":round_medians[mode],"pixel_equal":true}));
     }
     Ok(
         serde_json::json!({"scope":"Full-redraw FramePacket submit + GPU completion for text color changes. Second warm mode also changes a clip edge beyond text ink with identical output, exercising property-only writes. Resources, shaping, rasterization, snapshot extraction and renderer reset construction outside timing. Cold mode starts with empty GPU atlas/instances, including GPU allocation/binding and buffer growth. No readback/presentation. 3 rotating rounds, 6 warmups + 20 samples per mode per round.","glyphs":resource.chunk(780.0)?.glyphs.len(),"rasterized_glyphs":raster.rasterized_glyphs(),"cases":cases}),
