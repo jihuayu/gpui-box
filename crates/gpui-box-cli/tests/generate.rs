@@ -104,6 +104,54 @@ fn new_never_overwrites_an_existing_destination() {
     assert!(String::from_utf8_lossy(&output.stderr).contains("already exists"));
     assert!(app.join("app/src/lib.rs").is_file());
 }
+
+#[test]
+fn release_requires_explicit_signing_before_running_build_tools() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create(temporary.path());
+    let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+        .current_dir(&app)
+        .args(["package", "android", "--release"])
+        .env_remove("GPUI_BOX_ANDROID_KEYSTORE")
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("GPUI_BOX_ANDROID_KEYSTORE"));
+    assert!(!app.join("dist").exists());
+    assert!(!app.join("android-host/app/build").exists());
+    assert!(
+        app.join("android-host/gradle/wrapper/gradle-wrapper.jar")
+            .is_file()
+    );
+    let host = fs::read_to_string(app.join("android-host/app/build.gradle.kts")).unwrap();
+    assert!(host.contains("buildRustRelease"));
+    assert!(host.contains("rustJniLibs/$profile"));
+    assert!(host.contains("GPUI_BOX_ANDROID_STORE_PASSWORD"));
+}
+
+#[cfg(windows)]
+#[test]
+fn portable_assets_cannot_overwrite_bundle_metadata_or_recurse_into_output() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create(temporary.path());
+    let path = app.join("gpui-box.json");
+    let mut config: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    for asset in [
+        "dist",
+        "target",
+        "licenses/custom",
+        "bundle.json",
+        "BOX-DESKTOP.EXE",
+        "SHA256SUMS",
+    ] {
+        config["assets"] = serde_json::json!([asset]);
+        fs::write(&path, serde_json::to_vec(&config).unwrap()).unwrap();
+        let result = cli(&app, &["package", "desktop", "--portable"]);
+        assert!(!result.status.success());
+        assert!(String::from_utf8_lossy(&result.stderr).contains("overlaps"));
+        assert!(!app.join("dist").exists());
+    }
+}
 #[test]
 fn native_declarations_follow_the_validated_permissions() {
     let temporary = tempfile::tempdir().unwrap();

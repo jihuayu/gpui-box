@@ -1,5 +1,6 @@
 mod config;
 mod generate;
+mod package;
 mod workflow;
 use std::{env, path::PathBuf, process::ExitCode};
 
@@ -43,6 +44,16 @@ fn execute(arguments: &[String]) -> Result<(), String> {
             );
         }
         [command] if command == "doctor" => workflow::doctor(&root)?,
+        [command, platform, option]
+            if command == "package" && platform == "android" && option == "--release" =>
+        {
+            package::android(&root)?
+        }
+        [command, platform, option]
+            if command == "package" && platform == "desktop" && option == "--portable" =>
+        {
+            package::windows_portable(&root)?
+        }
         [command] if command == "devices" => workflow::devices()?,
         [command] if command == "logs" => workflow::logs(&root, None)?,
         [command, option, serial] if command == "logs" && option == "--device" => {
@@ -79,6 +90,6 @@ fn main() -> ExitCode {
 }
 fn help() {
     println!(
-        "gpui-box - desktop and mobile developer tools\n\nUsage gpui-box COMMAND\n\n  new PATH --distribution PATH  Generate a desktop/Android app\n  generate                      Update unmodified managed files\n  doctor                        Inspect config and prerequisites\n  dev desktop|android           Run the application\n  build desktop|android         Build a development artifact\n  install android               Install on the selected device\n  package android               Assemble a debug APK\n  devices                       List Android devices\n  logs [--device SERIAL]        Follow application logs\n  info | --version | --help\n\nAndroid workflows accept --device SERIAL. Release signing and updates follow M4/M5."
+        "gpui-box - desktop and mobile developer tools\n\nUsage gpui-box COMMAND\n\n  new PATH --distribution PATH  Generate a desktop/Android app\n  generate                      Update unmodified managed files\n  doctor                        Inspect config and prerequisites\n  dev desktop|android           Run the application\n  build desktop|android         Build a development artifact\n  install android               Install on the selected device\n  package android               Assemble a debug APK\n  package android --release     Sign and inspect release APK/AAB\n  package desktop --portable    Bundle Windows development output\n  devices                       List Android devices\n  logs [--device SERIAL]        Follow application logs\n  info | --version | --help\n\nAndroid development workflows accept --device SERIAL. Release requires explicit signing environment variables and checksum-pinned GPUI_BOX_BUNDLETOOL. See docs/M4_ANDROID_PACKAGING.md in the distribution. Update channels follow M5."
     );
 }

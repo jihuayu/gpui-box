@@ -135,3 +135,10 @@ verified operations and the deferred device gates.
 See [M0 validation](../../docs/M0_ANDROID_VALIDATION.md) for commands, results,
 renderer decision, and deferred device qualification. See
 [M1 validation](../../docs/M1_ANDROID_VALIDATION.md) for subsequent platform work.
+
+Generated applications support `gpui-box package android --release` with explicit
+environment-backed signing and verified Wrapper/bundletool. Release/debug JNI
+output directories are separate. Artifact identity, signatures, manifest/service
+configuration, APK/AAB native consistency and ELF/ZIP alignment are inspected
+before staged publication. See [M4 packaging](../../docs/M4_ANDROID_PACKAGING.md)
+for credentials, tool checksums, dependency/license review and qualification gates.

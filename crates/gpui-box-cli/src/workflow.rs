@@ -16,7 +16,7 @@ pub fn run(command: &mut Command) -> Result<(), String> {
         Err(format!("Command failed with {status}"))
     }
 }
-fn sdk() -> Result<PathBuf, String> {
+pub(crate) fn sdk() -> Result<PathBuf, String> {
     env::var_os("ANDROID_HOME").or_else(|| env::var_os("ANDROID_SDK_ROOT")).map(PathBuf::from)
         .ok_or_else(|| "Set ANDROID_HOME to the Android SDK directory. Install platform-tools, platforms;android-36, build-tools;36.0.0 and ndk;30.0.16248370.".into())
 }
@@ -61,10 +61,7 @@ pub fn workflow(
             } else {
                 ":app:assembleDebug"
             };
-            let mut build = Command::new("mise");
-            build.current_dir(root).args([
-                "-E", "android", "exec", "--", "gradle", "-p", "android-host", task,
-            ]);
+            let mut build = crate::package::gradle(root, &[task])?;
             if let Some(serial) = serial {
                 build.env("ANDROID_SERIAL", serial);
             }
@@ -153,6 +150,32 @@ pub fn doctor(root: &Path) -> Result<(), String> {
         }
     }
     if config.targets.iter().any(|t| t == "android") {
+        match crate::package::verify_wrapper(&root.join("android-host")) {
+            Ok(()) => println!("OK Gradle Wrapper JAR and distribution SHA-256 pins"),
+            Err(error) => {
+                missing = true;
+                eprintln!("INVALID Gradle Wrapper. {error}. Run gpui-box generate.");
+            }
+        }
+        match crate::package::bundletool() {
+            Ok(_) => println!("OK optional release bundletool 1.18.3 checksum"),
+            Err(error) => println!("RELEASE prerequisite {error}"),
+        }
+        for name in [
+            "GPUI_BOX_ANDROID_KEYSTORE",
+            "GPUI_BOX_ANDROID_STORE_PASSWORD",
+            "GPUI_BOX_ANDROID_KEY_ALIAS",
+            "GPUI_BOX_ANDROID_KEY_PASSWORD",
+        ] {
+            println!(
+                "RELEASE {name} {}",
+                if env::var_os(name).is_some_and(|value| !value.is_empty()) {
+                    "configured"
+                } else {
+                    "unset"
+                }
+            );
+        }
         for (args, expected, fix) in [
             (
                 vec!["java", "-version"],

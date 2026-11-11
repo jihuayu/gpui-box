@@ -9,7 +9,17 @@ generate, build, install, devices and logs. API 35 is required.
 manifests after checking their recorded hashes. Keep Android customizations in
 `android-custom.gradle.kts` and application source under `app/src`. Existing
 application files are preserved. Commit the generated Cargo.lock after the first
-build. Release signing and application updates follow M4/M5.
+build. `gpui-box package android --release` builds and inspects signed APK/AAB
+artifacts under `dist/android/<version>-<version_code>`. Configure the four
+`GPUI_BOX_ANDROID_*` signing environment variables and checksum-pinned
+`GPUI_BOX_BUNDLETOOL` as documented in the distribution's
+`docs/M4_ANDROID_PACKAGING.md`. Store signing credentials outside source control.
+Release builds still use the configured development channel. Channel-aware
+updates follow M5. `doctor` reports optional release prerequisites without
+printing their values. The CLI verifies the managed Gradle Wrapper before use.
+`gpui-box package desktop --portable` creates a Windows development-profile ZIP
+with assets, metadata and license-review inventory. See the same packaging guide
+for runtime prerequisites and its qualification boundaries.
 
 Optional native declarations use the versioned `services` object in
 `gpui-box.json`. Existing configurations may omit it.

@@ -376,3 +376,39 @@ Per-operation runtime evidence stays in validation reports. The provider capabil
 uses Compiled conservatively, and generic contract manifests retain their scope.
 AndroidX ActivityResult was considered. The existing Activity/JNI host uses its
 platform callback without adding a second Activity lifecycle owner.
+
+## ADR-015 — Inspect release artifacts before publishing staged output
+
+### Context
+
+The source-checkout generator already owns the Android host and its configuration.
+Release packaging must prove artifact identity, signing and native compatibility,
+retain traceable dependency terms and preserve existing versioned output.
+
+### Decision
+
+Use an explicit CLI release profile with environment-backed signing inputs,
+verified Gradle Wrapper and pinned/checksummed bundletool. Build both APK and AAB,
+inspect signatures against the selected private-key certificate, compare their
+native-library contents and validate ABI, ELF/ZIP 16 KB alignment, application
+identity, manifest flags, requested permissions and service assets. Publish a
+staged directory only after inspection and inventory generation succeed.
+
+Keep debug/release JNI outputs separate. Record release profile independently
+from update-channel configuration. Collect original texts plus hash-verified
+commit-pinned supplemental licenses, and expose incomplete publication review
+in machine-readable metadata. Include recursive output checksums and preserve
+existing releases. A shared per-project packaging lock coordinates CLI packages.
+
+The Windows portable developer path reuses the development build and the common
+inventory/checksum pipeline, producing a runnable ZIP with explicit prerequisites.
+The full SDK closure and desktop production installers retain their own milestones.
+
+### Consequences
+
+Applications supply their signing identity and credentials externally. Configuration
+and inspection failures stop artifact publication. Additional exported native
+components require a policy extension coordinated with the owning provider.
+Build/signature/alignment evidence remains distinct from store/device acceptance,
+16 KB runtime qualification and completed license review. Offline readiness and
+clean-machine provisioning require their own source/tool/dependency closure tests.

@@ -89,9 +89,10 @@ entrypoints, EditorInfo/actions, cursor-anchor geometry, predictive-back transpo
 and an initial AccessKit virtual-node adapter. The desktop and Android examples
 share Chinese text, editable fields, reusable components and an adaptive gallery.
 The CLI now generates source-checkout applications and provides doctor,
-dev/build/install, debug APK packaging, device selection and logs. See the reports
+dev/build/install, debug/release Android packaging, Windows portable development
+bundles, device selection and logs. See the reports
 below for tested behavior and open M1–M3 acceptance gates. Application services,
-release packaging and update providers have their own roadmap issues.
+release qualification and update providers have their own roadmap issues.
 
 ### Generate an application
 
@@ -124,6 +125,7 @@ before regeneration or distributing generated output.
 - [M1 Android validation](docs/M1_ANDROID_VALIDATION.md)
 - [M2 component gallery](docs/M2_COMPONENT_GALLERY.md)
 - [M3 developer workflow](docs/M3_DEVELOPER_WORKFLOW.md)
+- [M4 application packaging](docs/M4_ANDROID_PACKAGING.md)
 - [Reference research](docs/REFERENCES.md)
 - [Later Android native composition](docs/ANDROID_COMPOSITION_PLAN.md)
 - [GitHub roadmap](https://github.com/jihuayu/gpui-box/issues/17)

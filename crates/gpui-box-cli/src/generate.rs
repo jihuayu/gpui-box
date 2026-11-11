@@ -200,9 +200,9 @@ include(":app")
     // A fresh application adds its own root packages to the seeded lockfile.
     host = host.replace("\"build\", \"--locked\", \"-p\"", "\"build\", \"-p\"");
     host = host.replace("    inputs.files(fileTree(repository.resolve(\"crates\"))", "    inputs.files(fileTree(repository.resolve(\"app\")) { include(\"**/*.rs\", \"**/Cargo.toml\") })\n    inputs.files(fileTree(repository.resolve(\"crates\"))");
-    host += "\nbuildRust.configure { inputs.files(fileTree(rootProject.file(\"../android\")) { include(\"**/*.rs\", \"**/Cargo.toml\") }); inputs.files(fileTree(rootProject.file(\"../assets\"))) }\n";
+    host += "\nlistOf(buildRust, buildRustRelease).forEach { it.configure { inputs.files(fileTree(rootProject.file(\"../android\")) { include(\"**/*.rs\", \"**/Cargo.toml\") }); inputs.files(fileTree(rootProject.file(\"../assets\"))) } }\n";
     host += &format!(
-        "\nbuildRust.configure {{ inputs.files(fileTree({}) {{ include(\"**/*.rs\", \"**/Cargo.toml\", \"**/*.wgsl\", \"**/*.hlsl\"); exclude(\"target/**\", \".git/**\", \"**/build/**\") }}) }}\n",
+        "\nlistOf(buildRust, buildRustRelease).forEach {{ it.configure {{ inputs.files(fileTree({}) {{ include(\"**/*.rs\", \"**/Cargo.toml\", \"**/*.wgsl\", \"**/*.hlsl\"); exclude(\"target/**\", \".git/**\", \"**/build/**\") }}) }} }}\n",
         kotlin_quoted(&distribution)
     );
     host += &format!(
@@ -218,7 +218,7 @@ include(":app")
             .ok_or("Asset paths must be UTF-8")?
             .replace('\\', "/");
         host += &format!(
-            "\nandroid.sourceSets[\"main\"].assets.srcDir(rootProject.file({}))\nbuildRust.configure {{ inputs.files(fileTree(rootProject.file({}))) }}\n",
+            "\nandroid.sourceSets[\"main\"].assets.srcDir(rootProject.file({}))\nlistOf(buildRust, buildRustRelease).forEach {{ it.configure {{ inputs.files(fileTree(rootProject.file({}))) }} }}\n",
             kotlin_quoted(&format!("../{path}")),
             kotlin_quoted(&format!("../{path}"))
         );
@@ -311,6 +311,22 @@ include(":app")
         ),
     );
     add("android-host/gradle.properties", "org.gradle.jvmargs=-Xmx3g -Dfile.encoding=UTF-8\norg.gradle.parallel=false\nandroid.useAndroidX=true\n".into());
+    for path in [
+        "gradlew",
+        "gradlew.bat",
+        "gradle/wrapper/gradle-wrapper.jar",
+        "gradle/wrapper/gradle-wrapper.properties",
+    ] {
+        files.insert(
+            format!("android-host/{path}"),
+            fs::read(
+                Path::new(&distribution)
+                    .join("platforms/android")
+                    .join(path),
+            )
+            .map_err(|error| error.to_string())?,
+        );
+    }
     for path in ["app/Cargo.toml", "desktop/Cargo.toml", "android/Cargo.toml"] {
         let manifest = files.get_mut(path).expect("generated package");
         *manifest = String::from_utf8(std::mem::take(manifest))
@@ -396,7 +412,7 @@ include(":app")
         )?;
         write(
             &root.join(".gitignore"),
-            b"/target/\n/android-host/.gradle/\n/android-host/app/build/\nlocal.properties\n",
+            b"/target/\n/dist/\n/android-host/.gradle/\n/android-host/app/build/\nlocal.properties\n*.jks\n*.keystore\n.env\n.env.*\nkeystore.properties\n",
         )?;
         write(
             &root.join("README.md"),
