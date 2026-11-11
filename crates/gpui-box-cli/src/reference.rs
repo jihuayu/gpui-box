@@ -27,6 +27,14 @@ pub struct ErrorReference {
 
 const COMMANDS: &[CommandReference] = &[
     CommandReference {
+        syntax: "platform list",
+        summary: "Report native and Web target adapters, host policy and project selection",
+        result: "PlatformInventory v1 with unprobed toolchain readiness",
+        effects: "Read optional project configuration without child processes or writes",
+        offline: "Local metadata only. A present project must validate",
+        json: true,
+    },
+    CommandReference {
         syntax: "list",
         summary: "List the bundled official registry with platform evidence",
         result: "RegistryView v1 with immutable snapshot digest",
@@ -224,6 +232,10 @@ const NOTES: &[&str] = &[
 ];
 
 const ERRORS: &[ErrorReference] = &[
+    ErrorReference {
+        code: "PLATFORM_QUERY_FAILED",
+        meaning: "The optional project configuration could not be read or validated for platform inventory",
+    },
     ErrorReference {
         code: "REGISTRY_QUERY_FAILED",
         meaning: "Bundled registry validation failed or the requested item is unknown",

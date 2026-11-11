@@ -909,3 +909,39 @@ processes are used by discovery/resolution. Hosted native template matrices
 also compare embedded CLI registry bytes with the exported SDK snapshot, run a
 combined template dependency resolution and record both inventories in their
 receipts before generated builds.
+
+## Platform adapter inventory
+
+```sh
+gpui-box platform list
+gpui-box platform list --json
+```
+
+PlatformInventory v1 reports Windows, macOS, Linux, Android, iOS and Web
+independently. It includes the host, current CLI target mapping, configuration
+and build-adapter availability, host compatibility policy, optional validated
+project target selection, backend maturity, evidence path and outstanding
+acceptance. This finite command reads optional gpui-box.json only. It performs
+no writes, compiler/SDK/adb/tool query or network access and works without a
+project. Invalid present configuration uses PLATFORM_QUERY_FAILED with failure
+exit status. Toolchain readiness is always unprobed. Run doctor inside a project
+to inspect declared prerequisites separately.
+
+The shared desktop target enables the three desktop backends in configuration,
+while the current build command uses the host's own backend. Thus a desktop
+project lists all desktop entries enabled and host compatibility remains a
+separate field. Cross-compilation and remote builds retain their own adapters. Android's current generation/build adapter supports the three desktop
+host families under their SDK/NDK/JDK prerequisites. This policy does not qualify
+every host/architecture/runtime combination. Android remains API35 with
+compileSdk36 and two configured native ABIs.
+
+macOS is unverified by the current hosted matrix. iOS has copied upstream source
+and an Apple-host requirement, with CLI generation/build adapters still absent.
+Web is unsupported by the current CLI. Their inventory records retain explicit
+acceptance gaps. Platform add, additional target generation/build/run adapters,
+Apple infrastructure, physical devices and native release journeys remain open
+under #73/#7/#8/#9. Existing positional build/dev commands retain their behavior.
+
+Tests cover five host policies, empty-directory operation with an empty PATH,
+Android-only project selection, invalid configuration, unsupported syntax and
+preserved project bytes. The current CLI suite contains72Windows cases.
