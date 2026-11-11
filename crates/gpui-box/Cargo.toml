@@ -15,6 +15,8 @@ sharing = ["system", "dep:gpui-sharing"]
 clipboard = ["system", "dep:gpui-clipboard"]
 system = ["dep:gpui-system"]
 secrets = ["system", "dep:gpui-secrets"]
+local-auth = ["system", "lifecycle", "secrets", "dep:gpui-local-auth"]
+local-auth-gpui = ["local-auth", "system-gpui", "lifecycle-gpui", "gpui-local-auth/gpui"]
 app-data = ["system", "dep:gpui-app-data"]
 lifecycle = ["system", "dep:gpui-lifecycle"]
 lifecycle-gpui = ["lifecycle", "system-gpui", "gpui-lifecycle/gpui"]
@@ -42,6 +44,7 @@ gpui-lifecycle = { workspace = true, optional = true }
 gpui-system = { workspace = true, optional = true }
 gpui-permissions = { workspace = true, optional = true }
 gpui-files = { workspace = true, optional = true }
+gpui-local-auth = { workspace = true, optional = true }
 
 [target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
 gpui = { workspace = true, optional = true }
