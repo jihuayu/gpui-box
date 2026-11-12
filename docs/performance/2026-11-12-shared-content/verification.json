@@ -1,0 +1,78 @@
+{
+  "hardware_scenarios": 1939,
+  "pixel_comparisons": 1849,
+  "core_tests": 135,
+  "retained_only_tests": 110,
+  "gallery_font_hardware_click_tests": 12,
+  "clippy": "selected core/gallery/perf all targets -D warnings; passed",
+  "desktop_wgpu_build": "passed",
+  "audits": [
+    {
+      "run": "validation",
+      "source_hashes_verified": 172,
+      "hardware_scenarios": 1939,
+      "pixel_comparisons": 1849,
+      "process_samples": 97,
+      "samples_with_compilers": 0
+    },
+    {
+      "run": "run-1",
+      "source_hashes_verified": 172,
+      "hardware_scenarios": 540,
+      "pixel_comparisons": 513,
+      "process_samples": 41,
+      "samples_with_compilers": 0
+    },
+    {
+      "run": "run-2",
+      "source_hashes_verified": 172,
+      "hardware_scenarios": 540,
+      "pixel_comparisons": 513,
+      "process_samples": 39,
+      "samples_with_compilers": 0
+    },
+    {
+      "run": "run-3",
+      "source_hashes_verified": 172,
+      "hardware_scenarios": 540,
+      "pixel_comparisons": 513,
+      "process_samples": 42,
+      "samples_with_compilers": 0
+    }
+  ],
+  "pixel_archives": [
+    {
+      "run": "validation",
+      "png_count": 1850,
+      "sha256": "39ab4443c15301c8ce224d2ca7bcb74253839981dffd1996ec83e065be32cf28"
+    },
+    {
+      "run": "run-1",
+      "png_count": 513,
+      "sha256": "f2069f5a0c41c94be7e10d3a0d2ce80d38dcd287453e54cb1921db33cf6d5774"
+    },
+    {
+      "run": "run-2",
+      "png_count": 513,
+      "sha256": "0f44d7c76276a62510158b8e3aba0fda24b416779eb930bb7aad79078ac2f159"
+    },
+    {
+      "run": "run-3",
+      "png_count": 513,
+      "sha256": "0f44d7c76276a62510158b8e3aba0fda24b416779eb930bb7aad79078ac2f159"
+    }
+  ],
+  "binary_sha256": "76b14ceb6f8336d8422695eafb005276589ee3d306a68625f95eec17b4ec6751",
+  "benchmark_round_end_reference_checks": 108,
+  "initial_probe_reconstructed_manifests": 4,
+  "initial_probe_hashes_per_manifest": 172,
+  "limits": [
+    "two current content-placement controls, not different releases; world control skips empty shared-index validation",
+    "all timing samples retained; rotating block order not perfectly balanced and host/GPU drift remains possible",
+    "wall-time phases/completion are not GPU timestamps; excludes setup/readback/native presentation",
+    "500ms compiler observations can miss shorter work and exclude no unrelated host activity",
+    "linear resolved extraction, resource/order/layer/lease scans, general primitives/layout, physical budgets/device loss/cross-platform/sustained frame rates remain open",
+    "1000-pair ancestor movement shared p95 regresses 26.333 vs 21.071 ms, including run-1 slow submission block; all samples retained",
+    "1000-pair single text color median regresses 3.5%; no general sparse-update or sustained-frame claim"
+  ]
+}

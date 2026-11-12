@@ -8,6 +8,7 @@ mod retained_bench;
 mod retained_completion;
 mod retained_composition;
 mod retained_computed;
+mod retained_content_spatial;
 mod retained_delivery;
 mod retained_edit;
 mod retained_extraction;
@@ -84,6 +85,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         )?,
     )?;
     let mut results = vec![];
+    if std::env::args().any(|arg| arg == "--content-spatial-only") {
+        retained_content_spatial::run(&output, &mut results)?;
+        fs::write(
+            output.join("validation.json"),
+            serde_json::to_vec_pretty(&results)?,
+        )?;
+        fs::write(
+            output.join("content-spatial-benchmark.json"),
+            serde_json::to_vec_pretty(&retained_content_spatial::benchmark()?)?,
+        )?;
+        return Ok(());
+    }
     if std::env::args().any(|arg| arg == "--spatial-index-only") {
         retained_spatial_index::run(&output, &mut results)?;
         fs::write(
@@ -806,6 +819,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_publication::run(&output, &mut results)?;
     retained_routing::run(&output, &mut results)?;
     retained_spatial_index::run(&output, &mut results)?;
+    retained_content_spatial::run(&output, &mut results)?;
     fs::write(
         output.join("validation.json"),
         serde_json::to_vec_pretty(&results)?,

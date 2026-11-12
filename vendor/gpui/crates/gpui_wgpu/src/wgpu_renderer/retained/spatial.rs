@@ -67,13 +67,14 @@ impl Default for SpatialBatch {
 pub(super) type SpatialLease = (wgpu::Buffer, wgpu::Buffer, wgpu::BindGroup);
 pub(super) struct SpatialCache {
     storage: PersistentStorage<SpatialNode>,
-    layout: wgpu::BindGroupLayout,
+    pub layout: wgpu::BindGroupLayout,
     settings: wgpu::Buffer,
     pub binding: wgpu::BindGroup,
     pub quads: wgpu::RenderPipeline,
     pub shadows: wgpu::RenderPipeline,
     pub enabled: bool,
     scale: f32,
+    capacity: u32,
     index: super::spatial_index::GraphIndex,
 }
 impl SpatialCache {
@@ -150,6 +151,7 @@ impl SpatialCache {
             );
             source = source.replace(old, new);
         }
+        source.push_str(include_str!("spatial_resolve.wgsl"));
         source.push_str(include_str!("spatial.wgsl"));
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("retained_spatial_primitives"),
@@ -203,6 +205,7 @@ impl SpatialCache {
             shadows: pipeline("vs_shadow", "fs_shadow"),
             enabled: false,
             scale: 1.0,
+            capacity: 0,
             index: Default::default(),
         }
     }
@@ -366,6 +369,7 @@ impl SpatialCache {
         let mut stats = self
             .storage
             .apply(renderer, batch.capacity, batch.writes, false)?;
+        self.capacity = batch.capacity;
         if generation != self.storage.generation {
             self.binding = Self::binding(
                 &renderer.context.device,
@@ -385,6 +389,29 @@ impl SpatialCache {
             stats.bytes += 16;
         }
         Ok(stats)
+    }
+    pub fn extent_changed(&self, batch: &SpatialBatch) -> bool {
+        self.capacity != batch.capacity || self.parameters_change(batch)
+    }
+    pub fn projected_state(&self, slot: u32, batch: &SpatialBatch) -> Result<super::spatial_index::Resolved> {
+        let mut path=SmallVec::<[SpatialNode;32]>::new(); let mut cursor=slot;
+        let mut state=loop {
+            anyhow::ensure!(cursor<batch.capacity && path.len()<32,"invalid content ancestry");
+            let node=self.storage.projected(cursor,&batch.writes);
+            if node.links[2]&2!=0 {break super::spatial_index::resolve_node(node,None);}
+            path.push(node);cursor=node.links[0];
+        };
+        for node in path.into_iter().rev() {state=super::spatial_index::resolve_node(node,Some(state));}
+        Ok(state)
+    }
+    pub fn projected_affected(&self, property:u32, batch:&SpatialBatch)->bool {
+        if property==0 {return false;} let mut slot=property-1;
+        for _ in 0..32 {
+            if batch.writes.iter().any(|w| slot>=w.start && ((slot-w.start) as usize)<w.values.len()) {return true;}
+            let node=self.storage.projected(slot,&batch.writes);
+            if node.links[2]&2!=0 {break;} slot=node.links[0];
+        }
+        false
     }
     pub fn parameters_change(&self, batch: &SpatialBatch) -> bool {
         self.enabled != batch.enabled || self.scale != batch.scale

@@ -25,6 +25,8 @@ pub(super) struct Entry<'a> {
     pub quad: bool,
     pub shadow: bool,
     pub spatial: bool,
+    pub image: bool,
+    pub glyph: bool,
 }
 pub(super) struct Plan<'a> {
     pub entries: Vec<Entry<'a>>,
@@ -49,6 +51,7 @@ impl Snapshot {
         frame: &'a FramePacket,
         validation: &validation::ValidationCache,
         shared: bool,
+        content_shared: bool,
     ) -> Option<Plan<'a>> {
         if self.items.len() != frame.items.len()
             || frame.order.is_some()
@@ -69,12 +72,15 @@ impl Snapshot {
             if old.node != item.node {
                 return None;
             }
-            let entry = classify(old, item, shared, shared && self.depths[index] == 0);
+            let mut entry = classify(old, item, shared, shared && self.depths[index] == 0);
+            if content_shared {
+                (entry.image, entry.glyph) = classify_content(old, item, true);
+            }
             plan.parent_changed |= old.spatial.parent != item.spatial.parent;
             plan.stats.inspected_items += 1;
             plan.stats.reused_quad_items += usize::from(!entry.quad);
             plan.stats.reused_shadow_items += usize::from(!entry.shadow);
-            if entry.quad || entry.shadow || entry.spatial {
+            if entry.quad || entry.shadow || entry.spatial || entry.image || entry.glyph {
                 plan.entries.push(entry);
             }
             Some(())
@@ -159,7 +165,29 @@ fn classify<'a>(old: &PaintItem, item: &'a PaintItem, shared: bool, anchor: bool
         quad: !same_quad,
         shadow: !same_shadow,
         spatial,
+        image: false,
+        glyph: false,
     }
+}
+
+fn classify_content(old: &PaintItem, item: &PaintItem, shared: bool) -> (bool, bool) {
+    let same_placement = if shared {
+        old.content_offsets == item.content_offsets
+    } else {
+        old.content_bounds == item.content_bounds
+            && old.bounds == item.bounds
+            && old.clip == item.clip
+    };
+    let image = old.image != item.image
+        || item.image.is_some()
+            && (!same_placement
+                || old.content_bounds.width != item.content_bounds.width
+                || old.content_bounds.height != item.content_bounds.height);
+    #[cfg(feature = "retained-text")]
+    let glyph = !old.same_text(item) || item.text.is_some() && !same_placement;
+    #[cfg(not(feature = "retained-text"))]
+    let glyph = false;
+    (image, glyph)
 }
 
 #[cfg(test)]

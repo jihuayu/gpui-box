@@ -12,6 +12,7 @@ pub struct QuadImage {
     pub rgba: Arc<[u8]>,
     pub bounds: [f32; 4],
     pub clip: [f32; 4],
+    pub spatial: Option<SpatialContent>,
 }
 /// Sequential updates preserve all unmentioned draws. Reset supplies the full set.
 #[derive(Default)]
@@ -29,7 +30,8 @@ struct Texture {
 }
 struct Draw {
     resource: u64,
-    geometry: [f32; 12],
+    geometry: [u32; 12],
+    spatial: Option<SpatialContent>,
     buffer: wgpu::Buffer,
     binding: wgpu::BindGroup,
 }
@@ -45,13 +47,14 @@ pub(super) struct ImageStats {
 pub(super) struct ImageCache {
     textures: BTreeMap<u64, Texture>,
     draws: BTreeMap<QuadImageId, Draw>,
+    content_index: content_spatial::ContentIndex,
     live_bytes: u64,
     viewport: Option<Size<DevicePixels>>,
     layout: wgpu::BindGroupLayout,
     pipeline: wgpu::RenderPipeline,
 }
 impl ImageCache {
-    pub fn new(renderer: &WgpuHeadlessRenderer, camera_layout: &wgpu::BindGroupLayout) -> Self {
+    pub fn new(renderer: &WgpuHeadlessRenderer, camera_layout: &wgpu::BindGroupLayout, spatial_layout: &wgpu::BindGroupLayout) -> Self {
         let device = &renderer.context.device;
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("retained_image_layout"),
@@ -80,11 +83,11 @@ impl ImageCache {
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("retained_images"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("images.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(content_spatial::shader(include_str!("images.wgsl")).into()),
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("retained_images"),
-            bind_group_layouts: &[Some(&layout), Some(camera_layout)],
+            bind_group_layouts: &[Some(&layout), Some(camera_layout), Some(spatial_layout)],
             immediate_size: 0,
         });
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -115,6 +118,7 @@ impl ImageCache {
         Self {
             textures: BTreeMap::new(),
             draws: BTreeMap::new(),
+            content_index: Default::default(),
             live_bytes: 0,
             viewport: None,
             layout,
@@ -225,6 +229,31 @@ impl ImageCache {
         );
         Ok(ids)
     }
+    pub fn validate_spatial(&self, updates:&ImageUpdates, cache:&spatial::SpatialCache, batch:&SpatialBatch,
+        slots:Option<&[u32]>, all:bool) -> Result<BTreeSet<QuadImageId>> {
+        if self.content_index.is_empty() && updates.images.iter().all(|value| value.spatial.is_none()) {return Ok(BTreeSet::new());}
+        let removed=self.removals(updates);
+        let writes:BTreeSet<_>=updates.images.iter().map(|image| image.id).collect();
+        let mut changed=self.content_index.affected(cache,batch,slots,all);
+        changed.retain(|id| !removed.contains(id));
+        let check=|placement:SpatialContent,dimensions:[f32;2]| -> Result<()> {
+            let origin=placement.origin(cache,batch)?;
+            anyhow::ensure!((origin[0]*batch.scale+dimensions[0]).is_finite()
+                && (origin[1]*batch.scale+dimensions[1]).is_finite(),"shared image bounds overflow");
+            Ok(())
+        };
+        for id in changed.iter().filter(|id| !writes.contains(*id)) {
+            let draw=&self.draws[id];
+            check(draw.spatial.unwrap(),[f32::from_bits(draw.geometry[2]),f32::from_bits(draw.geometry[3])])?;
+        }
+        for image in &updates.images {
+            if let Some(placement)=image.spatial {
+                check(placement,[image.bounds[2],image.bounds[3]])?;
+                if all || cache.projected_affected(placement.property,batch) {changed.insert(image.id);}
+            }
+        }
+        Ok(changed)
+    }
     pub fn prepare(
         &mut self,
         renderer: &WgpuHeadlessRenderer,
@@ -238,6 +267,7 @@ impl ImageCache {
         let mut changes = BTreeMap::<u64, i64>::new();
         for id in self.removals(&updates) {
             if let Some(draw) = self.draws.remove(&id) {
+                self.content_index.set(id,draw.spatial,None);
                 *changes.entry(draw.resource).or_default() -= 1;
             }
         }
@@ -315,23 +345,18 @@ impl ImageCache {
                     references: changes[&image.resource] as usize,
                 }
             });
+            let (bounds,clip)=image.spatial.map_or((image.bounds,image.clip),|p| (
+                [p.border[0],p.border[1],image.bounds[2],image.bounds[3]],
+                [p.padding[0],p.padding[1],0.0,0.0]));
             let geometry = [
-                image.bounds[0],
-                image.bounds[1],
-                image.bounds[2],
-                image.bounds[3],
-                image.clip[0],
-                image.clip[1],
-                image.clip[2],
-                image.clip[3],
-                size.width.0 as f32,
-                size.height.0 as f32,
-                0.0,
-                0.0,
+                bounds[0].to_bits(),bounds[1].to_bits(),bounds[2].to_bits(),bounds[3].to_bits(),
+                clip[0].to_bits(),clip[1].to_bits(),clip[2].to_bits(),clip[3].to_bits(),
+                if image.spatial.is_some() {0}else{size.width.0 as u32},if image.spatial.is_some() {0}else{size.height.0 as u32},image.spatial.map_or(0,|p| p.property),0,
             ];
             let previous = self.draws.get(&image.id);
             let rebind = previous.is_none_or(|draw| draw.resource != image.resource);
             let changed = rebind || previous.is_some_and(|draw| draw.geometry != geometry);
+            self.content_index.set(image.id,previous.and_then(|d| d.spatial),image.spatial);
             if rebind {
                 let buffer = device.create_buffer(&wgpu::BufferDescriptor {
                     label: Some("retained_image_geometry"),
@@ -360,6 +385,7 @@ impl ImageCache {
                     Draw {
                         resource: image.resource,
                         geometry,
+                        spatial: image.spatial,
                         buffer,
                         binding,
                     },
@@ -369,6 +395,7 @@ impl ImageCache {
                 let draw = self.draws.get_mut(&image.id).unwrap();
                 queue.write_buffer(&draw.buffer, 0, bytemuck::cast_slice(&geometry));
                 draw.geometry = geometry;
+                draw.spatial = image.spatial;
                 stats.geometry_bytes += 48;
                 stats.changed.insert(image.id);
             }
@@ -377,11 +404,11 @@ impl ImageCache {
         // still require the new viewport; updated draws already contain it.
         if self.viewport != Some(size) {
             for (id, draw) in &mut self.draws {
-                if draw.geometry[8] != size.width.0 as f32
-                    || draw.geometry[9] != size.height.0 as f32
+                if draw.spatial.is_none() && (draw.geometry[8] != size.width.0 as u32
+                    || draw.geometry[9] != size.height.0 as u32)
                 {
-                    draw.geometry[8] = size.width.0 as f32;
-                    draw.geometry[9] = size.height.0 as f32;
+                    draw.geometry[8] = size.width.0 as u32;
+                    draw.geometry[9] = size.height.0 as u32;
                     queue.write_buffer(&draw.buffer, 0, bytemuck::cast_slice(&draw.geometry));
                     stats.geometry_bytes += 48;
                     stats.changed.insert(*id);

@@ -8,18 +8,29 @@ struct Glyph {
 @group(0) @binding(1) var atlas: texture_2d<f32>;
 @group(0) @binding(2) var<uniform> viewport: vec4<f32>;
 @group(0) @binding(3) var<storage, read> materials: array<vec4<f32>>;
-struct Properties { origin_scale: vec4<f32>, clip: vec4<f32> }
+struct Properties { origin: vec2<f32>, scale: f32, spatial: u32, clip: vec4<f32> }
 @group(0) @binding(4) var<storage, read> properties: array<Properties>;
 struct Varying {
     @builtin(position) position: vec4<f32>,
     @location(0) @interpolate(flat) index: u32,
     @location(1) @interpolate(flat) origin: vec2<f32>,
+    @location(2) @interpolate(flat) clip: vec4<f32>,
+    @location(3) @interpolate(flat) has_clip: u32,
 }
 @vertex fn vs_glyph(@builtin(vertex_index) vertex: u32, @builtin(instance_index) index: u32) -> Varying {
     let points = array<vec2<f32>,6>(vec2(0.0,0.0),vec2(1.0,0.0),vec2(0.0,1.0),vec2(0.0,1.0),vec2(1.0,0.0),vec2(1.0,1.0));
     let glyph = glyphs[index];
     let property = properties[glyph.material.x];
-    let baseline = (glyph.bounds.xy + property.origin_scale.xy) * property.origin_scale.z;
+    var content_origin = property.origin;
+    var clip = property.clip;
+    var has_clip = 1u;
+    if (property.spatial != 0u) {
+        let placement = spatial_resolve(property.spatial - 1u);
+        content_origin = (placement.origin + property.clip.xy) + property.clip.zw;
+        has_clip = select(0u, 1u, placement.has_clip);
+        clip = vec4(placement.clip.origin * spatial_settings.x, placement.clip.size * spatial_settings.x);
+    }
+    let baseline = (glyph.bounds.xy + content_origin) * property.scale;
     // Match Rust f32::round: ties away from zero, including negative positions.
     let origin = sign(baseline) * floor(abs(baseline) + vec2(0.5)) + glyph.bounds.zw;
     let p = origin + points[vertex] * vec2<f32>(glyph.tile.zw);
@@ -27,13 +38,14 @@ struct Varying {
     out.position = vec4((p - camera.xy) / camera.zw * vec2(2.0,-2.0) + vec2(-1.0,1.0),0.0,1.0);
     out.index = index;
     out.origin = origin;
+    out.clip = clip;
+    out.has_clip = has_clip;
     return out;
 }
 @fragment fn fs_glyph(input: Varying) -> @location(0) vec4<f32> {
     let glyph = glyphs[input.index];
-    let property = properties[glyph.material.x];
     let p = input.position.xy + camera.xy;
-    if (any(p < property.clip.xy) || any(p >= property.clip.xy + property.clip.zw)) { discard; }
+    if (input.has_clip != 0u && (any(p < input.clip.xy) || any(p >= input.clip.xy + input.clip.zw))) { discard; }
     let local = vec2<u32>(max(p - input.origin,vec2(0.0)));
     let uv = glyph.tile.xy + min(local,glyph.tile.zw-vec2<u32>(1));
     let color = materials[glyph.material.x];

@@ -72,6 +72,7 @@ pub struct GlyphBatch {
     pub origin: [f32; 2],
     pub scale: f32,
     pub geometry: Arc<GlyphGeometry>,
+    pub spatial: Option<SpatialContent>,
 }
 /// Base-relative resource updates; reset supplies the complete live draw set.
 #[derive(Default)]
@@ -106,6 +107,8 @@ struct Draw {
     runs: Vec<(usize, Range<u32>)>,
     geometry: Arc<GlyphGeometry>,
     material: u32,
+    spatial: Option<SpatialContent>,
+    scale: f32,
 }
 pub(super) type GlyphLease = (
     wgpu::Buffer,
@@ -133,12 +136,13 @@ pub(super) struct GlyphCache {
     pages: Vec<Option<Page>>,
     tiles: BTreeMap<u64, Tile>,
     draws: BTreeMap<GlyphDrawId, Draw>,
+    content_index: content_spatial::ContentIndex,
     buffer: wgpu::Buffer,
     materials: wgpu::Buffer,
     colors: Vec<[f32; 4]>,
     free_materials: Vec<u32>,
     properties: wgpu::Buffer,
-    property_records: Vec<[f32; 8]>,
+    property_records: Vec<[u32; 8]>,
     viewport: wgpu::Buffer,
     mirror: Vec<Instance>,
     free: Vec<Range<u32>>,
@@ -150,7 +154,7 @@ pub(super) struct GlyphCache {
     mask_bytes: u64,
 }
 impl GlyphCache {
-    pub fn new(renderer: &WgpuHeadlessRenderer, camera_layout: &wgpu::BindGroupLayout) -> Self {
+    pub fn new(renderer: &WgpuHeadlessRenderer, camera_layout: &wgpu::BindGroupLayout, spatial_layout: &wgpu::BindGroupLayout) -> Self {
         let device = &renderer.context.device;
         let edge = 1024.min(device.limits().max_texture_dimension_2d);
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -210,11 +214,11 @@ impl GlyphCache {
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("retained_glyphs"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("glyphs.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(content_spatial::shader(include_str!("glyphs.wgsl")).into()),
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("retained_glyphs"),
-            bind_group_layouts: &[Some(&layout), Some(camera_layout)],
+            bind_group_layouts: &[Some(&layout), Some(camera_layout), Some(spatial_layout)],
             immediate_size: 0,
         });
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -255,12 +259,13 @@ impl GlyphCache {
             pages: vec![],
             tiles: BTreeMap::new(),
             draws: BTreeMap::new(),
+            content_index: Default::default(),
             buffer,
             materials,
             colors: vec![[0.0; 4]],
             free_materials: vec![],
             properties,
-            property_records: vec![[0.0; 8]],
+            property_records: vec![[0; 8]],
             viewport,
             mirror: vec![Instance::default()],
             free: vec![],
@@ -589,6 +594,32 @@ impl GlyphCache {
             touched.insert(*id);
         }
     }
+    pub fn validate_spatial(&self,updates:&GlyphUpdates,cache:&spatial::SpatialCache,batch:&SpatialBatch,
+        slots:Option<&[u32]>,all:bool) -> Result<BTreeSet<GlyphDrawId>> {
+        if self.content_index.is_empty() && updates.batches.iter().all(|value| value.spatial.is_none()) {return Ok(BTreeSet::new());}
+        let removed=self.removals(updates);
+        let writes:BTreeSet<_>=updates.batches.iter().map(|value| value.id).collect();
+        let mut changed=self.content_index.affected(cache,batch,slots,all);
+        changed.retain(|id| !removed.contains(id));
+        let check=|placement:SpatialContent,scale:f32,geometry:&GlyphGeometry| -> Result<()> {
+            anyhow::ensure!(scale==batch.scale,"shared glyph scale mismatch");
+            let origin=placement.origin(cache,batch)?;
+            for axis in 0..2 { for local in [geometry.min_origin[axis],geometry.max_origin[axis]] {
+                anyhow::ensure!(((local+origin[axis])*scale).is_finite(),"shared glyph bounds overflow");
+            }}
+            Ok(())
+        };
+        for id in changed.iter().filter(|id| !writes.contains(*id)) {
+            let draw=&self.draws[id];check(draw.spatial.unwrap(),draw.scale,&draw.geometry)?;
+        }
+        for value in &updates.batches {
+            if let Some(placement)=value.spatial {
+                check(placement,value.scale,&value.geometry)?;
+                if all || cache.projected_affected(placement.property,batch) {changed.insert(value.id);}
+            }
+        }
+        Ok(changed)
+    }
     pub fn prepare(
         &mut self,
         renderer: &WgpuHeadlessRenderer,
@@ -602,6 +633,7 @@ impl GlyphCache {
         let mut touched = BTreeSet::new();
         for id in self.removals(&updates) {
             if let Some(draw) = self.draws.remove(&id) {
+                self.content_index.set(id,draw.spatial,None);
                 self.release(&draw.geometry, &mut touched);
                 self.free.push(draw.start..draw.start + draw.capacity);
                 self.free_materials.push(draw.material);
@@ -670,13 +702,15 @@ impl GlyphCache {
         let mut material_dirty = vec![];
         let mut property_dirty = vec![];
         for batch in updates.batches {
-            let previous = self.draws.remove(&batch.id);
+            let mut previous = self.draws.remove(&batch.id);
+            self.content_index.set(batch.id,previous.as_ref().and_then(|d| d.spatial),batch.spatial);
+            if let Some(draw)=previous.as_mut() {draw.spatial=batch.spatial;draw.scale=batch.scale;}
             let material = previous.as_ref().map_or_else(
                 || {
                     self.free_materials.pop().unwrap_or_else(|| {
                         let slot = self.colors.len() as u32;
                         self.colors.push([0.0; 4]);
-                        self.property_records.push([0.0; 8]);
+                        self.property_records.push([0; 8]);
                         slot
                     })
                 },
@@ -693,16 +727,9 @@ impl GlyphCache {
                 material_dirty.push(material..material + 1);
                 stats.changed.insert(batch.id);
             }
-            let properties = [
-                batch.origin[0],
-                batch.origin[1],
-                batch.scale,
-                0.0,
-                batch.clip[0],
-                batch.clip[1],
-                batch.clip[2],
-                batch.clip[3],
-            ];
+            let (origin,clip)=batch.spatial.map_or((batch.origin,batch.clip),|p| ([0.0;2],[p.border[0],p.border[1],p.padding[0],p.padding[1]]));
+            let properties = [origin[0].to_bits(),origin[1].to_bits(),batch.scale.to_bits(),batch.spatial.map_or(0,|p| p.property),
+                clip[0].to_bits(),clip[1].to_bits(),clip[2].to_bits(),clip[3].to_bits()];
             if previous.is_none() || self.property_records[material as usize] != properties {
                 self.property_records[material as usize] = properties;
                 property_dirty.push(material..material + 1);
@@ -766,6 +793,8 @@ impl GlyphCache {
                     runs,
                     geometry: batch.geometry,
                     material,
+                    spatial: batch.spatial,
+                    scale: batch.scale,
                 },
             );
         }

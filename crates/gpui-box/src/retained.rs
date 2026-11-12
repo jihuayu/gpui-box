@@ -87,6 +87,8 @@ pub struct PaintItem {
     #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
     pub glyphs: Option<Arc<text::GlyphChunk>>,
     pub content_bounds: Rect,
+    /// Border x/y followed by padding x/y; preserve resolved f32 addition order.
+    pub content_offsets: [f32; 4],
     pub clip: Option<Rect>,
     pub properties: PropertyState,
     /// Local render placement, separate from resolved paint/hit geometry.
@@ -985,7 +987,7 @@ impl UiTree {
                 old.bounds != item.bounds || old.spatial != item.spatial || old.shadows != item.shadows
                     || old.commands != item.commands || old.fill_color != item.fill_color
                     || old.image != item.image || !old.same_text(item)
-                    || old.content_bounds != item.content_bounds || old.clip != item.clip
+                    || old.content_bounds != item.content_bounds || old.content_offsets != item.content_offsets || old.clip != item.clip
             }).then_some(index)
         }).collect::<Vec<_>>();
         let copying = self.frame_build_policy != FrameBuildPolicy::Selective;

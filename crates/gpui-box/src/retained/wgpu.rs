@@ -260,6 +260,7 @@ pub struct WgpuFrameRenderer {
     shadow_arena: InstanceArena<ShadowRecord>,
     spatial_arena: SpatialArena,
     shared_spatial: bool,
+    shared_content: bool,
     cache_primitive_routing: bool,
     routing_snapshot: Option<routing::Snapshot>,
     shadow_instances: BTreeMap<NodeId, Vec<InstanceHandle>>,
@@ -292,6 +293,7 @@ impl WgpuFrameRenderer {
             shadow_arena: InstanceArena::default(),
             spatial_arena: SpatialArena::default(),
             shared_spatial: true,
+            shared_content: true,
             cache_primitive_routing: true,
             routing_snapshot: None,
             shadow_instances: BTreeMap::new(),
@@ -402,6 +404,17 @@ impl WgpuFrameRenderer {
     pub fn set_shared_spatial_enabled(&mut self, enabled: bool) {
         if self.shared_spatial != enabled {
             self.shared_spatial = enabled;
+            self.source = None;
+        }
+    }
+
+    /// Share hierarchical GPU placement for image and glyph content boxes.
+    pub fn shared_content_enabled(&self) -> bool {
+        self.shared_content
+    }
+    pub fn set_shared_content_enabled(&mut self, enabled: bool) {
+        if self.shared_content != enabled {
+            self.shared_content = enabled;
             self.source = None;
         }
     }
@@ -600,11 +613,36 @@ impl WgpuFrameRenderer {
         self.spatial_arena.collect(completed);
         let plan = if self.cache_primitive_routing && !full_resync {
             self.routing_snapshot.as_ref().and_then(|snapshot| {
-                snapshot.plan(frame, &self.validation_cache, self.shared_spatial)
+                snapshot.plan(
+                    frame,
+                    &self.validation_cache,
+                    self.shared_spatial,
+                    self.shared_spatial && self.shared_content,
+                )
             })
         } else {
             None
         };
+        let selected_images = plan
+            .as_ref()
+            .filter(|_| self.shared_spatial && self.shared_content)
+            .map(|p| {
+                p.entries
+                    .iter()
+                    .filter(|e| e.image)
+                    .map(|e| e.item)
+                    .collect::<Vec<_>>()
+            });
+        let selected_glyphs = plan
+            .as_ref()
+            .filter(|_| self.shared_spatial && self.shared_content)
+            .map(|p| {
+                p.entries
+                    .iter()
+                    .filter(|e| e.glyph)
+                    .map(|e| e.item)
+                    .collect::<Vec<_>>()
+            });
         let rebuild_spatial = self.shared_spatial
             && (full_resync
                 || plan.as_ref().map_or_else(
@@ -700,7 +738,13 @@ impl WgpuFrameRenderer {
                 writes,
                 order,
                 layers,
-                images: image_updates(frame, scale, full_resync || !self.resource_deltas),
+                images: image_updates(
+                    frame,
+                    scale,
+                    full_resync || !self.resource_deltas,
+                    (self.shared_spatial && self.shared_content).then_some(&self.spatial_arena),
+                    selected_images.as_deref(),
+                )?,
                 shadows: gpui_wgpu::ShadowBatch {
                     capacity: self.shadow_arena.capacity(),
                     writes: self
@@ -715,7 +759,13 @@ impl WgpuFrameRenderer {
                 },
                 spatial: self.spatial_arena.batch(self.shared_spatial, scale),
                 cache_layers: self.cache_layers,
-                glyphs: glyph_updates(frame, scale, full_resync)?,
+                glyphs: glyph_updates(
+                    frame,
+                    scale,
+                    full_resync,
+                    (self.shared_spatial && self.shared_content).then_some(&self.spatial_arena),
+                    selected_glyphs.as_deref(),
+                )?,
                 size: size(
                     DevicePixels(surface[0] as i32),
                     DevicePixels(surface[1] as i32),
@@ -862,6 +912,7 @@ impl WgpuFrameRenderer {
         replacement.retired_sources = self.retired_sources.clone();
         replacement.policy = self.policy;
         replacement.shared_spatial = self.shared_spatial;
+        replacement.shared_content = self.shared_content;
         replacement.cache_primitive_routing = self.cache_primitive_routing;
         replacement
             .backend
@@ -883,7 +934,27 @@ impl WgpuFrameRenderer {
     }
 }
 
-fn image_updates(frame: &FramePacket, scale: f32, reset: bool) -> ImageUpdates {
+fn content_placement(
+    item: &PaintItem,
+    spatial: Option<&SpatialArena>,
+) -> Result<Option<gpui_wgpu::SpatialContent>, Error> {
+    spatial
+        .map(|spatial| {
+            Ok(gpui_wgpu::SpatialContent {
+                property: spatial.slot(item.node)?,
+                border: [item.content_offsets[0], item.content_offsets[1]],
+                padding: [item.content_offsets[2], item.content_offsets[3]],
+            })
+        })
+        .transpose()
+}
+fn image_updates(
+    frame: &FramePacket,
+    scale: f32,
+    reset: bool,
+    spatial: Option<&SpatialArena>,
+    selected: Option<&[&PaintItem]>,
+) -> Result<ImageUpdates, Error> {
     let mut updates = ImageUpdates {
         reset,
         ..Default::default()
@@ -897,6 +968,8 @@ fn image_updates(frame: &FramePacket, scale: f32, reset: bool) -> ImageUpdates {
     }
     let items: Box<dyn Iterator<Item = &PaintItem> + '_> = if reset {
         Box::new(frame.items.iter())
+    } else if let Some(selected) = selected {
+        Box::new(selected.iter().copied())
     } else {
         Box::new(frame.updates.iter())
     };
@@ -910,6 +983,7 @@ fn image_updates(frame: &FramePacket, scale: f32, reset: bool) -> ImageUpdates {
         };
         let rect = |r: Rect| [r.x * scale, r.y * scale, r.width * scale, r.height * scale];
         updates.images.push(QuadImage {
+            spatial: content_placement(item, spatial)?,
             id,
             resource: image.id(),
             size: image.size(),
@@ -918,7 +992,7 @@ fn image_updates(frame: &FramePacket, scale: f32, reset: bool) -> ImageUpdates {
             clip: rect(item.clip.unwrap_or(item.bounds)),
         });
     }
-    updates
+    Ok(updates)
 }
 
 fn has_text(frame: &FramePacket) -> bool {
@@ -936,6 +1010,8 @@ fn glyph_updates(
     frame: &FramePacket,
     scale: f32,
     reset: bool,
+    spatial: Option<&SpatialArena>,
+    selected: Option<&[&PaintItem]>,
 ) -> Result<gpui_wgpu::GlyphUpdates, Error> {
     let mut updates = gpui_wgpu::GlyphUpdates {
         reset,
@@ -943,6 +1019,8 @@ fn glyph_updates(
     };
     let items: Box<dyn Iterator<Item = &PaintItem> + '_> = if reset {
         Box::new(frame.items.iter())
+    } else if let Some(selected) = selected {
+        Box::new(selected.iter().copied())
     } else {
         Box::new(frame.updates.iter())
     };
@@ -974,6 +1052,7 @@ fn glyph_updates(
                 height: i32::MAX as f32 / scale,
             });
             updates.batches.push(gpui_wgpu::GlyphBatch {
+                spatial: content_placement(item, spatial)?,
                 id: [item.node.tree, item.node.slot as u64, item.node.generation],
                 clip: [
                     clip.x * scale,
@@ -991,7 +1070,7 @@ fn glyph_updates(
     }
     #[cfg(not(feature = "retained-text"))]
     {
-        let _ = (items, scale);
+        let _ = (items, scale, spatial);
         Ok(updates)
     }
 }

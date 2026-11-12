@@ -16,10 +16,10 @@ pub struct SpatialWorkStats {
 }
 
 #[derive(Clone, Copy, Default, Debug, PartialEq)]
-struct Resolved {
-    origin: [f32; 2],
-    scroll: [f32; 2],
-    clip: Option<[f32; 4]>,
+pub(super) struct Resolved {
+    pub origin: [f32; 2],
+    pub scroll: [f32; 2],
+    pub clip: Option<[f32; 4]>,
 }
 #[derive(Clone, Copy, Default)]
 struct Scratch {
@@ -250,7 +250,7 @@ impl GraphPlan {
         }
     }
 }
-fn resolve_node(node: SpatialNode, parent: Option<Resolved>) -> Resolved {
+pub(super) fn resolve_node(node: SpatialNode, parent: Option<Resolved>) -> Resolved {
     let Some(parent) = parent else {
         return Resolved {
             origin: [node.anchor_origin[0], node.anchor_origin[1]],

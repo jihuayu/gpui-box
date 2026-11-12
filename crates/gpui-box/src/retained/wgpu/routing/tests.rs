@@ -37,7 +37,7 @@ fn inherited_motion_only_prepares_bounded_anchors_and_shares_depths() {
         let next = tree.frame([100.0; 2]).unwrap();
         validation.check(&next, [100, 100], 1.0, true).unwrap();
         assert!(old.follows(&next));
-        let plan = old.plan(&next, &validation, true).unwrap();
+        let plan = old.plan(&next, &validation, true, true).unwrap();
         assert_eq!(plan.entries.len(), 3);
         assert!(!plan.parent_changed);
         assert!(
@@ -47,7 +47,7 @@ fn inherited_motion_only_prepares_bounded_anchors_and_shares_depths() {
         );
         let current = Snapshot::next(&next, Some(&old), &validation, false, true).unwrap();
         assert!(Arc::ptr_eq(&old.depths, &current.depths));
-        let world = old.plan(&next, &validation, false).unwrap();
+        let world = old.plan(&next, &validation, false, false).unwrap();
         assert_eq!(world.entries.len(), 66);
         assert!(world.entries.iter().all(|e| e.quad && !e.spatial));
     }
@@ -180,4 +180,57 @@ fn provenance_keeps_no_previous_paint_root_alive() {
     drop(base);
     assert!(weak.upgrade().is_none());
     assert_eq!(next.items[0].fill_color, 0xff8844ff);
+}
+
+#[test]
+fn content_offsets_publish_even_when_resolved_boxes_are_equal() {
+    for policy in [
+        FrameBuildPolicy::Selective,
+        FrameBuildPolicy::SelectiveCopy,
+        FrameBuildPolicy::Full,
+    ] {
+        let mut tree = tree();
+        tree.set_frame_build_policy(policy);
+        let style = |border, padding| Style {
+            size: taffy::Size {
+                width: length(100.0),
+                height: length(100.0),
+            },
+            border: taffy::Rect {
+                left: length(border),
+                right: length(border),
+                top: length(border),
+                bottom: length(border),
+            },
+            padding: taffy::Rect {
+                left: length(padding),
+                right: length(padding),
+                top: length(padding),
+                bottom: length(padding),
+            },
+            ..Default::default()
+        };
+        let mut tx = Transaction::default();
+        tx.style(tree.root(), style(1.0, 2.0));
+        tx.image(
+            tree.root(),
+            Some(ImageResource::rgba8([1, 1], vec![255; 4]).unwrap()),
+        );
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+        let old = tree.frame([100.0; 2]).unwrap();
+        let mut tx = Transaction::default();
+        tx.style(tree.root(), style(2.0, 1.0));
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+        let next = tree.frame([100.0; 2]).unwrap();
+        assert_eq!(old.items[0].bounds, next.items[0].bounds);
+        assert_eq!(old.items[0].content_bounds, next.items[0].content_bounds);
+        assert_ne!(old.items[0].content_offsets, next.items[0].content_offsets);
+        assert!(
+            next.updates.iter().any(
+                |i| i.node == tree.root() && i.content_offsets == next.items[0].content_offsets
+            )
+        );
+        assert!(classify_content(&old.items[0], &next.items[0], true).0);
+        assert!(!classify_content(&old.items[0], &next.items[0], false).0);
+    }
 }

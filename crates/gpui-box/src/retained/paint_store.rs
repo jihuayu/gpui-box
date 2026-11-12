@@ -296,6 +296,7 @@ impl UiTree {
             let old = &before.items[index];
             let paint_changed = old.bounds != item.bounds
                 || old.content_bounds != item.content_bounds
+                || old.content_offsets != item.content_offsets
                 || old.clip != item.clip
                 || old.commands != item.commands
                 || old.fill_color != item.fill_color

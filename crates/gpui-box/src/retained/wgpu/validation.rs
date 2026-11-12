@@ -183,6 +183,14 @@ fn validate_item(item: &PaintItem, scale: f32) -> Result<(), Error> {
     {
         return Err(Error::InvalidFrame);
     }
+    if item.content_offsets.iter().any(|v| !v.is_finite())
+        || item.content_bounds.x
+            != (item.bounds.x + item.content_offsets[0]) + item.content_offsets[2]
+        || item.content_bounds.y
+            != (item.bounds.y + item.content_offsets[1]) + item.content_offsets[3]
+    {
+        return Err(Error::InvalidFrame);
+    }
     for shadow in item.shadows.iter() {
         let geometry = item.shadow_geometry(*shadow);
         if shadow.validate().is_err()
@@ -325,6 +333,7 @@ fn validate_delta(
                         || value.image != item.image
                         || !value.same_text(item)
                         || value.content_bounds != item.content_bounds
+                        || value.content_offsets != item.content_offsets
                         || value.clip != item.clip
                         || value.properties != item.properties
                 })

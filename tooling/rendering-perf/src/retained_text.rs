@@ -154,6 +154,7 @@ fn backend_delta_validation() -> Result<(), Box<dyn Error>> {
     let a = geometry(u64::MAX - 1, pixels.clone())?;
     let b = geometry(u64::MAX - 2, vec![255; 4].into())?;
     let draw = |id, geometry: Arc<GlyphGeometry>, x, color| GlyphBatch {
+        spatial: None,
         id: [9, id, 0],
         geometry,
         origin: [x, 0.0],
@@ -980,6 +981,7 @@ pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
     let node = tree.append(tree.root(), style(8.0, 0.0, 780.0, None), 0)?;
     set(&mut tree, node, &resource, 0xffdd88ff)?;
     let mut renderer = WgpuFrameRenderer::new(3)?;
+    renderer.set_shared_content_enabled(false);
     renderer.submit(&tree.frame([800.0, 600.0])?, [800, 600], 1.0)?;
     renderer.finish()?;
     let mut cases = vec![];

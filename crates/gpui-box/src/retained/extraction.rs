@@ -155,6 +155,12 @@ impl UiTree {
                 text: node.text.clone(),
                 #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
                 glyphs,
+                content_offsets: [
+                    layout.border.left,
+                    layout.border.top,
+                    layout.padding.left,
+                    layout.padding.top,
+                ],
                 content_bounds: Rect {
                     x: x + layout.border.left + layout.padding.left,
                     y: y + layout.border.top + layout.padding.top,

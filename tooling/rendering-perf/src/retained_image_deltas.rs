@@ -7,6 +7,7 @@ fn backend_checks() -> Result<(), Box<dyn Error>> {
     let a: Arc<[u8]> = vec![255, 0, 0, 255].into();
     let b: Arc<[u8]> = vec![0, 255, 0, 255].into();
     let draw = |id, resource, rgba: Arc<[u8]>, x| QuadImage {
+        spatial: None,
         id: [77, id, 0],
         resource,
         rgba,
@@ -306,6 +307,7 @@ pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
         for kind in ["unrelated-color", "one-image-move"] {
             let (mut tree, nodes, background) = fixture(count)?;
             let mut renderer = WgpuFrameRenderer::new(1)?;
+            renderer.set_shared_content_enabled(false);
             renderer.set_policy(CompositorPolicy::Damage)?;
             renderer.submit(&tree.frame([800.0, 600.0])?, [800, 600], 1.0)?;
             renderer.finish()?;

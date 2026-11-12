@@ -345,6 +345,7 @@ fn clip_centers(
                 tree.commit(tx, BackendCapabilities::default())?;
                 let frame = tree.frame([64.0; 2])?;
                 let mut gpu = WgpuFrameRenderer::new(1)?;
+                gpu.set_shared_content_enabled(false);
                 gpu.set_shared_spatial_enabled(shared);
                 gpu.set_tight_layer_bounds_enabled(cropped);
                 gpu.submit(&frame, [64; 2], 1.0)?;

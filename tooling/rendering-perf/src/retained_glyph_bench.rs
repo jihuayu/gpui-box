@@ -44,6 +44,7 @@ pub(super) fn run() -> Result<serde_json::Value, Box<dyn Error>> {
                 reset: false,
                 removed: vec![],
                 batches: vec![GlyphBatch {
+                    spatial: None,
                     id: [1, 0, 0],
                     geometry,
                     origin: [8.0, 0.0],

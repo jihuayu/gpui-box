@@ -22,27 +22,44 @@ pub(super) fn run(
     output: &std::path::Path,
     results: &mut Vec<serde_json::Value>,
 ) -> Result<(), Box<dyn Error>> {
-    run_controls(output, results, false)
+    run_controls(output, results, Control::Primitive)
 }
 pub(super) fn run_backend_controls(
     output: &std::path::Path,
     results: &mut Vec<serde_json::Value>,
 ) -> Result<(), Box<dyn Error>> {
-    run_controls(output, results, true)
+    run_controls(output, results, Control::Backend)
 }
-fn set_control(gpu: &mut WgpuFrameRenderer, enabled: bool, backend: bool) {
-    if backend {
-        gpu.set_indexed_spatial_enabled(enabled);
-    } else {
-        gpu.set_cached_primitive_routing_enabled(enabled);
+pub(super) fn run_content_controls(
+    output: &std::path::Path,
+    results: &mut Vec<serde_json::Value>,
+) -> Result<(), Box<dyn Error>> {
+    run_controls(output, results, Control::Content)
+}
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Control {
+    Primitive,
+    Backend,
+    Content,
+}
+fn set_control(gpu: &mut WgpuFrameRenderer, enabled: bool, control: Control) {
+    match control {
+        Control::Primitive => gpu.set_cached_primitive_routing_enabled(enabled),
+        Control::Backend => gpu.set_indexed_spatial_enabled(enabled),
+        Control::Content => gpu.set_shared_content_enabled(enabled),
     }
 }
 fn run_controls(
     output: &std::path::Path,
     results: &mut Vec<serde_json::Value>,
-    backend: bool,
+    control: Control,
 ) -> Result<(), Box<dyn Error>> {
-    let prefix = if backend { "spatial-index" } else { "routing" };
+    let backend = control == Control::Backend;
+    let prefix = match control {
+        Control::Primitive => "routing",
+        Control::Backend => "spatial-index",
+        Control::Content => "content-spatial",
+    };
     for copying in [false, true] {
         for shared in [true, false] {
             for scale in [1.0, 1.25, 1.5] {
@@ -96,7 +113,7 @@ fn run_controls(
                 let mut renderers = [WgpuFrameRenderer::new(3)?, WgpuFrameRenderer::new(3)?];
                 for (mode, gpu) in renderers.iter_mut().enumerate() {
                     gpu.set_shared_spatial_enabled(shared);
-                    set_control(gpu, mode == 0, backend);
+                    set_control(gpu, mode == 0, control);
                     gpu.set_policy(CompositorPolicy::Damage)?;
                 }
                 let size = [(192.0 * scale) as u32, (144.0 * scale) as u32];
@@ -179,7 +196,7 @@ fn run_controls(
                         }
                         16 => {
                             for (mode, gpu) in renderers.iter_mut().enumerate() {
-                                set_control(gpu, mode != 0, backend);
+                                set_control(gpu, mode != 0, control);
                             }
                             tx.translation(group, [-1.25, -2.5]);
                         }
@@ -235,7 +252,8 @@ fn run_controls(
                         )?;
                         let value = results.last_mut().unwrap();
                         value["spatial_indexed"] = submit.gpu.spatial_work.indexed.into();
-                        value["spatial_dense_fallback"] = submit.gpu.spatial_work.dense_fallback.into();
+                        value["spatial_dense_fallback"] =
+                            submit.gpu.spatial_work.dense_fallback.into();
                         value["spatial_checked_edges"] =
                             submit.gpu.spatial_work.checked_edges.into();
                         value["spatial_resolved_nodes"] =
@@ -251,6 +269,22 @@ fn run_controls(
                             assert_eq!(submit.gpu.spatial_work.resolved_nodes, 0);
                             assert_eq!(submit.gpu.spatial_work.quad_references, 1);
                         }
+                        if control == Control::Content && shared && step == 1 {
+                            assert_eq!(
+                                submit.gpu.image_geometry_bytes,
+                                if mode == 0 { 0 } else { 48 }
+                            );
+                            assert_eq!(
+                                submit.gpu.glyph_property_bytes,
+                                if mode == 0 { 0 } else { 32 }
+                            );
+                            assert_eq!(submit.gpu.image_batch_updates, usize::from(mode != 0));
+                            assert_eq!(submit.gpu.glyph_batch_updates, usize::from(mode != 0));
+                        }
+                        value["image_geometry_bytes"] = submit.gpu.image_geometry_bytes.into();
+                        value["glyph_property_bytes"] = submit.gpu.glyph_property_bytes.into();
+                        value["image_batch_updates"] = submit.gpu.image_batch_updates.into();
+                        value["glyph_batch_updates"] = submit.gpu.glyph_batch_updates.into();
                         value["cached"] = submit.routing.cached.into();
                         value["prepared_quad_items"] = submit.routing.prepared_quad_items.into();
                         value["prepared_shadow_items"] =
@@ -280,10 +314,10 @@ fn run_controls(
                 for (mode, gpu) in renderers.iter_mut().enumerate() {
                     gpu.reset()?;
                     assert_eq!(
-                        if backend {
-                            gpu.indexed_spatial_enabled()
-                        } else {
-                            gpu.cached_primitive_routing_enabled()
+                        match control {
+                            Control::Backend => gpu.indexed_spatial_enabled(),
+                            Control::Content => gpu.shared_content_enabled(),
+                            Control::Primitive => gpu.cached_primitive_routing_enabled(),
                         },
                         mode != 0
                     );

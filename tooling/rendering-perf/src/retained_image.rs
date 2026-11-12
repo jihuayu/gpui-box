@@ -410,6 +410,7 @@ pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
         let node = tree.append(tree.root(), absolute(10.0, 10.0, 256.0, 256.0), 0)?;
         set(&mut tree, node, Some(a.clone()))?;
         let mut renderer = WgpuFrameRenderer::new(3)?;
+        renderer.set_shared_content_enabled(false);
         renderer.submit(&tree.frame([640.0, 360.0])?, [640, 360], 1.0)?;
         renderer.finish()?;
         let mut samples = [vec![], vec![]];

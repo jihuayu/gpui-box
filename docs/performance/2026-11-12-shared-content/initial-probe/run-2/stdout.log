@@ -1,0 +1,7 @@
+Integrated retained GPU Vulkan NVIDIA GeForce GTX 1650 Ti
+Content ancestor_translation 100 pairs: 2441.8 / 3266.9 us
+Content clip_toggle 100 pairs: 1836.2 / 2396.2 us
+Content single_text_color 100 pairs: 1837.4 / 1693.5 us
+Content ancestor_translation 1000 pairs: 12567.4 / 16181.999999999998 us
+Content clip_toggle 1000 pairs: 11911.6 / 15807.9 us
+Content single_text_color 1000 pairs: 10042.199999999999 / 9250.3 us

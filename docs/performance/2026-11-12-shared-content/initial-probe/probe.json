@@ -1,0 +1,7 @@
+{
+  "scope": "before empty-shared-index validation fast path; all four 172-source manifests verified against then-current bytes; raw records retained, probe PNGs remain in target",
+  "base_commit": "27ff3f7681a9c0aaf9f41fcf84c0aa69a3582fc8",
+  "binary_sha256": "6468044065f11d634f7d7c1d440710e8539e206c8d2acf943e3b2ceaf4da4b8b",
+  "source_snapshot": "source-snapshot.zip",
+  "tracked_patch": "source.patch.zip"
+}

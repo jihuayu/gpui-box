@@ -1,0 +1,903 @@
+{
+  "phase_columns": [
+    "commit_us",
+    "publication_us",
+    "submission_us"
+  ],
+  "cases": [
+    {
+      "pairs": 100,
+      "workload": "ancestor_translation",
+      "shared": {
+        "samples": 180,
+        "completed_median_us": 2222.6,
+        "completed_p95_us": 4299.5,
+        "cpu_median_us": 1111.0,
+        "phase_medians_us": [
+          5.9,
+          137.3,
+          955.8
+        ],
+        "work": {
+          "image_geometry_bytes": 0,
+          "glyph_property_bytes": 0,
+          "spatial_bytes": 96,
+          "image_upload_bytes": 0,
+          "glyph_instance_bytes": 0,
+          "glyph_atlas_bytes": 0,
+          "glyph_material_bytes": 0,
+          "image_batch_updates": 0,
+          "glyph_batch_updates": 0,
+          "extracted_nodes": 201,
+          "draw_calls": 400
+        }
+      },
+      "world": {
+        "samples": 180,
+        "completed_median_us": 2741.0,
+        "completed_p95_us": 5072.400000000001,
+        "cpu_median_us": 1491.6000000000001,
+        "phase_medians_us": [
+          5.9,
+          145.39999999999998,
+          1317.3
+        ],
+        "work": {
+          "image_geometry_bytes": 4800,
+          "glyph_property_bytes": 3200,
+          "spatial_bytes": 96,
+          "image_upload_bytes": 0,
+          "glyph_instance_bytes": 0,
+          "glyph_atlas_bytes": 0,
+          "glyph_material_bytes": 0,
+          "image_batch_updates": 100,
+          "glyph_batch_updates": 100,
+          "extracted_nodes": 201,
+          "draw_calls": 400
+        }
+      },
+      "completed_change_percent": -18.912805545421385,
+      "speedup": 1.233240349140646,
+      "executions": [
+        {
+          "run": 1,
+          "shared": {
+            "completed_median_us": 2440.2999999999997,
+            "completed_p95_us": 4299.5,
+            "phase_medians_us": [
+              7.0,
+              160.8,
+              1165.4
+            ],
+            "round_medians_us": [
+              2494.1,
+              2416.1,
+              2396.4
+            ]
+          },
+          "world": {
+            "completed_median_us": 2912.5,
+            "completed_p95_us": 4474.1,
+            "phase_medians_us": [
+              6.8,
+              157.0,
+              1471.3
+            ],
+            "round_medians_us": [
+              2895.2000000000003,
+              2867.0,
+              2939.7
+            ]
+          }
+        },
+        {
+          "run": 2,
+          "shared": {
+            "completed_median_us": 2031.4,
+            "completed_p95_us": 3657.3,
+            "phase_medians_us": [
+              5.3,
+              124.3,
+              902.3000000000001
+            ],
+            "round_medians_us": [
+              2207.3,
+              2049.7,
+              1732.4
+            ]
+          },
+          "world": {
+            "completed_median_us": 2826.6,
+            "completed_p95_us": 5760.5,
+            "phase_medians_us": [
+              6.1,
+              156.3,
+              1290.1
+            ],
+            "round_medians_us": [
+              3007.7,
+              3201.5,
+              1957.7
+            ]
+          }
+        },
+        {
+          "run": 3,
+          "shared": {
+            "completed_median_us": 2126.0,
+            "completed_p95_us": 4439.700000000001,
+            "phase_medians_us": [
+              5.3,
+              131.2,
+              910.0
+            ],
+            "round_medians_us": [
+              2303.6,
+              2095.5,
+              2130.0
+            ]
+          },
+          "world": {
+            "completed_median_us": 2485.0,
+            "completed_p95_us": 4602.2,
+            "phase_medians_us": [
+              5.1000000000000005,
+              131.89999999999998,
+              1143.0
+            ],
+            "round_medians_us": [
+              2486.0,
+              2528.0,
+              2318.9
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "pairs": 100,
+      "workload": "clip_toggle",
+      "shared": {
+        "samples": 180,
+        "completed_median_us": 2078.2999999999997,
+        "completed_p95_us": 4173.900000000001,
+        "cpu_median_us": 1171.6999999999998,
+        "phase_medians_us": [
+          6.0,
+          144.9,
+          1010.6999999999999
+        ],
+        "work": {
+          "image_geometry_bytes": 0,
+          "glyph_property_bytes": 0,
+          "spatial_bytes": 96,
+          "image_upload_bytes": 0,
+          "glyph_instance_bytes": 0,
+          "glyph_atlas_bytes": 0,
+          "glyph_material_bytes": 0,
+          "image_batch_updates": 0,
+          "glyph_batch_updates": 0,
+          "extracted_nodes": 201,
+          "draw_calls": 400
+        }
+      },
+      "world": {
+        "samples": 180,
+        "completed_median_us": 2522.5,
+        "completed_p95_us": 4705.3,
+        "cpu_median_us": 1464.5,
+        "phase_medians_us": [
+          6.1,
+          149.5,
+          1294.0
+        ],
+        "work": {
+          "image_geometry_bytes": 4800,
+          "glyph_property_bytes": 3200,
+          "spatial_bytes": 96,
+          "image_upload_bytes": 0,
+          "glyph_instance_bytes": 0,
+          "glyph_atlas_bytes": 0,
+          "glyph_material_bytes": 0,
+          "image_batch_updates": 100,
+          "glyph_batch_updates": 100,
+          "extracted_nodes": 201,
+          "draw_calls": 400
+        }
+      },
+      "completed_change_percent": -17.609514370664037,
+      "speedup": 1.2137323774238562,
+      "executions": [
+        {
+          "run": 1,
+          "shared": {
+            "completed_median_us": 2178.7999999999997,
+            "completed_p95_us": 4131.5,
+            "phase_medians_us": [
+              6.7,
+              160.4,
+              1098.7000000000003
+            ],
+            "round_medians_us": [
+              2109.4,
+              2035.4,
+              2412.5
+            ]
+          },
+          "world": {
+            "completed_median_us": 2780.2999999999997,
+            "completed_p95_us": 5331.0,
+            "phase_medians_us": [
+              6.9,
+              169.3,
+              1503.8000000000002
+            ],
+            "round_medians_us": [
+              2410.1,
+              3054.0,
+              3004.8
+            ]
+          }
+        },
+        {
+          "run": 2,
+          "shared": {
+            "completed_median_us": 2133.9,
+            "completed_p95_us": 4349.4,
+            "phase_medians_us": [
+              5.9,
+              138.89999999999998,
+              978.8
+            ],
+            "round_medians_us": [
+              2117.8,
+              2376.5,
+              2038.2999999999997
+            ]
+          },
+          "world": {
+            "completed_median_us": 2485.5,
+            "completed_p95_us": 3957.9,
+            "phase_medians_us": [
+              6.0,
+              147.9,
+              1265.4
+            ],
+            "round_medians_us": [
+              2185.7000000000003,
+              2667.8,
+              2485.5
+            ]
+          }
+        },
+        {
+          "run": 3,
+          "shared": {
+            "completed_median_us": 1812.9,
+            "completed_p95_us": 3494.1,
+            "phase_medians_us": [
+              5.2,
+              133.2,
+              896.8000000000001
+            ],
+            "round_medians_us": [
+              1991.9999999999998,
+              2077.4,
+              1604.2
+            ]
+          },
+          "world": {
+            "completed_median_us": 2034.7999999999997,
+            "completed_p95_us": 4513.0,
+            "phase_medians_us": [
+              5.4,
+              131.6,
+              1164.9999999999998
+            ],
+            "round_medians_us": [
+              2012.4,
+              2483.2000000000003,
+              2233.6
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "pairs": 100,
+      "workload": "single_text_color",
+      "shared": {
+        "samples": 180,
+        "completed_median_us": 1676.1000000000001,
+        "completed_p95_us": 3763.1,
+        "cpu_median_us": 874.6999999999999,
+        "phase_medians_us": [
+          5.5,
+          21.0,
+          847.4
+        ],
+        "work": {
+          "image_geometry_bytes": 0,
+          "glyph_property_bytes": 0,
+          "spatial_bytes": 0,
+          "image_upload_bytes": 0,
+          "glyph_instance_bytes": 0,
+          "glyph_atlas_bytes": 0,
+          "glyph_material_bytes": 16,
+          "image_batch_updates": 0,
+          "glyph_batch_updates": 1,
+          "extracted_nodes": 1,
+          "draw_calls": 400
+        }
+      },
+      "world": {
+        "samples": 180,
+        "completed_median_us": 1727.1000000000001,
+        "completed_p95_us": 6640.799999999999,
+        "cpu_median_us": 889.2,
+        "phase_medians_us": [
+          5.6,
+          22.1,
+          858.8000000000001
+        ],
+        "work": {
+          "image_geometry_bytes": 0,
+          "glyph_property_bytes": 0,
+          "spatial_bytes": 0,
+          "image_upload_bytes": 0,
+          "glyph_instance_bytes": 0,
+          "glyph_atlas_bytes": 0,
+          "glyph_material_bytes": 16,
+          "image_batch_updates": 0,
+          "glyph_batch_updates": 1,
+          "extracted_nodes": 1,
+          "draw_calls": 400
+        }
+      },
+      "completed_change_percent": -2.9529268716345314,
+      "speedup": 1.0304277787721496,
+      "executions": [
+        {
+          "run": 1,
+          "shared": {
+            "completed_median_us": 2007.1,
+            "completed_p95_us": 3775.1,
+            "phase_medians_us": [
+              6.9,
+              26.4,
+              1039.9999999999998
+            ],
+            "round_medians_us": [
+              2153.8999999999996,
+              2021.9,
+              1982.1000000000001
+            ]
+          },
+          "world": {
+            "completed_median_us": 1980.2,
+            "completed_p95_us": 9478.800000000001,
+            "phase_medians_us": [
+              7.1,
+              25.5,
+              1022.1000000000001
+            ],
+            "round_medians_us": [
+              1915.1000000000001,
+              1818.2,
+              6640.799999999999
+            ]
+          }
+        },
+        {
+          "run": 2,
+          "shared": {
+            "completed_median_us": 1506.6999999999998,
+            "completed_p95_us": 3571.1,
+            "phase_medians_us": [
+              5.4,
+              20.299999999999997,
+              829.0000000000001
+            ],
+            "round_medians_us": [
+              1570.1999999999998,
+              1536.3,
+              1318.0
+            ]
+          },
+          "world": {
+            "completed_median_us": 1453.2,
+            "completed_p95_us": 2954.1,
+            "phase_medians_us": [
+              5.4,
+              20.0,
+              781.6
+            ],
+            "round_medians_us": [
+              1479.8999999999999,
+              1402.1999999999998,
+              1521.5
+            ]
+          }
+        },
+        {
+          "run": 3,
+          "shared": {
+            "completed_median_us": 1382.6000000000001,
+            "completed_p95_us": 3190.8,
+            "phase_medians_us": [
+              4.300000000000001,
+              16.7,
+              729.8
+            ],
+            "round_medians_us": [
+              1406.9,
+              1305.9,
+              1963.3
+            ]
+          },
+          "world": {
+            "completed_median_us": 1480.4,
+            "completed_p95_us": 3451.0,
+            "phase_medians_us": [
+              5.0,
+              20.5,
+              753.2
+            ],
+            "round_medians_us": [
+              1660.6,
+              1400.5,
+              1472.3
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "pairs": 1000,
+      "workload": "ancestor_translation",
+      "shared": {
+        "samples": 180,
+        "completed_median_us": 11836.0,
+        "completed_p95_us": 26332.8,
+        "cpu_median_us": 8897.9,
+        "phase_medians_us": [
+          6.3,
+          1250.9,
+          7455.200000000001
+        ],
+        "work": {
+          "image_geometry_bytes": 0,
+          "glyph_property_bytes": 0,
+          "spatial_bytes": 96,
+          "image_upload_bytes": 0,
+          "glyph_instance_bytes": 0,
+          "glyph_atlas_bytes": 0,
+          "glyph_material_bytes": 0,
+          "image_batch_updates": 0,
+          "glyph_batch_updates": 0,
+          "extracted_nodes": 2001,
+          "draw_calls": 4000
+        }
+      },
+      "world": {
+        "samples": 180,
+        "completed_median_us": 14886.0,
+        "completed_p95_us": 21071.0,
+        "cpu_median_us": 11345.3,
+        "phase_medians_us": [
+          6.5,
+          1172.8,
+          10138.8
+        ],
+        "work": {
+          "image_geometry_bytes": 48000,
+          "glyph_property_bytes": 32000,
+          "spatial_bytes": 96,
+          "image_upload_bytes": 0,
+          "glyph_instance_bytes": 0,
+          "glyph_atlas_bytes": 0,
+          "glyph_material_bytes": 0,
+          "image_batch_updates": 1000,
+          "glyph_batch_updates": 1000,
+          "extracted_nodes": 2001,
+          "draw_calls": 4000
+        }
+      },
+      "completed_change_percent": -20.48905011420127,
+      "speedup": 1.2576884082460291,
+      "executions": [
+        {
+          "run": 1,
+          "shared": {
+            "completed_median_us": 14026.300000000001,
+            "completed_p95_us": 40457.2,
+            "phase_medians_us": [
+              8.9,
+              2183.7,
+              11281.4
+            ],
+            "round_medians_us": [
+              12586.3,
+              13486.5,
+              25902.399999999998
+            ]
+          },
+          "world": {
+            "completed_median_us": 17754.9,
+            "completed_p95_us": 22099.7,
+            "phase_medians_us": [
+              8.8,
+              1630.1000000000001,
+              13639.2
+            ],
+            "round_medians_us": [
+              19245.7,
+              14896.5,
+              18052.5
+            ]
+          }
+        },
+        {
+          "run": 2,
+          "shared": {
+            "completed_median_us": 11675.5,
+            "completed_p95_us": 17069.2,
+            "phase_medians_us": [
+              6.0,
+              1210.8,
+              7264.8
+            ],
+            "round_medians_us": [
+              11915.4,
+              12296.5,
+              11027.199999999999
+            ]
+          },
+          "world": {
+            "completed_median_us": 14743.7,
+            "completed_p95_us": 20363.3,
+            "phase_medians_us": [
+              5.800000000000001,
+              1094.8,
+              9924.4
+            ],
+            "round_medians_us": [
+              15797.300000000001,
+              14237.5,
+              14963.0
+            ]
+          }
+        },
+        {
+          "run": 3,
+          "shared": {
+            "completed_median_us": 10702.1,
+            "completed_p95_us": 14792.400000000001,
+            "phase_medians_us": [
+              5.800000000000001,
+              996.9000000000001,
+              6942.600000000001
+            ],
+            "round_medians_us": [
+              10831.0,
+              10859.8,
+              10404.3
+            ]
+          },
+          "world": {
+            "completed_median_us": 14041.2,
+            "completed_p95_us": 18271.800000000003,
+            "phase_medians_us": [
+              5.800000000000001,
+              930.9,
+              9509.9
+            ],
+            "round_medians_us": [
+              14366.6,
+              14041.2,
+              13389.099999999999
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "pairs": 1000,
+      "workload": "clip_toggle",
+      "shared": {
+        "samples": 180,
+        "completed_median_us": 11807.099999999999,
+        "completed_p95_us": 17558.5,
+        "cpu_median_us": 8498.300000000001,
+        "phase_medians_us": [
+          6.2,
+          1203.8999999999999,
+          7333.799999999999
+        ],
+        "work": {
+          "image_geometry_bytes": 0,
+          "glyph_property_bytes": 0,
+          "spatial_bytes": 96,
+          "image_upload_bytes": 0,
+          "glyph_instance_bytes": 0,
+          "glyph_atlas_bytes": 0,
+          "glyph_material_bytes": 0,
+          "image_batch_updates": 0,
+          "glyph_batch_updates": 0,
+          "extracted_nodes": 2001,
+          "draw_calls": 4000
+        }
+      },
+      "world": {
+        "samples": 180,
+        "completed_median_us": 17081.800000000003,
+        "completed_p95_us": 22607.5,
+        "cpu_median_us": 11557.9,
+        "phase_medians_us": [
+          6.9,
+          1331.0,
+          10233.7
+        ],
+        "work": {
+          "image_geometry_bytes": 48000,
+          "glyph_property_bytes": 32000,
+          "spatial_bytes": 96,
+          "image_upload_bytes": 0,
+          "glyph_instance_bytes": 0,
+          "glyph_atlas_bytes": 0,
+          "glyph_material_bytes": 0,
+          "image_batch_updates": 1000,
+          "glyph_batch_updates": 1000,
+          "extracted_nodes": 2001,
+          "draw_calls": 4000
+        }
+      },
+      "completed_change_percent": -30.879064267231815,
+      "speedup": 1.4467396735862323,
+      "executions": [
+        {
+          "run": 1,
+          "shared": {
+            "completed_median_us": 14956.7,
+            "completed_p95_us": 19809.2,
+            "phase_medians_us": [
+              8.1,
+              1623.3000000000002,
+              10026.7
+            ],
+            "round_medians_us": [
+              14617.7,
+              15307.3,
+              15240.4
+            ]
+          },
+          "world": {
+            "completed_median_us": 19362.7,
+            "completed_p95_us": 23212.0,
+            "phase_medians_us": [
+              8.8,
+              1795.6,
+              14073.3
+            ],
+            "round_medians_us": [
+              19131.8,
+              19024.5,
+              21985.5
+            ]
+          }
+        },
+        {
+          "run": 2,
+          "shared": {
+            "completed_median_us": 11084.6,
+            "completed_p95_us": 16511.0,
+            "phase_medians_us": [
+              6.0,
+              1094.1,
+              7168.9
+            ],
+            "round_medians_us": [
+              11292.4,
+              10892.300000000001,
+              11241.0
+            ]
+          },
+          "world": {
+            "completed_median_us": 15311.4,
+            "completed_p95_us": 23198.5,
+            "phase_medians_us": [
+              6.5,
+              1160.0,
+              10065.699999999999
+            ],
+            "round_medians_us": [
+              16378.6,
+              15549.300000000001,
+              14334.400000000001
+            ]
+          }
+        },
+        {
+          "run": 3,
+          "shared": {
+            "completed_median_us": 10988.5,
+            "completed_p95_us": 14812.1,
+            "phase_medians_us": [
+              5.4,
+              1023.9000000000001,
+              6972.6
+            ],
+            "round_medians_us": [
+              10653.8,
+              11209.1,
+              10796.3
+            ]
+          },
+          "world": {
+            "completed_median_us": 14728.400000000001,
+            "completed_p95_us": 20254.0,
+            "phase_medians_us": [
+              5.699999999999999,
+              1016.9999999999999,
+              9708.4
+            ],
+            "round_medians_us": [
+              13599.2,
+              16836.6,
+              14926.4
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "pairs": 1000,
+      "workload": "single_text_color",
+      "shared": {
+        "samples": 180,
+        "completed_median_us": 9433.4,
+        "completed_p95_us": 14865.5,
+        "cpu_median_us": 6130.0,
+        "phase_medians_us": [
+          6.3,
+          22.999999999999996,
+          6094.8
+        ],
+        "work": {
+          "image_geometry_bytes": 0,
+          "glyph_property_bytes": 0,
+          "spatial_bytes": 0,
+          "image_upload_bytes": 0,
+          "glyph_instance_bytes": 0,
+          "glyph_atlas_bytes": 0,
+          "glyph_material_bytes": 16,
+          "image_batch_updates": 0,
+          "glyph_batch_updates": 1,
+          "extracted_nodes": 1,
+          "draw_calls": 4000
+        }
+      },
+      "world": {
+        "samples": 180,
+        "completed_median_us": 9115.4,
+        "completed_p95_us": 13339.699999999999,
+        "cpu_median_us": 5948.3,
+        "phase_medians_us": [
+          6.3,
+          21.7,
+          5924.6
+        ],
+        "work": {
+          "image_geometry_bytes": 0,
+          "glyph_property_bytes": 0,
+          "spatial_bytes": 0,
+          "image_upload_bytes": 0,
+          "glyph_instance_bytes": 0,
+          "glyph_atlas_bytes": 0,
+          "glyph_material_bytes": 16,
+          "image_batch_updates": 0,
+          "glyph_batch_updates": 1,
+          "extracted_nodes": 1,
+          "draw_calls": 4000
+        }
+      },
+      "completed_change_percent": 3.4886017070013375,
+      "speedup": 0.9662899908834567,
+      "executions": [
+        {
+          "run": 1,
+          "shared": {
+            "completed_median_us": 11065.800000000001,
+            "completed_p95_us": 16686.5,
+            "phase_medians_us": [
+              8.0,
+              26.599999999999998,
+              7780.599999999999
+            ],
+            "round_medians_us": [
+              11359.4,
+              10871.5,
+              11454.4
+            ]
+          },
+          "world": {
+            "completed_median_us": 10925.199999999999,
+            "completed_p95_us": 13769.4,
+            "phase_medians_us": [
+              7.700000000000001,
+              26.199999999999996,
+              7600.7
+            ],
+            "round_medians_us": [
+              10925.199999999999,
+              10740.0,
+              11038.6
+            ]
+          }
+        },
+        {
+          "run": 2,
+          "shared": {
+            "completed_median_us": 8538.9,
+            "completed_p95_us": 13326.8,
+            "phase_medians_us": [
+              6.1,
+              22.299999999999997,
+              5841.2
+            ],
+            "round_medians_us": [
+              9433.4,
+              8131.5,
+              8137.099999999999
+            ]
+          },
+          "world": {
+            "completed_median_us": 8316.6,
+            "completed_p95_us": 12661.300000000001,
+            "phase_medians_us": [
+              5.6,
+              21.0,
+              5648.0
+            ],
+            "round_medians_us": [
+              8454.2,
+              8045.999999999999,
+              8423.5
+            ]
+          }
+        },
+        {
+          "run": 3,
+          "shared": {
+            "completed_median_us": 8418.4,
+            "completed_p95_us": 12651.199999999999,
+            "phase_medians_us": [
+              5.5,
+              19.000000000000004,
+              5517.700000000001
+            ],
+            "round_medians_us": [
+              8579.2,
+              8601.8,
+              7896.099999999999
+            ]
+          },
+          "world": {
+            "completed_median_us": 8616.800000000001,
+            "completed_p95_us": 13085.599999999999,
+            "phase_medians_us": [
+              6.0,
+              19.6,
+              5568.8
+            ],
+            "round_medians_us": [
+              8789.3,
+              8531.0,
+              8097.8
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

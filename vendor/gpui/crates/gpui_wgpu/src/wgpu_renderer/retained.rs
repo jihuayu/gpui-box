@@ -22,6 +22,8 @@ pub use layers::{LayerMemoryStats, QuadDraw, QuadLayer, QuadLayerId};
 mod storage;
 mod spatial;
 mod spatial_index;
+mod content_spatial;
+pub use content_spatial::SpatialContent;
 pub use spatial_index::SpatialWorkStats;
 pub use spatial::{SpatialBatch, SpatialNode};
 pub use storage::InstanceWrite;
@@ -162,8 +164,8 @@ impl RetainedQuadRenderer {
         let shadows = PersistentStorage::new(&renderer, "retained_shadow_slots");
         let spatial = spatial::SpatialCache::new(&renderer);
         let layers = LayerCache::new(&renderer);
-        let images = images::ImageCache::new(&renderer, layers.camera_layout());
-        let glyphs = glyphs::GlyphCache::new(&renderer, layers.camera_layout());
+        let images = images::ImageCache::new(&renderer, layers.camera_layout(), &spatial.layout);
+        let glyphs = glyphs::GlyphCache::new(&renderer, layers.camera_layout(), &spatial.layout);
         Ok(Self {
             renderer,
             quads,
@@ -336,6 +338,10 @@ impl RetainedQuadRenderer {
                 .limits()
                 .max_storage_buffer_binding_size,
         )?;
+        let content_slots=spatial_plan.as_ref().filter(|p| !p.dense).map(|p| p.affected.as_slice());
+        let content_all=self.spatial.extent_changed(&batch.spatial);
+        let image_spatial=self.images.validate_spatial(&batch.images,&self.spatial,&batch.spatial,content_slots,content_all)?;
+        let glyph_spatial=self.glyphs.validate_spatial(&batch.glyphs,&self.spatial,&batch.spatial,content_slots,content_all)?;
         LayerCache::validate(
             &batch.layers,
             order,
@@ -481,13 +487,15 @@ impl RetainedQuadRenderer {
         } else {
             batch.redraw
         };
-        let image_stats = self
+        let mut image_stats = self
             .images
             .prepare(&self.renderer, batch.images, batch.size);
         let mut glyph_stats = self
             .glyphs
             .prepare(&self.renderer, batch.glyphs, batch.size)?;
         glyph_stats.validated_glyphs = validated_glyphs;
+        image_stats.changed.extend(image_spatial);
+        glyph_stats.changed.extend(glyph_spatial);
         let layer_stats = self.layers.render(
             &self.renderer,
             &self.quads.binding,

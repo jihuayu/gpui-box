@@ -571,10 +571,12 @@ impl LayerCache {
                     pass.draw(0..6, 0..1);
                 }
                 QuadDraw::Image(id) => {
+                    pass.set_bind_group(2, &spatial.binding, &[]);
                     pass.set_bind_group(1, &target.camera, &[]);
                     images.draw(*id, pass)?;
                 },
                 QuadDraw::Glyphs(id) => {
+                    pass.set_bind_group(2, &spatial.binding, &[]);
                     pass.set_bind_group(1, &target.camera, &[]);
                     glyphs.draw(*id, pass)?;
                 }
