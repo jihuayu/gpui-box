@@ -96,6 +96,14 @@ above 64 real edits and above a quarter of existing entries. This is a measured
 heuristic, not a universal threshold. Rerun on modern desktop hardware before
 adopting performance claims or tuning defaults.
 
+The local snapshot route now uses indexed immutable placement pages rather
+than the resolved resolver's AVL maps. Full backend spatial validation also
+uses a contiguous projected mirror, preserving all checks. The
+[dense-page evidence](performance/2026-11-12-dense-pages/README.md) compares exact
+previous/current binaries with unchanged layer policy. These changes reduce
+dense CPU cost but do not remove owner transaction work, full validation,
+driver/completion waits or the effect-layer raster/cache design limitations.
+
 ## Remaining acceptance
 
 - Local-first indexed damage/hit performance and general incremental updates;

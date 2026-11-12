@@ -13,6 +13,33 @@ struct Placement {
     scroll_property: bool,
 }
 
+const PLACEMENTS_PER_PAGE: usize = 64;
+type PlacementPage = [Option<Placement>; PLACEMENTS_PER_PAGE];
+
+/// Topology-local indices are immutable for this baseline. Copy touched pages
+/// once per publication instead of allocating an ordered tree node per edit.
+#[derive(Clone, Debug)]
+struct Placements {
+    pages: Vec<Option<Arc<PlacementPage>>>,
+}
+impl Placements {
+    fn new(len: usize) -> Self {
+        Self {
+            pages: vec![None; len.div_ceil(PLACEMENTS_PER_PAGE)],
+        }
+    }
+    fn get(&self, index: usize) -> Option<&Placement> {
+        self.pages[index / PLACEMENTS_PER_PAGE]
+            .as_ref()
+            .and_then(|page| page[index % PLACEMENTS_PER_PAGE].as_ref())
+    }
+    fn set(&mut self, index: usize, value: Placement) {
+        let page = self.pages[index / PLACEMENTS_PER_PAGE]
+            .get_or_insert_with(|| Arc::new(std::array::from_fn(|_| None)));
+        Arc::make_mut(page)[index % PLACEMENTS_PER_PAGE] = Some(value);
+    }
+}
+
 #[derive(Debug)]
 struct Topology {
     indices: HashMap<NodeId, usize>,
@@ -28,7 +55,7 @@ struct Topology {
 struct Snapshot {
     template: FramePacket,
     topology: Arc<Topology>,
-    placements: PropertyMap<Placement>,
+    placements: Placements,
     revision: u64,
     // Optional GPU consumer validates exact predecessor identity.
     #[cfg_attr(not(any(test, feature = "retained-wgpu")), allow(dead_code))]
@@ -91,6 +118,7 @@ impl LocalFrame {
             indices.insert(item.node, i);
             stack.push(i);
         }
+        let placements = Placements::new(indices.len());
         Self(Arc::new(Snapshot {
             revision: frame.revision,
             template: frame,
@@ -100,7 +128,7 @@ impl LocalFrame {
                 anchors,
                 ends,
             }),
-            placements: PropertyMap::default(),
+            placements,
             base: Weak::new(),
             changed: vec![],
             full_publication: true,
@@ -128,7 +156,7 @@ impl LocalFrame {
     }
     fn placement(&self, index: usize) -> Placement {
         let item = &self.0.template.items[index];
-        self.0.placements.get(&item.node).map_or_else(
+        self.0.placements.get(index).map_or_else(
             || Placement {
                 spatial: item.spatial.clone(),
                 opacity: self
@@ -140,7 +168,7 @@ impl LocalFrame {
                     .map_or(1.0, |e| e.value),
                 scroll_property: self.0.template.properties.scrolls.contains_key(&item.node),
             },
-            |entry| entry.value.clone(),
+            Clone::clone,
         )
     }
     fn resolve_at(
@@ -367,14 +395,14 @@ impl UiTree {
             return Ok(old);
         }
         let mut placements = old.0.placements.clone();
-        let mut edits = vec![];
         let mut changed = vec![];
         for &id in &self.local_dirty {
             let Some(&index) = old.0.topology.indices.get(&id) else {
                 continue;
             };
             let node = self.node(id)?;
-            let mut value = old.placement(index);
+            let previous = old.placement(index);
+            let mut value = previous.clone();
             value.spatial.translation = node.translation;
             value.spatial.clip = node.clip;
             value.spatial.scroll = [
@@ -383,18 +411,11 @@ impl UiTree {
             ];
             value.opacity = node.opacity;
             value.scroll_property = node.scroll != [0.0; 2];
-            if value != old.placement(index) {
-                edits.push((
-                    id,
-                    Some(PropertyNode {
-                        parent: None,
-                        value,
-                    }),
-                ));
+            if value != previous {
+                placements.set(index, value);
                 changed.push(index);
             }
         }
-        placements.apply_edits(edits);
         let frame = LocalFrame(Arc::new(Snapshot {
             template: old.0.template.clone(),
             topology: old.0.topology.clone(),

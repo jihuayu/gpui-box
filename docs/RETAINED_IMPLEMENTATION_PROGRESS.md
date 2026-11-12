@@ -210,6 +210,14 @@ route, while 120 Hz misses and small-scene tail regressions remain. Dense
 independent updates still exceed 60/120 Hz. This is not visible presentation
 or modern desktop GPU acceptance.
 
+The next [dense-page refinement](performance/2026-11-12-dense-pages/README.md)
+replaces private local AVL overrides with immutable indexed pages and uses a
+contiguous projected mirror for full GPU spatial validation. Alternating
+previous/current binaries show 28–32% dense completed-work median improvement,
+including losing ancestor-only cases. It preserves generation/snapshot
+ownership and backend rejection/retry checks. This does not close the remaining
+dense 60/120 Hz, effect raster reuse, native visible or software acceptance.
+
 The latest performance priority is modern desktop GPUs at 120 Hz with effects,
 especially p99/max and burst stalls; software rendering prioritizes responsiveness.
 The [frame-budget decision](ADR_RETAINED_FRAME_BUDGET.md) records API consequences

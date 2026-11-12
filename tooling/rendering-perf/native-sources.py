@@ -24,6 +24,7 @@ for name in [
     "vendor/gpui/crates/gpui/src/color.rs", "vendor/gpui/crates/gpui/src/geometry.rs",
     "tooling/rendering-perf/native-sources.py", "tooling/rendering-perf/run-native-surface.ps1",
     "tooling/rendering-perf/Cargo.toml", "tooling/rendering-perf/run-dense.ps1",
+    "tooling/rendering-perf/run-local-ab.ps1",
     "vendor/taffy/Cargo.toml", "vendor/taffy/UPSTREAM.json",
 ]:
     selected.add(workspace / name)

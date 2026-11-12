@@ -1,0 +1,16 @@
+{
+  "base_commit": "fe997cba28d4418a41c826d8ed09930718490e86",
+  "started": "2026-11-12T22:44:46.3022010+08:00",
+  "finished": "2026-11-12T22:49:47.6279248+08:00",
+  "binary_sha256": "70283caa915dffca1c79a17ee4811fcd36cad2d73a2d57b8a32d94432c5198a8",
+  "hardware": "NVIDIA GeForce GTX 1650 Ti, 571.96, 4096 MiB",
+  "cpu": [
+    "AMD Ryzen 7 4800H with Radeon Graphics         "
+  ],
+  "runs": 2,
+  "quick": false,
+  "local_snapshot": true,
+  "sources_stable": true,
+  "no_sampled_compiler_or_benchmark_conflicts": true,
+  "scope": "independent OS visual worker to synchronous GPU completion; local mode uses full-viewport isolated layers; excludes native display and physical input"
+}

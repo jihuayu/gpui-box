@@ -199,3 +199,32 @@ fn resolved_only_and_alternating_publications_do_not_accumulate_local_journals()
         );
     }
 }
+
+#[test]
+fn placement_pages_preserve_untouched_pages_and_dense_snapshot_history() {
+    let (mut tree, nodes) = fixture();
+    tree.local_frame([300.0, 200.0]).unwrap();
+    let mut tx = Transaction::default();
+    for &node in &nodes {
+        tx.translation(node, [1.0, 2.0]);
+    }
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    let dense = tree.local_frame([300.0, 200.0]).unwrap();
+    let saved = dense.resolve();
+    let mut tx = Transaction::default();
+    tx.translation(nodes[1], [3.0, 4.0]);
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    let sparse = tree.local_frame([300.0, 200.0]).unwrap();
+    assert!(!Arc::ptr_eq(
+        dense.0.placements.pages[0].as_ref().unwrap(),
+        sparse.0.placements.pages[0].as_ref().unwrap(),
+    ));
+    assert!(Arc::ptr_eq(
+        dense.0.placements.pages[1].as_ref().unwrap(),
+        sparse.0.placements.pages[1].as_ref().unwrap(),
+    ));
+    equivalent(&saved, &dense.resolve());
+    equivalent(&sparse.resolve(), &tree.frame([300.0, 200.0]).unwrap());
+    assert_eq!(dense.placement(1).spatial.translation, [1.0, 2.0]);
+    assert_eq!(sparse.placement(1).spatial.translation, [3.0, 4.0]);
+}

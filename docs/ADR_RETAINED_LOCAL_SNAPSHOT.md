@@ -18,8 +18,8 @@ one 96-byte placement write. Earlier sustained measurements exceeded both
 ## Decision
 
 Introduce an experimental `LocalFrame` with private immutable ownership. It
-retains shared local payloads, a stable preorder/parent index and a persistent
-map of placement overrides. Consecutive property updates publish changed local
+retains shared local payloads, a stable preorder/parent index and persistent
+pages of placement overrides. Consecutive property updates publish changed local
 placements without rewriting descendants. The normal retained GPU gallery
 uses this path; the vector bridge retains the resolved compatibility path.
 
@@ -75,7 +75,7 @@ routes, not an isolated publication-only experiment. Tight local-space layer
 bounds and placement-independent raster cache keys remain necessary.
 
 Independent updates still require one validated source/sink update and local
-placement record per changed node. Immutable maps, temporary vectors, GPU
+placement record per changed node. Immutable pages, temporary vectors, GPU
 preflight, order/resource/cache scans and completion collection can still
 produce stalls. This change does not establish sublinear arbitrary updates.
 
@@ -112,3 +112,31 @@ GPU completion does not prove visible 120 fps or physical input latency.
 
 See [progress](RETAINED_IMPLEMENTATION_PROGRESS.md) and
 [frame deadlines](ADR_RETAINED_FRAME_BUDGET.md).
+
+## Dense-update storage refinement
+
+Placement overrides use private 64-entry immutable pages addressed by the
+baseline's stable preorder index. Missing pages refer to the original baseline
+placement. Publication clones the page directory, then copies each affected
+shared page at most once. Sparse work therefore includes O(N/64) directory
+copying plus touched pages; dense work allocates pages rather than one AVL node
+per changed placement. Reads are indexed. Old snapshots retain their exact
+pages and topology. A material/layout/structural baseline resets both together;
+no index escapes as a public stable identity, and no slot generation is reused
+within a snapshot.
+
+The GPU's full spatial validation builds one projected contiguous prefix from
+the retained mirror and ordered upload ranges. It still checks every parent
+edge and exact ordered ancestry arithmetic, including unreferenced nodes,
+scaled overflow and prefix reexposure. It preserves overlapping last-write
+semantics and commits nothing before complete validation. Sparse indexed
+validation remains unchanged. This removes a redundant ordered map without
+granting trusted callers permission to bypass backend checks.
+
+Alternatives were tuning the AVL bulk threshold or exposing caller-supplied
+dirty ranges as authoritative. The former retains per-node allocations and
+logarithmic reads; the latter weakens recovery and validation. Private paged
+storage keeps the current snapshot/identity API while enabling future dense
+batch transport. Page size is an implementation choice requiring measurement,
+not a framework contract. Multiple full-prefix arrays and remaining dirty-set,
+reactive sink and GPU dispatch costs still require measurement and optimization.

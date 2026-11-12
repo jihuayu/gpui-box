@@ -1,6 +1,5 @@
 //! Shared hierarchical placement for retained Quad and Shadow instances.
 use super::*;
-use std::collections::BTreeMap;
 use storage::Instance;
 
 /// Six explicitly initialized vec4s; local logical placement plus bounded-chain
@@ -263,22 +262,21 @@ impl SpatialCache {
             );
             return Ok(());
         }
-        let writes: BTreeMap<_, _> = batch
-            .writes
-            .iter()
-            .flat_map(|w| {
-                w.values
-                    .iter()
-                    .enumerate()
-                    .map(move |(i, v)| (w.start + i as u32, *v))
-            })
+        // Full validation already visits the entire addressable prefix. Build
+        // its projected mirror once in linear time instead of allocating an
+        // ordered map per upload and doing tree lookups on every ancestor.
+        // Apply ranges in transport order: overlapping writes remain last-win.
+        let mut projected: Vec<_> = (0..batch.capacity)
+            .map(|index| self.storage.value(index))
             .collect();
-        let get = |index| {
-            writes
-                .get(&index)
-                .copied()
-                .unwrap_or_else(|| self.storage.value(index))
-        };
+        for write in &batch.writes {
+            let start = write.start as usize;
+            let end = (start + write.values.len()).min(projected.len());
+            if start < end {
+                projected[start..end].copy_from_slice(&write.values[..end - start]);
+            }
+        }
+        let get = |index: u32| projected[index as usize];
         for index in 0..batch.capacity {
             let node = get(index);
             if node.links[2] & 2 != 0 {
