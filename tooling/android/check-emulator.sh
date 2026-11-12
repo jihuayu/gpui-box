@@ -19,7 +19,9 @@ trap collect EXIT
 {
     git rev-parse HEAD
     python3 --version
-    "$ANDROID_HOME/emulator/emulator" -version
+    cat "$ANDROID_HOME/emulator/source.properties"
+    sha256sum "$ANDROID_HOME/emulator/emulator" \
+        "$ANDROID_HOME/emulator/qemu/linux-x86_64/qemu-system-x86_64"
     "${adb[@]}" get-state
     "${adb[@]}" shell getprop
     "${adb[@]}" shell getconf PAGE_SIZE
