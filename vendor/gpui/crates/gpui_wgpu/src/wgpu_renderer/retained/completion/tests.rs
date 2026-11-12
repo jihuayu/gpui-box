@@ -68,3 +68,33 @@ fn error_replaces_pending_success_once_and_closed_channels_do_not_publish() {
     assert!(shared.lock().stats.closed);
     assert!(shared.lock().event.is_none());
 }
+
+#[test]
+fn receipt_preserves_worker_observation_across_delayed_owner_poll() {
+    let shared = Arc::new(Shared::default());
+    let mut receiver = CompletionReceiver {
+        shared: shared.clone(),
+    };
+    let wake = Arc::new(Counter(AtomicUsize::new(0)));
+    let waker = Waker::from(wake);
+    let start = Instant::now();
+    shared.publish(Ok(3));
+    shared.publish(Ok(8));
+    let before_owner = Instant::now();
+    let Poll::Ready(Ok(Some(receipt))) = std::pin::pin!(receiver.ready_receipt())
+        .as_mut()
+        .poll(&mut Context::from_waker(&waker))
+    else {
+        panic!("missing receipt")
+    };
+    assert_eq!(receipt.serial, 8);
+    assert!(receipt.observed_at >= start && receipt.observed_at <= before_owner);
+    assert_eq!(receiver.stats().delivered, 1);
+    shared.close();
+    assert!(matches!(
+        std::pin::pin!(receiver.ready_receipt())
+            .as_mut()
+            .poll(&mut Context::from_waker(&waker)),
+        Poll::Ready(Ok(None))
+    ));
+}

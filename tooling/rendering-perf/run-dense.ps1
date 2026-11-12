@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$Output, [switch]$SkipBuild, [int]$Runs=2, [switch]$Quick, [switch]$Local)
+param([Parameter(Mandatory=$true)][string]$Output, [switch]$SkipBuild, [int]$Runs=2, [switch]$Quick, [switch]$Local, [switch]$Pipeline, [switch]$Pressure)
 $ErrorActionPreference = 'Stop'
 if ($Runs -lt 1) { throw 'Runs must be positive' }
 $workspace = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
@@ -26,6 +26,8 @@ try {
         $arguments = @(('"' + $runPath + '"'))
         if ($Quick) { $arguments += '--quick' }
         if ($Local) { $arguments += '--local' }
+        if ($Pipeline) { $arguments += '--pipeline-only'; if ($run % 2 -eq 0) { $arguments += '--reverse' } }
+        if ($Pressure) { $arguments += '--pressure' }
         $job = Start-Process -FilePath $executable -ArgumentList $arguments -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $destination "run-$run.log") -RedirectStandardError (Join-Path $destination "run-$run.err")
         while (-not $job.HasExited) {
             $active = @(Get-CimInstance Win32_Process -Filter "Name='cargo.exe' OR Name='rustc.exe' OR Name='clippy-driver.exe' OR Name='dense-runtime-perf.exe' OR Name='retained-runtime-gpu.exe' OR Name='gpui-box-example-desktop.exe'" | Where-Object ProcessId -ne $job.Id | Select-Object ProcessId,Name)
@@ -40,7 +42,7 @@ try {
     $stable = (Get-FileHash (Join-Path $destination 'source-manifest.json')).Hash -eq (Get-FileHash (Join-Path $destination 'source-after.json')).Hash
     $uncontaminated = @($samples | Where-Object { $_.conflicts.Count -ne 0 }).Count -eq 0
     [ordered]@{interval_ms=500; samples=@($samples.ToArray())} | ConvertTo-Json -Depth 6 | Set-Content -Encoding utf8 (Join-Path $destination 'process-samples.json')
-    [ordered]@{base_commit=(& git rev-parse HEAD); started=$started; finished=[DateTimeOffset]::Now.ToString('o'); binary_sha256=(Get-FileHash $executable).Hash.ToLowerInvariant(); hardware=$hardware; cpu=@(Get-CimInstance Win32_Processor | Select-Object -ExpandProperty Name); runs=$Runs; quick=[bool]$Quick; local_snapshot=[bool]$Local; sources_stable=$stable; no_sampled_compiler_or_benchmark_conflicts=$uncontaminated; scope='independent OS visual worker to synchronous GPU completion; local mode uses full-viewport isolated layers; excludes native display and physical input'} | ConvertTo-Json -Depth 5 | Set-Content -Encoding utf8 (Join-Path $destination 'metadata.json')
+    [ordered]@{base_commit=(& git rev-parse HEAD); started=$started; finished=[DateTimeOffset]::Now.ToString('o'); binary_sha256=(Get-FileHash $executable).Hash.ToLowerInvariant(); hardware=$hardware; cpu=@(Get-CimInstance Win32_Processor | Select-Object -ExpandProperty Name); runs=$Runs; quick=[bool]$Quick; local_snapshot=([bool]$Local -or [bool]$Pipeline); pipeline=[bool]$Pipeline; pressure=[bool]$Pressure; sources_stable=$stable; no_sampled_compiler_or_benchmark_conflicts=$uncontaminated; scope=$(if ($Pipeline) {'independent OS visual worker -> pre/post construction admission -> local snapshot -> bounded GPU pipeline -> timestamped coalesced native completion upper bound; excludes native display/input'} else {'independent OS visual worker to synchronous GPU completion; local mode uses full-viewport isolated layers; excludes native display and physical input'})} | ConvertTo-Json -Depth 5 | Set-Content -Encoding utf8 (Join-Path $destination 'metadata.json')
     if (-not $stable -or -not $uncontaminated) { throw 'Measurement evidence invalidated by source changes or sampled process conflicts' }
 }
 finally { Pop-Location }

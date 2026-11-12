@@ -23,6 +23,15 @@ callbacks and fire them after another poll has returned. Owner collection still
 checks native errors and releases leases in serial order. `lifecycle()` and
 `completion_stats()` are observational counters and perform no polling.
 
+`ready_receipt()` additionally preserves the worker's `Instant` observation and
+covering serial; serial-only `ready()` retains its behavior. A coalesced receipt
+is an upper bound for earlier submissions, not their exact GPU completion time.
+Owner observation can occur later and is measured separately by the pipelined
+harness. Neither instant establishes native presentation/display completion.
+`poll_frame_capacity()` collects completions nonblockingly and reports actual
+flight count, limit and device epoch before replaceable visual construction.
+It is an owner-local observation, not a reservation or memory/deadline promise.
+
 Opening a subscription after submission schedules the outstanding tail. Duplicate
 live receivers are rejected. Receiver or renderer drop cancels pending jobs,
 releases the stored waker and wakes an idle worker to exit. Renderer drop never
@@ -32,6 +41,8 @@ native cancellation. Wait errors close delivery and are surfaced once, without
 an automatic retry loop. The gallery records the failure. A reset closes the old
 device subscription; a host continuing after reset must subscribe to the new
 epoch and resubmit a complete snapshot. The hardware cases exercise this path.
+The gallery now reopens a closed epoch's receiver and wakes its background
+visual admission waiter. Native wait errors remain explicit terminal failures.
 
 ## Verification
 

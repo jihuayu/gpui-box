@@ -9,8 +9,16 @@ use std::{
         atomic::{AtomicU64, Ordering},
     },
     task::{Context, Poll, Waker},
-    time::Duration,
+    time::{Duration, Instant},
 };
+
+/// Native wait completion observation. Covered serials completed no later than
+/// this instant; this is not a GPU timestamp, Present or display completion.
+#[derive(Clone, Copy, Debug)]
+pub struct CompletionReceipt {
+    pub serial: u64,
+    pub observed_at: Instant,
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct CompletionStats {
@@ -24,7 +32,7 @@ pub struct CompletionStats {
 #[derive(Default)]
 struct State {
     job: Option<(u64, wgpu::SubmissionIndex)>,
-    event: Option<Result<u64, String>>,
+    event: Option<Result<CompletionReceipt, String>>,
     waker: Option<Waker>,
     stats: CompletionStats,
 }
@@ -50,6 +58,10 @@ impl Shared {
         }
     }
     fn publish(&self, event: Result<u64, String>) {
+        let event = event.map(|serial| CompletionReceipt {
+            serial,
+            observed_at: Instant::now(),
+        });
         let waker = {
             let mut state = self.lock();
             if state.stats.closed {
@@ -77,7 +89,16 @@ pub struct CompletionReceiver {
     shared: Arc<Shared>,
 }
 impl CompletionReceiver {
-    pub fn ready(&mut self) -> impl Future<Output = Result<Option<u64>, String>> + '_ {
+    pub async fn ready(&mut self) -> Result<Option<u64>, String> {
+        self.ready_receipt()
+            .await
+            .map(|receipt| receipt.map(|r| r.serial))
+    }
+    /// Newest receipt covers all earlier submissions. Coalescing deliberately
+    /// loses per-submit observation times; use its timestamp as an upper bound.
+    pub fn ready_receipt(
+        &mut self,
+    ) -> impl Future<Output = Result<Option<CompletionReceipt>, String>> + '_ {
         Ready { receiver: self }
     }
     pub fn stats(&self) -> CompletionStats {
@@ -93,7 +114,7 @@ struct Ready<'a> {
     receiver: &'a mut CompletionReceiver,
 }
 impl Future for Ready<'_> {
-    type Output = Result<Option<u64>, String>;
+    type Output = Result<Option<CompletionReceipt>, String>;
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut state = self.receiver.shared.lock();
         if let Some(event) = state.event.take() {

@@ -1,0 +1,3794 @@
+[
+  {
+    "run": "run-1",
+    "nodes": 1000,
+    "batch": false,
+    "effects": false,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 600,
+    "consumed_ticks": 600,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 0,
+    "longest_consecutive_misses_upper_bound": 0,
+    "unsatisfied_ticks_upper_bound": 0,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 600,
+        "p50_us": 25.0,
+        "p95_us": 38.800000000000004,
+        "p99_us": 46.8,
+        "max_us": 60.900000000000006
+      },
+      "publication_us": {
+        "samples": 600,
+        "p50_us": 10.200000000000001,
+        "p95_us": 15.2,
+        "p99_us": 19.3,
+        "max_us": 56.1
+      },
+      "submit_and_admission_us": {
+        "samples": 600,
+        "p50_us": 393.40000000000003,
+        "p95_us": 572.1,
+        "p99_us": 694.0,
+        "max_us": 1425.5
+      },
+      "admission_wait_us": {
+        "samples": 600,
+        "p50_us": 14.5,
+        "p95_us": 20.599999999999998,
+        "p99_us": 25.8,
+        "max_us": 33.4
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 600,
+        "p50_us": 14988.8,
+        "p95_us": 16421.100000000002,
+        "p99_us": 16796.8,
+        "max_us": 20543.6
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 600,
+        "p50_us": 17516.733,
+        "p95_us": 17915.533,
+        "p99_us": 18216.567,
+        "max_us": 18438.132999999998
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 599, coalesced: 0, waits: 599, notifications: 599, delivered: 599, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 600,
+      "p50_us": 2496.8669999999997,
+      "p95_us": 4773.7,
+      "p99_us": 7689.299999999999,
+      "max_us": 8980.167000000001
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 1000,
+    "batch": false,
+    "effects": false,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 600,
+    "consumed_ticks": 600,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 0,
+    "longest_consecutive_misses_upper_bound": 0,
+    "unsatisfied_ticks_upper_bound": 0,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 600,
+        "p50_us": 21.2,
+        "p95_us": 33.800000000000004,
+        "p99_us": 38.800000000000004,
+        "max_us": 125.2
+      },
+      "publication_us": {
+        "samples": 600,
+        "p50_us": 10.4,
+        "p95_us": 16.5,
+        "p99_us": 22.2,
+        "max_us": 32.5
+      },
+      "submit_and_admission_us": {
+        "samples": 600,
+        "p50_us": 391.9,
+        "p95_us": 592.0,
+        "p99_us": 698.0,
+        "max_us": 1789.3
+      },
+      "admission_wait_us": {
+        "samples": 600,
+        "p50_us": 17.0,
+        "p95_us": 24.6,
+        "p99_us": 33.300000000000004,
+        "max_us": 93.1
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 600,
+        "p50_us": 14300.2,
+        "p95_us": 14831.8,
+        "p99_us": 15050.5,
+        "max_us": 20199.3
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 600,
+        "p50_us": 17513.5,
+        "p95_us": 17937.7,
+        "p99_us": 18211.100000000002,
+        "max_us": 18999.399999999998
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 599, coalesced: 0, waits: 599, notifications: 599, delivered: 599, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 600,
+      "p50_us": 3197.1,
+      "p95_us": 6078.833,
+      "p99_us": 7557.133,
+      "max_us": 8775.733
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 1000,
+    "batch": false,
+    "effects": false,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 1200,
+    "consumed_ticks": 1200,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 3,
+    "longest_consecutive_misses_upper_bound": 1,
+    "unsatisfied_ticks_upper_bound": 3,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 2,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 1200,
+        "p50_us": 23.8,
+        "p95_us": 36.4,
+        "p99_us": 46.5,
+        "max_us": 65.5
+      },
+      "publication_us": {
+        "samples": 1200,
+        "p50_us": 10.7,
+        "p95_us": 16.4,
+        "p99_us": 20.0,
+        "max_us": 48.5
+      },
+      "submit_and_admission_us": {
+        "samples": 1200,
+        "p50_us": 395.70000000000005,
+        "p95_us": 580.6,
+        "p99_us": 681.4,
+        "max_us": 1496.5
+      },
+      "admission_wait_us": {
+        "samples": 1200,
+        "p50_us": 14.5,
+        "p95_us": 20.5,
+        "p99_us": 25.400000000000002,
+        "max_us": 81.0
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 1200,
+        "p50_us": 5972.599999999999,
+        "p95_us": 6505.5,
+        "p99_us": 6739.700000000001,
+        "max_us": 20511.399999999998
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 1200,
+        "p50_us": 9173.967,
+        "p95_us": 9539.533,
+        "p99_us": 9760.567,
+        "max_us": 10283.1
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1200, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 1199, coalesced: 0, waits: 1199, notifications: 1199, delivered: 1199, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 1200,
+      "p50_us": 3186.567,
+      "p95_us": 5774.4,
+      "p99_us": 7969.0,
+      "max_us": 8961.3
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 1000,
+    "batch": false,
+    "effects": false,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 1200,
+    "consumed_ticks": 1200,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 7,
+    "longest_consecutive_misses_upper_bound": 1,
+    "unsatisfied_ticks_upper_bound": 7,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 2,
+    "maximum_pending_receipts": 3,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 1200,
+        "p50_us": 23.8,
+        "p95_us": 36.0,
+        "p99_us": 43.5,
+        "max_us": 108.4
+      },
+      "publication_us": {
+        "samples": 1200,
+        "p50_us": 7.5,
+        "p95_us": 11.5,
+        "p99_us": 14.2,
+        "max_us": 17.4
+      },
+      "submit_and_admission_us": {
+        "samples": 1200,
+        "p50_us": 378.5,
+        "p95_us": 545.8000000000001,
+        "p99_us": 623.6,
+        "max_us": 1565.0
+      },
+      "admission_wait_us": {
+        "samples": 1200,
+        "p50_us": 16.799999999999997,
+        "p95_us": 23.4,
+        "p99_us": 28.3,
+        "max_us": 83.8
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 1200,
+        "p50_us": 5997.0,
+        "p95_us": 6480.5,
+        "p99_us": 6750.599999999999,
+        "max_us": 20531.0
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 1200,
+        "p50_us": 9147.199999999999,
+        "p95_us": 9501.167,
+        "p99_us": 9761.333,
+        "max_us": 17423.5
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1200, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 1199, coalesced: 0, waits: 1199, notifications: 1197, delivered: 1197, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 1200,
+      "p50_us": 3153.7000000000003,
+      "p95_us": 5648.099999999999,
+      "p99_us": 8121.367000000001,
+      "max_us": 11454.300000000001
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 1000,
+    "batch": false,
+    "effects": true,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 600,
+    "consumed_ticks": 600,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 0,
+    "longest_consecutive_misses_upper_bound": 0,
+    "unsatisfied_ticks_upper_bound": 0,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 600,
+        "p50_us": 25.599999999999998,
+        "p95_us": 39.199999999999996,
+        "p99_us": 46.9,
+        "max_us": 58.8
+      },
+      "publication_us": {
+        "samples": 600,
+        "p50_us": 8.1,
+        "p95_us": 12.799999999999999,
+        "p99_us": 15.299999999999999,
+        "max_us": 18.9
+      },
+      "submit_and_admission_us": {
+        "samples": 600,
+        "p50_us": 689.5999999999999,
+        "p95_us": 1034.1000000000001,
+        "p99_us": 1226.2,
+        "max_us": 2209.7000000000003
+      },
+      "admission_wait_us": {
+        "samples": 600,
+        "p50_us": 18.0,
+        "p95_us": 25.8,
+        "p99_us": 30.4,
+        "max_us": 44.3
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 600,
+        "p50_us": 12047.6,
+        "p95_us": 12741.8,
+        "p99_us": 13172.1,
+        "max_us": 20145.8
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 600,
+        "p50_us": 17770.333,
+        "p95_us": 18342.432999999997,
+        "p99_us": 18680.667,
+        "max_us": 19171.733
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 599, coalesced: 0, waits: 599, notifications: 599, delivered: 599, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 600,
+      "p50_us": 5707.433,
+      "p95_us": 11154.067000000001,
+      "p99_us": 12403.300000000001,
+      "max_us": 15466.167
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 1000,
+    "batch": false,
+    "effects": true,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 600,
+    "consumed_ticks": 600,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 0,
+    "longest_consecutive_misses_upper_bound": 0,
+    "unsatisfied_ticks_upper_bound": 0,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 600,
+        "p50_us": 22.099999999999998,
+        "p95_us": 34.1,
+        "p99_us": 38.699999999999996,
+        "max_us": 55.6
+      },
+      "publication_us": {
+        "samples": 600,
+        "p50_us": 7.8,
+        "p95_us": 12.3,
+        "p99_us": 15.1,
+        "max_us": 18.099999999999998
+      },
+      "submit_and_admission_us": {
+        "samples": 600,
+        "p50_us": 707.1,
+        "p95_us": 1035.8999999999999,
+        "p99_us": 1256.3,
+        "max_us": 1821.6000000000001
+      },
+      "admission_wait_us": {
+        "samples": 600,
+        "p50_us": 20.0,
+        "p95_us": 29.9,
+        "p99_us": 35.9,
+        "max_us": 56.7
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 600,
+        "p50_us": 12086.8,
+        "p95_us": 12775.099999999999,
+        "p99_us": 13128.1,
+        "max_us": 20478.199999999997
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 600,
+        "p50_us": 17813.433,
+        "p95_us": 18333.367,
+        "p99_us": 18657.833,
+        "max_us": 19141.933
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 599, coalesced: 0, waits: 599, notifications: 599, delivered: 599, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 600,
+      "p50_us": 5727.7,
+      "p95_us": 11177.467,
+      "p99_us": 12624.767,
+      "max_us": 14281.567000000001
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 1000,
+    "batch": false,
+    "effects": true,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 1200,
+    "consumed_ticks": 1200,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 4,
+    "longest_consecutive_misses_upper_bound": 2,
+    "unsatisfied_ticks_upper_bound": 4,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 2,
+    "maximum_pending_receipts": 3,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 1200,
+        "p50_us": 24.0,
+        "p95_us": 36.5,
+        "p99_us": 42.5,
+        "max_us": 87.89999999999999
+      },
+      "publication_us": {
+        "samples": 1200,
+        "p50_us": 8.0,
+        "p95_us": 12.6,
+        "p99_us": 16.900000000000002,
+        "max_us": 32.1
+      },
+      "submit_and_admission_us": {
+        "samples": 1200,
+        "p50_us": 706.3,
+        "p95_us": 1051.8999999999999,
+        "p99_us": 1234.2,
+        "max_us": 2306.7000000000003
+      },
+      "admission_wait_us": {
+        "samples": 1200,
+        "p50_us": 17.5,
+        "p95_us": 25.1,
+        "p99_us": 32.5,
+        "max_us": 93.7
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 1200,
+        "p50_us": 5829.8,
+        "p95_us": 6500.5,
+        "p99_us": 6877.8,
+        "max_us": 20118.7
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 1200,
+        "p50_us": 9464.432999999999,
+        "p95_us": 10024.467,
+        "p99_us": 10425.867,
+        "max_us": 17628.466999999997
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1200, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 1199, coalesced: 0, waits: 1199, notifications: 1197, delivered: 1197, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 1200,
+      "p50_us": 3625.5,
+      "p95_us": 6205.967,
+      "p99_us": 7249.3,
+      "max_us": 17114.0
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 1000,
+    "batch": false,
+    "effects": true,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 1200,
+    "consumed_ticks": 1200,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 0,
+    "longest_consecutive_misses_upper_bound": 0,
+    "unsatisfied_ticks_upper_bound": 0,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 1200,
+        "p50_us": 23.5,
+        "p95_us": 33.599999999999994,
+        "p99_us": 41.300000000000004,
+        "max_us": 89.3
+      },
+      "publication_us": {
+        "samples": 1200,
+        "p50_us": 8.1,
+        "p95_us": 12.5,
+        "p99_us": 16.5,
+        "max_us": 173.20000000000002
+      },
+      "submit_and_admission_us": {
+        "samples": 1200,
+        "p50_us": 741.4,
+        "p95_us": 1071.3999999999999,
+        "p99_us": 1376.8999999999999,
+        "max_us": 2990.2000000000003
+      },
+      "admission_wait_us": {
+        "samples": 1200,
+        "p50_us": 21.7,
+        "p95_us": 30.2,
+        "p99_us": 39.8,
+        "max_us": 96.8
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 1200,
+        "p50_us": 5835.9,
+        "p95_us": 6528.1,
+        "p99_us": 7053.8,
+        "max_us": 20165.8
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 1200,
+        "p50_us": 9513.5,
+        "p95_us": 10059.2,
+        "p99_us": 10599.832999999999,
+        "max_us": 12972.7
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1200, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 1199, coalesced: 0, waits: 1199, notifications: 1199, delivered: 1199, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 1200,
+      "p50_us": 3656.933,
+      "p95_us": 5959.032999999999,
+      "p99_us": 7158.767,
+      "max_us": 8201.5
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 10000,
+    "batch": false,
+    "effects": false,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 600,
+    "consumed_ticks": 600,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 0,
+    "longest_consecutive_misses_upper_bound": 0,
+    "unsatisfied_ticks_upper_bound": 0,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 600,
+        "p50_us": 24.7,
+        "p95_us": 35.3,
+        "p99_us": 41.4,
+        "max_us": 51.5
+      },
+      "publication_us": {
+        "samples": 600,
+        "p50_us": 9.3,
+        "p95_us": 13.8,
+        "p99_us": 16.900000000000002,
+        "max_us": 37.4
+      },
+      "submit_and_admission_us": {
+        "samples": 600,
+        "p50_us": 1032.1,
+        "p95_us": 1496.0,
+        "p99_us": 1718.3000000000002,
+        "max_us": 2056.2000000000003
+      },
+      "admission_wait_us": {
+        "samples": 600,
+        "p50_us": 15.400000000000002,
+        "p95_us": 21.2,
+        "p99_us": 28.7,
+        "max_us": 124.9
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 600,
+        "p50_us": 13961.2,
+        "p95_us": 15417.6,
+        "p99_us": 15900.500000000002,
+        "max_us": 20442.0
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 600,
+        "p50_us": 18121.933,
+        "p95_us": 18695.5,
+        "p99_us": 18991.5,
+        "max_us": 19322.632999999998
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 599, coalesced: 0, waits: 599, notifications: 599, delivered: 599, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 600,
+      "p50_us": 4207.7,
+      "p95_us": 6537.167,
+      "p99_us": 8940.067,
+      "max_us": 9984.3
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 10000,
+    "batch": false,
+    "effects": false,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 600,
+    "consumed_ticks": 600,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 0,
+    "longest_consecutive_misses_upper_bound": 0,
+    "unsatisfied_ticks_upper_bound": 0,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 600,
+        "p50_us": 22.3,
+        "p95_us": 32.7,
+        "p99_us": 38.9,
+        "max_us": 44.8
+      },
+      "publication_us": {
+        "samples": 600,
+        "p50_us": 8.5,
+        "p95_us": 13.7,
+        "p99_us": 15.9,
+        "max_us": 19.8
+      },
+      "submit_and_admission_us": {
+        "samples": 600,
+        "p50_us": 1035.2,
+        "p95_us": 1501.0,
+        "p99_us": 1784.6,
+        "max_us": 3090.7
+      },
+      "admission_wait_us": {
+        "samples": 600,
+        "p50_us": 16.900000000000002,
+        "p95_us": 23.900000000000002,
+        "p99_us": 30.4,
+        "max_us": 50.1
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 600,
+        "p50_us": 13657.5,
+        "p95_us": 14493.9,
+        "p99_us": 15113.1,
+        "max_us": 20242.0
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 600,
+        "p50_us": 18154.767,
+        "p95_us": 18802.433,
+        "p99_us": 19066.267,
+        "max_us": 20068.967
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 599, coalesced: 0, waits: 599, notifications: 599, delivered: 599, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 600,
+      "p50_us": 4488.733,
+      "p95_us": 8074.8,
+      "p99_us": 9565.8,
+      "max_us": 11641.4
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 10000,
+    "batch": false,
+    "effects": false,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 1200,
+    "consumed_ticks": 1200,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 44,
+    "longest_consecutive_misses_upper_bound": 1,
+    "unsatisfied_ticks_upper_bound": 44,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 2,
+    "maximum_pending_receipts": 3,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 1200,
+        "p50_us": 23.5,
+        "p95_us": 34.6,
+        "p99_us": 42.9,
+        "max_us": 61.9
+      },
+      "publication_us": {
+        "samples": 1200,
+        "p50_us": 8.9,
+        "p95_us": 13.4,
+        "p99_us": 16.900000000000002,
+        "max_us": 39.1
+      },
+      "submit_and_admission_us": {
+        "samples": 1200,
+        "p50_us": 1010.1999999999999,
+        "p95_us": 1447.1,
+        "p99_us": 1649.8999999999999,
+        "max_us": 2100.2999999999997
+      },
+      "admission_wait_us": {
+        "samples": 1200,
+        "p50_us": 14.2,
+        "p95_us": 19.700000000000003,
+        "p99_us": 26.8,
+        "max_us": 86.89999999999999
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 1200,
+        "p50_us": 5616.7,
+        "p95_us": 7075.900000000001,
+        "p99_us": 7585.8,
+        "max_us": 20342.5
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 1200,
+        "p50_us": 9767.433,
+        "p95_us": 10328.699999999999,
+        "p99_us": 10736.933,
+        "max_us": 18199.933
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1200, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 1199, coalesced: 0, waits: 1199, notifications: 1192, delivered: 1192, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 1200,
+      "p50_us": 4212.167,
+      "p95_us": 6852.3,
+      "p99_us": 9352.133,
+      "max_us": 16121.232999999998
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 10000,
+    "batch": false,
+    "effects": false,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 1200,
+    "consumed_ticks": 1200,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 0,
+    "longest_consecutive_misses_upper_bound": 0,
+    "unsatisfied_ticks_upper_bound": 0,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 1200,
+        "p50_us": 21.6,
+        "p95_us": 31.099999999999998,
+        "p99_us": 37.8,
+        "max_us": 74.7
+      },
+      "publication_us": {
+        "samples": 1200,
+        "p50_us": 8.5,
+        "p95_us": 12.5,
+        "p99_us": 16.2,
+        "max_us": 138.89999999999998
+      },
+      "submit_and_admission_us": {
+        "samples": 1200,
+        "p50_us": 995.3,
+        "p95_us": 1480.6000000000001,
+        "p99_us": 1737.4,
+        "max_us": 2193.8
+      },
+      "admission_wait_us": {
+        "samples": 1200,
+        "p50_us": 16.6,
+        "p95_us": 23.4,
+        "p99_us": 29.3,
+        "max_us": 68.0
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 1200,
+        "p50_us": 6600.8,
+        "p95_us": 7439.5,
+        "p99_us": 7840.599999999999,
+        "max_us": 20611.899999999998
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 1200,
+        "p50_us": 9759.367,
+        "p95_us": 10345.699999999999,
+        "p99_us": 10764.533,
+        "max_us": 11228.432999999999
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1200, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 1199, coalesced: 0, waits: 1199, notifications: 1199, delivered: 1199, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 1200,
+      "p50_us": 3169.767,
+      "p95_us": 4658.5,
+      "p99_us": 5789.867,
+      "max_us": 6852.4
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 10000,
+    "batch": false,
+    "effects": true,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 600,
+    "consumed_ticks": 600,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 0,
+    "longest_consecutive_misses_upper_bound": 0,
+    "unsatisfied_ticks_upper_bound": 0,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 600,
+        "p50_us": 23.7,
+        "p95_us": 35.7,
+        "p99_us": 40.9,
+        "max_us": 63.89999999999999
+      },
+      "publication_us": {
+        "samples": 600,
+        "p50_us": 8.600000000000001,
+        "p95_us": 13.1,
+        "p99_us": 16.5,
+        "max_us": 42.5
+      },
+      "submit_and_admission_us": {
+        "samples": 600,
+        "p50_us": 1300.6999999999998,
+        "p95_us": 1880.3,
+        "p99_us": 2199.2000000000003,
+        "max_us": 2609.4
+      },
+      "admission_wait_us": {
+        "samples": 600,
+        "p50_us": 17.6,
+        "p95_us": 26.0,
+        "p99_us": 30.1,
+        "max_us": 49.6
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 600,
+        "p50_us": 13768.0,
+        "p95_us": 14662.8,
+        "p99_us": 15062.8,
+        "max_us": 20604.1
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 600,
+        "p50_us": 18383.367000000002,
+        "p95_us": 19156.067,
+        "p99_us": 19390.600000000002,
+        "max_us": 19726.600000000002
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 599, coalesced: 0, waits: 599, notifications: 599, delivered: 599, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 600,
+      "p50_us": 4628.933,
+      "p95_us": 6919.7,
+      "p99_us": 8221.8,
+      "max_us": 8744.699999999999
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 10000,
+    "batch": false,
+    "effects": true,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 600,
+    "consumed_ticks": 600,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 0,
+    "longest_consecutive_misses_upper_bound": 0,
+    "unsatisfied_ticks_upper_bound": 0,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 600,
+        "p50_us": 21.4,
+        "p95_us": 32.1,
+        "p99_us": 38.099999999999994,
+        "max_us": 67.19999999999999
+      },
+      "publication_us": {
+        "samples": 600,
+        "p50_us": 8.9,
+        "p95_us": 13.6,
+        "p99_us": 15.2,
+        "max_us": 23.8
+      },
+      "submit_and_admission_us": {
+        "samples": 600,
+        "p50_us": 1319.7,
+        "p95_us": 1920.7,
+        "p99_us": 2239.1,
+        "max_us": 2989.0
+      },
+      "admission_wait_us": {
+        "samples": 600,
+        "p50_us": 20.2,
+        "p95_us": 29.8,
+        "p99_us": 37.7,
+        "max_us": 55.300000000000004
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 600,
+        "p50_us": 13769.699999999999,
+        "p95_us": 14653.9,
+        "p99_us": 15061.6,
+        "max_us": 20184.1
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 600,
+        "p50_us": 18483.467,
+        "p95_us": 19194.867000000002,
+        "p99_us": 19537.567,
+        "max_us": 20333.333
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 599, coalesced: 0, waits: 599, notifications: 599, delivered: 599, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 600,
+      "p50_us": 4715.967,
+      "p95_us": 6753.833,
+      "p99_us": 8225.767,
+      "max_us": 9383.5
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 10000,
+    "batch": false,
+    "effects": true,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 1200,
+    "consumed_ticks": 1200,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 16,
+    "longest_consecutive_misses_upper_bound": 1,
+    "unsatisfied_ticks_upper_bound": 16,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 2,
+    "maximum_pending_receipts": 3,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 1200,
+        "p50_us": 23.900000000000002,
+        "p95_us": 35.4,
+        "p99_us": 43.300000000000004,
+        "max_us": 95.1
+      },
+      "publication_us": {
+        "samples": 1200,
+        "p50_us": 9.1,
+        "p95_us": 13.6,
+        "p99_us": 16.4,
+        "max_us": 25.700000000000003
+      },
+      "submit_and_admission_us": {
+        "samples": 1200,
+        "p50_us": 1305.0,
+        "p95_us": 1866.5,
+        "p99_us": 2243.7,
+        "max_us": 3061.4
+      },
+      "admission_wait_us": {
+        "samples": 1200,
+        "p50_us": 17.5,
+        "p95_us": 24.3,
+        "p99_us": 33.1,
+        "max_us": 78.89999999999999
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 1200,
+        "p50_us": 5448.2,
+        "p95_us": 6265.9,
+        "p99_us": 6921.7,
+        "max_us": 20327.5
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 1200,
+        "p50_us": 10058.567,
+        "p95_us": 10735.7,
+        "p99_us": 11221.4,
+        "max_us": 18424.067
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1200, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 1199, coalesced: 0, waits: 1199, notifications: 1197, delivered: 1197, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 1200,
+      "p50_us": 4600.8,
+      "p95_us": 7366.633,
+      "p99_us": 8504.233,
+      "max_us": 12365.967
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 10000,
+    "batch": false,
+    "effects": true,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 1200,
+    "consumed_ticks": 1200,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 16,
+    "longest_consecutive_misses_upper_bound": 1,
+    "unsatisfied_ticks_upper_bound": 16,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 2,
+    "maximum_pending_receipts": 3,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 1200,
+        "p50_us": 21.7,
+        "p95_us": 31.7,
+        "p99_us": 38.800000000000004,
+        "max_us": 55.4
+      },
+      "publication_us": {
+        "samples": 1200,
+        "p50_us": 8.7,
+        "p95_us": 13.200000000000001,
+        "p99_us": 16.799999999999997,
+        "max_us": 33.4
+      },
+      "submit_and_admission_us": {
+        "samples": 1200,
+        "p50_us": 1281.1000000000001,
+        "p95_us": 1954.5,
+        "p99_us": 2234.0,
+        "max_us": 2523.2000000000003
+      },
+      "admission_wait_us": {
+        "samples": 1200,
+        "p50_us": 19.700000000000003,
+        "p95_us": 28.6,
+        "p99_us": 37.0,
+        "max_us": 82.3
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 1200,
+        "p50_us": 5447.5,
+        "p95_us": 6417.8,
+        "p99_us": 6793.4,
+        "max_us": 20365.3
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 1200,
+        "p50_us": 10062.167,
+        "p95_us": 10829.5,
+        "p99_us": 11264.1,
+        "max_us": 18764.4
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1200, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 1199, coalesced: 0, waits: 1199, notifications: 1197, delivered: 1197, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 1200,
+      "p50_us": 4589.233,
+      "p95_us": 6938.233,
+      "p99_us": 8476.033,
+      "max_us": 12276.6
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 10000,
+    "batch": true,
+    "effects": false,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 600,
+    "consumed_ticks": 600,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 583,
+    "longest_consecutive_misses_upper_bound": 191,
+    "unsatisfied_ticks_upper_bound": 583,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 600,
+        "p50_us": 5880.0,
+        "p95_us": 6752.5,
+        "p99_us": 7188.7,
+        "max_us": 7926.300000000001
+      },
+      "publication_us": {
+        "samples": 600,
+        "p50_us": 2300.1,
+        "p95_us": 2888.8999999999996,
+        "p99_us": 3166.5,
+        "max_us": 3429.7
+      },
+      "submit_and_admission_us": {
+        "samples": 600,
+        "p50_us": 7926.400000000001,
+        "p95_us": 9148.4,
+        "p99_us": 9675.5,
+        "max_us": 10236.699999999999
+      },
+      "admission_wait_us": {
+        "samples": 600,
+        "p50_us": 14.9,
+        "p95_us": 19.599999999999998,
+        "p99_us": 24.0,
+        "max_us": 68.89999999999999
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 600,
+        "p50_us": 14441.8,
+        "p95_us": 16779.0,
+        "p99_us": 17748.5,
+        "max_us": 20258.399999999998
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 600,
+        "p50_us": 33775.133,
+        "p95_us": 43227.767,
+        "p99_us": 45898.6,
+        "max_us": 49313.367
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 277, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 599, coalesced: 0, waits: 599, notifications: 599, delivered: 599, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 600,
+      "p50_us": 19545.233,
+      "p95_us": 28562.867,
+      "p99_us": 32866.433,
+      "max_us": 35595.4
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 10000,
+    "batch": true,
+    "effects": false,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 600,
+    "consumed_ticks": 598,
+    "superseded_ticks": 2,
+    "deadline_misses_upper_bound": 593,
+    "longest_consecutive_misses_upper_bound": 176,
+    "unsatisfied_ticks_upper_bound": 595,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 598,
+        "p50_us": 5860.299999999999,
+        "p95_us": 6848.400000000001,
+        "p99_us": 7424.3,
+        "max_us": 8431.199999999999
+      },
+      "publication_us": {
+        "samples": 598,
+        "p50_us": 2340.9,
+        "p95_us": 3019.7000000000003,
+        "p99_us": 3264.5,
+        "max_us": 4175.8
+      },
+      "submit_and_admission_us": {
+        "samples": 598,
+        "p50_us": 7913.9,
+        "p95_us": 9250.7,
+        "p99_us": 10522.1,
+        "max_us": 11875.699999999999
+      },
+      "admission_wait_us": {
+        "samples": 598,
+        "p50_us": 0.7999999999999999,
+        "p95_us": 14.399999999999999,
+        "p99_us": 18.3,
+        "max_us": 79.7
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 598,
+        "p50_us": 13542.2,
+        "p95_us": 16105.8,
+        "p99_us": 17484.199999999997,
+        "max_us": 20101.1
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 598,
+        "p50_us": 33880.2,
+        "p95_us": 44682.267,
+        "p99_us": 49952.467,
+        "max_us": 54819.933000000005
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 2, equal_pending: 0, wake_transitions: 598, waker_notifications: 269, drains: 598, applied: 598, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 597, coalesced: 0, waits: 597, notifications: 597, delivered: 597, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 598,
+      "p50_us": 20456.2,
+      "p95_us": 31010.867000000002,
+      "p99_us": 36215.9,
+      "max_us": 40047.733
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 10000,
+    "batch": true,
+    "effects": false,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 1200,
+    "consumed_ticks": 610,
+    "superseded_ticks": 590,
+    "deadline_misses_upper_bound": 609,
+    "longest_consecutive_misses_upper_bound": 1199,
+    "unsatisfied_ticks_upper_bound": 1199,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 610,
+        "p50_us": 6010.4,
+        "p95_us": 7228.5,
+        "p99_us": 8111.6,
+        "max_us": 9234.1
+      },
+      "publication_us": {
+        "samples": 610,
+        "p50_us": 2297.7000000000003,
+        "p95_us": 3094.8,
+        "p99_us": 3664.8,
+        "max_us": 4121.4
+      },
+      "submit_and_admission_us": {
+        "samples": 610,
+        "p50_us": 7878.299999999999,
+        "p95_us": 9754.0,
+        "p99_us": 10647.4,
+        "max_us": 11652.4
+      },
+      "admission_wait_us": {
+        "samples": 610,
+        "p50_us": 14.600000000000001,
+        "p95_us": 19.9,
+        "p99_us": 28.5,
+        "max_us": 35.9
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 610,
+        "p50_us": 12951.0,
+        "p95_us": 16503.8,
+        "p99_us": 19062.3,
+        "max_us": 20514.5
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 610,
+        "p50_us": 37302.5,
+        "p95_us": 44477.5,
+        "p99_us": 48304.2,
+        "max_us": 53755.6
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 590, equal_pending: 0, wake_transitions: 610, waker_notifications: 2, drains: 610, applied: 610, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 609, coalesced: 0, waits: 609, notifications: 609, delivered: 609, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 610,
+      "p50_us": 24503.067,
+      "p95_us": 29779.166999999998,
+      "p99_us": 33364.267,
+      "max_us": 35384.667
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 10000,
+    "batch": true,
+    "effects": false,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 1200,
+    "consumed_ticks": 618,
+    "superseded_ticks": 582,
+    "deadline_misses_upper_bound": 617,
+    "longest_consecutive_misses_upper_bound": 1199,
+    "unsatisfied_ticks_upper_bound": 1199,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 618,
+        "p50_us": 5895.5,
+        "p95_us": 7002.2,
+        "p99_us": 7569.8,
+        "max_us": 8175.999999999999
+      },
+      "publication_us": {
+        "samples": 618,
+        "p50_us": 2305.6,
+        "p95_us": 3040.9,
+        "p99_us": 3447.8,
+        "max_us": 4748.2
+      },
+      "submit_and_admission_us": {
+        "samples": 618,
+        "p50_us": 7767.8,
+        "p95_us": 9617.7,
+        "p99_us": 10858.8,
+        "max_us": 12751.5
+      },
+      "admission_wait_us": {
+        "samples": 618,
+        "p50_us": 0.39999999999999997,
+        "p95_us": 0.7999999999999999,
+        "p99_us": 1.2,
+        "max_us": 11.399999999999999
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 618,
+        "p50_us": 12807.0,
+        "p95_us": 16331.7,
+        "p99_us": 18908.899999999998,
+        "max_us": 20345.5
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 618,
+        "p50_us": 36832.799999999996,
+        "p95_us": 43337.233,
+        "p99_us": 47700.433,
+        "max_us": 52705.299999999996
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 582, equal_pending: 0, wake_transitions: 618, waker_notifications: 2, drains: 618, applied: 618, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 617, coalesced: 0, waits: 617, notifications: 617, delivered: 617, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 618,
+      "p50_us": 24185.600000000002,
+      "p95_us": 29344.933,
+      "p99_us": 32367.100000000002,
+      "max_us": 34808.8
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 10000,
+    "batch": true,
+    "effects": true,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 600,
+    "consumed_ticks": 594,
+    "superseded_ticks": 6,
+    "deadline_misses_upper_bound": 593,
+    "longest_consecutive_misses_upper_bound": 599,
+    "unsatisfied_ticks_upper_bound": 599,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 2,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 594,
+        "p50_us": 5926.4,
+        "p95_us": 6746.3,
+        "p99_us": 7522.5,
+        "max_us": 8542.4
+      },
+      "publication_us": {
+        "samples": 594,
+        "p50_us": 2262.4,
+        "p95_us": 2945.1,
+        "p99_us": 3316.1000000000004,
+        "max_us": 3782.6
+      },
+      "submit_and_admission_us": {
+        "samples": 594,
+        "p50_us": 8103.799999999999,
+        "p95_us": 9504.0,
+        "p99_us": 10591.8,
+        "max_us": 13223.0
+      },
+      "admission_wait_us": {
+        "samples": 594,
+        "p50_us": 17.5,
+        "p95_us": 25.0,
+        "p99_us": 40.2,
+        "max_us": 75.0
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 594,
+        "p50_us": 12684.7,
+        "p95_us": 15595.2,
+        "p99_us": 16593.2,
+        "max_us": 20438.7
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 594,
+        "p50_us": 34255.567,
+        "p95_us": 47544.633,
+        "p99_us": 51939.2,
+        "max_us": 57211.733
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 6, equal_pending: 0, wake_transitions: 594, waker_notifications: 228, drains: 594, applied: 594, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 593, coalesced: 0, waits: 593, notifications: 593, delivered: 593, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 594,
+      "p50_us": 21780.399999999998,
+      "p95_us": 35794.533,
+      "p99_us": 42115.467,
+      "max_us": 51793.467000000004
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 10000,
+    "batch": true,
+    "effects": true,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 600,
+    "consumed_ticks": 598,
+    "superseded_ticks": 2,
+    "deadline_misses_upper_bound": 592,
+    "longest_consecutive_misses_upper_bound": 410,
+    "unsatisfied_ticks_upper_bound": 594,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 598,
+        "p50_us": 5828.9,
+        "p95_us": 6660.400000000001,
+        "p99_us": 7246.4,
+        "max_us": 7460.0
+      },
+      "publication_us": {
+        "samples": 598,
+        "p50_us": 2220.1,
+        "p95_us": 2873.4,
+        "p99_us": 3227.5,
+        "max_us": 3575.3
+      },
+      "submit_and_admission_us": {
+        "samples": 598,
+        "p50_us": 7929.6,
+        "p95_us": 9414.6,
+        "p99_us": 10411.6,
+        "max_us": 11556.300000000001
+      },
+      "admission_wait_us": {
+        "samples": 598,
+        "p50_us": 1.3,
+        "p95_us": 15.0,
+        "p99_us": 118.4,
+        "max_us": 198.8
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 598,
+        "p50_us": 13603.6,
+        "p95_us": 15928.4,
+        "p99_us": 17603.0,
+        "max_us": 20599.0
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 598,
+        "p50_us": 33714.666999999994,
+        "p95_us": 41825.567,
+        "p99_us": 49036.367,
+        "max_us": 52973.667
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 2, equal_pending: 0, wake_transitions: 598, waker_notifications: 296, drains: 598, applied: 598, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 597, coalesced: 0, waits: 597, notifications: 597, delivered: 597, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 598,
+      "p50_us": 20185.2,
+      "p95_us": 28133.5,
+      "p99_us": 34109.233,
+      "max_us": 38569.433
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 10000,
+    "batch": true,
+    "effects": true,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 1200,
+    "consumed_ticks": 601,
+    "superseded_ticks": 599,
+    "deadline_misses_upper_bound": 600,
+    "longest_consecutive_misses_upper_bound": 1199,
+    "unsatisfied_ticks_upper_bound": 1199,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 601,
+        "p50_us": 6161.1,
+        "p95_us": 7029.1,
+        "p99_us": 7465.2,
+        "max_us": 8247.5
+      },
+      "publication_us": {
+        "samples": 601,
+        "p50_us": 2188.1,
+        "p95_us": 2851.0,
+        "p99_us": 3308.3,
+        "max_us": 3830.3
+      },
+      "submit_and_admission_us": {
+        "samples": 601,
+        "p50_us": 8153.7,
+        "p95_us": 9701.0,
+        "p99_us": 10629.400000000001,
+        "max_us": 12174.900000000001
+      },
+      "admission_wait_us": {
+        "samples": 601,
+        "p50_us": 17.5,
+        "p95_us": 25.1,
+        "p99_us": 35.7,
+        "max_us": 140.6
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 601,
+        "p50_us": 13577.199999999999,
+        "p95_us": 15988.7,
+        "p99_us": 17824.199999999997,
+        "max_us": 20750.2
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 601,
+        "p50_us": 37847.2,
+        "p95_us": 43294.399999999994,
+        "p99_us": 46284.3,
+        "max_us": 51235.267
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 599, equal_pending: 0, wake_transitions: 601, waker_notifications: 2, drains: 601, applied: 601, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 600, coalesced: 0, waits: 600, notifications: 600, delivered: 600, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 601,
+      "p50_us": 24343.8,
+      "p95_us": 29087.667,
+      "p99_us": 31341.300000000003,
+      "max_us": 33706.133
+    }
+  },
+  {
+    "run": "run-1",
+    "nodes": 10000,
+    "batch": true,
+    "effects": true,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 1200,
+    "consumed_ticks": 593,
+    "superseded_ticks": 607,
+    "deadline_misses_upper_bound": 592,
+    "longest_consecutive_misses_upper_bound": 1199,
+    "unsatisfied_ticks_upper_bound": 1199,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 593,
+        "p50_us": 6168.3,
+        "p95_us": 6981.2,
+        "p99_us": 7515.3,
+        "max_us": 9770.8
+      },
+      "publication_us": {
+        "samples": 593,
+        "p50_us": 2291.0,
+        "p95_us": 2971.2,
+        "p99_us": 3157.8,
+        "max_us": 3559.4
+      },
+      "submit_and_admission_us": {
+        "samples": 593,
+        "p50_us": 8342.4,
+        "p95_us": 9577.5,
+        "p99_us": 10313.8,
+        "max_us": 13297.800000000001
+      },
+      "admission_wait_us": {
+        "samples": 593,
+        "p50_us": 0.39999999999999997,
+        "p95_us": 0.8999999999999999,
+        "p99_us": 1.5999999999999999,
+        "max_us": 17.3
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 593,
+        "p50_us": 13762.699999999999,
+        "p95_us": 15792.400000000001,
+        "p99_us": 17271.7,
+        "max_us": 21562.3
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 593,
+        "p50_us": 38217.167,
+        "p95_us": 43138.333,
+        "p99_us": 46217.3,
+        "max_us": 53751.032999999996
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 607, equal_pending: 0, wake_transitions: 593, waker_notifications: 2, drains: 593, applied: 593, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 592, coalesced: 0, waits: 592, notifications: 592, delivered: 592, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 593,
+      "p50_us": 24590.867,
+      "p95_us": 28957.6,
+      "p99_us": 33684.167,
+      "max_us": 38189.267
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 1000,
+    "batch": false,
+    "effects": false,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 600,
+    "consumed_ticks": 600,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 0,
+    "longest_consecutive_misses_upper_bound": 0,
+    "unsatisfied_ticks_upper_bound": 0,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 600,
+        "p50_us": 22.7,
+        "p95_us": 34.6,
+        "p99_us": 43.4,
+        "max_us": 54.4
+      },
+      "publication_us": {
+        "samples": 600,
+        "p50_us": 9.0,
+        "p95_us": 13.8,
+        "p99_us": 17.4,
+        "max_us": 46.3
+      },
+      "submit_and_admission_us": {
+        "samples": 600,
+        "p50_us": 377.2,
+        "p95_us": 554.5,
+        "p99_us": 639.3,
+        "max_us": 1583.5
+      },
+      "admission_wait_us": {
+        "samples": 600,
+        "p50_us": 17.0,
+        "p95_us": 25.299999999999997,
+        "p99_us": 29.4,
+        "max_us": 44.4
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 600,
+        "p50_us": 15262.599999999999,
+        "p95_us": 16478.199999999997,
+        "p99_us": 16761.100000000002,
+        "max_us": 20560.8
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 600,
+        "p50_us": 17480.9,
+        "p95_us": 17877.867,
+        "p99_us": 18060.267,
+        "max_us": 18852.432999999997
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 599, coalesced: 0, waits: 599, notifications: 599, delivered: 599, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 600,
+      "p50_us": 2201.4,
+      "p95_us": 3593.8329999999996,
+      "p99_us": 7333.067,
+      "max_us": 8320.467
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 1000,
+    "batch": false,
+    "effects": false,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 600,
+    "consumed_ticks": 600,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 0,
+    "longest_consecutive_misses_upper_bound": 0,
+    "unsatisfied_ticks_upper_bound": 0,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 600,
+        "p50_us": 24.6,
+        "p95_us": 35.3,
+        "p99_us": 44.4,
+        "max_us": 98.9
+      },
+      "publication_us": {
+        "samples": 600,
+        "p50_us": 10.6,
+        "p95_us": 15.7,
+        "p99_us": 21.1,
+        "max_us": 33.599999999999994
+      },
+      "submit_and_admission_us": {
+        "samples": 600,
+        "p50_us": 380.9,
+        "p95_us": 558.0,
+        "p99_us": 676.4,
+        "max_us": 1352.6000000000001
+      },
+      "admission_wait_us": {
+        "samples": 600,
+        "p50_us": 14.3,
+        "p95_us": 20.1,
+        "p99_us": 23.5,
+        "max_us": 36.199999999999996
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 600,
+        "p50_us": 14299.3,
+        "p95_us": 14824.0,
+        "p99_us": 15065.0,
+        "max_us": 20283.9
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 600,
+        "p50_us": 17492.533,
+        "p95_us": 17878.267,
+        "p99_us": 18093.867,
+        "max_us": 18415.899999999998
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 599, coalesced: 0, waits: 599, notifications: 599, delivered: 599, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 600,
+      "p50_us": 3175.7999999999997,
+      "p95_us": 5749.032999999999,
+      "p99_us": 7921.967000000001,
+      "max_us": 9442.832999999999
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 1000,
+    "batch": false,
+    "effects": false,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 1200,
+    "consumed_ticks": 1200,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 10,
+    "longest_consecutive_misses_upper_bound": 1,
+    "unsatisfied_ticks_upper_bound": 10,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 1200,
+        "p50_us": 23.099999999999998,
+        "p95_us": 34.3,
+        "p99_us": 42.1,
+        "max_us": 112.2
+      },
+      "publication_us": {
+        "samples": 1200,
+        "p50_us": 9.6,
+        "p95_us": 13.8,
+        "p99_us": 17.4,
+        "max_us": 21.8
+      },
+      "submit_and_admission_us": {
+        "samples": 1200,
+        "p50_us": 364.9,
+        "p95_us": 535.0,
+        "p99_us": 626.3,
+        "max_us": 1855.7
+      },
+      "admission_wait_us": {
+        "samples": 1200,
+        "p50_us": 16.6,
+        "p95_us": 23.8,
+        "p99_us": 27.5,
+        "max_us": 60.6
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 1200,
+        "p50_us": 5969.099999999999,
+        "p95_us": 6481.9,
+        "p99_us": 6704.0,
+        "max_us": 20545.8
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 1200,
+        "p50_us": 9147.300000000001,
+        "p95_us": 9501.533,
+        "p99_us": 9772.8,
+        "max_us": 10561.1
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1200, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 1199, coalesced: 0, waits: 1199, notifications: 1199, delivered: 1199, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 1200,
+      "p50_us": 3168.1330000000003,
+      "p95_us": 5799.3330000000005,
+      "p99_us": 8250.633,
+      "max_us": 9475.233
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 1000,
+    "batch": false,
+    "effects": false,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 1200,
+    "consumed_ticks": 1200,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 8,
+    "longest_consecutive_misses_upper_bound": 1,
+    "unsatisfied_ticks_upper_bound": 8,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 1200,
+        "p50_us": 24.8,
+        "p95_us": 38.0,
+        "p99_us": 44.7,
+        "max_us": 190.5
+      },
+      "publication_us": {
+        "samples": 1200,
+        "p50_us": 7.8,
+        "p95_us": 12.1,
+        "p99_us": 15.1,
+        "max_us": 33.9
+      },
+      "submit_and_admission_us": {
+        "samples": 1200,
+        "p50_us": 372.8,
+        "p95_us": 575.0,
+        "p99_us": 696.6,
+        "max_us": 1583.6
+      },
+      "admission_wait_us": {
+        "samples": 1200,
+        "p50_us": 14.2,
+        "p95_us": 20.1,
+        "p99_us": 24.8,
+        "max_us": 33.599999999999994
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 1200,
+        "p50_us": 5938.7,
+        "p95_us": 6534.5,
+        "p99_us": 6898.4,
+        "max_us": 20125.1
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 1200,
+        "p50_us": 9140.667,
+        "p95_us": 9560.033000000001,
+        "p99_us": 9769.3,
+        "max_us": 10396.433
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1200, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 1199, coalesced: 0, waits: 1199, notifications: 1199, delivered: 1199, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 1200,
+      "p50_us": 3184.433,
+      "p95_us": 5809.0,
+      "p99_us": 8105.400000000001,
+      "max_us": 8929.467
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 1000,
+    "batch": false,
+    "effects": true,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 600,
+    "consumed_ticks": 600,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 1,
+    "longest_consecutive_misses_upper_bound": 1,
+    "unsatisfied_ticks_upper_bound": 1,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 2,
+    "maximum_pending_receipts": 3,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 600,
+        "p50_us": 21.900000000000002,
+        "p95_us": 33.300000000000004,
+        "p99_us": 44.8,
+        "max_us": 88.5
+      },
+      "publication_us": {
+        "samples": 600,
+        "p50_us": 7.5,
+        "p95_us": 11.8,
+        "p99_us": 15.8,
+        "max_us": 20.0
+      },
+      "submit_and_admission_us": {
+        "samples": 600,
+        "p50_us": 654.9000000000001,
+        "p95_us": 968.0999999999999,
+        "p99_us": 1099.1,
+        "max_us": 1986.2
+      },
+      "admission_wait_us": {
+        "samples": 600,
+        "p50_us": 20.5,
+        "p95_us": 29.8,
+        "p99_us": 36.0,
+        "max_us": 55.2
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 600,
+        "p50_us": 12044.4,
+        "p95_us": 12718.3,
+        "p99_us": 13070.6,
+        "max_us": 20137.4
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 600,
+        "p50_us": 17785.767,
+        "p95_us": 18317.633,
+        "p99_us": 18605.033,
+        "max_us": 34486.833
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 599, coalesced: 0, waits: 599, notifications: 598, delivered: 598, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 600,
+      "p50_us": 5715.567,
+      "p95_us": 10664.033,
+      "p99_us": 12261.067000000001,
+      "max_us": 22393.433
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 1000,
+    "batch": false,
+    "effects": true,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 600,
+    "consumed_ticks": 600,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 1,
+    "longest_consecutive_misses_upper_bound": 1,
+    "unsatisfied_ticks_upper_bound": 1,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 2,
+    "maximum_pending_receipts": 3,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 600,
+        "p50_us": 25.400000000000002,
+        "p95_us": 36.6,
+        "p99_us": 45.300000000000004,
+        "max_us": 59.2
+      },
+      "publication_us": {
+        "samples": 600,
+        "p50_us": 7.700000000000001,
+        "p95_us": 11.399999999999999,
+        "p99_us": 14.399999999999999,
+        "max_us": 22.799999999999997
+      },
+      "submit_and_admission_us": {
+        "samples": 600,
+        "p50_us": 671.7,
+        "p95_us": 976.1999999999999,
+        "p99_us": 1147.9,
+        "max_us": 2096.2
+      },
+      "admission_wait_us": {
+        "samples": 600,
+        "p50_us": 17.6,
+        "p95_us": 24.5,
+        "p99_us": 27.8,
+        "max_us": 106.7
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 600,
+        "p50_us": 12254.0,
+        "p95_us": 16299.399999999998,
+        "p99_us": 16603.9,
+        "max_us": 20555.8
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 600,
+        "p50_us": 17746.667,
+        "p95_us": 18241.6,
+        "p99_us": 18486.5,
+        "max_us": 34617.4
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 599, coalesced: 0, waits: 599, notifications: 598, delivered: 598, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 600,
+      "p50_us": 5551.233,
+      "p95_us": 9603.1,
+      "p99_us": 12046.133,
+      "max_us": 26047.600000000002
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 1000,
+    "batch": false,
+    "effects": true,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 1200,
+    "consumed_ticks": 1200,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 0,
+    "longest_consecutive_misses_upper_bound": 0,
+    "unsatisfied_ticks_upper_bound": 0,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 1200,
+        "p50_us": 21.3,
+        "p95_us": 30.2,
+        "p99_us": 37.2,
+        "max_us": 54.6
+      },
+      "publication_us": {
+        "samples": 1200,
+        "p50_us": 7.700000000000001,
+        "p95_us": 11.7,
+        "p99_us": 15.1,
+        "max_us": 49.1
+      },
+      "submit_and_admission_us": {
+        "samples": 1200,
+        "p50_us": 669.4,
+        "p95_us": 997.0,
+        "p99_us": 1279.7,
+        "max_us": 1841.1000000000001
+      },
+      "admission_wait_us": {
+        "samples": 1200,
+        "p50_us": 20.5,
+        "p95_us": 28.799999999999997,
+        "p99_us": 35.4,
+        "max_us": 55.6
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 1200,
+        "p50_us": 5827.299999999999,
+        "p95_us": 6449.1,
+        "p99_us": 6766.3,
+        "max_us": 20308.5
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 1200,
+        "p50_us": 9438.733,
+        "p95_us": 9895.533,
+        "p99_us": 10165.633,
+        "max_us": 11364.733
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1200, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 1199, coalesced: 0, waits: 1199, notifications: 1199, delivered: 1199, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 1200,
+      "p50_us": 3586.067,
+      "p95_us": 5816.2,
+      "p99_us": 7067.167,
+      "max_us": 8266.167
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 1000,
+    "batch": false,
+    "effects": true,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 1200,
+    "consumed_ticks": 1200,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 0,
+    "longest_consecutive_misses_upper_bound": 0,
+    "unsatisfied_ticks_upper_bound": 0,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 1200,
+        "p50_us": 26.299999999999997,
+        "p95_us": 39.6,
+        "p99_us": 46.699999999999996,
+        "max_us": 88.0
+      },
+      "publication_us": {
+        "samples": 1200,
+        "p50_us": 8.0,
+        "p95_us": 12.6,
+        "p99_us": 15.9,
+        "max_us": 63.1
+      },
+      "submit_and_admission_us": {
+        "samples": 1200,
+        "p50_us": 702.5999999999999,
+        "p95_us": 1068.6000000000001,
+        "p99_us": 1294.5,
+        "max_us": 1932.0
+      },
+      "admission_wait_us": {
+        "samples": 1200,
+        "p50_us": 18.5,
+        "p95_us": 26.5,
+        "p99_us": 31.3,
+        "max_us": 39.400000000000006
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 1200,
+        "p50_us": 5834.8,
+        "p95_us": 6518.4,
+        "p99_us": 6909.099999999999,
+        "max_us": 20473.9
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 1200,
+        "p50_us": 9496.033,
+        "p95_us": 10025.967,
+        "p99_us": 10359.067,
+        "max_us": 10981.367
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1200, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 1199, coalesced: 0, waits: 1199, notifications: 1199, delivered: 1199, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 1200,
+      "p50_us": 3629.1330000000003,
+      "p95_us": 5864.867,
+      "p99_us": 7125.467,
+      "max_us": 7774.7
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 10000,
+    "batch": false,
+    "effects": false,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 600,
+    "consumed_ticks": 600,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 0,
+    "longest_consecutive_misses_upper_bound": 0,
+    "unsatisfied_ticks_upper_bound": 0,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 600,
+        "p50_us": 22.099999999999998,
+        "p95_us": 32.6,
+        "p99_us": 41.300000000000004,
+        "max_us": 52.599999999999994
+      },
+      "publication_us": {
+        "samples": 600,
+        "p50_us": 8.7,
+        "p95_us": 13.1,
+        "p99_us": 17.099999999999998,
+        "max_us": 46.9
+      },
+      "submit_and_admission_us": {
+        "samples": 600,
+        "p50_us": 997.3,
+        "p95_us": 1498.5,
+        "p99_us": 1794.7,
+        "max_us": 2232.8
+      },
+      "admission_wait_us": {
+        "samples": 600,
+        "p50_us": 16.5,
+        "p95_us": 24.5,
+        "p99_us": 31.4,
+        "max_us": 34.6
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 600,
+        "p50_us": 13963.2,
+        "p95_us": 15427.0,
+        "p99_us": 16040.5,
+        "max_us": 20209.5
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 600,
+        "p50_us": 18099.067,
+        "p95_us": 18703.567,
+        "p99_us": 19044.333,
+        "max_us": 19384.3
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 599, coalesced: 0, waits: 599, notifications: 599, delivered: 599, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 600,
+      "p50_us": 4234.0,
+      "p95_us": 6121.967,
+      "p99_us": 8947.3,
+      "max_us": 9643.1
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 10000,
+    "batch": false,
+    "effects": false,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 600,
+    "consumed_ticks": 600,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 0,
+    "longest_consecutive_misses_upper_bound": 0,
+    "unsatisfied_ticks_upper_bound": 0,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 600,
+        "p50_us": 23.8,
+        "p95_us": 35.0,
+        "p99_us": 40.800000000000004,
+        "max_us": 58.400000000000006
+      },
+      "publication_us": {
+        "samples": 600,
+        "p50_us": 9.2,
+        "p95_us": 13.9,
+        "p99_us": 17.3,
+        "max_us": 35.1
+      },
+      "submit_and_admission_us": {
+        "samples": 600,
+        "p50_us": 1012.7,
+        "p95_us": 1533.7,
+        "p99_us": 1805.5,
+        "max_us": 2016.3999999999999
+      },
+      "admission_wait_us": {
+        "samples": 600,
+        "p50_us": 14.5,
+        "p95_us": 20.8,
+        "p99_us": 25.599999999999998,
+        "max_us": 31.7
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 600,
+        "p50_us": 13757.2,
+        "p95_us": 15118.5,
+        "p99_us": 15760.400000000001,
+        "max_us": 20449.8
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 600,
+        "p50_us": 18085.932999999997,
+        "p95_us": 18756.433,
+        "p99_us": 19047.233,
+        "max_us": 19331.399999999998
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 599, coalesced: 0, waits: 599, notifications: 599, delivered: 599, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 600,
+      "p50_us": 4359.232999999999,
+      "p95_us": 8410.167,
+      "p99_us": 9694.9,
+      "max_us": 10245.767
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 10000,
+    "batch": false,
+    "effects": false,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 1200,
+    "consumed_ticks": 1200,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 59,
+    "longest_consecutive_misses_upper_bound": 1,
+    "unsatisfied_ticks_upper_bound": 59,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 2,
+    "maximum_pending_receipts": 3,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 1200,
+        "p50_us": 21.900000000000002,
+        "p95_us": 32.3,
+        "p99_us": 38.4,
+        "max_us": 84.7
+      },
+      "publication_us": {
+        "samples": 1200,
+        "p50_us": 8.600000000000001,
+        "p95_us": 12.9,
+        "p99_us": 16.2,
+        "max_us": 25.400000000000002
+      },
+      "submit_and_admission_us": {
+        "samples": 1200,
+        "p50_us": 979.4999999999999,
+        "p95_us": 1468.3000000000002,
+        "p99_us": 1652.3,
+        "max_us": 2004.6999999999998
+      },
+      "admission_wait_us": {
+        "samples": 1200,
+        "p50_us": 16.900000000000002,
+        "p95_us": 24.3,
+        "p99_us": 41.0,
+        "max_us": 126.50000000000001
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 1200,
+        "p50_us": 5342.6,
+        "p95_us": 6222.5,
+        "p99_us": 6655.099999999999,
+        "max_us": 20198.2
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 1200,
+        "p50_us": 9772.533,
+        "p95_us": 10365.567,
+        "p99_us": 10673.233,
+        "max_us": 18921.5
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1200, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 1199, coalesced: 0, waits: 1199, notifications: 1195, delivered: 1195, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 1200,
+      "p50_us": 4430.267,
+      "p95_us": 8330.6,
+      "p99_us": 9483.567000000001,
+      "max_us": 12266.667
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 10000,
+    "batch": false,
+    "effects": false,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 1200,
+    "consumed_ticks": 1200,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 76,
+    "longest_consecutive_misses_upper_bound": 1,
+    "unsatisfied_ticks_upper_bound": 76,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 2,
+    "maximum_pending_receipts": 3,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 1200,
+        "p50_us": 23.5,
+        "p95_us": 35.1,
+        "p99_us": 44.0,
+        "max_us": 145.6
+      },
+      "publication_us": {
+        "samples": 1200,
+        "p50_us": 8.600000000000001,
+        "p95_us": 13.6,
+        "p99_us": 16.900000000000002,
+        "max_us": 39.6
+      },
+      "submit_and_admission_us": {
+        "samples": 1200,
+        "p50_us": 983.6999999999999,
+        "p95_us": 1510.2,
+        "p99_us": 1742.0,
+        "max_us": 2196.7000000000003
+      },
+      "admission_wait_us": {
+        "samples": 1200,
+        "p50_us": 14.2,
+        "p95_us": 20.400000000000002,
+        "p99_us": 25.299999999999997,
+        "max_us": 114.4
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 1200,
+        "p50_us": 5333.7,
+        "p95_us": 6249.2,
+        "p99_us": 6634.1,
+        "max_us": 20155.699999999997
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 1200,
+        "p50_us": 9722.367,
+        "p95_us": 10401.233,
+        "p99_us": 10848.767,
+        "max_us": 18640.6
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1200, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 1199, coalesced: 0, waits: 1199, notifications: 1192, delivered: 1192, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 1200,
+      "p50_us": 4374.067,
+      "p95_us": 8501.233,
+      "p99_us": 9406.067000000001,
+      "max_us": 13428.8
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 10000,
+    "batch": false,
+    "effects": true,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 600,
+    "consumed_ticks": 600,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 0,
+    "longest_consecutive_misses_upper_bound": 0,
+    "unsatisfied_ticks_upper_bound": 0,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 600,
+        "p50_us": 21.8,
+        "p95_us": 33.4,
+        "p99_us": 45.7,
+        "max_us": 71.0
+      },
+      "publication_us": {
+        "samples": 600,
+        "p50_us": 9.0,
+        "p95_us": 13.7,
+        "p99_us": 16.900000000000002,
+        "max_us": 25.5
+      },
+      "submit_and_admission_us": {
+        "samples": 600,
+        "p50_us": 1279.0,
+        "p95_us": 1815.9,
+        "p99_us": 2036.6,
+        "max_us": 2282.2
+      },
+      "admission_wait_us": {
+        "samples": 600,
+        "p50_us": 20.8,
+        "p95_us": 29.8,
+        "p99_us": 36.699999999999996,
+        "max_us": 55.2
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 600,
+        "p50_us": 11512.400000000001,
+        "p95_us": 12375.4,
+        "p99_us": 12807.9,
+        "max_us": 20124.199999999997
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 600,
+        "p50_us": 18387.733,
+        "p95_us": 19056.767,
+        "p99_us": 19408.433,
+        "max_us": 19636.967
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 599, coalesced: 0, waits: 599, notifications: 599, delivered: 599, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 600,
+      "p50_us": 6879.6669999999995,
+      "p95_us": 12646.933,
+      "p99_us": 13763.367,
+      "max_us": 15231.467
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 10000,
+    "batch": false,
+    "effects": true,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 600,
+    "consumed_ticks": 600,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 7,
+    "longest_consecutive_misses_upper_bound": 1,
+    "unsatisfied_ticks_upper_bound": 7,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 2,
+    "maximum_pending_receipts": 3,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 600,
+        "p50_us": 27.7,
+        "p95_us": 39.1,
+        "p99_us": 52.9,
+        "max_us": 82.8
+      },
+      "publication_us": {
+        "samples": 600,
+        "p50_us": 10.8,
+        "p95_us": 15.5,
+        "p99_us": 30.7,
+        "max_us": 63.3
+      },
+      "submit_and_admission_us": {
+        "samples": 600,
+        "p50_us": 1522.3000000000002,
+        "p95_us": 2298.5,
+        "p99_us": 3223.6,
+        "max_us": 9777.199999999999
+      },
+      "admission_wait_us": {
+        "samples": 600,
+        "p50_us": 20.2,
+        "p95_us": 28.5,
+        "p99_us": 42.5,
+        "max_us": 100.1
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 600,
+        "p50_us": 11486.2,
+        "p95_us": 12739.1,
+        "p99_us": 14983.3,
+        "max_us": 22688.8
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 600,
+        "p50_us": 18642.2,
+        "p95_us": 21195.667,
+        "p99_us": 25159.2,
+        "max_us": 35883.633
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 599, coalesced: 0, waits: 599, notifications: 598, delivered: 598, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 600,
+      "p50_us": 7221.967000000001,
+      "p95_us": 13076.633,
+      "p99_us": 17446.1,
+      "max_us": 26000.533
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 10000,
+    "batch": false,
+    "effects": true,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 1200,
+    "consumed_ticks": 1200,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 13,
+    "longest_consecutive_misses_upper_bound": 2,
+    "unsatisfied_ticks_upper_bound": 13,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 2,
+    "maximum_pending_receipts": 3,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 1200,
+        "p50_us": 22.0,
+        "p95_us": 31.4,
+        "p99_us": 37.7,
+        "max_us": 90.8
+      },
+      "publication_us": {
+        "samples": 1200,
+        "p50_us": 8.7,
+        "p95_us": 12.799999999999999,
+        "p99_us": 15.6,
+        "max_us": 23.5
+      },
+      "submit_and_admission_us": {
+        "samples": 1200,
+        "p50_us": 1279.1000000000001,
+        "p95_us": 1798.7,
+        "p99_us": 2107.6,
+        "max_us": 2836.2999999999997
+      },
+      "admission_wait_us": {
+        "samples": 1200,
+        "p50_us": 20.7,
+        "p95_us": 29.4,
+        "p99_us": 37.7,
+        "max_us": 137.70000000000002
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 1200,
+        "p50_us": 5658.200000000001,
+        "p95_us": 7957.900000000001,
+        "p99_us": 8558.0,
+        "max_us": 20249.1
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 1200,
+        "p50_us": 10043.432999999999,
+        "p95_us": 10724.900000000001,
+        "p99_us": 11044.467,
+        "max_us": 18491.267
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1200, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 1199, coalesced: 0, waits: 1199, notifications: 1197, delivered: 1197, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 1200,
+      "p50_us": 4426.133,
+      "p95_us": 6940.033,
+      "p99_us": 8397.833,
+      "max_us": 15117.867
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 10000,
+    "batch": false,
+    "effects": true,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 1200,
+    "consumed_ticks": 1200,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 23,
+    "longest_consecutive_misses_upper_bound": 1,
+    "unsatisfied_ticks_upper_bound": 23,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 2,
+    "maximum_pending_receipts": 3,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 1200,
+        "p50_us": 24.1,
+        "p95_us": 35.3,
+        "p99_us": 44.6,
+        "max_us": 61.0
+      },
+      "publication_us": {
+        "samples": 1200,
+        "p50_us": 9.1,
+        "p95_us": 14.0,
+        "p99_us": 18.7,
+        "max_us": 33.4
+      },
+      "submit_and_admission_us": {
+        "samples": 1200,
+        "p50_us": 1321.5,
+        "p95_us": 1837.7,
+        "p99_us": 2138.4,
+        "max_us": 2636.9
+      },
+      "admission_wait_us": {
+        "samples": 1200,
+        "p50_us": 17.6,
+        "p95_us": 25.1,
+        "p99_us": 33.9,
+        "max_us": 174.79999999999998
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 1200,
+        "p50_us": 5459.5,
+        "p95_us": 6312.3,
+        "p99_us": 6724.0,
+        "max_us": 20224.2
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 1200,
+        "p50_us": 10064.733,
+        "p95_us": 10759.667000000001,
+        "p99_us": 11155.4,
+        "max_us": 18382.167
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1200, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 1199, coalesced: 0, waits: 1199, notifications: 1197, delivered: 1197, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 1200,
+      "p50_us": 4587.400000000001,
+      "p95_us": 7103.400000000001,
+      "p99_us": 8992.3,
+      "max_us": 14892.733
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 10000,
+    "batch": true,
+    "effects": false,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 600,
+    "consumed_ticks": 596,
+    "superseded_ticks": 4,
+    "deadline_misses_upper_bound": 547,
+    "longest_consecutive_misses_upper_bound": 143,
+    "unsatisfied_ticks_upper_bound": 551,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 596,
+        "p50_us": 5924.900000000001,
+        "p95_us": 6999.9,
+        "p99_us": 7629.4,
+        "max_us": 8395.8
+      },
+      "publication_us": {
+        "samples": 596,
+        "p50_us": 2083.4,
+        "p95_us": 2852.2000000000003,
+        "p99_us": 3185.6,
+        "max_us": 4161.200000000001
+      },
+      "submit_and_admission_us": {
+        "samples": 596,
+        "p50_us": 7785.099999999999,
+        "p95_us": 9308.6,
+        "p99_us": 10500.7,
+        "max_us": 11800.2
+      },
+      "admission_wait_us": {
+        "samples": 596,
+        "p50_us": 4.8999999999999995,
+        "p95_us": 16.799999999999997,
+        "p99_us": 62.6,
+        "max_us": 125.89999999999999
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 596,
+        "p50_us": 14508.9,
+        "p95_us": 17534.2,
+        "p99_us": 18861.2,
+        "max_us": 21039.4
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 596,
+        "p50_us": 33433.167,
+        "p95_us": 46457.933,
+        "p99_us": 50429.666999999994,
+        "max_us": 59633.8
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 4, equal_pending: 0, wake_transitions: 596, waker_notifications: 320, drains: 596, applied: 596, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 595, coalesced: 0, waits: 595, notifications: 595, delivered: 595, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 596,
+      "p50_us": 18899.033,
+      "p95_us": 31750.399999999998,
+      "p99_us": 37184.166999999994,
+      "max_us": 39186.033
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 10000,
+    "batch": true,
+    "effects": false,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 600,
+    "consumed_ticks": 600,
+    "superseded_ticks": 0,
+    "deadline_misses_upper_bound": 559,
+    "longest_consecutive_misses_upper_bound": 245,
+    "unsatisfied_ticks_upper_bound": 559,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 600,
+        "p50_us": 5518.5,
+        "p95_us": 6415.8,
+        "p99_us": 6830.9,
+        "max_us": 7690.8
+      },
+      "publication_us": {
+        "samples": 600,
+        "p50_us": 2078.1,
+        "p95_us": 2813.1,
+        "p99_us": 3138.6,
+        "max_us": 3597.1000000000004
+      },
+      "submit_and_admission_us": {
+        "samples": 600,
+        "p50_us": 7464.9,
+        "p95_us": 8824.2,
+        "p99_us": 9315.300000000001,
+        "max_us": 9916.2
+      },
+      "admission_wait_us": {
+        "samples": 600,
+        "p50_us": 14.7,
+        "p95_us": 18.6,
+        "p99_us": 26.2,
+        "max_us": 54.2
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 600,
+        "p50_us": 13510.1,
+        "p95_us": 15902.5,
+        "p99_us": 17195.100000000002,
+        "max_us": 20428.7
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 600,
+        "p50_us": 32219.167,
+        "p95_us": 36070.967000000004,
+        "p99_us": 41214.532999999996,
+        "max_us": 42469.067
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 481, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 599, coalesced: 0, waits: 599, notifications: 599, delivered: 599, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 600,
+      "p50_us": 18733.367000000002,
+      "p95_us": 24456.433,
+      "p99_us": 27569.033,
+      "max_us": 31306.667000000005
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 10000,
+    "batch": true,
+    "effects": false,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 1200,
+    "consumed_ticks": 646,
+    "superseded_ticks": 554,
+    "deadline_misses_upper_bound": 645,
+    "longest_consecutive_misses_upper_bound": 1199,
+    "unsatisfied_ticks_upper_bound": 1199,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 646,
+        "p50_us": 5511.900000000001,
+        "p95_us": 6421.299999999999,
+        "p99_us": 7017.0,
+        "max_us": 9727.7
+      },
+      "publication_us": {
+        "samples": 646,
+        "p50_us": 2148.8,
+        "p95_us": 2896.8,
+        "p99_us": 3380.0,
+        "max_us": 3956.3999999999996
+      },
+      "submit_and_admission_us": {
+        "samples": 646,
+        "p50_us": 7603.099999999999,
+        "p95_us": 9000.9,
+        "p99_us": 10073.300000000001,
+        "max_us": 16143.8
+      },
+      "admission_wait_us": {
+        "samples": 646,
+        "p50_us": 0.39999999999999997,
+        "p95_us": 0.7999999999999999,
+        "p99_us": 1.2,
+        "max_us": 12.5
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 646,
+        "p50_us": 12077.7,
+        "p95_us": 14828.7,
+        "p99_us": 17051.1,
+        "max_us": 23449.8
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 646,
+        "p50_us": 35527.067,
+        "p95_us": 40079.467000000004,
+        "p99_us": 44344.733,
+        "max_us": 53674.667
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 554, equal_pending: 0, wake_transitions: 646, waker_notifications: 2, drains: 646, applied: 646, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 645, coalesced: 0, waits: 645, notifications: 645, delivered: 645, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 646,
+      "p50_us": 23512.100000000002,
+      "p95_us": 27786.233,
+      "p99_us": 30815.733,
+      "max_us": 34147.267
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 10000,
+    "batch": true,
+    "effects": false,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 1200,
+    "consumed_ticks": 610,
+    "superseded_ticks": 590,
+    "deadline_misses_upper_bound": 609,
+    "longest_consecutive_misses_upper_bound": 1199,
+    "unsatisfied_ticks_upper_bound": 1199,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 610,
+        "p50_us": 5907.599999999999,
+        "p95_us": 7034.900000000001,
+        "p99_us": 7791.8,
+        "max_us": 8624.400000000001
+      },
+      "publication_us": {
+        "samples": 610,
+        "p50_us": 2352.2999999999997,
+        "p95_us": 3125.7,
+        "p99_us": 3574.2,
+        "max_us": 5934.1
+      },
+      "submit_and_admission_us": {
+        "samples": 610,
+        "p50_us": 8077.799999999999,
+        "p95_us": 9615.0,
+        "p99_us": 11065.1,
+        "max_us": 13048.1
+      },
+      "admission_wait_us": {
+        "samples": 610,
+        "p50_us": 15.400000000000002,
+        "p95_us": 22.5,
+        "p99_us": 37.5,
+        "max_us": 165.5
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 610,
+        "p50_us": 13116.900000000001,
+        "p95_us": 16474.699999999997,
+        "p99_us": 19278.6,
+        "max_us": 22939.0
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 610,
+        "p50_us": 36784.267,
+        "p95_us": 44099.033,
+        "p99_us": 49819.032999999996,
+        "max_us": 53256.5
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 590, equal_pending: 0, wake_transitions: 610, waker_notifications: 2, drains: 610, applied: 610, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 609, coalesced: 0, waits: 609, notifications: 609, delivered: 609, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 610,
+      "p50_us": 23824.7,
+      "p95_us": 29471.067,
+      "p99_us": 32944.666999999994,
+      "max_us": 47761.933
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 10000,
+    "batch": true,
+    "effects": true,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 600,
+    "consumed_ticks": 598,
+    "superseded_ticks": 2,
+    "deadline_misses_upper_bound": 584,
+    "longest_consecutive_misses_upper_bound": 332,
+    "unsatisfied_ticks_upper_bound": 586,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 598,
+        "p50_us": 5588.400000000001,
+        "p95_us": 6518.3,
+        "p99_us": 7125.3,
+        "max_us": 8332.900000000001
+      },
+      "publication_us": {
+        "samples": 598,
+        "p50_us": 2172.7999999999997,
+        "p95_us": 2831.0,
+        "p99_us": 3243.1,
+        "max_us": 3897.4
+      },
+      "submit_and_admission_us": {
+        "samples": 598,
+        "p50_us": 7702.0,
+        "p95_us": 9078.900000000001,
+        "p99_us": 9961.599999999999,
+        "max_us": 17043.6
+      },
+      "admission_wait_us": {
+        "samples": 598,
+        "p50_us": 8.600000000000001,
+        "p95_us": 17.900000000000002,
+        "p99_us": 84.2,
+        "max_us": 157.79999999999998
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 598,
+        "p50_us": 13508.8,
+        "p95_us": 15736.0,
+        "p99_us": 17153.2,
+        "max_us": 20543.6
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 598,
+        "p50_us": 32727.167,
+        "p95_us": 37178.333,
+        "p99_us": 49498.7,
+        "max_us": 56820.1
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 2, equal_pending: 0, wake_transitions: 598, waker_notifications: 431, drains: 598, applied: 598, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 597, coalesced: 0, waits: 597, notifications: 597, delivered: 597, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 598,
+      "p50_us": 19190.533,
+      "p95_us": 24102.433,
+      "p99_us": 38908.6,
+      "max_us": 53275.0
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 10000,
+    "batch": true,
+    "effects": true,
+    "target_hz": 60,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 600,
+    "consumed_ticks": 596,
+    "superseded_ticks": 4,
+    "deadline_misses_upper_bound": 593,
+    "longest_consecutive_misses_upper_bound": 415,
+    "unsatisfied_ticks_upper_bound": 597,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 596,
+        "p50_us": 5742.599999999999,
+        "p95_us": 6730.400000000001,
+        "p99_us": 7309.4,
+        "max_us": 8004.300000000001
+      },
+      "publication_us": {
+        "samples": 596,
+        "p50_us": 2237.1,
+        "p95_us": 2928.3,
+        "p99_us": 3440.5,
+        "max_us": 4460.0
+      },
+      "submit_and_admission_us": {
+        "samples": 596,
+        "p50_us": 8010.599999999999,
+        "p95_us": 9480.8,
+        "p99_us": 10328.0,
+        "max_us": 11808.4
+      },
+      "admission_wait_us": {
+        "samples": 596,
+        "p50_us": 17.4,
+        "p95_us": 23.7,
+        "p99_us": 32.6,
+        "max_us": 53.699999999999996
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 596,
+        "p50_us": 13597.5,
+        "p95_us": 16081.4,
+        "p99_us": 17583.600000000002,
+        "max_us": 20411.2
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 596,
+        "p50_us": 33759.132999999994,
+        "p95_us": 47966.5,
+        "p99_us": 50909.9,
+        "max_us": 56042.433000000005
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 4, equal_pending: 0, wake_transitions: 596, waker_notifications: 293, drains: 596, applied: 596, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 595, coalesced: 0, waits: 595, notifications: 595, delivered: 595, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 596,
+      "p50_us": 20135.967,
+      "p95_us": 33975.5,
+      "p99_us": 37611.066999999995,
+      "max_us": 40141.167
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 10000,
+    "batch": true,
+    "effects": true,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": true,
+    "expected_ticks": 1200,
+    "consumed_ticks": 624,
+    "superseded_ticks": 576,
+    "deadline_misses_upper_bound": 623,
+    "longest_consecutive_misses_upper_bound": 1199,
+    "unsatisfied_ticks_upper_bound": 1199,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 624,
+        "p50_us": 5555.0,
+        "p95_us": 6532.6,
+        "p99_us": 6784.799999999999,
+        "max_us": 7646.2
+      },
+      "publication_us": {
+        "samples": 624,
+        "p50_us": 2107.6,
+        "p95_us": 2809.2999999999997,
+        "p99_us": 3079.6,
+        "max_us": 3522.8999999999996
+      },
+      "submit_and_admission_us": {
+        "samples": 624,
+        "p50_us": 8182.699999999999,
+        "p95_us": 9597.7,
+        "p99_us": 10363.1,
+        "max_us": 11021.5
+      },
+      "admission_wait_us": {
+        "samples": 624,
+        "p50_us": 0.39999999999999997,
+        "p95_us": 0.7999999999999999,
+        "p99_us": 1.3,
+        "max_us": 14.1
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 624,
+        "p50_us": 12822.3,
+        "p95_us": 15376.900000000001,
+        "p99_us": 16837.100000000002,
+        "max_us": 20540.0
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 624,
+        "p50_us": 36455.7,
+        "p95_us": 41960.233,
+        "p99_us": 44298.733,
+        "max_us": 46917.767
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 576, equal_pending: 0, wake_transitions: 624, waker_notifications: 2, drains: 624, applied: 624, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 623, coalesced: 0, waits: 623, notifications: 623, delivered: 623, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 624,
+      "p50_us": 23628.767,
+      "p95_us": 28455.7,
+      "p99_us": 30082.3,
+      "max_us": 32591.500000000004
+    }
+  },
+  {
+    "run": "run-2",
+    "nodes": 10000,
+    "batch": true,
+    "effects": true,
+    "target_hz": 120,
+    "max_in_flight": 2,
+    "surface": [
+      800,
+      600
+    ],
+    "scale": 1.0,
+    "admission_before_work": false,
+    "expected_ticks": 1200,
+    "consumed_ticks": 616,
+    "superseded_ticks": 584,
+    "deadline_misses_upper_bound": 615,
+    "longest_consecutive_misses_upper_bound": 1199,
+    "unsatisfied_ticks_upper_bound": 1199,
+    "admission_waits": 0,
+    "layer_budget_waits": 0,
+    "maximum_gpu_in_flight": 1,
+    "maximum_pending_receipts": 2,
+    "pixel_equal": true,
+    "leases_retired": true,
+    "phases": {
+      "commit_us": {
+        "samples": 616,
+        "p50_us": 5908.6,
+        "p95_us": 6944.7,
+        "p99_us": 8348.1,
+        "max_us": 11828.699999999999
+      },
+      "publication_us": {
+        "samples": 616,
+        "p50_us": 2084.5,
+        "p95_us": 2898.8,
+        "p99_us": 3377.4,
+        "max_us": 6023.299999999999
+      },
+      "submit_and_admission_us": {
+        "samples": 616,
+        "p50_us": 7977.8,
+        "p95_us": 9719.800000000001,
+        "p99_us": 11527.300000000001,
+        "max_us": 13613.2
+      },
+      "admission_wait_us": {
+        "samples": 616,
+        "p50_us": 17.4,
+        "p95_us": 24.2,
+        "p99_us": 32.5,
+        "max_us": 100.9
+      },
+      "completion_to_owner_observation_us": {
+        "samples": 616,
+        "p50_us": 12947.699999999999,
+        "p95_us": 15977.3,
+        "p99_us": 20730.6,
+        "max_us": 23175.5
+      },
+      "source_to_owner_completion_observation_us": {
+        "samples": 616,
+        "p50_us": 36700.733,
+        "p95_us": 43410.233,
+        "p99_us": 50543.667,
+        "max_us": 55536.067
+      }
+    },
+    "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 584, equal_pending: 0, wake_transitions: 616, waker_notifications: 2, drains: 616, applied: 616, retired: 0, rejected: 0, pending: 0, closed: false }",
+    "completion_queue": "CompletionStats { scheduled: 615, coalesced: 0, waits: 615, notifications: 615, delivered: 615, closed: false }",
+    "source_to_completion_upper_bound": {
+      "samples": 616,
+      "p50_us": 23842.967,
+      "p95_us": 29337.3,
+      "p99_us": 32516.567000000003,
+      "max_us": 35886.532999999996
+    }
+  }
+]

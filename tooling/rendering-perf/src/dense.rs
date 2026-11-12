@@ -13,6 +13,7 @@ use std::{
     task::{Context, Poll, Wake, Waker},
     time::{Duration, Instant},
 };
+mod dense_pipeline;
 
 #[derive(Clone, Copy, PartialEq)]
 struct VisualSample {
@@ -340,6 +341,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let cadence_only = std::env::args().any(|v| v == "--cadence-only");
     let paired_only = std::env::args().any(|v| v == "--paired-only");
     let local = std::env::args().any(|v| v == "--local");
+    if std::env::args().any(|v| v == "--pipeline-only") {
+        return dense_pipeline::run(&output, quick);
+    }
     let count = 10000;
     let mut cases = vec![];
     for effects in if cadence_only {

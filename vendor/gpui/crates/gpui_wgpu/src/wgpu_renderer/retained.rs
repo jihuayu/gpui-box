@@ -14,7 +14,7 @@ mod native_surface;
 #[cfg(target_os = "windows")]
 pub use native_surface::NativeSurfaceStats;
 mod completion;
-pub use completion::{CompletionReceiver, CompletionStats};
+pub use completion::{CompletionReceipt, CompletionReceiver, CompletionStats};
 mod glyphs;
 mod images;
 pub use glyphs::{GlyphBatch, GlyphDrawId, GlyphGeometry, GlyphUpdates, RetainedGlyph};

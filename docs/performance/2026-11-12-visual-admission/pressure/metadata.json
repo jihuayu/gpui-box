@@ -1,0 +1,18 @@
+{
+  "base_commit": "73b113220a39b7a78cca85c19d191e5a8274f576",
+  "started": "2026-11-12T23:51:25.3825296+08:00",
+  "finished": "2026-11-12T23:54:12.8909426+08:00",
+  "binary_sha256": "8f0737354db8556c2e7e16417b452a319e8f3af133cfcdac107a601575452774",
+  "hardware": "NVIDIA GeForce GTX 1650 Ti, 571.96, 4096 MiB",
+  "cpu": [
+    "AMD Ryzen 7 4800H with Radeon Graphics         "
+  ],
+  "runs": 2,
+  "quick": false,
+  "local_snapshot": true,
+  "pipeline": true,
+  "pressure": true,
+  "sources_stable": true,
+  "no_sampled_compiler_or_benchmark_conflicts": true,
+  "scope": "independent OS visual worker -> pre/post construction admission -> local snapshot -> bounded GPU pipeline -> timestamped coalesced native completion upper bound; excludes native display/input"
+}

@@ -36,7 +36,7 @@ pub use routing::RoutingStats;
 mod spatial;
 use spatial::SpatialArena;
 mod validation;
-pub use gpui_wgpu::{CompletionReceiver, CompletionStats, LayerMemoryStats};
+pub use gpui_wgpu::{CompletionReceipt, CompletionReceiver, CompletionStats, LayerMemoryStats};
 pub use validation::ValidationStats;
 #[cfg(test)]
 use validation::validate;
@@ -254,6 +254,20 @@ pub struct FrameLifecycleStats {
     pub completed: u64,
     pub gpu_leases: usize,
     pub frame_leases: usize,
+}
+
+/// Owner-thread admission observation, before replaceable visual fanout or
+/// snapshot construction. This is not a reservation or a memory/present promise.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FrameCapacity {
+    pub device_epoch: u64,
+    pub in_flight: usize,
+    pub limit: usize,
+}
+impl FrameCapacity {
+    pub fn available(self) -> bool {
+        self.in_flight < self.limit
+    }
 }
 
 pub struct WgpuFrameRenderer {
@@ -965,6 +979,26 @@ impl WgpuFrameRenderer {
         self.collect()
     }
 
+    /// Collect completed work without waiting for a submission, then observe
+    /// capacity. When full, keep replaceable inputs in their last-value inbox
+    /// and await `CompletionReceiver::ready` outside any owner borrow before
+    /// checking again. Lossless events must still run in their normal order.
+    ///
+    /// Valid only until this owner submits/replaces the device. Another submit
+    /// invalidates the observation; layer/resource admission can still wait or
+    /// fail, and arbitrary user callbacks cannot be preempted by this method.
+    pub fn poll_frame_capacity(&mut self) -> Result<FrameCapacity, Error> {
+        if self.failed {
+            return Err(Error::Gpu("reset after failed frame submission".into()));
+        }
+        self.collect()?;
+        Ok(FrameCapacity {
+            device_epoch: self.device_epoch,
+            in_flight: self.backend.lifecycle().2,
+            limit: self.max_in_flight,
+        })
+    }
+
     /// Subscribe to native completion wakeups without a polling timer. Await
     /// readiness outside any owner borrow, then `poll` on the UI owner. This
     /// subscription closes on receiver drop, renderer drop or device reset.
@@ -1235,6 +1269,22 @@ fn glyph_updates(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn capacity_admission_requires_strictly_less_than_limit() {
+        for limit in [1, 2, 3] {
+            for in_flight in 0..=limit + 1 {
+                assert_eq!(
+                    FrameCapacity {
+                        device_epoch: 9,
+                        in_flight,
+                        limit
+                    }
+                    .available(),
+                    in_flight < limit
+                );
+            }
+        }
+    }
     #[test]
     fn redraw_covers_fractional_edges_and_auto_falls_back_for_large_damage() {
         let damage = Damage {

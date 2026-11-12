@@ -242,6 +242,24 @@ Two sustained runs produce dense/effects 120 Hz p99 of 29.55–34.33 ms, still
 again pass 2,011 scenarios / 1,921 pixel comparisons. This does not close visible
 presentation, modern desktop hardware or software rendering acceptance.
 
+The [visual admission stage](performance/2026-11-12-visual-admission/README.md)
+adds nonblocking owner capacity observation before replaceable source fanout,
+normal gallery inbox gating via existing completion wakes, epoch resubscription,
+and timestamped covering completion receipts while retaining serial-only awaits.
+A pipelined 60/120 Hz harness compares admission before/after construction and
+preserves source skips, upper-bound misses, owner receipt delay and flight counts.
+Two ordinary 800x600 runs have zero gate waits and show no stable gate benefit;
+dense/effects 120 Hz p99 remains 30.08–33.68 ms with 1,199 consecutive unsatisfied
+ticks. Owner receipt handling itself can lag another 17–21 ms at p99. These
+measurements strengthen the need for bounded owner work and local-space raster
+reuse; they do not close visible presentation, CPU rendering or 120 fps.
+The one-flight 2400x1800 control records sixteen capacity waits across both
+runs, including a losing before-work effects/120 Hz case with an eleven-tick
+burst. Final checks pass 150 core / 11 example tests, 2,011 hardware scenarios /
+1,921 pixel comparisons, hidden native source delivery and shared surface/device
+replacement. Deterministic normal-host saturation, sustained visible presents,
+burst/churn and CPU fidelity/responsiveness remain open.
+
 The latest performance priority is modern desktop GPUs at 120 Hz with effects,
 especially p99/max and burst stalls; software rendering prioritizes responsiveness.
 The [frame-budget decision](ADR_RETAINED_FRAME_BUDGET.md) records API consequences

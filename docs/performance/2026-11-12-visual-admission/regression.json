@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "scenarios": 2011,
+  "pixel_comparisons": 1921,
+  "validation_sha256": "c117ed966b43fb506b1d1002a2e2b7e2acae5e242e5db4240c2a350f77d1c421",
+  "binary_sha256": "dce0631788d538264c34aecee865c64a0fca036f749f75eba96d30eb5f6435ab",
+  "adapter": {
+    "name": "NVIDIA GeForce GTX 1650 Ti",
+    "backend": "Vulkan",
+    "driver": "571.96"
+  },
+  "local_artifacts": "target/visual-admission-regression",
+  "command": "target/release/retained-runtime-gpu.exe target/visual-admission-regression --validation-only"
+}

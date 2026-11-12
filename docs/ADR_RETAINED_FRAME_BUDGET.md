@@ -78,6 +78,45 @@ flowchart LR
 
 ## Admission and quality contracts still requiring implementation
 
+### Implemented owner-side capacity observation
+
+`WgpuFrameRenderer::poll_frame_capacity` now performs nonblocking completion
+collection and reports device epoch, actual retained GPU flight count and
+configured limit. The single owner may inspect it before replaceable source
+fanout/snapshot work. It is an observation, not an escaping reservation: another
+submit or device replacement invalidates it. Layer/resource admission and
+driver submission can still wait or fail. Keep lossless events outside this
+gate. No arbitrary callback gains a deadline/preemption guarantee.
+
+The normal gallery gates only its explicitly last-value background inbox. A
+full GPU leaves those values in the inbox; the existing completion task wakes
+the owner waiter. There is no polling timer, extra completion worker or mutable
+tree crossing threads. Normal click/lifecycle operations remain immediate and
+atomic. Epoch closure reopens a completion subscription before waking the
+waiter; an error terminates the visual delivery task explicitly.
+
+`CompletionReceiver::ready_receipt` adds a native-wait observation instant and
+serial, preserving the existing serial-only `ready`. One coalesced event covers
+earlier submissions; its timestamp is a conservative upper bound for their
+completion. The harness reports owner receipt observation delay separately.
+It cannot recover exact per-submit GPU times, native Present or display times.
+Two in-flight work items improve overlap only when the measured workload can
+benefit; CPU-bound dense fanout may leave admission idle.
+
+```mermaid
+flowchart LR
+    Inbox[Latest visual inbox] --> Gate[Owner capacity observation]
+    Gate -->|room| Fanout[Atomic source and sink work]
+    Fanout --> Snapshot[Local snapshot]
+    Snapshot --> Submit[Bounded GPU submit]
+    Submit --> Worker[Existing completion worker]
+    Worker --> Receipt[Timestamped covering receipt]
+    Receipt --> Gate
+    Events[Lossless UI events] --> Fanout
+```
+
+### Remaining admission and software contracts
+
 Desktop GPU is the primary target. A missed budget must first trigger bounded
 visual sampling, reduced redundant state/snapshot work and reuse of unchanged
 effect content; it must not silently turn off application-requested effects.

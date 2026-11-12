@@ -11,6 +11,8 @@ use gpui_box::retained::{
 use std::{cell::RefCell, rc::Rc};
 #[cfg(feature = "retained-wgpu")]
 pub(super) mod delivery_check;
+#[cfg(feature = "retained-wgpu")]
+mod visual_admission;
 
 enum WindowRaster {
     Vector,
@@ -78,6 +80,8 @@ pub struct RetainedDemo {
     gpu: Option<Rc<RefCell<gpui_box::retained::wgpu::WgpuFrameRenderer>>>,
     #[cfg(feature = "retained-wgpu")]
     _gpu_completion_task: Option<Task<()>>,
+    #[cfg(feature = "retained-wgpu")]
+    visual_admission: Rc<visual_admission::VisualAdmission>,
     #[cfg(feature = "retained-wgpu")]
     opacity: Signal<f32>,
     #[cfg(feature = "retained-wgpu")]
@@ -425,8 +429,21 @@ impl RetainedDemo {
         let color_sender = tree
             .update_sender(&receiver, color)
             .expect("create color producer");
+        #[cfg(feature = "retained-wgpu")]
+        let visual_admission = Rc::new(visual_admission::VisualAdmission::default());
+        #[cfg(feature = "retained-wgpu")]
+        let update_admission = visual_admission.clone();
         let updates_task = cx.spawn(async move |view, cx| {
             while let Ok(true) = receiver.ready().await {
+                // Leave latest visual values coalescing in the inbox while
+                // the consumer is full. Ordinary UI events remain lossless.
+                #[cfg(feature = "retained-wgpu")]
+                if let Err(error) = std::future::poll_fn(|cx| update_admission.poll(cx)).await {
+                    let _ = view.update(cx, |view, _| {
+                        view.last_commit = format!("Visual admission failed: {error}");
+                    });
+                    break;
+                }
                 // Establish a GPUI effect cycle before notifying the window;
                 // bare AsyncApp::update_entity does not flush pending effects.
                 if cx
@@ -502,6 +519,8 @@ impl RetainedDemo {
             #[cfg(feature = "retained-wgpu")]
             _gpu_completion_task: None,
             #[cfg(feature = "retained-wgpu")]
+            visual_admission,
+            #[cfg(feature = "retained-wgpu")]
             opacity,
             #[cfg(feature = "retained-wgpu")]
             presented_image: Rc::new(RefCell::new(None)),
@@ -532,11 +551,13 @@ impl RetainedDemo {
             renderer,
         )));
         let gpu = view.gpu.as_ref().unwrap();
+        view.visual_admission.attach(Rc::downgrade(gpu));
         let mut completions = gpu
             .borrow_mut()
             .open_completions()
             .expect("open GPU completions");
         let gpu = Rc::downgrade(gpu);
+        let admission = view.visual_admission.clone();
         view._gpu_completion_task = Some(cx.spawn(async move |view, cx| {
             loop {
                 let error = match completions.ready().await {
@@ -545,10 +566,23 @@ impl RetainedDemo {
                         // Owner-only retirement. This does not notify or redraw.
                         gpu.borrow_mut().poll().err().map(|error| error.to_string())
                     }
-                    Ok(None) => break,
+                    Ok(None) => {
+                        let Some(gpu) = gpu.upgrade() else { break };
+                        let replacement = gpu.borrow_mut().open_completions();
+                        match replacement {
+                            Ok(receiver) => {
+                                completions = receiver;
+                                admission.wake();
+                                continue;
+                            }
+                            Err(error) => Some(error.to_string()),
+                        }
+                    },
                     Err(error) => Some(error),
                 };
+                admission.wake();
                 if let Some(error) = error {
+                    admission.close(error.clone());
                     let _ = view.update(cx, |view, _| {
                         view.last_commit = format!("GPU completion failed: {error}");
                     });

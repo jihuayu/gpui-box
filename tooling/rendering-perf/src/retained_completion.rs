@@ -74,6 +74,12 @@ pub(super) fn run(
     results: &mut Vec<serde_json::Value>,
 ) -> Result<(), Box<dyn Error>> {
     let mut renderer = WgpuFrameRenderer::new(3)?;
+    let capacity = renderer.poll_frame_capacity()?;
+    assert!(capacity.available());
+    assert_eq!(
+        (capacity.in_flight, capacity.limit, capacity.device_epoch),
+        (0, 3, 0)
+    );
     let mut receiver = renderer.open_completions()?;
     assert!(renderer.open_completions().is_err());
     assert_eq!(receiver.stats().waits, 0);
@@ -104,6 +110,9 @@ pub(super) fn run(
         .serial;
     drop(old);
     collect_through(&mut renderer, &mut receiver, last)?;
+    let capacity = renderer.poll_frame_capacity()?;
+    assert!(capacity.available());
+    assert_eq!(capacity.in_flight, 0);
     assert!(
         weak.upgrade().is_none(),
         "completion must release old packet without another frame"
@@ -161,6 +170,11 @@ pub(super) fn run(
 
     // Reset closes the old epoch. A new subscription covers a full resync.
     renderer.reset()?;
+    let capacity = renderer.poll_frame_capacity()?;
+    assert_eq!(
+        (capacity.in_flight, capacity.limit, capacity.device_epoch),
+        (0, 3, 1)
+    );
     assert_eq!(wait(&mut receiver)?, None);
     let mut receiver = renderer.open_completions()?;
     let submitted = renderer.submit(&frame, [256, 128], 1.0)?.unwrap();
