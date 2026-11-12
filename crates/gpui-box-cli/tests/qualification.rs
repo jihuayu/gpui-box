@@ -268,10 +268,17 @@ impl Qualification {
                             "{label} platform preview did not enable the target"
                         ));
                     }
+                    let saved_plan = self.reports.join(format!("{label}-platform-plan.json"));
+                    fs::write(
+                        &saved_plan,
+                        serde_json::to_vec_pretty(&addition).map_err(|error| error.to_string())?,
+                    )
+                    .map_err(|error| error.to_string())?;
+                    let saved_plan_path = saved_plan.to_str().ok_or("Plan path requires UTF-8")?;
                     let added = self.cli(
                         &format!("{label}-platform-add"),
                         &app,
-                        &["platform", "add", target],
+                        &["platform", "add", target, "--plan", saved_plan_path],
                         true,
                     )?;
                     let repeated = self.cli(
@@ -280,7 +287,8 @@ impl Qualification {
                         &["platform", "add", target],
                         true,
                     )?;
-                    if added["completed"] != true
+                    if added["plan_sha256"].as_str().map(str::len) != Some(64)
+                        || added["completed"] != true
                         || repeated["already_enabled"] != true
                         || repeated["configuration_written"] != false
                         || repeated["entry_points_created"] != json!([])

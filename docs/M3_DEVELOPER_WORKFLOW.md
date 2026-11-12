@@ -1024,6 +1024,7 @@ preserved project bytes. The current CLI suite contains72Windows cases.
 ```sh
 gpui-box platform add android --dry-run --json
 gpui-box platform add android --json
+gpui-box platform add android --plan /path/to/platform-plan.json --json
 gpui-box platform add desktop --json
 gpui-box doctor --json
 gpui-box build android
@@ -1035,8 +1036,20 @@ point creations or preserved hashes, and the existing generation ChangePlan.
 Preview starts no child processes, writes no locks or files, and works with an
 empty PATH. Targets are the current desktop and Android families. The plan
 records content preconditions for this preview. Apply recomputes them under the
-same generation lock used by ordinary generate. Saved platform-plan replay
-requires a later extension.
+same generation lock used by ordinary generate. Save the bare result object from
+the JSON preview envelope in platform-plan.json to replay it with --plan PATH.
+The reader accepts at most 1 MiB and rejects unknown fields at every plan level.
+The CLI recomputes the entire typed plan under its generation lock and compares
+it before publishing configuration. A changed target, raw configuration bytes,
+preserved entry point, managed output, ownership state or pending journal makes
+the saved plan stale. A plan supplies preconditions. Generated content comes from
+the current validated SDK and CLI.
+
+Completion receipts include plan_sha256 over compact typed PlatformAddPlan JSON.
+Whitespace and object-key formatting in a saved plan preserve this identity.
+Ordinary platform add reports the same identity for the same pre-operation state.
+Application source outside the plan remains editable. The plan does not enumerate
+that unrelated content. Preview and replay start no build tools or network probes.
 
 Apply validates the complete candidate configuration and managed-output ownership
 before publishing configuration. It appends the requested target without dropping
@@ -1055,6 +1068,9 @@ Configuration publication is the recovery marker. A process or filesystem failur
 after it can leave the target enabled with a prefix of new entry points or managed
 outputs. Review the reported error, resolve file locks or conflicts, and rerun the
 same platform add command. It fills missing entry points before journal recovery.
+An interrupted saved-plan application changes its preconditions. Review the
+partial state and obtain a fresh --dry-run result before another --plan replay,
+or use ordinary platform add to recompute the recovery operation under its lock.
 Ordinary generate also recovers managed outputs, while platform add additionally
 supplies missing source defaults. Existing files are preserved through exclusive
 hard-link publication, which requires filesystem support. An interrupted source

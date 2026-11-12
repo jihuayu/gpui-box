@@ -102,11 +102,25 @@ fn execute(arguments: &[String]) -> Result<Value, CliError> {
                 .map_err(|error| CliError::new("PLATFORM_ADDITION_FAILED", error.to_string()));
         }
         [command, operation, target] if command == "platform" && operation == "add" => {
-            let receipt = generate::platform_add(&root, target)
+            let receipt = generate::platform_add(&root, target, None)
                 .map_err(|error| CliError::new("PLATFORM_ADDITION_FAILED", error))?;
             outputln!(
                 "Platform {} enabled. Created {} entry points. Existing application sources preserved.",
                 target,
+                receipt.entry_points_created.len()
+            );
+            return serde_json::to_value(receipt)
+                .map_err(|error| CliError::new("PLATFORM_ADDITION_FAILED", error.to_string()));
+        }
+        [command, operation, target, option, path]
+            if command == "platform" && operation == "add" && option == "--plan" =>
+        {
+            let receipt = generate::platform_add(&root, target, Some(&root.join(path)))
+                .map_err(|error| CliError::new("PLATFORM_ADDITION_FAILED", error))?;
+            outputln!(
+                "Platform {} enabled from plan {}. Created {} entry points.",
+                target,
+                receipt.plan_sha256,
                 receipt.entry_points_created.len()
             );
             return serde_json::to_value(receipt)
