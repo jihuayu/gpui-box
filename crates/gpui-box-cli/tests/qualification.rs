@@ -100,6 +100,46 @@ impl Qualification {
         if identity["upstream_revision"] != manifest["upstream_revision"] {
             return Err("CLI and SDK GPUI revisions differ".into());
         }
+        let cache_path = workspace.join("SDK Cache 有 空格");
+        let cache_path_text = cache_path.to_str().ok_or("SDK cache path requires UTF-8")?;
+        let cached = self.cli(
+            "sdk-cache-add",
+            source,
+            &["sdk", "cache", "add", sdk_path, "--cache", cache_path_text],
+            true,
+        )?;
+        let address = cached["content_sha256"]
+            .as_str()
+            .ok_or("Missing SDK cache identity")?;
+        let reused = self.cli(
+            "sdk-cache-repeat",
+            source,
+            &["sdk", "cache", "add", sdk_path, "--cache", cache_path_text],
+            true,
+        )?;
+        let verified = self.cli(
+            "sdk-cache-verify",
+            source,
+            &[
+                "sdk",
+                "cache",
+                "verify",
+                address,
+                "--cache",
+                cache_path_text,
+            ],
+            true,
+        )?;
+        if cached["created"] != true
+            || reused["created"] != false
+            || verified["verified"] != true
+            || cached["manifest"] != manifest
+        {
+            return Err("SDK cache identity or idempotence differs".into());
+        }
+        let cached_path = PathBuf::from(cached["path"].as_str().ok_or("Missing cached SDK path")?);
+        let sdk = cached_path.as_path();
+        let sdk_path = sdk.to_str().ok_or("Cached SDK path requires UTF-8")?;
         let registry = self.cli("registry-list", workspace, &["list"], true)?;
         let registry_bytes =
             fs::read(sdk.join("registry/official-v1.json")).map_err(|error| error.to_string())?;
@@ -368,7 +408,7 @@ impl Qualification {
             return Err("Application builds changed the exported SDK".into());
         }
         Ok(
-            json!({"cli": identity, "sdk": manifest, "registry": registry, "resolution": resolution, "applications": applications}),
+            json!({"cli": identity, "sdk": manifest, "cache": cached, "registry": registry, "resolution": resolution, "applications": applications}),
         )
     }
 }

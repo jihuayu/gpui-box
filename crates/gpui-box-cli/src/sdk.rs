@@ -33,6 +33,199 @@ pub struct SdkManifest {
     pub files: BTreeMap<String, String>,
 }
 
+#[derive(Serialize)]
+pub struct CacheReceipt {
+    pub schema_version: u32,
+    pub content_sha256: String,
+    pub path: PathBuf,
+    pub created: bool,
+    pub verified: bool,
+    pub manifest: SdkManifest,
+}
+
+fn cache_address(manifest: &SdkManifest) -> Result<String, String> {
+    Ok(digest(
+        &serde_json::to_vec(manifest).map_err(|error| error.to_string())?,
+    ))
+}
+
+// Cache roots are user-owned local directories. Check existing ancestors before
+// mutation. Concurrent hostile replacement of those directories is outside this contract.
+fn cache_directory(path: &Path, create: bool) -> Result<PathBuf, String> {
+    let absolute = std::env::current_dir()
+        .map_err(|error| error.to_string())?
+        .join(path);
+    if absolute
+        .components()
+        .any(|component| component == std::path::Component::ParentDir)
+    {
+        return Err("SDK cache paths cannot contain parent traversal".into());
+    }
+    let mut current = PathBuf::new();
+    for component in absolute.components() {
+        current.push(component);
+        if matches!(component, std::path::Component::Prefix(_)) {
+            continue;
+        }
+        match fs::symlink_metadata(&current) {
+            Ok(metadata) if metadata.file_type().is_dir() => {}
+            Ok(_) => {
+                return Err(format!(
+                    "SDK cache requires unlinked directories: {}",
+                    current.display()
+                ));
+            }
+            Err(error) if create && error.kind() == std::io::ErrorKind::NotFound => {
+                fs::create_dir(&current).map_err(|error| error.to_string())?;
+            }
+            Err(error) => return Err(format!("Read SDK cache {}: {error}", current.display())),
+        }
+    }
+    current.canonicalize().map_err(|error| error.to_string())
+}
+
+pub fn cache_verify(cache: &Path, address: &str) -> Result<CacheReceipt, String> {
+    if address.len() != 64
+        || !address
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err("SDK cache identity must be 64 lowercase SHA-256 digits".into());
+    }
+    let path = cache_directory(&cache.join(address), false)?;
+    let manifest = verify(&path)?;
+    if cache_address(&manifest)? != address {
+        return Err(
+            "SDK cache manifest differs from its content address. Existing entry preserved".into(),
+        );
+    }
+    Ok(CacheReceipt {
+        schema_version: 1,
+        content_sha256: address.into(),
+        path,
+        created: false,
+        verified: true,
+        manifest,
+    })
+}
+
+pub fn cache_add(source: &Path, cache: &Path) -> Result<CacheReceipt, String> {
+    let source = source.canonicalize().map_err(|error| error.to_string())?;
+    let manifest = verify(&source)?;
+    // Reject containment before creating anything inside the verified SDK.
+    let absolute_cache = std::env::current_dir()
+        .map_err(|error| error.to_string())?
+        .join(cache);
+    let ancestor = absolute_cache
+        .ancestors()
+        .find(|path| path.exists())
+        .ok_or("SDK cache requires an existing filesystem root")?;
+    let resolved_cache = ancestor
+        .canonicalize()
+        .map_err(|error| error.to_string())?
+        .join(
+            absolute_cache
+                .strip_prefix(ancestor)
+                .map_err(|error| error.to_string())?,
+        );
+    if resolved_cache.starts_with(&source) {
+        return Err("SDK cache must be outside its source SDK".into());
+    }
+    let cache = cache_directory(cache, true)?;
+    if cache.starts_with(&source) {
+        return Err("SDK cache must be outside its source SDK".into());
+    }
+    let lock_path = cache.join(".writer.lock");
+    if let Ok(metadata) = fs::symlink_metadata(&lock_path)
+        && !metadata.file_type().is_file()
+    {
+        return Err("SDK cache writer lock must be a regular unlinked file".into());
+    }
+    let lock = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&lock_path)
+        .map_err(|error| format!("Open SDK cache writer lock: {error}"))?;
+    lock.try_lock()
+        .map_err(|error| format!("Another SDK cache writer is active: {error}"))?;
+    let address = cache_address(&manifest)?;
+    let destination = cache.join(&address);
+    match fs::symlink_metadata(&destination) {
+        Ok(_) => return cache_verify(&cache, &address),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.to_string()),
+    }
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT_STAGE: AtomicU64 = AtomicU64::new(1);
+    let staging = cache.join(format!(
+        ".staging-{address}-{}-{}",
+        std::process::id(),
+        NEXT_STAGE.fetch_add(1, Ordering::Relaxed)
+    ));
+    fs::create_dir(&staging).map_err(|error| format!("Create SDK cache staging: {error}"))?;
+    let result = (|| {
+        for (name, expected) in &manifest.files {
+            let path = source.join(relative_path(name)?);
+            let metadata = fs::symlink_metadata(&path).map_err(|error| error.to_string())?;
+            if !metadata.file_type().is_file() {
+                return Err(format!("SDK source file changed kind: {name}"));
+            }
+            let mut bytes = Vec::new();
+            fs::File::open(&path)
+                .map_err(|error| error.to_string())?
+                .take(MAX_FILE + 1)
+                .read_to_end(&mut bytes)
+                .map_err(|error| error.to_string())?;
+            if bytes.len() as u64 > MAX_FILE || digest(&bytes) != *expected {
+                return Err(format!("SDK source changed while caching: {name}"));
+            }
+            let staged = staging.join(name);
+            fs::create_dir_all(staged.parent().ok_or("Missing SDK cache file parent")?)
+                .map_err(|error| error.to_string())?;
+            let mut file = fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&staged)
+                .map_err(|error| error.to_string())?;
+            file.write_all(&bytes)
+                .and_then(|()| file.sync_all())
+                .map_err(|error| error.to_string())?;
+            fs::set_permissions(&staged, metadata.permissions())
+                .map_err(|error| error.to_string())?;
+        }
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(staging.join(MANIFEST))
+            .map_err(|error| error.to_string())?;
+        file.write_all(&serde_json::to_vec_pretty(&manifest).map_err(|error| error.to_string())?)
+            .and_then(|()| file.sync_all())
+            .map_err(|error| error.to_string())?;
+        drop(file);
+        if cache_address(&verify(&staging)?)? != address {
+            return Err("Staged SDK identity differs from the verified source".into());
+        }
+        fs::rename(&staging, &destination)
+            .map_err(|error| format!("Publish SDK cache entry: {error}"))?;
+        Ok(CacheReceipt {
+            schema_version: 1,
+            content_sha256: address,
+            path: destination,
+            created: true,
+            verified: true,
+            manifest,
+        })
+    })();
+    result.map_err(|error: String| {
+        format!(
+            "{error}. Inspect retained SDK staging {}",
+            staging.display()
+        )
+    })
+}
+
 fn digest(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
