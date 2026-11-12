@@ -341,20 +341,9 @@ fn prepare_platform(root: &Path, target: &str) -> Result<PreparedPlatform, Strin
     if !matches!(target, "desktop" | "android") {
         return Err("platform add supports desktop and android".into());
     }
-    use std::io::Read;
-    let mut bytes = Vec::new();
-    fs::File::open(managed_path(root, "gpui-box.json")?)
-        .map_err(|error| format!("Open project configuration: {error}"))?
-        .take(1024 * 1024 + 1)
-        .read_to_end(&mut bytes)
-        .map_err(|error| format!("Read project configuration: {error}"))?;
-    if bytes.len() > 1024 * 1024 {
-        return Err("Project configuration exceeds 1 MiB".into());
-    }
+    let bytes = crate::config::read_bytes(&managed_path(root, "gpui-box.json")?)?;
     let original_config_sha256 = hash(&bytes);
-    let config: AppConfig = serde_json::from_slice(&bytes)
-        .map_err(|error| format!("Invalid gpui-box.json: {error}"))?;
-    config.validate()?;
+    let config = AppConfig::from_bytes(&bytes)?;
     let already_enabled = config.targets.iter().any(|enabled| enabled == target);
     let mut configuration: serde_json::Value =
         serde_json::from_slice(&bytes).map_err(|error| error.to_string())?;
@@ -669,12 +658,9 @@ fn prepare_config(
     };
     let config_bytes = match configuration {
         Some(bytes) => bytes.to_vec(),
-        None => fs::read(managed_path(root, "gpui-box.json")?)
-            .map_err(|error| format!("Read gpui-box.json: {error}"))?,
+        None => crate::config::read_bytes(&managed_path(root, "gpui-box.json")?)?,
     };
-    let config: AppConfig = serde_json::from_slice(&config_bytes)
-        .map_err(|error| format!("Invalid gpui-box.json: {error}"))?;
-    config.validate()?;
+    let config = AppConfig::from_bytes(&config_bytes)?;
     let config_sha256 = hash(&config_bytes);
     let distribution = config.distribution(root)?;
     let distribution = portable_path(
@@ -1165,8 +1151,7 @@ fn initialize_sources(root: &Path, template: Template) -> Result<(), String> {
 }
 
 fn check_config(root: &Path, plan: &ChangePlan) -> Result<(), String> {
-    let bytes =
-        fs::read(managed_path(root, "gpui-box.json")?).map_err(|error| error.to_string())?;
+    let bytes = crate::config::read_bytes(&managed_path(root, "gpui-box.json")?)?;
     if hash(&bytes) != plan.config_sha256 {
         return Err("Project configuration changed concurrently; retry generation".into());
     }

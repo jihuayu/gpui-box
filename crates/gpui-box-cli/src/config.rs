@@ -1,8 +1,54 @@
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeSet,
+    io::Read,
     path::{Path, PathBuf},
 };
+
+pub const MAX_CONFIG_BYTES: usize = 1024 * 1024;
+const SCHEMA: &str = include_str!("../../../schemas/gpui-box.project.v1.schema.json");
+
+pub fn schema() -> serde_json::Value {
+    serde_json::from_str(SCHEMA).expect("embedded project schema must be valid JSON")
+}
+
+pub fn read_bytes(path: &Path) -> Result<Vec<u8>, String> {
+    let mut bytes = Vec::new();
+    std::fs::File::open(path)
+        .map_err(|error| format!("Open {}: {error}", path.display()))?
+        .take(MAX_CONFIG_BYTES as u64 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| format!("Read {}: {error}", path.display()))?;
+    if bytes.len() > MAX_CONFIG_BYTES {
+        return Err("Project configuration exceeds 1 MiB".into());
+    }
+    Ok(bytes)
+}
+
+pub fn validation_report(root: &Path) -> Result<serde_json::Value, String> {
+    let bytes = read_bytes(&root.join("gpui-box.json"))?;
+    let config = AppConfig::from_bytes(&bytes)?;
+    Ok(serde_json::json!({
+        "schema_version": 1,
+        "valid": true,
+        "cli_version": gpui_box::VERSION,
+        "upstream_revision": gpui_box::UPSTREAM_REVISION,
+        "project_schema_version": config.schema_version,
+        "service_schema_version": config.services.schema_version,
+        "configuration_path": "gpui-box.json",
+        "configuration_sha256": format!("{:x}", Sha256::digest(&bytes)),
+        "configuration_bytes": bytes.len(),
+        "schema_id": schema()["$id"],
+        "schema_sha256": format!("{:x}", Sha256::digest(SCHEMA.as_bytes())),
+        "normalized_configuration": config,
+        "precedence": ["project gpui-box.json", "built-in optional-field defaults"],
+        "local_overrides": "unsupported",
+        "installation_lock": "unsupported",
+        "validation_scope": "Project and service syntax/semantics. Distribution existence, SDK integrity, asset contents, toolchains, native providers and runtime are evaluated by their workflow gates",
+        "runtime_executed": false,
+    }))
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -131,11 +177,14 @@ fn default_assets() -> Vec<PathBuf> {
 }
 impl AppConfig {
     pub fn load(root: &Path) -> Result<Self, String> {
-        let path = root.join("gpui-box.json");
-        let text =
-            std::fs::read_to_string(&path).map_err(|e| format!("Read {}: {e}", path.display()))?;
-        let config: Self =
-            serde_json::from_str(&text).map_err(|e| format!("Invalid gpui-box.json: {e}"))?;
+        Self::from_bytes(&read_bytes(&root.join("gpui-box.json"))?)
+    }
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, String> {
+        if bytes.len() > MAX_CONFIG_BYTES {
+            return Err("Project configuration exceeds 1 MiB".into());
+        }
+        let config: Self = serde_json::from_slice(bytes)
+            .map_err(|error| format!("Invalid gpui-box.json: {error}"))?;
         config.validate()?;
         Ok(config)
     }

@@ -33,6 +33,27 @@ fn execute(arguments: &[String]) -> Result<Value, CliError> {
             outputln!("gpui-box {}", gpui_box::VERSION);
             return Ok(json!({"version": gpui_box::VERSION}));
         }
+        [command, operation] if command == "config" && operation == "schema" => {
+            let schema = config::schema();
+            if !output::is_json() {
+                outputln!(
+                    "{}",
+                    serde_json::to_string_pretty(&schema).expect("serialize schema")
+                );
+            }
+            return Ok(schema);
+        }
+        [command, operation] if command == "config" && operation == "validate" => {
+            let report = config::validation_report(&root)
+                .map_err(|error| CliError::new("CONFIG_VALIDATION_FAILED", error))?;
+            outputln!(
+                "Valid project schema {} / service schema {} · SHA256 {}",
+                report["project_schema_version"],
+                report["service_schema_version"],
+                report["configuration_sha256"].as_str().unwrap_or_default()
+            );
+            return Ok(report);
+        }
         [command, operation] if command == "platform" && operation == "list" => {
             let inventory = platform::inventory(&root)
                 .map_err(|error| CliError::new("PLATFORM_QUERY_FAILED", error))?;

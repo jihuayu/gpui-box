@@ -27,6 +27,22 @@ pub struct ErrorReference {
 
 const COMMANDS: &[CommandReference] = &[
     CommandReference {
+        syntax: "config schema",
+        summary: "Export the canonical version-1 project JSON Schema for editors",
+        result: "JSON Schema draft 2020-12",
+        effects: "Read embedded metadata without tools, network or project access",
+        offline: "Built-in schema. Semantic constraints use config validate",
+        json: true,
+    },
+    CommandReference {
+        syntax: "config validate",
+        summary: "Validate the project and report its exact configuration identity and defaults",
+        result: "Configuration validation report v1",
+        effects: "Read at most 1 MiB of gpui-box.json without writes or child processes",
+        offline: "Local configuration only. Distribution, asset and tool availability use workflow gates",
+        json: true,
+    },
+    CommandReference {
         syntax: "platform add desktop|android [--dry-run]",
         summary: "Enable an existing project's target with preserved application entry points",
         result: "PlatformAddReceipt v1 or read-only PlatformAddPlan v1",
@@ -229,6 +245,7 @@ const COMMANDS: &[CommandReference] = &[
 ];
 
 const NOTES: &[&str] = &[
+    "Project configuration uses gpui-box.json v1 and service schema v1. Project values take precedence over built-in optional-field defaults. Local overlays and installation-lock overrides are unsupported. config schema exports structural editor validation. config validate uses the same semantic validator as generation and workflows and reports exact source bytes plus normalized defaults. Schema migrations require an explicit future version contract.",
     "Append --json once anywhere in a finite command. Stdout contains one schema-v1 envelope with cli_version, upstream_revision, command, success, result and error. Human diagnostics and child output use stderr. Exit status is zero on success and nonzero on failure. error has code/message and optional details. dev/logs reject JSON before starting work.",
     "new/init default to starter-v1 and both desktop/android targets. --targets also accepts desktop or android alone. Options take values and repeated options fail. Relative paths resolve against the current working directory. Project workflows read gpui-box.json there.",
     "generate --plan accepts the bare result object from generate --dry-run --json, bounded to1MiB. Apply recomputes current inputs under its lock. Conflicts retain current files and recovery state. Saved plans contain snapshot preconditions.",
@@ -240,6 +257,10 @@ const NOTES: &[&str] = &[
 ];
 
 const ERRORS: &[ErrorReference] = &[
+    ErrorReference {
+        code: "CONFIG_VALIDATION_FAILED",
+        meaning: "Project configuration is unavailable, exceeds 1 MiB or fails project/service validation",
+    },
     ErrorReference {
         code: "PLATFORM_ADDITION_FAILED",
         meaning: "Platform addition failed validation, ownership, locking or publication. Retry after reviewing the documented recovery boundary",

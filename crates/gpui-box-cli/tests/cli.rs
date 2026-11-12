@@ -259,15 +259,221 @@ fn generated_reference_matches_markdown_and_help_from_any_directory() {
         let streaming = syntax.starts_with("dev ") || syntax.starts_with("logs ");
         assert_eq!(command["json"], !streaming);
     }
-    assert_eq!(syntaxes.len(), 25);
+    assert_eq!(syntaxes.len(), 27);
     let mut codes = std::collections::BTreeSet::new();
     for error in contract["errors"].as_array().unwrap() {
         let code = error["code"].as_str().unwrap();
         assert!(codes.insert(code));
         assert!(markdown.contains(code));
     }
-    assert_eq!(codes.len(), 21);
+    assert_eq!(codes.len(), 22);
     assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+}
+
+fn legacy_project_configuration() -> serde_json::Value {
+    serde_json::json!({
+        "schema_version": 1,
+        "name": "Configuration 有 空格",
+        "application_id": "dev.example.config",
+        "version": "0.1.0",
+        "version_code": 1,
+        "distribution": "missing SDK 有 空格",
+        "targets": ["desktop"],
+        "update_channel": "development"
+    })
+}
+
+#[test]
+fn configuration_schema_exports_the_shipped_contract_without_a_project_or_tools() {
+    let directory = tempfile::tempdir().unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+        .current_dir(directory.path())
+        .env("PATH", "")
+        .args(["config", "schema", "--json"])
+        .output()
+        .unwrap();
+    let schema = json_response(&output, true)["result"].clone();
+    let shipped: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../schemas/gpui-box.project.v1.schema.json"
+    ))
+    .unwrap();
+    assert_eq!(schema, shipped);
+    assert_eq!(
+        schema["$schema"],
+        "https://json-schema.org/draft/2020-12/schema"
+    );
+    assert_eq!(schema["additionalProperties"], false);
+    assert_eq!(schema["properties"]["schema_version"]["const"], 1);
+    assert_eq!(
+        schema["properties"]["assets"]["default"],
+        serde_json::json!(["assets"])
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+        .current_dir(directory.path())
+        .args(["config", "schema"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&output.stdout).unwrap(),
+        schema
+    );
+    assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+}
+
+#[test]
+fn configuration_validation_reports_raw_identity_and_legacy_defaults_without_writes() {
+    use sha2::{Digest, Sha256};
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("gpui-box.json");
+    let bytes = serde_json::to_vec_pretty(&legacy_project_configuration()).unwrap();
+    std::fs::write(&path, &bytes).unwrap();
+    // Future overlay/lock names have no precedence over the canonical project.
+    for unrelated in ["gpui-box.local.json", "gpui-box.toml", "gpui-box.lock"] {
+        std::fs::write(directory.path().join(unrelated), b"unrelated original").unwrap();
+    }
+    let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+        .current_dir(directory.path())
+        .env("PATH", "")
+        .args(["config", "validate", "--json"])
+        .output()
+        .unwrap();
+    let report = json_response(&output, true)["result"].clone();
+    assert_eq!(report["valid"], true);
+    assert_eq!(report["runtime_executed"], false);
+    assert_eq!(
+        report["configuration_sha256"],
+        format!("{:x}", Sha256::digest(&bytes))
+    );
+    assert_eq!(report["configuration_bytes"], bytes.len());
+    assert_eq!(
+        report["normalized_configuration"]["assets"],
+        serde_json::json!(["assets"])
+    );
+    assert_eq!(
+        report["normalized_configuration"]["services"]["schema_version"],
+        1
+    );
+    assert_eq!(
+        report["normalized_configuration"]["services"]["permissions"],
+        serde_json::json!([])
+    );
+    assert_eq!(report["local_overrides"], "unsupported");
+    assert_eq!(std::fs::read(path).unwrap(), bytes);
+    assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 4);
+    for unrelated in ["gpui-box.local.json", "gpui-box.toml", "gpui-box.lock"] {
+        assert_eq!(
+            std::fs::read(directory.path().join(unrelated)).unwrap(),
+            b"unrelated original"
+        );
+    }
+}
+
+#[test]
+fn configuration_validation_and_generation_share_semantic_failures_and_preserve_inputs() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("gpui-box.json");
+    let mut invalid = Vec::new();
+    for (key, value) in [
+        ("schema_version", serde_json::json!(2)),
+        ("unknown", serde_json::json!(true)),
+        ("targets", serde_json::json!(["android", "android"])),
+        ("assets", serde_json::json!(["../outside"])),
+        ("version", serde_json::json!("4294967296.0.0")),
+        ("services", serde_json::json!({"url_schemes": ["https"]})),
+        (
+            "services",
+            serde_json::json!({"permissions": [{"kind":"camera", "purpose":"Capture a photo"}]}),
+        ),
+    ] {
+        let mut config = legacy_project_configuration();
+        config[key] = value;
+        invalid.push(serde_json::to_vec(&config).unwrap());
+    }
+    invalid.extend([b"{invalid".to_vec(), vec![b' '; 1024 * 1024 + 1]]);
+    for bytes in invalid {
+        std::fs::write(&path, &bytes).unwrap();
+        let mut messages = Vec::new();
+        for arguments in [
+            vec!["config", "validate", "--json"],
+            vec!["generate", "--dry-run", "--json"],
+        ] {
+            let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+                .current_dir(directory.path())
+                .env("PATH", "")
+                .args(&arguments)
+                .output()
+                .unwrap();
+            let response = json_response(&output, false);
+            if arguments[0] == "config" {
+                assert_eq!(response["error"]["code"], "CONFIG_VALIDATION_FAILED");
+            }
+            messages.push(response["error"]["message"].clone());
+            assert_eq!(std::fs::read(&path).unwrap(), bytes);
+            assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
+        }
+        assert_eq!(messages[0], messages[1]);
+    }
+}
+
+#[test]
+fn configuration_validation_reports_missing_files_and_finite_syntax_errors() {
+    let directory = tempfile::tempdir().unwrap();
+    for (arguments, code) in [
+        (
+            vec!["config", "validate", "--json"],
+            "CONFIG_VALIDATION_FAILED",
+        ),
+        (
+            vec!["config", "schema", "extra", "--json"],
+            "INVALID_ARGUMENTS",
+        ),
+        (
+            vec!["config", "validate", "--write", "--json"],
+            "INVALID_ARGUMENTS",
+        ),
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+            .current_dir(directory.path())
+            .args(arguments)
+            .output()
+            .unwrap();
+        assert_eq!(json_response(&output, false)["error"]["code"], code);
+    }
+    assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+}
+
+#[test]
+fn configuration_validation_accepts_the_size_boundary_and_preserves_explicit_native_values() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut config = legacy_project_configuration();
+    config["targets"] = serde_json::json!(["android"]);
+    config["assets"] = serde_json::json!([]);
+    config["services"] = serde_json::json!({
+        "schema_version": 1,
+        "permissions": [{"kind": "camera", "purpose": "Capture a selected photo"}],
+        "url_schemes": ["example-config"]
+    });
+    let mut bytes = serde_json::to_vec(&config).unwrap();
+    bytes.resize(1024 * 1024, b' ');
+    let path = directory.path().join("gpui-box.json");
+    std::fs::write(&path, &bytes).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+        .current_dir(directory.path())
+        .args(["config", "validate", "--json"])
+        .output()
+        .unwrap();
+    let report = json_response(&output, true)["result"].clone();
+    assert_eq!(report["configuration_bytes"], 1024 * 1024);
+    assert_eq!(
+        report["normalized_configuration"]["assets"],
+        config["assets"]
+    );
+    assert_eq!(
+        report["normalized_configuration"]["services"],
+        config["services"]
+    );
+    assert_eq!(std::fs::read(path).unwrap(), bytes);
 }
 
 #[test]
