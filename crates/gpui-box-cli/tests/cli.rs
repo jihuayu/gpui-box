@@ -259,14 +259,14 @@ fn generated_reference_matches_markdown_and_help_from_any_directory() {
         let streaming = syntax.starts_with("dev ") || syntax.starts_with("logs ");
         assert_eq!(command["json"], !streaming);
     }
-    assert_eq!(syntaxes.len(), 23);
+    assert_eq!(syntaxes.len(), 24);
     let mut codes = std::collections::BTreeSet::new();
     for error in contract["errors"].as_array().unwrap() {
         let code = error["code"].as_str().unwrap();
         assert!(codes.insert(code));
         assert!(markdown.contains(code));
     }
-    assert_eq!(codes.len(), 19);
+    assert_eq!(codes.len(), 20);
     assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
 }
 
@@ -372,4 +372,65 @@ fn registry_discovery_and_resolution_are_read_only_from_an_empty_directory() {
             .contains("official/control/button")
     );
     assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+}
+
+#[test]
+fn platform_inventory_distinguishes_host_selection_and_unprobed_tools_without_writes() {
+    let directory = tempfile::tempdir().unwrap();
+    let invoke = |args: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+            .current_dir(directory.path())
+            .args(args)
+            .env("PATH", "")
+            .output()
+            .unwrap()
+    };
+    let response = json_response(&invoke(&["platform", "list", "--json"]), true);
+    let result = &response["result"];
+    assert_eq!(result["schema_version"], 1);
+    assert_eq!(result["project_present"], false);
+    let platforms = result["platforms"].as_array().unwrap();
+    assert_eq!(platforms.len(), 6);
+    assert!(
+        platforms
+            .iter()
+            .all(|platform| platform["toolchain_readiness"] == "unprobed"
+                && platform["project_enabled"].is_null())
+    );
+    assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+    let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()
+        .unwrap();
+    let config = serde_json::json!({
+        "schema_version": 1, "name": "Policy test", "application_id": "dev.example.policy",
+        "version": "0.1.0", "version_code": 1, "distribution": source,
+        "targets": ["android"], "update_channel": "development", "permissions": [], "assets": ["assets"],
+    });
+    let bytes = serde_json::to_vec(&config).unwrap();
+    let path = directory.path().join("gpui-box.json");
+    std::fs::write(&path, &bytes).unwrap();
+    let response = json_response(&invoke(&["platform", "list", "--json"]), true);
+    assert_eq!(response["result"]["project_present"], true);
+    for platform in response["result"]["platforms"].as_array().unwrap() {
+        assert_eq!(platform["project_enabled"], platform["id"] == "android");
+        assert_eq!(platform["toolchain_readiness"], "unprobed");
+    }
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
+    std::fs::write(&path, b"invalid").unwrap();
+    assert_eq!(
+        json_response(&invoke(&["platform", "list", "--json"]), false)["error"]["code"],
+        "PLATFORM_QUERY_FAILED"
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), b"invalid");
+    for args in [
+        vec!["platform", "add", "android", "--json"],
+        vec!["platform", "list", "extra", "--json"],
+    ] {
+        assert_eq!(
+            json_response(&invoke(&args), false)["error"]["code"],
+            "INVALID_ARGUMENTS"
+        );
+    }
 }

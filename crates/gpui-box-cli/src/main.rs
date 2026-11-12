@@ -2,6 +2,7 @@ mod config;
 mod generate;
 mod output;
 mod package;
+mod platform;
 mod reference;
 mod registry;
 mod sdk;
@@ -31,6 +32,40 @@ fn execute(arguments: &[String]) -> Result<Value, CliError> {
         [command] if matches!(command.as_str(), "--version" | "-V") => {
             outputln!("gpui-box {}", gpui_box::VERSION);
             return Ok(json!({"version": gpui_box::VERSION}));
+        }
+        [command, operation] if command == "platform" && operation == "list" => {
+            let inventory = platform::inventory(&root)
+                .map_err(|error| CliError::new("PLATFORM_QUERY_FAILED", error))?;
+            if !output::is_json() {
+                outputln!(
+                    "Host {} · Project present {}",
+                    inventory.host,
+                    inventory.project_present
+                );
+                for platform in &inventory.platforms {
+                    outputln!(
+                        "{} · Target {} · Generate {} · Build adapter {} · Compatible host {} · Project enabled {:?} · Toolchain {} · Maturity {}",
+                        platform.id,
+                        platform.cli_target.unwrap_or("unavailable"),
+                        platform.configuration_generation,
+                        platform.build_adapter,
+                        platform.compatible_host,
+                        platform.project_enabled,
+                        platform.toolchain_readiness,
+                        platform.backend_maturity
+                    );
+                    outputln!(
+                        "  {} · Evidence {}",
+                        platform.remaining_acceptance,
+                        platform.evidence
+                    );
+                }
+                outputln!(
+                    "Use doctor inside a project to inspect declared toolchain prerequisites."
+                );
+            }
+            return serde_json::to_value(inventory)
+                .map_err(|error| CliError::new("PLATFORM_QUERY_FAILED", error.to_string()));
         }
         [command] | [command, _]
             if command == "list" || command == "info" && arguments.len() == 2 =>
