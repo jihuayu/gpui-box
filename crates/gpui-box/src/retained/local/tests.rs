@@ -228,3 +228,47 @@ fn placement_pages_preserve_untouched_pages_and_dense_snapshot_history() {
     assert_eq!(dense.placement(1).spatial.translation, [1.0, 2.0]);
     assert_eq!(sparse.placement(1).spatial.translation, [3.0, 4.0]);
 }
+
+#[test]
+fn unordered_multi_commit_journals_keep_final_values_and_reused_generation() {
+    let (mut tree, nodes) = fixture();
+    let original = tree.local_frame([300.0, 200.0]).unwrap();
+    let original_resolved = original.resolve();
+    for round in 1..5 {
+        let mut tx = Transaction::default();
+        for index in (0..nodes.len()).rev() {
+            tx.translation(nodes[index], [round as f32, index as f32 * 0.125]);
+        }
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+    }
+    assert_eq!(tree.local_dirty.len(), nodes.len());
+    let latest = tree.local_frame([300.0, 200.0]).unwrap();
+    assert_eq!(latest.stats().changed_nodes, nodes.len());
+    equivalent(&latest.resolve(), &tree.frame([300.0, 200.0]).unwrap());
+    equivalent(&original_resolved, &original.resolve());
+
+    let retired = *nodes.last().unwrap();
+    let parent = tree.node(retired).unwrap().parent.unwrap();
+    let mut tx = Transaction::default();
+    tx.translation(retired, [7.0, 8.0]);
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    tree.remove(retired).unwrap();
+    let replacement = tree.append(parent, Style::default(), 0x556677ff).unwrap();
+    assert_eq!(replacement.slot, retired.slot);
+    assert_ne!(replacement.generation, retired.generation);
+    let mut tx = Transaction::default();
+    tx.translation(replacement, [9.0, 10.0]);
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    let frame = tree.local_frame([300.0, 200.0]).unwrap();
+    assert!(frame.resolve_geometry(retired).is_none());
+    assert_eq!(
+        frame
+            .resolve_geometry(replacement)
+            .unwrap()
+            .spatial
+            .translation,
+        [9.0, 10.0]
+    );
+    equivalent(&frame.resolve(), &tree.frame([300.0, 200.0]).unwrap());
+    assert!(tree.local_dirty.is_empty());
+}

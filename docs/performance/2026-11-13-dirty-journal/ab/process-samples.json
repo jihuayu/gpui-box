@@ -1,0 +1,560 @@
+{
+  "interval_ms": 500,
+  "samples": [
+    {
+      "at": "2026-11-13T00:04:07.4329089+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:08.3050005+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:09.1522686+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:09.9927379+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:10.8239385+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:11.6681284+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:12.4952925+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:13.3184183+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:14.1422149+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:14.9561606+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:15.7912098+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:16.6122453+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:17.4253371+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:18.2518404+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:19.1037884+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:19.9399292+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:20.7781281+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:21.5967556+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:22.5742609+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:23.5220724+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:24.4201301+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:25.3091660+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:26.1822324+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:27.0180371+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:27.8681008+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:28.7174608+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:29.5686665+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:30.4753487+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:32.0384627+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:32.9845570+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:33.9656497+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:34.8719211+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:35.7188215+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:36.5828791+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:37.4299204+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:38.2730627+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:39.1096499+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:39.9466454+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:40.7902414+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:41.6471109+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:42.4927846+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:43.3386440+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:44.2660321+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:45.1735492+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:46.1235677+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:47.1536736+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:48.1156187+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:49.0570527+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:49.9186812+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:50.7521468+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:51.5834441+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:52.4431998+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:53.2622342+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:54.1085730+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:54.9612795+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:55.8004270+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:56.9656779+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:57.8940888+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:58.7698809+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:04:59.6258325+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:00.4742139+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:01.3093547+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:02.1537370+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:02.9833267+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:03.8601486+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:04.7035681+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:05.5507195+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:06.4562618+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:07.3778630+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:08.1953276+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:09.0662801+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:09.9313014+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:10.7802415+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:11.6428749+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:12.4660486+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:13.3012635+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:14.1427566+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:14.9939700+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:15.8419017+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:16.6935097+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:17.5535045+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:18.4296668+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:19.5639959+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:20.4559173+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:21.3099943+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:22.1707568+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:23.0234981+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:23.8719279+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:24.7264301+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:25.6077530+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:26.4723850+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:27.3788152+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:28.3076761+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:29.2126018+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:30.0596092+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:30.9071526+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:31.7358121+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:32.5879714+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:33.5385224+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:34.3918383+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:35.2483350+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:36.0930454+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:36.9180817+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:37.7233402+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:38.5694487+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:39.3888975+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:40.2109824+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:41.0361115+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:41.8596724+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:42.7079637+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:05:43.5746437+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    }
+  ]
+}

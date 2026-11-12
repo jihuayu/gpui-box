@@ -406,7 +406,7 @@ impl UiTree {
         }
         let mut placements = old.0.placements.clone();
         let mut changed = vec![];
-        for &id in &self.local_dirty {
+        for &id in self.local_dirty.iter() {
             let Some(&index) = old.0.topology.indices.get(&id) else {
                 continue;
             };

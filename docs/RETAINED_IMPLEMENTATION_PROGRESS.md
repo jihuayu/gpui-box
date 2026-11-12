@@ -277,6 +277,16 @@ an implemented software backend. The total goal remains active. The
 regressions, a 9.26 ms small-scene spike and failed 10,000-node deadlines;
 it does not claim sustained visible 120 fps.
 
+The [slot dirty-journal stage](performance/2026-11-13-dirty-journal/README.md)
+removes two ordered-set insertions per changed property using private slot-indexed
+membership journals. Alternating binaries reduce dense commit medians 30.2–39.4%
+and completed medians 2.2–25.2%, with small-scene regressions retained. Two sustained
+runs still fail dense/effects 120 Hz: p99 32.59–33.87 ms, max 41.27–41.68 ms
+and 1,199 consecutive unsatisfied ticks. All 152 core / 11 example tests,
+2,011 hardware scenarios / 1,921 pixel comparisons and hidden native delivery /
+shared-output / device-replacement checks pass. No visible or modern desktop
+120 fps qualification or software renderer is claimed; the goal stays active.
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |

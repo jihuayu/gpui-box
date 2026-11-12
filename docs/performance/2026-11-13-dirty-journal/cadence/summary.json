@@ -1,0 +1,2398 @@
+{
+  "paired": [
+    {
+      "run": "run-1",
+      "effects": false,
+      "batch": false,
+      "commit": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 4.8,
+          "p95_us": 7.300000000000001,
+          "p99_us": 7.9,
+          "max_us": 8.7
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 5.3,
+          "p95_us": 8.2,
+          "p99_us": 10.1,
+          "max_us": 12.2
+        },
+        "p50_reduction_percent": 9.433962264150942
+      },
+      "publication": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 5.2,
+          "p95_us": 7.6,
+          "p99_us": 10.7,
+          "max_us": 14.1
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 9584.300000000001,
+          "p95_us": 11110.6,
+          "p99_us": 12953.7,
+          "max_us": 14919.699999999999
+        },
+        "p50_reduction_percent": 99.94574460315307
+      },
+      "submission": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 657.8000000000001,
+          "p95_us": 889.2,
+          "p99_us": 1101.6000000000001,
+          "max_us": 1192.5
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 4970.3,
+          "p95_us": 5756.0,
+          "p99_us": 6509.7,
+          "max_us": 6752.2
+        },
+        "p50_reduction_percent": 86.76538639518742
+      },
+      "completed": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 1038.8000000000002,
+          "p95_us": 1367.3999999999999,
+          "p99_us": 1531.7,
+          "max_us": 1546.8000000000002
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 14825.6,
+          "p95_us": 16932.4,
+          "p99_us": 18135.0,
+          "max_us": 20681.7
+        },
+        "p50_reduction_percent": 92.99320094970861
+      },
+      "work": {
+        "extracted": 0,
+        "local_changed": 1,
+        "quad_bytes": 0,
+        "spatial_bytes": 96,
+        "draws": 1,
+        "layers_rasterized": 0,
+        "layers_reused": 0
+      },
+      "pixel_equal": true
+    },
+    {
+      "run": "run-1",
+      "effects": false,
+      "batch": true,
+      "commit": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 2757.7999999999997,
+          "p95_us": 3421.6,
+          "p99_us": 3783.5,
+          "max_us": 3827.1
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 3145.4,
+          "p95_us": 4047.7999999999997,
+          "p99_us": 4343.900000000001,
+          "max_us": 4793.6
+        },
+        "p50_reduction_percent": 12.322757042029641
+      },
+      "publication": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 1863.8999999999999,
+          "p95_us": 2427.4,
+          "p99_us": 2676.8999999999996,
+          "max_us": 3043.7
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 16361.3,
+          "p95_us": 20241.9,
+          "p99_us": 22104.100000000002,
+          "max_us": 22781.1
+        },
+        "p50_reduction_percent": 88.6078734574881
+      },
+      "submission": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 7012.1,
+          "p95_us": 8878.4,
+          "p99_us": 9492.5,
+          "max_us": 9561.5
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 11274.599999999999,
+          "p95_us": 13404.4,
+          "p99_us": 13769.800000000001,
+          "max_us": 15203.3
+        },
+        "p50_reduction_percent": 37.80621928937611
+      },
+      "completed": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 13628.8,
+          "p95_us": 16395.1,
+          "p99_us": 17205.7,
+          "max_us": 17323.600000000002
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 32741.399999999998,
+          "p95_us": 37714.9,
+          "p99_us": 40943.3,
+          "max_us": 42871.0
+        },
+        "p50_reduction_percent": 58.37441282290923
+      },
+      "work": {
+        "extracted": 0,
+        "local_changed": 10000,
+        "quad_bytes": 0,
+        "spatial_bytes": 960000,
+        "draws": 1,
+        "layers_rasterized": 0,
+        "layers_reused": 0
+      },
+      "pixel_equal": true
+    },
+    {
+      "run": "run-1",
+      "effects": true,
+      "batch": false,
+      "commit": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 4.8,
+          "p95_us": 6.6000000000000005,
+          "p99_us": 7.9,
+          "max_us": 8.2
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 5.1000000000000005,
+          "p95_us": 7.0,
+          "p99_us": 9.799999999999999,
+          "max_us": 12.4
+        },
+        "p50_reduction_percent": 5.882352941176483
+      },
+      "publication": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 6.5,
+          "p95_us": 9.1,
+          "p99_us": 12.2,
+          "max_us": 33.9
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 10331.800000000001,
+          "p95_us": 12686.599999999999,
+          "p99_us": 13253.199999999999,
+          "max_us": 14544.400000000001
+        },
+        "p50_reduction_percent": 99.93708743878123
+      },
+      "submission": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 1125.8,
+          "p95_us": 1609.6000000000001,
+          "p99_us": 1817.8999999999999,
+          "max_us": 2163.7000000000003
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 5624.8,
+          "p95_us": 7073.4,
+          "p99_us": 7981.7,
+          "max_us": 8108.1
+        },
+        "p50_reduction_percent": 79.98506613568482
+      },
+      "completed": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 3009.6,
+          "p95_us": 6663.0,
+          "p99_us": 12185.2,
+          "max_us": 12212.199999999999
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 16778.0,
+          "p95_us": 19637.7,
+          "p99_us": 21004.7,
+          "max_us": 21075.7
+        },
+        "p50_reduction_percent": 82.06222434139944
+      },
+      "work": {
+        "extracted": 0,
+        "local_changed": 1,
+        "quad_bytes": 0,
+        "spatial_bytes": 96,
+        "draws": 31,
+        "layers_rasterized": 10,
+        "layers_reused": 0
+      },
+      "pixel_equal": true
+    },
+    {
+      "run": "run-1",
+      "effects": true,
+      "batch": true,
+      "commit": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 2836.4,
+          "p95_us": 3421.7000000000003,
+          "p99_us": 3493.3999999999996,
+          "max_us": 3795.3
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 2666.4,
+          "p95_us": 3412.1,
+          "p99_us": 4340.3,
+          "max_us": 4896.3
+        },
+        "p50_reduction_percent": -6.3756375637563645
+      },
+      "publication": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 1770.3,
+          "p95_us": 2309.5,
+          "p99_us": 2659.4,
+          "max_us": 3199.0
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 16247.000000000002,
+          "p95_us": 19800.8,
+          "p99_us": 22680.5,
+          "max_us": 23865.899999999998
+        },
+        "p50_reduction_percent": 89.10383455407153
+      },
+      "submission": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 7339.9,
+          "p95_us": 9180.9,
+          "p99_us": 10013.1,
+          "max_us": 10293.5
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 11447.4,
+          "p95_us": 13943.0,
+          "p99_us": 14678.5,
+          "max_us": 14961.699999999999
+        },
+        "p50_reduction_percent": 35.88151021192585
+      },
+      "completed": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 15111.8,
+          "p95_us": 18561.399999999998,
+          "p99_us": 19479.300000000003,
+          "max_us": 19649.6
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 32778.2,
+          "p95_us": 38895.0,
+          "p99_us": 42315.7,
+          "max_us": 45017.700000000004
+        },
+        "p50_reduction_percent": 53.8967972615946
+      },
+      "work": {
+        "extracted": 0,
+        "local_changed": 10000,
+        "quad_bytes": 0,
+        "spatial_bytes": 960000,
+        "draws": 31,
+        "layers_rasterized": 10,
+        "layers_reused": 0
+      },
+      "pixel_equal": true
+    },
+    {
+      "run": "run-2",
+      "effects": false,
+      "batch": false,
+      "commit": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 4.5,
+          "p95_us": 6.5,
+          "p99_us": 9.2,
+          "max_us": 41.300000000000004
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 5.3,
+          "p95_us": 8.5,
+          "p99_us": 11.7,
+          "max_us": 12.799999999999999
+        },
+        "p50_reduction_percent": 15.094339622641506
+      },
+      "publication": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 4.8999999999999995,
+          "p95_us": 7.300000000000001,
+          "p99_us": 10.299999999999999,
+          "max_us": 10.4
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 9869.4,
+          "p95_us": 12472.6,
+          "p99_us": 14114.0,
+          "max_us": 16154.1
+        },
+        "p50_reduction_percent": 99.95035159178876
+      },
+      "submission": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 596.6,
+          "p95_us": 934.4000000000001,
+          "p99_us": 1106.7,
+          "max_us": 1107.1
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 5106.3,
+          "p95_us": 6153.900000000001,
+          "p99_us": 7521.2,
+          "max_us": 9924.199999999999
+        },
+        "p50_reduction_percent": 88.31639347472729
+      },
+      "completed": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 995.4,
+          "p95_us": 1308.5,
+          "p99_us": 1490.9,
+          "max_us": 1493.1000000000001
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 15088.4,
+          "p95_us": 18640.3,
+          "p99_us": 22402.100000000002,
+          "max_us": 24455.899999999998
+        },
+        "p50_reduction_percent": 93.40287903289945
+      },
+      "work": {
+        "extracted": 0,
+        "local_changed": 1,
+        "quad_bytes": 0,
+        "spatial_bytes": 96,
+        "draws": 1,
+        "layers_rasterized": 0,
+        "layers_reused": 0
+      },
+      "pixel_equal": true
+    },
+    {
+      "run": "run-2",
+      "effects": false,
+      "batch": true,
+      "commit": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 2854.7999999999997,
+          "p95_us": 3662.9,
+          "p99_us": 3970.7,
+          "max_us": 4291.8
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 2824.2,
+          "p95_us": 3731.5,
+          "p99_us": 3965.8,
+          "max_us": 4268.9
+        },
+        "p50_reduction_percent": -1.0834926704907488
+      },
+      "publication": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 1809.2,
+          "p95_us": 2637.3,
+          "p99_us": 2842.0,
+          "max_us": 2969.2
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 15937.6,
+          "p95_us": 19475.4,
+          "p99_us": 20318.6,
+          "max_us": 21027.1
+        },
+        "p50_reduction_percent": 88.64822808954924
+      },
+      "submission": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 7227.8,
+          "p95_us": 9924.9,
+          "p99_us": 10971.800000000001,
+          "max_us": 11440.199999999999
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 11045.199999999999,
+          "p95_us": 12986.4,
+          "p99_us": 14141.300000000001,
+          "max_us": 14745.3
+        },
+        "p50_reduction_percent": 34.56161952703436
+      },
+      "completed": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 14746.300000000001,
+          "p95_us": 19316.8,
+          "p99_us": 21362.1,
+          "max_us": 23122.5
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 31764.100000000002,
+          "p95_us": 35997.2,
+          "p99_us": 37475.799999999996,
+          "max_us": 37606.2
+        },
+        "p50_reduction_percent": 53.57557746008859
+      },
+      "work": {
+        "extracted": 0,
+        "local_changed": 10000,
+        "quad_bytes": 0,
+        "spatial_bytes": 960000,
+        "draws": 1,
+        "layers_rasterized": 0,
+        "layers_reused": 0
+      },
+      "pixel_equal": true
+    },
+    {
+      "run": "run-2",
+      "effects": true,
+      "batch": false,
+      "commit": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 4.7,
+          "p95_us": 7.0,
+          "p99_us": 7.9,
+          "max_us": 10.1
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 4.7,
+          "p95_us": 6.7,
+          "p99_us": 7.5,
+          "max_us": 7.6
+        },
+        "p50_reduction_percent": 0.0
+      },
+      "publication": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 6.2,
+          "p95_us": 9.5,
+          "p99_us": 11.2,
+          "max_us": 11.5
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 9461.6,
+          "p95_us": 11013.2,
+          "p99_us": 11258.8,
+          "max_us": 11439.9
+        },
+        "p50_reduction_percent": 99.934471970914
+      },
+      "submission": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 1135.1,
+          "p95_us": 1473.8,
+          "p99_us": 1836.5,
+          "max_us": 2303.2
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 5499.3,
+          "p95_us": 6653.799999999999,
+          "p99_us": 7351.2,
+          "max_us": 8078.500000000001
+        },
+        "p50_reduction_percent": 79.35919116978525
+      },
+      "completed": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 2111.3,
+          "p95_us": 6417.599999999999,
+          "p99_us": 12167.900000000001,
+          "max_us": 14013.7
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 15735.699999999999,
+          "p95_us": 18642.3,
+          "p99_us": 19411.2,
+          "max_us": 19614.699999999997
+        },
+        "p50_reduction_percent": 86.58273861347128
+      },
+      "work": {
+        "extracted": 0,
+        "local_changed": 1,
+        "quad_bytes": 0,
+        "spatial_bytes": 96,
+        "draws": 31,
+        "layers_rasterized": 10,
+        "layers_reused": 0
+      },
+      "pixel_equal": true
+    },
+    {
+      "run": "run-2",
+      "effects": true,
+      "batch": true,
+      "commit": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 2603.5,
+          "p95_us": 3232.9,
+          "p99_us": 3478.8,
+          "max_us": 4008.9
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 2676.0,
+          "p95_us": 3300.4,
+          "p99_us": 3573.7999999999997,
+          "max_us": 3779.3
+        },
+        "p50_reduction_percent": 2.709267563527651
+      },
+      "publication": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 1834.2,
+          "p95_us": 2281.9,
+          "p99_us": 2599.3,
+          "max_us": 2672.2999999999997
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 16810.5,
+          "p95_us": 19969.3,
+          "p99_us": 21036.5,
+          "max_us": 21233.0
+        },
+        "p50_reduction_percent": 89.08896225573302
+      },
+      "submission": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 7530.5,
+          "p95_us": 8659.4,
+          "p99_us": 9295.0,
+          "max_us": 9902.8
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 11646.5,
+          "p95_us": 14001.3,
+          "p99_us": 15041.7,
+          "max_us": 15145.1
+        },
+        "p50_reduction_percent": 35.34108959773322
+      },
+      "completed": {
+        "optimized": {
+          "samples": 120,
+          "p50_us": 15057.4,
+          "p95_us": 17354.7,
+          "p99_us": 19026.100000000002,
+          "max_us": 19745.9
+        },
+        "control": {
+          "samples": 120,
+          "p50_us": 33959.4,
+          "p95_us": 38686.5,
+          "p99_us": 39776.4,
+          "max_us": 39790.5
+        },
+        "p50_reduction_percent": 55.66058293138278
+      },
+      "work": {
+        "extracted": 0,
+        "local_changed": 10000,
+        "quad_bytes": 0,
+        "spatial_bytes": 960000,
+        "draws": 31,
+        "layers_rasterized": 10,
+        "layers_reused": 0
+      },
+      "pixel_equal": true
+    }
+  ],
+  "cadence": [
+    {
+      "run": "run-1",
+      "nodes": 1000,
+      "effects": false,
+      "batch": false,
+      "local_snapshot": true,
+      "target_hz": 60,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 600,
+      "consumed_ticks": 600,
+      "superseded_ticks": 0,
+      "gpu_submissions": 599,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 0,
+      "deadline_misses": 0,
+      "longest_consecutive_misses": 0,
+      "budget_us": 16666.666,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 600,
+          "p50_us": 321.03299999999996,
+          "p95_us": 616.4,
+          "p99_us": 849.333,
+          "max_us": 1141.933
+        },
+        "source_to_owner_us": {
+          "samples": 600,
+          "p50_us": 381.033,
+          "p95_us": 665.2,
+          "p99_us": 889.8330000000001,
+          "max_us": 1168.733
+        },
+        "commit_us": {
+          "samples": 600,
+          "p50_us": 24.8,
+          "p95_us": 39.5,
+          "p99_us": 48.4,
+          "max_us": 90.3
+        },
+        "publication_queue_us": {
+          "samples": 600,
+          "p50_us": 8.600000000000001,
+          "p95_us": 14.2,
+          "p99_us": 17.3,
+          "max_us": 26.0
+        },
+        "submit_us": {
+          "samples": 600,
+          "p50_us": 405.7,
+          "p95_us": 608.4000000000001,
+          "p99_us": 717.8,
+          "max_us": 1568.6000000000001
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 600,
+          "p50_us": 2832.7999999999997,
+          "p95_us": 5559.900000000001,
+          "p99_us": 7535.3,
+          "max_us": 9043.8
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 600,
+        "p50_us": 3205.8669999999997,
+        "p95_us": 5931.067,
+        "p99_us": 7888.799999999999,
+        "max_us": 9341.699999999999
+      }
+    },
+    {
+      "run": "run-1",
+      "nodes": 1000,
+      "effects": false,
+      "batch": false,
+      "local_snapshot": true,
+      "target_hz": 120,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 1200,
+      "consumed_ticks": 1200,
+      "superseded_ticks": 0,
+      "gpu_submissions": 1199,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1196, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 7,
+      "deadline_misses": 7,
+      "longest_consecutive_misses": 1,
+      "budget_us": 8333.333,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 1200,
+          "p50_us": 333.3,
+          "p95_us": 585.6999999999999,
+          "p99_us": 816.067,
+          "max_us": 1337.633
+        },
+        "source_to_owner_us": {
+          "samples": 1200,
+          "p50_us": 370.067,
+          "p95_us": 633.0,
+          "p99_us": 843.567,
+          "max_us": 1376.0330000000001
+        },
+        "commit_us": {
+          "samples": 1200,
+          "p50_us": 22.4,
+          "p95_us": 34.6,
+          "p99_us": 42.1,
+          "max_us": 58.1
+        },
+        "publication_queue_us": {
+          "samples": 1200,
+          "p50_us": 8.1,
+          "p95_us": 12.700000000000001,
+          "p99_us": 16.3,
+          "max_us": 48.0
+        },
+        "submit_us": {
+          "samples": 1200,
+          "p50_us": 358.29999999999995,
+          "p95_us": 552.6,
+          "p99_us": 669.0999999999999,
+          "max_us": 1661.3999999999999
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 1200,
+          "p50_us": 2785.2,
+          "p95_us": 6651.9,
+          "p99_us": 7772.3,
+          "max_us": 8365.900000000001
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 1200,
+        "p50_us": 3150.8,
+        "p95_us": 6867.067,
+        "p99_us": 7921.833,
+        "max_us": 8762.367
+      }
+    },
+    {
+      "run": "run-1",
+      "nodes": 1000,
+      "effects": true,
+      "batch": false,
+      "local_snapshot": true,
+      "target_hz": 60,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 600,
+      "consumed_ticks": 600,
+      "superseded_ticks": 0,
+      "gpu_submissions": 599,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 0,
+      "deadline_misses": 0,
+      "longest_consecutive_misses": 0,
+      "budget_us": 16666.666,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 600,
+          "p50_us": 349.2,
+          "p95_us": 649.1329999999999,
+          "p99_us": 888.2,
+          "max_us": 1290.267
+        },
+        "source_to_owner_us": {
+          "samples": 600,
+          "p50_us": 387.96700000000004,
+          "p95_us": 710.833,
+          "p99_us": 913.8,
+          "max_us": 1320.167
+        },
+        "commit_us": {
+          "samples": 600,
+          "p50_us": 23.7,
+          "p95_us": 36.1,
+          "p99_us": 43.900000000000006,
+          "max_us": 66.3
+        },
+        "publication_queue_us": {
+          "samples": 600,
+          "p50_us": 8.3,
+          "p95_us": 13.299999999999999,
+          "p99_us": 16.799999999999997,
+          "max_us": 27.8
+        },
+        "submit_us": {
+          "samples": 600,
+          "p50_us": 671.7,
+          "p95_us": 1044.1000000000001,
+          "p99_us": 1293.8,
+          "max_us": 1812.8
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 600,
+          "p50_us": 5366.2,
+          "p95_us": 11128.1,
+          "p99_us": 12056.8,
+          "max_us": 14126.400000000001
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 600,
+        "p50_us": 5745.433,
+        "p95_us": 11532.1,
+        "p99_us": 12415.167,
+        "max_us": 14601.033
+      }
+    },
+    {
+      "run": "run-1",
+      "nodes": 1000,
+      "effects": true,
+      "batch": false,
+      "local_snapshot": true,
+      "target_hz": 120,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 1200,
+      "consumed_ticks": 1200,
+      "superseded_ticks": 0,
+      "gpu_submissions": 1199,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1194, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 6,
+      "deadline_misses": 6,
+      "longest_consecutive_misses": 3,
+      "budget_us": 8333.333,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 1200,
+          "p50_us": 338.59999999999997,
+          "p95_us": 593.767,
+          "p99_us": 830.9,
+          "max_us": 1407.1000000000001
+        },
+        "source_to_owner_us": {
+          "samples": 1200,
+          "p50_us": 388.16700000000003,
+          "p95_us": 650.067,
+          "p99_us": 906.667,
+          "max_us": 3414.2999999999997
+        },
+        "commit_us": {
+          "samples": 1200,
+          "p50_us": 23.099999999999998,
+          "p95_us": 35.9,
+          "p99_us": 43.900000000000006,
+          "max_us": 54.9
+        },
+        "publication_queue_us": {
+          "samples": 1200,
+          "p50_us": 8.3,
+          "p95_us": 13.1,
+          "p99_us": 16.2,
+          "max_us": 32.1
+        },
+        "submit_us": {
+          "samples": 1200,
+          "p50_us": 667.4,
+          "p95_us": 992.4999999999999,
+          "p99_us": 1216.8000000000002,
+          "max_us": 2094.4
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 1200,
+          "p50_us": 3196.7,
+          "p95_us": 5775.1,
+          "p99_us": 6949.3,
+          "max_us": 11606.4
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 1200,
+        "p50_us": 3558.5,
+        "p95_us": 6103.3,
+        "p99_us": 7295.067,
+        "max_us": 11733.133
+      }
+    },
+    {
+      "run": "run-1",
+      "nodes": 10000,
+      "effects": false,
+      "batch": false,
+      "local_snapshot": true,
+      "target_hz": 60,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 600,
+      "consumed_ticks": 600,
+      "superseded_ticks": 0,
+      "gpu_submissions": 599,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 0,
+      "deadline_misses": 0,
+      "longest_consecutive_misses": 0,
+      "budget_us": 16666.666,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 600,
+          "p50_us": 340.96700000000004,
+          "p95_us": 601.6329999999999,
+          "p99_us": 749.033,
+          "max_us": 882.233
+        },
+        "source_to_owner_us": {
+          "samples": 600,
+          "p50_us": 378.567,
+          "p95_us": 665.967,
+          "p99_us": 835.2,
+          "max_us": 976.8000000000001
+        },
+        "commit_us": {
+          "samples": 600,
+          "p50_us": 24.0,
+          "p95_us": 36.300000000000004,
+          "p99_us": 46.5,
+          "max_us": 79.7
+        },
+        "publication_queue_us": {
+          "samples": 600,
+          "p50_us": 9.5,
+          "p95_us": 15.400000000000002,
+          "p99_us": 19.5,
+          "max_us": 32.5
+        },
+        "submit_us": {
+          "samples": 600,
+          "p50_us": 1043.1,
+          "p95_us": 1527.3999999999999,
+          "p99_us": 1723.3000000000002,
+          "max_us": 2470.6
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 600,
+          "p50_us": 3919.7,
+          "p95_us": 6040.9,
+          "p99_us": 9034.9,
+          "max_us": 9922.2
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 600,
+        "p50_us": 4248.467,
+        "p95_us": 6398.400000000001,
+        "p99_us": 9554.3,
+        "max_us": 10191.232999999998
+      }
+    },
+    {
+      "run": "run-1",
+      "nodes": 10000,
+      "effects": false,
+      "batch": false,
+      "local_snapshot": true,
+      "target_hz": 120,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 1200,
+      "consumed_ticks": 1200,
+      "superseded_ticks": 0,
+      "gpu_submissions": 1199,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1157, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 56,
+      "deadline_misses": 56,
+      "longest_consecutive_misses": 1,
+      "budget_us": 8333.333,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 1200,
+          "p50_us": 332.16700000000003,
+          "p95_us": 574.267,
+          "p99_us": 775.233,
+          "max_us": 1085.8
+        },
+        "source_to_owner_us": {
+          "samples": 1200,
+          "p50_us": 375.733,
+          "p95_us": 705.3330000000001,
+          "p99_us": 1445.0,
+          "max_us": 2499.767
+        },
+        "commit_us": {
+          "samples": 1200,
+          "p50_us": 22.4,
+          "p95_us": 34.1,
+          "p99_us": 42.8,
+          "max_us": 68.5
+        },
+        "publication_queue_us": {
+          "samples": 1200,
+          "p50_us": 8.9,
+          "p95_us": 13.5,
+          "p99_us": 17.0,
+          "max_us": 47.2
+        },
+        "submit_us": {
+          "samples": 1200,
+          "p50_us": 934.7,
+          "p95_us": 1484.8999999999999,
+          "p99_us": 1756.6999999999998,
+          "max_us": 2178.2
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 1200,
+          "p50_us": 4004.5000000000005,
+          "p95_us": 8017.599999999999,
+          "p99_us": 9357.0,
+          "max_us": 10508.0
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 1200,
+        "p50_us": 4367.366999999999,
+        "p95_us": 8302.966999999999,
+        "p99_us": 9760.533,
+        "max_us": 10813.9
+      }
+    },
+    {
+      "run": "run-1",
+      "nodes": 10000,
+      "effects": true,
+      "batch": false,
+      "local_snapshot": true,
+      "target_hz": 60,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 600,
+      "consumed_ticks": 600,
+      "superseded_ticks": 0,
+      "gpu_submissions": 599,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 599, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 1,
+      "deadline_misses": 1,
+      "longest_consecutive_misses": 1,
+      "budget_us": 16666.666,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 600,
+          "p50_us": 356.9,
+          "p95_us": 602.3670000000001,
+          "p99_us": 749.3670000000001,
+          "max_us": 1402.267
+        },
+        "source_to_owner_us": {
+          "samples": 600,
+          "p50_us": 393.933,
+          "p95_us": 642.067,
+          "p99_us": 790.0999999999999,
+          "max_us": 2014.0330000000001
+        },
+        "commit_us": {
+          "samples": 600,
+          "p50_us": 23.8,
+          "p95_us": 37.9,
+          "p99_us": 49.5,
+          "max_us": 62.4
+        },
+        "publication_queue_us": {
+          "samples": 600,
+          "p50_us": 9.1,
+          "p95_us": 14.399999999999999,
+          "p99_us": 20.0,
+          "max_us": 29.099999999999998
+        },
+        "submit_us": {
+          "samples": 600,
+          "p50_us": 1221.2,
+          "p95_us": 1852.6000000000001,
+          "p99_us": 2082.6,
+          "max_us": 2677.8
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 600,
+          "p50_us": 6446.099999999999,
+          "p95_us": 12184.800000000001,
+          "p99_us": 13846.9,
+          "max_us": 18173.0
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 600,
+        "p50_us": 6800.367,
+        "p95_us": 12560.167000000001,
+        "p99_us": 13996.366999999998,
+        "max_us": 18664.300000000003
+      }
+    },
+    {
+      "run": "run-1",
+      "nodes": 10000,
+      "effects": true,
+      "batch": false,
+      "local_snapshot": true,
+      "target_hz": 120,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 1200,
+      "consumed_ticks": 1200,
+      "superseded_ticks": 0,
+      "gpu_submissions": 1199,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1190, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 13,
+      "deadline_misses": 13,
+      "longest_consecutive_misses": 1,
+      "budget_us": 8333.333,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 1200,
+          "p50_us": 339.3,
+          "p95_us": 607.0,
+          "p99_us": 837.4670000000001,
+          "max_us": 1405.2330000000002
+        },
+        "source_to_owner_us": {
+          "samples": 1200,
+          "p50_us": 380.833,
+          "p95_us": 677.9000000000001,
+          "p99_us": 955.5329999999999,
+          "max_us": 1942.6000000000001
+        },
+        "commit_us": {
+          "samples": 1200,
+          "p50_us": 23.7,
+          "p95_us": 34.400000000000006,
+          "p99_us": 39.8,
+          "max_us": 52.4
+        },
+        "publication_queue_us": {
+          "samples": 1200,
+          "p50_us": 9.3,
+          "p95_us": 14.2,
+          "p99_us": 17.7,
+          "max_us": 37.7
+        },
+        "submit_us": {
+          "samples": 1200,
+          "p50_us": 1291.4,
+          "p95_us": 1873.5,
+          "p99_us": 2228.8,
+          "max_us": 3067.4
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 1200,
+          "p50_us": 4227.9,
+          "p95_us": 6805.5,
+          "p99_us": 8006.2,
+          "max_us": 9766.800000000001
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 1200,
+        "p50_us": 4593.867,
+        "p95_us": 7118.9,
+        "p99_us": 8443.6,
+        "max_us": 10261.133
+      }
+    },
+    {
+      "run": "run-1",
+      "nodes": 10000,
+      "effects": false,
+      "batch": true,
+      "local_snapshot": true,
+      "target_hz": 60,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 600,
+      "consumed_ticks": 596,
+      "superseded_ticks": 4,
+      "gpu_submissions": 595,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 4, equal_pending: 0, wake_transitions: 596, waker_notifications: 254, drains: 596, applied: 596, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 372,
+      "deadline_misses": 368,
+      "longest_consecutive_misses": 89,
+      "budget_us": 16666.666,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 596,
+          "p50_us": 352.7,
+          "p95_us": 628.0,
+          "p99_us": 980.433,
+          "max_us": 1083.8670000000002
+        },
+        "source_to_owner_us": {
+          "samples": 596,
+          "p50_us": 1033.833,
+          "p95_us": 11665.9,
+          "p99_us": 13972.233,
+          "max_us": 16701.899999999998
+        },
+        "commit_us": {
+          "samples": 596,
+          "p50_us": 4203.6,
+          "p95_us": 4964.7,
+          "p99_us": 5426.900000000001,
+          "max_us": 7071.799999999999
+        },
+        "publication_queue_us": {
+          "samples": 596,
+          "p50_us": 1878.8999999999999,
+          "p95_us": 2558.8,
+          "p99_us": 2856.6,
+          "max_us": 3278.4
+        },
+        "submit_us": {
+          "samples": 596,
+          "p50_us": 7416.8,
+          "p95_us": 9020.0,
+          "p99_us": 9791.3,
+          "max_us": 10475.800000000001
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 596,
+          "p50_us": 17273.1,
+          "p95_us": 28068.1,
+          "p99_us": 32365.199999999997,
+          "max_us": 35059.399999999994
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 596,
+        "p50_us": 17669.067,
+        "p95_us": 28433.767,
+        "p99_us": 32614.733,
+        "max_us": 35427.967
+      }
+    },
+    {
+      "run": "run-1",
+      "nodes": 10000,
+      "effects": false,
+      "batch": true,
+      "local_snapshot": true,
+      "target_hz": 120,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 1200,
+      "consumed_ticks": 607,
+      "superseded_ticks": 593,
+      "gpu_submissions": 606,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 593, equal_pending: 0, wake_transitions: 607, waker_notifications: 2, drains: 607, applied: 607, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 1199,
+      "deadline_misses": 606,
+      "longest_consecutive_misses": 1199,
+      "budget_us": 8333.333,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 607,
+          "p50_us": 337.733,
+          "p95_us": 644.8,
+          "p99_us": 773.667,
+          "max_us": 1290.333
+        },
+        "source_to_owner_us": {
+          "samples": 607,
+          "p50_us": 4716.167,
+          "p95_us": 8330.733,
+          "p99_us": 8621.567000000001,
+          "max_us": 9130.867
+        },
+        "commit_us": {
+          "samples": 607,
+          "p50_us": 4210.6,
+          "p95_us": 5060.4,
+          "p99_us": 5573.0,
+          "max_us": 6744.2
+        },
+        "publication_queue_us": {
+          "samples": 607,
+          "p50_us": 1709.1000000000001,
+          "p95_us": 2356.3999999999996,
+          "p99_us": 2737.7,
+          "max_us": 3334.0
+        },
+        "submit_us": {
+          "samples": 607,
+          "p50_us": 6748.7,
+          "p95_us": 8547.900000000001,
+          "p99_us": 9406.599999999999,
+          "max_us": 10345.3
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 607,
+          "p50_us": 20836.0,
+          "p95_us": 25851.0,
+          "p99_us": 29037.2,
+          "max_us": 32846.7
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 607,
+        "p50_us": 21221.0,
+        "p95_us": 26340.867000000002,
+        "p99_us": 29231.333000000002,
+        "max_us": 32965.433000000005
+      }
+    },
+    {
+      "run": "run-1",
+      "nodes": 10000,
+      "effects": true,
+      "batch": true,
+      "local_snapshot": true,
+      "target_hz": 60,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 600,
+      "consumed_ticks": 533,
+      "superseded_ticks": 67,
+      "gpu_submissions": 532,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 67, equal_pending: 0, wake_transitions: 533, waker_notifications: 2, drains: 533, applied: 533, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 599,
+      "deadline_misses": 532,
+      "longest_consecutive_misses": 599,
+      "budget_us": 16666.666,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 533,
+          "p50_us": 354.767,
+          "p95_us": 579.9,
+          "p99_us": 817.3,
+          "max_us": 1166.3999999999999
+        },
+        "source_to_owner_us": {
+          "samples": 533,
+          "p50_us": 7756.599999999999,
+          "p95_us": 16199.067000000001,
+          "p99_us": 16823.899999999998,
+          "max_us": 17228.0
+        },
+        "commit_us": {
+          "samples": 533,
+          "p50_us": 4022.0000000000005,
+          "p95_us": 4845.3,
+          "p99_us": 5232.900000000001,
+          "max_us": 5632.200000000001
+        },
+        "publication_queue_us": {
+          "samples": 533,
+          "p50_us": 1657.6,
+          "p95_us": 2407.4,
+          "p99_us": 2826.0,
+          "max_us": 3047.7
+        },
+        "submit_us": {
+          "samples": 533,
+          "p50_us": 6979.5,
+          "p95_us": 8742.800000000001,
+          "p99_us": 9850.2,
+          "max_us": 11776.099999999999
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 533,
+          "p50_us": 26310.6,
+          "p95_us": 34913.2,
+          "p99_us": 36610.700000000004,
+          "max_us": 41962.399999999994
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 533,
+        "p50_us": 26704.767,
+        "p95_us": 35337.367,
+        "p99_us": 36979.132999999994,
+        "max_us": 42139.433
+      }
+    },
+    {
+      "run": "run-1",
+      "nodes": 10000,
+      "effects": true,
+      "batch": true,
+      "local_snapshot": true,
+      "target_hz": 120,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 1200,
+      "consumed_ticks": 528,
+      "superseded_ticks": 672,
+      "gpu_submissions": 527,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 672, equal_pending: 0, wake_transitions: 528, waker_notifications: 2, drains: 528, applied: 528, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 1199,
+      "deadline_misses": 527,
+      "longest_consecutive_misses": 1199,
+      "budget_us": 8333.333,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 528,
+          "p50_us": 362.40000000000003,
+          "p95_us": 740.933,
+          "p99_us": 933.667,
+          "max_us": 1226.633
+        },
+        "source_to_owner_us": {
+          "samples": 528,
+          "p50_us": 4655.267,
+          "p95_us": 8177.099999999999,
+          "p99_us": 8612.633,
+          "max_us": 8785.0
+        },
+        "commit_us": {
+          "samples": 528,
+          "p50_us": 4109.200000000001,
+          "p95_us": 4859.7,
+          "p99_us": 5231.5,
+          "max_us": 6429.9
+        },
+        "publication_queue_us": {
+          "samples": 528,
+          "p50_us": 1741.9,
+          "p95_us": 2372.2000000000003,
+          "p99_us": 2641.0,
+          "max_us": 3125.3
+        },
+        "submit_us": {
+          "samples": 528,
+          "p50_us": 7221.599999999999,
+          "p95_us": 8728.5,
+          "p99_us": 9545.2,
+          "max_us": 10597.199999999999
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 528,
+          "p50_us": 22909.8,
+          "p95_us": 29119.800000000003,
+          "p99_us": 33361.0,
+          "max_us": 41409.4
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 528,
+        "p50_us": 23322.0,
+        "p95_us": 29314.267,
+        "p99_us": 33869.933,
+        "max_us": 41678.967
+      }
+    },
+    {
+      "run": "run-2",
+      "nodes": 1000,
+      "effects": false,
+      "batch": false,
+      "local_snapshot": true,
+      "target_hz": 60,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 600,
+      "consumed_ticks": 600,
+      "superseded_ticks": 0,
+      "gpu_submissions": 599,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 0,
+      "deadline_misses": 0,
+      "longest_consecutive_misses": 0,
+      "budget_us": 16666.666,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 600,
+          "p50_us": 327.333,
+          "p95_us": 595.967,
+          "p99_us": 752.067,
+          "max_us": 973.5
+        },
+        "source_to_owner_us": {
+          "samples": 600,
+          "p50_us": 372.33299999999997,
+          "p95_us": 658.133,
+          "p99_us": 834.167,
+          "max_us": 1036.6329999999998
+        },
+        "commit_us": {
+          "samples": 600,
+          "p50_us": 23.8,
+          "p95_us": 36.4,
+          "p99_us": 46.199999999999996,
+          "max_us": 53.6
+        },
+        "publication_queue_us": {
+          "samples": 600,
+          "p50_us": 8.0,
+          "p95_us": 13.4,
+          "p99_us": 15.7,
+          "max_us": 18.6
+        },
+        "submit_us": {
+          "samples": 600,
+          "p50_us": 391.5,
+          "p95_us": 573.0,
+          "p99_us": 686.4,
+          "max_us": 1573.2
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 600,
+          "p50_us": 2801.2,
+          "p95_us": 5560.9,
+          "p99_us": 7443.1,
+          "max_us": 8071.0
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 600,
+        "p50_us": 3167.333,
+        "p95_us": 5793.633000000001,
+        "p99_us": 7730.433,
+        "max_us": 8364.167000000001
+      }
+    },
+    {
+      "run": "run-2",
+      "nodes": 1000,
+      "effects": false,
+      "batch": false,
+      "local_snapshot": true,
+      "target_hz": 120,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 1200,
+      "consumed_ticks": 1200,
+      "superseded_ticks": 0,
+      "gpu_submissions": 1199,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1197, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 3,
+      "deadline_misses": 3,
+      "longest_consecutive_misses": 1,
+      "budget_us": 8333.333,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 1200,
+          "p50_us": 326.5,
+          "p95_us": 580.4,
+          "p99_us": 791.8670000000001,
+          "max_us": 1268.433
+        },
+        "source_to_owner_us": {
+          "samples": 1200,
+          "p50_us": 370.433,
+          "p95_us": 644.4000000000001,
+          "p99_us": 864.267,
+          "max_us": 1301.633
+        },
+        "commit_us": {
+          "samples": 1200,
+          "p50_us": 23.0,
+          "p95_us": 34.5,
+          "p99_us": 41.6,
+          "max_us": 95.9
+        },
+        "publication_queue_us": {
+          "samples": 1200,
+          "p50_us": 8.0,
+          "p95_us": 12.5,
+          "p99_us": 16.900000000000002,
+          "max_us": 28.5
+        },
+        "submit_us": {
+          "samples": 1200,
+          "p50_us": 367.2,
+          "p95_us": 549.5,
+          "p99_us": 657.0,
+          "max_us": 1840.4
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 1200,
+          "p50_us": 2790.7000000000003,
+          "p95_us": 5405.2,
+          "p99_us": 7542.9,
+          "max_us": 8764.6
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 1200,
+        "p50_us": 3148.3,
+        "p95_us": 5966.400000000001,
+        "p99_us": 7845.8,
+        "max_us": 9214.0
+      }
+    },
+    {
+      "run": "run-2",
+      "nodes": 1000,
+      "effects": true,
+      "batch": false,
+      "local_snapshot": true,
+      "target_hz": 60,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 600,
+      "consumed_ticks": 600,
+      "superseded_ticks": 0,
+      "gpu_submissions": 599,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 0,
+      "deadline_misses": 0,
+      "longest_consecutive_misses": 0,
+      "budget_us": 16666.666,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 600,
+          "p50_us": 347.233,
+          "p95_us": 645.167,
+          "p99_us": 826.133,
+          "max_us": 1020.4999999999999
+        },
+        "source_to_owner_us": {
+          "samples": 600,
+          "p50_us": 397.267,
+          "p95_us": 687.833,
+          "p99_us": 894.533,
+          "max_us": 1043.8999999999999
+        },
+        "commit_us": {
+          "samples": 600,
+          "p50_us": 24.3,
+          "p95_us": 36.5,
+          "p99_us": 41.300000000000004,
+          "max_us": 83.7
+        },
+        "publication_queue_us": {
+          "samples": 600,
+          "p50_us": 8.0,
+          "p95_us": 12.4,
+          "p99_us": 16.7,
+          "max_us": 47.1
+        },
+        "submit_us": {
+          "samples": 600,
+          "p50_us": 704.1,
+          "p95_us": 1035.5,
+          "p99_us": 1359.9,
+          "max_us": 2010.3
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 600,
+          "p50_us": 5389.1,
+          "p95_us": 11090.199999999999,
+          "p99_us": 12980.6,
+          "max_us": 13699.1
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 600,
+        "p50_us": 5758.933,
+        "p95_us": 11355.466999999999,
+        "p99_us": 13087.6,
+        "max_us": 14107.333
+      }
+    },
+    {
+      "run": "run-2",
+      "nodes": 1000,
+      "effects": true,
+      "batch": false,
+      "local_snapshot": true,
+      "target_hz": 120,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 1200,
+      "consumed_ticks": 1200,
+      "superseded_ticks": 0,
+      "gpu_submissions": 1199,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1198, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 2,
+      "deadline_misses": 2,
+      "longest_consecutive_misses": 2,
+      "budget_us": 8333.333,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 1200,
+          "p50_us": 350.53299999999996,
+          "p95_us": 614.933,
+          "p99_us": 868.0,
+          "max_us": 1654.4
+        },
+        "source_to_owner_us": {
+          "samples": 1200,
+          "p50_us": 387.7,
+          "p95_us": 683.9,
+          "p99_us": 920.2330000000001,
+          "max_us": 4122.333
+        },
+        "commit_us": {
+          "samples": 1200,
+          "p50_us": 23.6,
+          "p95_us": 35.7,
+          "p99_us": 45.5,
+          "max_us": 69.3
+        },
+        "publication_queue_us": {
+          "samples": 1200,
+          "p50_us": 8.2,
+          "p95_us": 13.200000000000001,
+          "p99_us": 17.0,
+          "max_us": 48.5
+        },
+        "submit_us": {
+          "samples": 1200,
+          "p50_us": 674.5,
+          "p95_us": 1033.5,
+          "p99_us": 1243.0,
+          "max_us": 2086.7
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 1200,
+          "p50_us": 3222.9,
+          "p95_us": 5744.599999999999,
+          "p99_us": 6792.900000000001,
+          "max_us": 11897.8
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 1200,
+        "p50_us": 3588.467,
+        "p95_us": 6052.833,
+        "p99_us": 7244.4,
+        "max_us": 12445.067000000001
+      }
+    },
+    {
+      "run": "run-2",
+      "nodes": 10000,
+      "effects": false,
+      "batch": false,
+      "local_snapshot": true,
+      "target_hz": 60,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 600,
+      "consumed_ticks": 600,
+      "superseded_ticks": 0,
+      "gpu_submissions": 599,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 0,
+      "deadline_misses": 0,
+      "longest_consecutive_misses": 0,
+      "budget_us": 16666.666,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 600,
+          "p50_us": 361.90000000000003,
+          "p95_us": 584.3670000000001,
+          "p99_us": 783.033,
+          "max_us": 1350.0
+        },
+        "source_to_owner_us": {
+          "samples": 600,
+          "p50_us": 402.033,
+          "p95_us": 639.867,
+          "p99_us": 845.8670000000001,
+          "max_us": 1390.8
+        },
+        "commit_us": {
+          "samples": 600,
+          "p50_us": 23.4,
+          "p95_us": 36.0,
+          "p99_us": 44.3,
+          "max_us": 52.9
+        },
+        "publication_queue_us": {
+          "samples": 600,
+          "p50_us": 8.9,
+          "p95_us": 14.0,
+          "p99_us": 17.900000000000002,
+          "max_us": 22.2
+        },
+        "submit_us": {
+          "samples": 600,
+          "p50_us": 1035.2,
+          "p95_us": 1522.7,
+          "p99_us": 1742.4,
+          "max_us": 2134.9
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 600,
+          "p50_us": 3887.7,
+          "p95_us": 5883.4,
+          "p99_us": 8844.599999999999,
+          "max_us": 9607.199999999999
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 600,
+        "p50_us": 4197.833,
+        "p95_us": 6349.2,
+        "p99_us": 9067.466999999999,
+        "max_us": 9993.800000000001
+      }
+    },
+    {
+      "run": "run-2",
+      "nodes": 10000,
+      "effects": false,
+      "batch": false,
+      "local_snapshot": true,
+      "target_hz": 120,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 1200,
+      "consumed_ticks": 1200,
+      "superseded_ticks": 0,
+      "gpu_submissions": 1199,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1166, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 51,
+      "deadline_misses": 51,
+      "longest_consecutive_misses": 1,
+      "budget_us": 8333.333,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 1200,
+          "p50_us": 339.36699999999996,
+          "p95_us": 575.1,
+          "p99_us": 742.333,
+          "max_us": 1089.8329999999999
+        },
+        "source_to_owner_us": {
+          "samples": 1200,
+          "p50_us": 390.067,
+          "p95_us": 652.3,
+          "p99_us": 1114.733,
+          "max_us": 2398.8669999999997
+        },
+        "commit_us": {
+          "samples": 1200,
+          "p50_us": 23.099999999999998,
+          "p95_us": 35.6,
+          "p99_us": 44.8,
+          "max_us": 144.9
+        },
+        "publication_queue_us": {
+          "samples": 1200,
+          "p50_us": 8.8,
+          "p95_us": 13.6,
+          "p99_us": 16.900000000000002,
+          "max_us": 27.0
+        },
+        "submit_us": {
+          "samples": 1200,
+          "p50_us": 1022.0999999999999,
+          "p95_us": 1538.8999999999999,
+          "p99_us": 1840.2,
+          "max_us": 2505.4
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 1200,
+          "p50_us": 4027.2,
+          "p95_us": 7644.4,
+          "p99_us": 8918.6,
+          "max_us": 10305.099999999999
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 1200,
+        "p50_us": 4368.767,
+        "p95_us": 8014.6,
+        "p99_us": 9175.300000000001,
+        "max_us": 10717.199999999999
+      }
+    },
+    {
+      "run": "run-2",
+      "nodes": 10000,
+      "effects": true,
+      "batch": false,
+      "local_snapshot": true,
+      "target_hz": 60,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 600,
+      "consumed_ticks": 600,
+      "superseded_ticks": 0,
+      "gpu_submissions": 599,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 0, equal_pending: 0, wake_transitions: 600, waker_notifications: 600, drains: 600, applied: 600, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 0,
+      "deadline_misses": 0,
+      "longest_consecutive_misses": 0,
+      "budget_us": 16666.666,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 600,
+          "p50_us": 383.53299999999996,
+          "p95_us": 711.733,
+          "p99_us": 1055.333,
+          "max_us": 1900.667
+        },
+        "source_to_owner_us": {
+          "samples": 600,
+          "p50_us": 420.167,
+          "p95_us": 779.6329999999999,
+          "p99_us": 1226.8,
+          "max_us": 2040.9
+        },
+        "commit_us": {
+          "samples": 600,
+          "p50_us": 25.299999999999997,
+          "p95_us": 35.5,
+          "p99_us": 40.7,
+          "max_us": 82.2
+        },
+        "publication_queue_us": {
+          "samples": 600,
+          "p50_us": 9.700000000000001,
+          "p95_us": 14.7,
+          "p99_us": 18.8,
+          "max_us": 121.5
+        },
+        "submit_us": {
+          "samples": 600,
+          "p50_us": 1356.0,
+          "p95_us": 2115.7,
+          "p99_us": 2354.2,
+          "max_us": 3524.7999999999997
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 600,
+          "p50_us": 4391.0,
+          "p95_us": 6877.5,
+          "p99_us": 8137.999999999999,
+          "max_us": 10061.0
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 600,
+        "p50_us": 4772.267,
+        "p95_us": 7228.0,
+        "p99_us": 8613.1,
+        "max_us": 10703.367
+      }
+    },
+    {
+      "run": "run-2",
+      "nodes": 10000,
+      "effects": true,
+      "batch": false,
+      "local_snapshot": true,
+      "target_hz": 120,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 1200,
+      "consumed_ticks": 1200,
+      "superseded_ticks": 0,
+      "gpu_submissions": 1199,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 0, equal_pending: 0, wake_transitions: 1200, waker_notifications: 1188, drains: 1200, applied: 1200, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 14,
+      "deadline_misses": 14,
+      "longest_consecutive_misses": 1,
+      "budget_us": 8333.333,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 1200,
+          "p50_us": 331.067,
+          "p95_us": 571.933,
+          "p99_us": 845.1669999999999,
+          "max_us": 1356.433
+        },
+        "source_to_owner_us": {
+          "samples": 1200,
+          "p50_us": 371.9,
+          "p95_us": 625.633,
+          "p99_us": 985.033,
+          "max_us": 1627.0
+        },
+        "commit_us": {
+          "samples": 1200,
+          "p50_us": 22.6,
+          "p95_us": 34.0,
+          "p99_us": 43.6,
+          "max_us": 82.7
+        },
+        "publication_queue_us": {
+          "samples": 1200,
+          "p50_us": 9.2,
+          "p95_us": 14.0,
+          "p99_us": 17.7,
+          "max_us": 31.6
+        },
+        "submit_us": {
+          "samples": 1200,
+          "p50_us": 1270.5,
+          "p95_us": 1835.2,
+          "p99_us": 2045.4,
+          "max_us": 2554.5
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 1200,
+          "p50_us": 4222.400000000001,
+          "p95_us": 6717.8,
+          "p99_us": 8122.799999999999,
+          "max_us": 9457.4
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 1200,
+        "p50_us": 4556.733,
+        "p95_us": 7092.933,
+        "p99_us": 8461.533,
+        "max_us": 9948.033
+      }
+    },
+    {
+      "run": "run-2",
+      "nodes": 10000,
+      "effects": false,
+      "batch": true,
+      "local_snapshot": true,
+      "target_hz": 60,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 600,
+      "consumed_ticks": 599,
+      "superseded_ticks": 1,
+      "gpu_submissions": 598,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 1, equal_pending: 0, wake_transitions: 599, waker_notifications: 479, drains: 599, applied: 599, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 130,
+      "deadline_misses": 129,
+      "longest_consecutive_misses": 16,
+      "budget_us": 16666.666,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 599,
+          "p50_us": 333.833,
+          "p95_us": 575.9,
+          "p99_us": 799.3,
+          "max_us": 1082.0
+        },
+        "source_to_owner_us": {
+          "samples": 599,
+          "p50_us": 429.033,
+          "p95_us": 4307.767,
+          "p99_us": 10743.8,
+          "max_us": 13308.933
+        },
+        "commit_us": {
+          "samples": 599,
+          "p50_us": 3978.2000000000003,
+          "p95_us": 4732.0,
+          "p99_us": 5180.299999999999,
+          "max_us": 5438.9
+        },
+        "publication_queue_us": {
+          "samples": 599,
+          "p50_us": 1600.7,
+          "p95_us": 2250.5,
+          "p99_us": 2584.6,
+          "max_us": 2931.2000000000003
+        },
+        "submit_us": {
+          "samples": 599,
+          "p50_us": 6764.6,
+          "p95_us": 8156.6,
+          "p99_us": 8814.0,
+          "max_us": 10587.3
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 599,
+          "p50_us": 14807.6,
+          "p95_us": 20770.7,
+          "p99_us": 27777.300000000003,
+          "max_us": 35431.0
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 599,
+        "p50_us": 15158.932999999999,
+        "p95_us": 21073.5,
+        "p99_us": 28048.967,
+        "max_us": 35807.167
+      }
+    },
+    {
+      "run": "run-2",
+      "nodes": 10000,
+      "effects": false,
+      "batch": true,
+      "local_snapshot": true,
+      "target_hz": 120,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 1200,
+      "consumed_ticks": 617,
+      "superseded_ticks": 583,
+      "gpu_submissions": 616,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 583, equal_pending: 0, wake_transitions: 617, waker_notifications: 2, drains: 617, applied: 617, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 1199,
+      "deadline_misses": 616,
+      "longest_consecutive_misses": 1199,
+      "budget_us": 8333.333,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 617,
+          "p50_us": 349.167,
+          "p95_us": 600.5999999999999,
+          "p99_us": 711.567,
+          "max_us": 1024.5
+        },
+        "source_to_owner_us": {
+          "samples": 617,
+          "p50_us": 4568.767,
+          "p95_us": 8291.033,
+          "p99_us": 8603.267,
+          "max_us": 8842.1
+        },
+        "commit_us": {
+          "samples": 617,
+          "p50_us": 4075.8,
+          "p95_us": 5059.400000000001,
+          "p99_us": 5844.3,
+          "max_us": 6821.9
+        },
+        "publication_queue_us": {
+          "samples": 617,
+          "p50_us": 1590.4,
+          "p95_us": 2395.2000000000003,
+          "p99_us": 2938.2000000000003,
+          "max_us": 3958.7
+        },
+        "submit_us": {
+          "samples": 617,
+          "p50_us": 6609.0,
+          "p95_us": 8463.4,
+          "p99_us": 10127.0,
+          "max_us": 10898.7
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 617,
+          "p50_us": 20425.8,
+          "p95_us": 25940.5,
+          "p99_us": 28567.6,
+          "max_us": 30848.7
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 617,
+        "p50_us": 20815.5,
+        "p95_us": 26291.967,
+        "p99_us": 28975.167,
+        "max_us": 31193.267
+      }
+    },
+    {
+      "run": "run-2",
+      "nodes": 10000,
+      "effects": true,
+      "batch": true,
+      "local_snapshot": true,
+      "target_hz": 60,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 600,
+      "consumed_ticks": 523,
+      "superseded_ticks": 77,
+      "gpu_submissions": 522,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 600, coalesced: 77, equal_pending: 0, wake_transitions: 523, waker_notifications: 3, drains: 523, applied: 523, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 599,
+      "deadline_misses": 522,
+      "longest_consecutive_misses": 599,
+      "budget_us": 16666.666,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 523,
+          "p50_us": 347.867,
+          "p95_us": 601.433,
+          "p99_us": 818.5,
+          "max_us": 1035.267
+        },
+        "source_to_owner_us": {
+          "samples": 523,
+          "p50_us": 8892.432999999999,
+          "p95_us": 16092.367,
+          "p99_us": 16761.267,
+          "max_us": 17158.933
+        },
+        "commit_us": {
+          "samples": 523,
+          "p50_us": 4045.7000000000003,
+          "p95_us": 4985.200000000001,
+          "p99_us": 5566.1,
+          "max_us": 6674.8
+        },
+        "publication_queue_us": {
+          "samples": 523,
+          "p50_us": 1663.6000000000001,
+          "p95_us": 2496.4,
+          "p99_us": 2800.2000000000003,
+          "max_us": 3111.8
+        },
+        "submit_us": {
+          "samples": 523,
+          "p50_us": 7230.0,
+          "p95_us": 9187.0,
+          "p99_us": 10562.4,
+          "max_us": 12167.6
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 523,
+          "p50_us": 27622.5,
+          "p95_us": 35689.4,
+          "p99_us": 38599.799999999996,
+          "max_us": 41209.299999999996
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 523,
+        "p50_us": 27968.132999999998,
+        "p95_us": 36117.733,
+        "p99_us": 39005.7,
+        "max_us": 41323.066999999995
+      }
+    },
+    {
+      "run": "run-2",
+      "nodes": 10000,
+      "effects": true,
+      "batch": true,
+      "local_snapshot": true,
+      "target_hz": 120,
+      "duration_seconds": 10.0,
+      "adapter": "AdapterInfo { name: \"NVIDIA GeForce GTX 1650 Ti\", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: \"0000:01:00.0\", driver: \"NVIDIA\", driver_info: \"571.96\", backend: Vulkan, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }",
+      "expected_ticks": 1200,
+      "consumed_ticks": 587,
+      "superseded_ticks": 613,
+      "gpu_submissions": 586,
+      "producer_superseded_ticks": 0,
+      "update_queue": "UpdateQueueStats { enqueued: 1200, coalesced: 613, equal_pending: 0, wake_transitions: 587, waker_notifications: 2, drains: 587, applied: 587, retired: 0, rejected: 0, pending: 0, closed: false }",
+      "unsatisfied_ticks": 1199,
+      "deadline_misses": 586,
+      "longest_consecutive_misses": 1199,
+      "budget_us": 8333.333,
+      "pixel_equal": true,
+      "phases": {
+        "producer_delay_us": {
+          "samples": 587,
+          "p50_us": 347.2,
+          "p95_us": 639.867,
+          "p99_us": 738.4,
+          "max_us": 792.2330000000001
+        },
+        "source_to_owner_us": {
+          "samples": 587,
+          "p50_us": 4955.3330000000005,
+          "p95_us": 8208.067,
+          "p99_us": 8740.133,
+          "max_us": 8981.233
+        },
+        "commit_us": {
+          "samples": 587,
+          "p50_us": 4071.2999999999997,
+          "p95_us": 4751.799999999999,
+          "p99_us": 5130.0,
+          "max_us": 5693.2
+        },
+        "publication_queue_us": {
+          "samples": 587,
+          "p50_us": 1601.1000000000001,
+          "p95_us": 2276.2,
+          "p99_us": 2523.7,
+          "max_us": 2908.6
+        },
+        "submit_us": {
+          "samples": 587,
+          "p50_us": 6891.5,
+          "p95_us": 8516.4,
+          "p99_us": 9471.6,
+          "max_us": 11081.8
+        },
+        "ingress_to_gpu_complete_us": {
+          "samples": 587,
+          "p50_us": 21466.0,
+          "p95_us": 26858.1,
+          "p99_us": 32103.800000000003,
+          "max_us": 40881.2
+        }
+      },
+      "source_to_gpu_complete": {
+        "samples": 587,
+        "p50_us": 21796.533,
+        "p95_us": 27153.867000000002,
+        "p99_us": 32594.100000000002,
+        "max_us": 41270.833
+      }
+    }
+  ]
+}

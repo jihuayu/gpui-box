@@ -166,3 +166,26 @@ failed-draft rollback and monotonically reserved binding identities keep their
 existing semantics. Neither hash iteration nor GPU slot order becomes a public
 event ordering rule. These changes make batch transport cheaper without adding
 an application API that bypasses state or sink validation.
+
+## Owner-local property membership journals
+
+The resolved-property and local-placement dirty collections use a private
+slot-indexed position table and a retained vector of complete NodeIds. Repeated
+insertion rewrites that slot's latest identity instead of allocating/searching
+an ordered set entry. Clearing visits only listed nodes and reuses capacity.
+Both journals remain necessary: a local subscriber consumes its own changes,
+while a later resolved subscriber still needs all changes since its last frame.
+
+Journal order is insertion order, never event or paint order. Resolved extraction
+sorts visible preorder ranges as before; local GPU transport sorts its affected
+topology indices and bounded anchors. Nodes and generations remain validated by
+the owner before membership insertion. Deletion/topology changes force complete
+publication; a reused slot replaces its journal identity and cannot revive the
+retired generation. Old immutable snapshots retain their own placement pages.
+
+This trades persistent O(owner slot capacity) position tables and retained vector
+capacity for two O(log dirty nodes) insertions and allocation churn per changed
+node. It does not solve unbounded arena high-water memory, event scheduling,
+effect raster invalidation or GPU validation. Sparse clearing and dense repeated
+transactions need tests and measured comparisons; private slots are not a new
+public chunk/identity or unchecked batch contract.

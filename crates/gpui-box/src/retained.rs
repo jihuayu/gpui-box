@@ -19,6 +19,7 @@ pub mod local;
 pub mod logical;
 pub mod pacing;
 pub use image::ImageResource;
+mod dirty_nodes;
 mod extraction;
 #[cfg(test)]
 mod extraction_tests;
@@ -364,8 +365,8 @@ pub struct UiTree {
     layout_nodes: std::collections::HashMap<taffy::NodeId, NodeId>,
     layout_written: std::collections::BTreeSet<NodeId>,
     geometry_dirty: std::collections::BTreeSet<NodeId>,
-    property_dirty: std::collections::BTreeSet<NodeId>,
-    local_dirty: std::collections::BTreeSet<NodeId>,
+    property_dirty: dirty_nodes::DirtyNodes,
+    local_dirty: dirty_nodes::DirtyNodes,
     paint_subtree_ends: std::collections::HashMap<NodeId, usize>,
     paint_dirty: std::collections::BTreeSet<NodeId>,
     paint_indices: std::collections::HashMap<NodeId, usize>,

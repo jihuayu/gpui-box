@@ -202,6 +202,13 @@ in alternating binaries, with an ancestor/effects regression retained.
 Sustained dense/effects p99 remains 29.55–34.33 ms and still fails 60/120 Hz.
 A reduced temporary working set alone does not establish deadline compliance.
 
+Private slot-indexed membership journals now replace ordered dirty sets in the
+owner, retaining complete node generations and both local/resolved consumer
+accumulation lifetimes. Insertion order is never paint/event/transaction order.
+The [journal evidence](performance/2026-11-13-dirty-journal/README.md) shows
+30.2–39.4% dense commit median reduction, but dense/effects 120 Hz p99 is still
+32.59–33.87 ms. No deadline guarantee or unchecked caller batch API follows.
+
 ## Remaining acceptance
 
 - Local-first indexed damage/hit performance and general incremental updates;
