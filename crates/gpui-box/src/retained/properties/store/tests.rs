@@ -13,6 +13,46 @@ fn value(value: u32) -> PropertyNode<u32> {
         value,
     }
 }
+
+#[test]
+fn dense_batches_match_ordered_map_and_preserve_equal_and_old_snapshots() {
+    let mut map =
+        PropertyMap::from_entries((0..300).map(|i| (id(i, 1), value(i as u32))).collect());
+    let initial = map.clone();
+    let mut expected: BTreeMap<_, _> = map.iter().map(|(k, v)| (*k, v.clone())).collect();
+    for round in 0..8 {
+        let edits: Vec<_> = (0..600)
+            .rev()
+            .filter(|i| round != 7 || i % 73 == 0)
+            .map(|i| {
+                (
+                    id(i, 1),
+                    (i % 3 != round % 3).then(|| value((round * 600 + i) as u32)),
+                )
+            })
+            .collect();
+        for (key, value) in &edits {
+            if let Some(value) = value {
+                expected.insert(*key, value.clone());
+            } else {
+                expected.remove(key);
+            }
+        }
+        map.apply_edits(edits.clone());
+        assert!(map.iter().eq(expected.iter()));
+        assert_eq!(check(&map.root, None, None).1, map.len());
+        let equal = map.clone();
+        map.apply_edits(edits);
+        assert!(map.shares_root(&equal));
+    }
+    assert_eq!(initial.len(), 300);
+    assert!(
+        initial
+            .iter()
+            .enumerate()
+            .all(|(i, (k, v))| *k == id(i, 1) && *v == value(i as u32))
+    );
+}
 fn check<T>(link: &Link<T>, lower: Option<NodeId>, upper: Option<NodeId>) -> (u8, usize) {
     let Some(entry) = link else { return (0, 0) };
     assert!(lower.is_none_or(|key| key < entry.key));

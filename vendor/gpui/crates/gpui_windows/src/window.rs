@@ -1044,6 +1044,10 @@ impl PlatformWindow for WindowsWindow {
             .log_err();
     }
 
+    fn presentation_attempt(&self) -> Option<gpui::NativePresentationAttempt> {
+        self.state.renderer.borrow().presentation_attempt()
+    }
+
     #[cfg(feature = "test-support")]
     fn render_to_image(&self, scene: &Scene) -> anyhow::Result<image::RgbaImage> {
         self.state

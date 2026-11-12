@@ -3853,8 +3853,14 @@ impl Window {
         profiling::finish_frame!();
     }
 
+    /// Most recent platform present attempt. `queued` only means native API
+    /// acceptance; this never establishes GPU completion or visible scanout.
+    pub fn presentation_attempt(&self) -> Option<crate::NativePresentationAttempt> {
+        self.platform_window.presentation_attempt()
+    }
+
     /// Presents the most recently drawn frame if it hasn't been presented yet.
-    #[cfg(all(test, feature = "profiler"))]
+    #[cfg(any(feature = "test-support", all(test, feature = "profiler")))]
     pub fn present_if_needed(&mut self) {
         if self.needs_present.get() {
             self.present();

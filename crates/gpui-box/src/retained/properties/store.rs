@@ -102,6 +102,39 @@ impl<T> PropertyMap<T> {
 }
 
 impl<T: Clone + PartialEq> PropertyMap<T> {
+    /// Sparse edits preserve shared paths; dense edits merge once and rebuild a
+    /// balanced root. No-op batches preserve snapshot identity in both cases.
+    pub(super) fn apply_edits(&mut self, mut edits: Vec<(NodeId, Option<PropertyNode<T>>)>) {
+        edits.sort_unstable_by_key(|(id, _)| *id);
+        debug_assert!(edits.windows(2).all(|pair| pair[0].0 != pair[1].0));
+        edits.retain(|(id, value)| self.get(id) != value.as_ref());
+        if edits.len() <= 64 || edits.len() <= self.len / 4 {
+            for (id, value) in edits {
+                if let Some(value) = value {
+                    self.insert(id, value);
+                } else {
+                    self.remove(&id);
+                }
+            }
+            return;
+        }
+        let mut merged = Vec::with_capacity(self.len + edits.len());
+        let mut old = self.iter().peekable();
+        for (id, value) in edits {
+            while old.peek().is_some_and(|(key, _)| **key < id) {
+                let (key, value) = old.next().unwrap();
+                merged.push((*key, value.clone()));
+            }
+            if old.peek().is_some_and(|(key, _)| **key == id) {
+                old.next();
+            }
+            if let Some(value) = value {
+                merged.push((id, value));
+            }
+        }
+        merged.extend(old.map(|(key, value)| (*key, value.clone())));
+        *self = Self::from_entries(merged);
+    }
     /// Equal writes retain root identity. This also avoids copying unchanged
     /// chains when an ancestor's dirty subtree is extracted again.
     pub fn insert(&mut self, key: NodeId, value: PropertyNode<T>) -> Option<PropertyNode<T>> {

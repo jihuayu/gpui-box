@@ -2,6 +2,105 @@
 use super::*;
 
 impl UiTree {
+    /// Property-only updates retain owned local paint/text inputs. Resolve the
+    /// same ordered f32 operations as full extraction, without consulting Taffy,
+    /// re-preparing glyph chunks, or looking up absent sparse property entries.
+    pub(super) fn resolve_property_subtree(
+        &self,
+        before: &FramePacket,
+        range: std::ops::Range<usize>,
+        origin: [f32; 2],
+        clip: Option<Rect>,
+        state: PropertyState,
+        edits: &mut properties::PropertyEdits,
+    ) -> Result<Vec<PaintItem>, Error> {
+        let mut result: Vec<PaintItem> = Vec::with_capacity(range.len());
+        // Preorder permits a stack of ancestors instead of a NodeId lookup for
+        // every resolved parent. One context per depth, including the boundary.
+        let mut stack = vec![(None, origin, clip, state)];
+        for index in range {
+            let previous = &before.items[index];
+            let node = self.node(previous.node)?;
+            while stack.len() > 1 && stack.last().unwrap().0 != node.parent {
+                stack.pop();
+            }
+            let (_, origin, inherited_clip, mut state) = *stack.last().unwrap();
+            let mut item = previous.clone();
+            let spatial = &mut item.spatial;
+            spatial.translation = node.translation;
+            spatial.clip = node.clip;
+            // No layout input changed, so the published clamped scroll extent
+            // is still valid; the requested offset itself may have changed.
+            let layout = &node.published_layout;
+            spatial.scroll = [
+                node.scroll[0].min(layout.scroll_width()),
+                node.scroll[1].min(layout.scroll_height()),
+            ];
+            let x = origin[0] + spatial.layout_origin[0] + spatial.translation[0];
+            let y = origin[1] + spatial.layout_origin[1] + spatial.translation[1];
+            let transform = (node.translation != [0.0; 2]).then_some(PropertyNode {
+                parent: state.transform,
+                value: node.translation,
+            });
+            let own_clip = node.clip.map(|value| PropertyNode {
+                parent: state.clip,
+                value,
+            });
+            let effect = (node.opacity != 1.0).then_some(PropertyNode {
+                parent: state.effect,
+                value: node.opacity,
+            });
+            if transform.is_some() || previous.properties.transform == Some(item.node) {
+                edits.transforms.push((item.node, transform));
+            }
+            if own_clip.is_some() || previous.properties.clip == Some(item.node) {
+                edits.clips.push((item.node, own_clip));
+            }
+            if effect.is_some() || previous.properties.effect == Some(item.node) {
+                edits.effects.push((item.node, effect));
+            }
+            if node.translation != [0.0; 2] {
+                state.transform = Some(item.node);
+            }
+            if node.clip.is_some() {
+                state.clip = Some(item.node);
+            }
+            if node.opacity != 1.0 {
+                state.effect = Some(item.node);
+            }
+            item.properties = state;
+            if node.scroll != [0.0; 2] {
+                edits.scrolls.push((
+                    item.node,
+                    Some(PropertyNode {
+                        parent: state.scroll,
+                        value: spatial.scroll,
+                    }),
+                ));
+                state.scroll = Some(item.node);
+            } else if before.properties.scrolls.contains_key(&item.node) {
+                edits.scrolls.push((item.node, None));
+            }
+            let own_clip = node.clip.map(|clip| clip.translated([x, y]));
+            item.clip = match (inherited_clip, own_clip) {
+                (Some(a), Some(b)) => Some(a.intersect(b)),
+                (a, b) => a.or(b),
+            };
+            item.bounds.x = x;
+            item.bounds.y = y;
+            item.content_bounds.x = (x + item.content_offsets[0]) + item.content_offsets[2];
+            item.content_bounds.y = (y + item.content_offsets[1]) + item.content_offsets[3];
+            stack.push((
+                Some(item.node),
+                [x - spatial.scroll[0], y - spatial.scroll[1]],
+                item.clip,
+                state,
+            ));
+            result.push(item);
+        }
+        Ok(result)
+    }
+
     pub(super) fn extract_subtree(
         &mut self,
         root: NodeId,

@@ -1,5 +1,6 @@
 //! Reuse validation only for private immutable pages held by the cache itself.
 use super::*;
+use std::collections::HashMap;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ValidationStats {
@@ -18,8 +19,8 @@ struct Snapshot {
     scale: f32,
     items: Arc<PaintItems>,
     properties: Arc<PropertyTrees>,
-    indices: BTreeMap<NodeId, usize>,
-    children: BTreeMap<NodeId, Vec<usize>>,
+    indices: HashMap<NodeId, usize>,
+    children: HashMap<NodeId, Vec<usize>>,
 }
 
 #[derive(Default)]
@@ -80,14 +81,16 @@ impl ValidationCache {
                     stats.validated_items += 1;
                 }
             }
-            let mut spatial_indices = BTreeSet::new();
+            let mut spatial_indices = Vec::new();
             for page in changed {
                 for item in frame.items.pages()[*page].iter() {
-                    spatial_indices.insert(old.indices[&item.node]);
+                    spatial_indices.push(old.indices[&item.node]);
                     spatial_indices
                         .extend(old.children.get(&item.node).into_iter().flatten().copied());
                 }
             }
+            spatial_indices.sort_unstable();
+            spatial_indices.dedup();
             for index in spatial_indices {
                 validate_spatial(frame, index, &old.indices)?;
             }
@@ -114,14 +117,14 @@ impl ValidationCache {
             cached.properties = frame.properties.clone();
             return Ok(stats);
         }
-        let mut indices = BTreeMap::new();
+        let mut indices = HashMap::with_capacity(frame.items.len());
         for (index, item) in frame.items.iter().enumerate() {
             validate_item(item, scale)?;
             if item.node.tree != frame.tree || indices.insert(item.node, index).is_some() {
                 return Err(Error::InvalidFrame);
             }
         }
-        let mut children = BTreeMap::<NodeId, Vec<usize>>::new();
+        let mut children = HashMap::<NodeId, Vec<usize>>::new();
         for (index, item) in frame.items.iter().enumerate() {
             validate_spatial(frame, index, &indices)?;
             if let Some(parent) = item.spatial.parent {
@@ -236,7 +239,7 @@ fn validate_item(item: &PaintItem, scale: f32) -> Result<(), Error> {
 fn validate_spatial(
     frame: &FramePacket,
     index: usize,
-    indices: &BTreeMap<NodeId, usize>,
+    indices: &HashMap<NodeId, usize>,
 ) -> Result<(), Error> {
     let item = &frame.items[index];
     let spatial = &item.spatial;
@@ -285,7 +288,7 @@ fn validate_effect_reference(item: &PaintItem, properties: &PropertyTrees) -> Re
     Ok(())
 }
 
-fn validate_effects(frame: &FramePacket, indices: &BTreeMap<NodeId, usize>) -> Result<(), Error> {
+fn validate_effects(frame: &FramePacket, indices: &HashMap<NodeId, usize>) -> Result<(), Error> {
     for (id, effect) in &frame.properties.effects {
         if !indices.contains_key(id)
             || !effect.value.is_finite()
@@ -316,7 +319,7 @@ fn validate_effects(frame: &FramePacket, indices: &BTreeMap<NodeId, usize>) -> R
 
 fn validate_delta(
     frame: &FramePacket,
-    indices: &BTreeMap<NodeId, usize>,
+    indices: &HashMap<NodeId, usize>,
 ) -> Result<(usize, usize), Error> {
     let mut updates = BTreeSet::new();
     let trusted_view = frame.updates.matches_items(&frame.items);

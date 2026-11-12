@@ -16,6 +16,7 @@ pub mod arena;
 pub mod frame_queue;
 mod image;
 pub mod logical;
+pub mod pacing;
 pub use image::ImageResource;
 mod extraction;
 #[cfg(test)]
@@ -47,7 +48,7 @@ pub use structure::StructureTransaction;
 pub mod wgpu;
 
 /// Identity belongs to one tree and one lifetime of its arena slot.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NodeId {
     tree: u64,
     slot: usize,
@@ -363,9 +364,9 @@ pub struct UiTree {
     layout_written: std::collections::BTreeSet<NodeId>,
     geometry_dirty: std::collections::BTreeSet<NodeId>,
     property_dirty: std::collections::BTreeSet<NodeId>,
-    paint_subtree_ends: BTreeMap<NodeId, usize>,
+    paint_subtree_ends: std::collections::HashMap<NodeId, usize>,
     paint_dirty: std::collections::BTreeSet<NodeId>,
-    paint_indices: BTreeMap<NodeId, usize>,
+    paint_indices: std::collections::HashMap<NodeId, usize>,
     frame_build_policy: FrameBuildPolicy,
     viewport: Option<[f32; 2]>,
     frame: Option<FramePacket>,
@@ -982,16 +983,34 @@ impl UiTree {
             .map(|frame| frame.items.iter().map(|item| (item.node, item)).collect())
             .unwrap_or_default();
         let current: BTreeMap<_, _> = items.iter().map(|item| (item.node, item)).collect();
-        let update_indices = items.iter().enumerate().filter_map(|(index,item)| {
-            previous.get(&item.node).is_none_or(|old| {
-                old.bounds != item.bounds || old.spatial != item.spatial || old.shadows != item.shadows
-                    || old.commands != item.commands || old.fill_color != item.fill_color
-                    || old.image != item.image || !old.same_text(item)
-                    || old.content_bounds != item.content_bounds || old.content_offsets != item.content_offsets || old.clip != item.clip
-            }).then_some(index)
-        }).collect::<Vec<_>>();
+        let update_indices = items
+            .iter()
+            .enumerate()
+            .filter_map(|(index, item)| {
+                previous
+                    .get(&item.node)
+                    .is_none_or(|old| {
+                        old.bounds != item.bounds
+                            || old.spatial != item.spatial
+                            || old.shadows != item.shadows
+                            || old.commands != item.commands
+                            || old.fill_color != item.fill_color
+                            || old.image != item.image
+                            || !old.same_text(item)
+                            || old.content_bounds != item.content_bounds
+                            || old.content_offsets != item.content_offsets
+                            || old.clip != item.clip
+                    })
+                    .then_some(index)
+            })
+            .collect::<Vec<_>>();
         let copying = self.frame_build_policy != FrameBuildPolicy::Selective;
-        let updates = copying.then(|| update_indices.iter().map(|index| items[*index].clone()).collect::<Vec<_>>());
+        let updates = copying.then(|| {
+            update_indices
+                .iter()
+                .map(|index| items[*index].clone())
+                .collect::<Vec<_>>()
+        });
         let removed = previous
             .keys()
             .filter(|id| !current.contains_key(id))
@@ -1012,9 +1031,13 @@ impl UiTree {
             viewport_changed,
             order_changed,
         );
-        let items=Arc::new(PaintItems::from(items));
-        let delta_cloned_items=updates.as_ref().map_or(0,Vec::len);
-        let updates=if let Some(updates)=updates {Arc::new(PaintUpdates::from(updates))} else {PaintUpdates::indexed(items.clone(),update_indices)};
+        let items = Arc::new(PaintItems::from(items));
+        let delta_cloned_items = updates.as_ref().map_or(0, Vec::len);
+        let updates = if let Some(updates) = updates {
+            Arc::new(PaintUpdates::from(updates))
+        } else {
+            PaintUpdates::indexed(items.clone(), update_indices)
+        };
         let mut frame = FramePacket {
             tree: self.identity,
             base_revision: self.frame.as_ref().map(|frame| frame.revision),

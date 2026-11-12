@@ -1,0 +1,35 @@
+{
+  "result": {
+    "passed": true,
+    "native_framebuffer_pixels": 97792,
+    "channel_tolerance": 1,
+    "cached_scene_equal": true,
+    "device_replacement_pixels": 3072,
+    "device_replacement_passed": true,
+    "benchmark_scope": "owner commit/publication/submission plus completed export; same DX12 consumer, full redraw; native draw/present and sprite upload excluded; GPU export reuses only unowned allocations after producer and native read fence completion"
+  },
+  "presentation": {
+    "device_epoch": 1,
+    "sequence": 1,
+    "status": 0,
+    "queued": true,
+    "present_call_us": 4168.200000000001,
+    "display_confirmed": false
+  },
+  "window": {
+    "visible": false,
+    "explicit_scene_draw": true,
+    "framebuffer_readback_for_validation": true,
+    "os_present_latency_measured": false
+  },
+  "metadata": {
+    "base_commit": "82b0bed3aa4b20527c2ebab1e2783b956874a5f2",
+    "started": "2026-11-12T21:38:28.6996722+08:00",
+    "finished": "2026-11-12T21:38:34.6808011+08:00",
+    "binary_sha256": "d742edb223fa7224df8c633504d5f2476557853318a745818a525873104c4631",
+    "delivery": false,
+    "readback_control": false,
+    "exit_code": 0,
+    "native_launch": "Start-Process -WindowStyle Hidden; explicit diagnostic draws; visibility reported separately"
+  }
+}

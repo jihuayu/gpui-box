@@ -195,6 +195,23 @@ driver-induced TDR/physical device removal or cross-platform acceptance.
 
 ## Full-goal acceptance tracking
 
+The latest performance priority is modern desktop GPUs at 120 Hz with effects,
+especially p99/max and burst stalls; software rendering prioritizes responsiveness.
+The [frame-budget decision](ADR_RETAINED_FRAME_BUDGET.md) records API consequences
+and explicitly unimplemented parts. Property-only publication now reuses local
+payloads and batches dense persistent-map edits, retaining an original extractor
+control. The sustained test uses an independent OS worker, the actual bounded
+source inbox, owner wake/computed/typed sink transaction, frame queue and GPU
+completion at 60/120 Hz. It counts skipped ticks as unsatisfied work and keeps
+raw phase/tail samples. Synchronous completion is not visible-window acceptance.
+A Windows present-attempt receipt records native status and call boundaries;
+compositor/display completion and native sustained receipt correlation are open.
+`RenderPreference`/`SoftwareEffects` are experimental policy declarations, not
+an implemented software backend. The total goal remains active. The
+[two-run evidence](performance/2026-11-12-dense-cadence/README.md) records real
+regressions, a 9.26 ms small-scene spike and failed 10,000-node deadlines;
+it does not claim sustained visible 120 fps.
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |

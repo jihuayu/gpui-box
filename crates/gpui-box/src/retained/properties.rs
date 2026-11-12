@@ -78,6 +78,24 @@ pub struct PropertyTrees {
     pub effects: PropertyMap<f32>,
 }
 
+/// Private publication batch, shared across disjoint dirty subtrees. Dense
+/// property animation must not repeatedly copy and rebalance persistent paths.
+#[derive(Default)]
+pub(super) struct PropertyEdits {
+    pub transforms: Vec<(NodeId, Option<PropertyNode<[f32; 2]>>)>,
+    pub clips: Vec<(NodeId, Option<PropertyNode<Rect>>)>,
+    pub scrolls: Vec<(NodeId, Option<PropertyNode<[f32; 2]>>)>,
+    pub effects: Vec<(NodeId, Option<PropertyNode<f32>>)>,
+}
+impl PropertyEdits {
+    pub fn apply(self, trees: &mut PropertyTrees) {
+        trees.transforms.apply_edits(self.transforms);
+        trees.clips.apply_edits(self.clips);
+        trees.scrolls.apply_edits(self.scrolls);
+        trees.effects.apply_edits(self.effects);
+    }
+}
+
 pub(super) trait PropertyOutput {
     fn record(
         &mut self,

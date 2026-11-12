@@ -54,6 +54,9 @@ pub(crate) struct DirectXRenderer {
     /// In that case we want to discard the first frame that we draw as we got reset in the middle of a frame
     /// meaning we lost all the allocated gpu textures and scene resources.
     skip_draws: bool,
+    presentation_attempt: Option<gpui::NativePresentationAttempt>,
+    present_sequence: u64,
+    device_epoch: u64,
 }
 
 /// Direct3D objects
@@ -195,11 +198,18 @@ impl DirectXRenderer {
             width: 1,
             height: 1,
             skip_draws: false,
+            presentation_attempt: None,
+            present_sequence: 0,
+            device_epoch: 1,
         })
     }
 
     pub(crate) fn gpu_surface_device(&self) -> Option<ID3D11Device> {
         self.devices.as_ref().map(|devices| devices.device.clone())
+    }
+
+    pub(crate) fn presentation_attempt(&self) -> Option<gpui::NativePresentationAttempt> {
+        self.presentation_attempt
     }
 
     pub(crate) fn sprite_atlas(&self) -> Arc<dyn PlatformAtlas> {
@@ -248,6 +258,7 @@ impl DirectXRenderer {
 
     #[inline]
     fn present(&mut self) -> Result<()> {
+        let started_at = std::time::Instant::now();
         let result = unsafe {
             self.resources
                 .as_ref()
@@ -255,6 +266,16 @@ impl DirectXRenderer {
                 .swap_chain
                 .Present(0, DXGI_PRESENT(0))
         };
+        let returned_at = std::time::Instant::now();
+        self.present_sequence = self.present_sequence.saturating_add(1);
+        self.presentation_attempt = Some(gpui::NativePresentationAttempt {
+            device_epoch: self.device_epoch,
+            sequence: self.present_sequence,
+            started_at,
+            returned_at,
+            status: result.0,
+            queued: result.0 == 0,
+        });
         result.ok().context("Presenting swap chain failed")
     }
 
@@ -274,6 +295,8 @@ impl DirectXRenderer {
     }
 
     fn handle_device_lost_impl(&mut self, directx_devices: &DirectXDevices) -> Result<()> {
+        self.presentation_attempt = None;
+        self.device_epoch = self.device_epoch.checked_add(1).context("Presentation epoch exhausted")?;
         let disable_direct_composition = self.direct_composition.is_none();
 
         unsafe {
@@ -345,6 +368,7 @@ impl DirectXRenderer {
         scene: &Scene,
         background_appearance: WindowBackgroundAppearance,
     ) -> Result<()> {
+        self.presentation_attempt = None;
         if self.skip_draws {
             // skip drawing this frame, we just recovered from a device lost event
             // and so likely do not have the textures anymore that are required for drawing

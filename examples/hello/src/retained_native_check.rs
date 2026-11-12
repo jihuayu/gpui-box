@@ -556,6 +556,12 @@ pub fn open(cx: &mut App, output: PathBuf) {
         let result=AnyWindowHandle::from(window).update(cx, |_, window, cx| {
             // Native framebuffer validation is explicit and outside measurements.
             window.draw(cx).clear(cx);
+            window.present_if_needed();
+            let present = window.presentation_attempt().ok_or("native present feedback unavailable")?;
+            if !present.queued || present.returned_at < present.started_at {
+                return Err(format!("native presentation was not queued: {present:?}"));
+            }
+            std::fs::write(output.join("present-attempt.json"), format!("{{\"device_epoch\":{},\"sequence\":{},\"status\":{},\"queued\":{},\"present_call_us\":{},\"display_confirmed\":false}}\n", present.device_epoch, present.sequence, present.status, present.queued, (present.returned_at-present.started_at).as_secs_f64()*1e6)).unwrap();
             let image=window.render_to_image().map_err(|e|e.to_string())?;
             image.save(output.join("native-framebuffer.png")).map_err(|e|e.to_string())?;
             let checked=view.read(cx).validate(&image)?;

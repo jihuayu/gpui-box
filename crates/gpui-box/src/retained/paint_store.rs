@@ -18,6 +18,8 @@ pub enum FrameBuildPolicy {
     Selective,
     /// Original candidate map and old-page/delta copying, for measured controls.
     SelectiveCopy,
+    /// Retain complete subtree extraction as a same-runtime performance control.
+    SelectiveReextract,
     Full,
 }
 
@@ -217,17 +219,35 @@ impl UiTree {
         } else {
             Arc::new((*before.properties).clone())
         };
+        let mut property_edits = properties::PropertyEdits::default();
         for &(start, end, id) in &disjoint {
             let (origin, clip, state) = self.subtree_context(id, &before)?;
             let props = Arc::get_mut(&mut properties).expect("private property snapshot");
-            let extracted =
-                self.extract_subtree(id, origin, clip, state, props, &mut recorded_chunks)?;
+            let extracted = if layout_runs == 0
+                && self.paint_dirty.is_empty()
+                && self.frame_build_policy != FrameBuildPolicy::SelectiveReextract
+                && !copying
+            {
+                self.resolve_property_subtree(
+                    &before,
+                    start..end,
+                    origin,
+                    clip,
+                    state,
+                    &mut property_edits,
+                )?
+            } else {
+                self.extract_subtree(id, origin, clip, state, props, &mut recorded_chunks)?
+            };
             debug_assert_eq!(extracted.len(), end - start);
             stats.extracted_nodes += extracted.len();
             for (index, item) in (start..end).zip(extracted) {
                 debug_assert_eq!(item.node, before.items[index].node);
                 candidates.insert(index, item, false);
             }
+        }
+        if let Some(props) = Arc::get_mut(&mut properties) {
+            property_edits.apply(props);
         }
         for id in self.geometry_dirty.iter().copied().collect::<Vec<_>>() {
             let Some(index) = self.paint_indices.get(&id).copied() else {
@@ -292,6 +312,7 @@ impl UiTree {
             properties = before.properties.clone();
         }
         let mut patches = vec![];
+        let same_effect_tree = properties.effects.shares_root(&before.properties.effects);
         for (index, item) in candidates.into_sorted() {
             let old = &before.items[index];
             let paint_changed = old.bounds != item.bounds
@@ -303,12 +324,13 @@ impl UiTree {
                 || old.shadows != item.shadows
                 || old.image != item.image
                 || !old.same_text(&item);
-            let effects_changed = !properties::same_effects(
-                old.properties.effect,
-                item.properties.effect,
-                &before.properties,
-                &properties,
-            );
+            let effects_changed = !same_effect_tree
+                && !properties::same_effects(
+                    old.properties.effect,
+                    item.properties.effect,
+                    &before.properties,
+                    &properties,
+                );
             if paint_changed || effects_changed {
                 for ink in [old.ink_bounds(), item.ink_bounds()].into_iter().flatten() {
                     damage = Some(damage.map_or(ink, |previous| previous.union(ink)));

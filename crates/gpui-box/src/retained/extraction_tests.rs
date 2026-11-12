@@ -2,6 +2,65 @@ use super::*;
 
 type Branches = Vec<(NodeId, Vec<(NodeId, Vec<NodeId>)>)>;
 
+#[test]
+fn dense_property_batches_match_reextraction_through_removal_and_inheritance() {
+    let (mut optimized, _) = fixture();
+    let (mut control, _) = fixture();
+    control.set_frame_build_policy(FrameBuildPolicy::SelectiveReextract);
+    let original = optimized.frame([800.0, 600.0]).unwrap();
+    control.frame([800.0, 600.0]).unwrap();
+    for round in 0..8 {
+        let mut frames = vec![];
+        for tree in [&mut optimized, &mut control] {
+            let ids: Vec<_> = tree
+                .frame([800.0, 600.0])
+                .unwrap()
+                .items
+                .iter()
+                .map(|i| i.node)
+                .collect();
+            let mut tx = Transaction::default();
+            for (i, id) in ids.into_iter().enumerate() {
+                tx.translation(
+                    id,
+                    if round % 3 == 0 {
+                        [0.0; 2]
+                    } else {
+                        [i as f32 * 0.01, round as f32 * 0.1]
+                    },
+                );
+                tx.opacity(id, if round % 2 == 0 { 1.0 } else { 0.9 });
+                tx.clip(
+                    id,
+                    (round % 3 == 1).then_some(Rect {
+                        x: 0.0,
+                        y: 0.0,
+                        width: 100.0,
+                        height: 60.0,
+                    }),
+                );
+                tx.scroll(
+                    id,
+                    if round % 2 == 0 {
+                        [0.0; 2]
+                    } else {
+                        [0.25, 0.5]
+                    },
+                );
+            }
+            tree.commit(tx, BackendCapabilities::default()).unwrap();
+            frames.push(tree.frame([800.0, 600.0]).unwrap());
+        }
+        equivalent(&frames[0], &frames[1]);
+        for (a, b) in frames[0].items.iter().zip(frames[1].items.iter()) {
+            assert_eq!(a.spatial.translation, b.spatial.translation);
+            assert_eq!(a.spatial.scroll, b.spatial.scroll);
+        }
+    }
+    assert!(original.properties.transforms.is_empty());
+    assert!(original.properties.effects.is_empty());
+}
+
 fn fixture() -> (UiTree, Branches) {
     let fixed = |w, h| Style {
         size: Size {
@@ -108,6 +167,51 @@ fn equivalent(a: &FramePacket, b: &FramePacket) {
     for (x, y) in [(0.0, 0.0), (25.0, 15.0), (103.0, 42.0), (450.0, 95.0)] {
         assert_eq!(identity(a.hit_test(x, y)), identity(b.hit_test(x, y)));
     }
+}
+
+#[test]
+fn property_resolution_retains_local_payloads_and_matches_reextraction() {
+    let (mut fast, nodes) = fixture();
+    let (mut control, other) = fixture();
+    control.set_frame_build_policy(FrameBuildPolicy::SelectiveReextract);
+    let first = fast.frame([800.0, 600.0]).unwrap();
+    control.frame([800.0, 600.0]).unwrap();
+    for step in 0..48 {
+        for (tree, branches) in [(&mut fast, &nodes), (&mut control, &other)] {
+            let (parent, rows) = &branches[step % 3];
+            let row = rows[1].0;
+            let mut tx = Transaction::default();
+            let shift = if step % 2 == 0 {
+                [1.25, -2.5]
+            } else {
+                [0.0; 2]
+            };
+            tx.translation(*parent, shift);
+            tx.translation(row, [-shift[0], -shift[1]]);
+            tx.clip(
+                *parent,
+                (step % 3 != 0).then_some(Rect {
+                    x: 0.25,
+                    y: -1.5,
+                    width: 78.0,
+                    height: 51.0,
+                }),
+            );
+            tx.opacity(*parent, if step % 4 == 0 { 0.4 } else { 1.0 });
+            tx.opacity(row, if step % 5 == 0 { 0.6 } else { 1.0 });
+            tx.scroll(*parent, [step as f32, step as f32 * 3.0]);
+            tx.scroll(row, if step % 2 == 0 { [500.0; 2] } else { [0.0; 2] });
+            tree.commit(tx, BackendCapabilities::default()).unwrap();
+        }
+        let a = fast.frame([800.0, 600.0]).unwrap();
+        let b = control.frame([800.0, 600.0]).unwrap();
+        equivalent(&a, &b);
+        assert_eq!(a.recorded_chunks, 0);
+        assert_eq!(a.layout_runs, 0);
+    }
+    drop(fast);
+    assert_eq!(first.items[0].bounds.x, 0.0);
+    assert_eq!(first.items[0].spatial.translation, [0.0; 2]);
 }
 
 #[test]

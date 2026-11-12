@@ -1270,6 +1270,24 @@ pub enum TextInputStateChange {
     ContentChanged,
 }
 
+/// Native present submission timing. This contains no compositor/display
+/// completion timestamp. Correlate it with the host's rendered scene revision.
+#[derive(Clone, Copy, Debug)]
+pub struct NativePresentationAttempt {
+    /// Changes when native device/swap-chain ownership is replaced.
+    pub device_epoch: u64,
+    /// Monotonic attempt sequence within this window's renderer lifetime.
+    pub sequence: u64,
+    /// Host timestamp immediately before calling the native present API.
+    pub started_at: std::time::Instant,
+    /// Host timestamp immediately after that API returns.
+    pub returned_at: std::time::Instant,
+    /// Native status code, including non-error statuses such as occlusion.
+    pub status: i32,
+    /// True only when the native API accepted normal presentation (S_OK).
+    pub queued: bool,
+}
+
 #[expect(missing_docs)]
 pub trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
     fn bounds(&self) -> Bounds<Pixels>;
@@ -1355,6 +1373,11 @@ pub trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
     fn on_appearance_changed(&self, callback: Box<dyn FnMut()>);
     fn on_button_layout_changed(&self, _callback: Box<dyn FnMut()>) {}
     fn draw(&self, scene: &Scene);
+    /// Most recent native presentation attempt, when the backend exposes one.
+    /// A queued attempt is not GPU completion or display/scanout confirmation.
+    fn presentation_attempt(&self) -> Option<NativePresentationAttempt> {
+        None
+    }
     /// The current native D3D11 device, if this window supports shared GPU surfaces.
     #[cfg(target_os = "windows")]
     fn gpu_surface_device(&self) -> Option<windows::Win32::Graphics::Direct3D11::ID3D11Device> {

@@ -9,6 +9,7 @@ selected = set()
 for directory in [
     "crates/gpui-box/src/retained", "examples/hello/src", "examples/desktop/src",
     "vendor/gpui/crates/gpui_wgpu/src", "vendor/gpui/crates/gpui_windows/src",
+    "tooling/rendering-perf/src",
 ]:
     selected.update(path for path in (workspace / directory).rglob("*")
                     if path.suffix in {".rs", ".wgsl", ".hlsl"})
@@ -22,6 +23,7 @@ for name in [
     "vendor/gpui/crates/gpui/src/windows_gpu_surface.rs", "vendor/gpui/crates/gpui/src/assets.rs",
     "vendor/gpui/crates/gpui/src/color.rs", "vendor/gpui/crates/gpui/src/geometry.rs",
     "tooling/rendering-perf/native-sources.py", "tooling/rendering-perf/run-native-surface.ps1",
+    "tooling/rendering-perf/Cargo.toml", "tooling/rendering-perf/run-dense.ps1",
     "vendor/taffy/Cargo.toml", "vendor/taffy/UPSTREAM.json",
 ]:
     selected.add(workspace / name)
