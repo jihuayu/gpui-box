@@ -124,6 +124,10 @@ pub use gpui_notification_schedule as notification_schedule;
 #[cfg(feature = "task-presentation")]
 pub use gpui_task_presentation as task_presentation;
 
+/// Remote push providers, device registration and bounded message routing.
+#[cfg(feature = "push")]
+pub use gpui_push as push;
+
 #[cfg(test)]
 mod tests {
     #[cfg(feature = "jobs")]
@@ -278,5 +282,26 @@ mod tests {
         assert_eq!(crate::auth::AuthPlatform::ALL.len(), 6);
         assert_eq!(crate::auth::AuthOperation::ALL.len(), 10);
         assert_eq!(crate::auth::platform_support_matrix().len(), 60);
+    }
+
+    #[cfg(feature = "push")]
+    #[test]
+    fn push_facade_reexports_the_coordinated_contracts() {
+        assert_eq!(
+            crate::push::UPSTREAM_GPUI_REVISION,
+            crate::UPSTREAM_REVISION
+        );
+        assert_eq!(crate::push::PACKAGE_VERSION, crate::VERSION);
+        assert_eq!(crate::push::PushOperation::ALL.len(), 6);
+        assert_eq!(crate::push::PushPlatform::ALL.len(), 6);
+        assert_eq!(crate::push::platform_support_matrix().len(), 36);
+        assert_eq!(crate::push::DEFAULT_PUSH_EVENT_CAPACITY, 64);
+        assert_eq!(crate::push::MAX_PUSH_PAYLOAD_BYTES, 4096);
+        assert_eq!(crate::push::PUSH_SECRET_SERVICE, "gpui-push/v1");
+        assert!(
+            crate::push::platform_support_matrix()
+                .iter()
+                .all(|row| row.evidence == crate::push::Evidence::ContractOnly)
+        );
     }
 }
