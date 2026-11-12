@@ -27,6 +27,14 @@ pub struct ErrorReference {
 
 const COMMANDS: &[CommandReference] = &[
     CommandReference {
+        syntax: "platform add desktop|android [--dry-run]",
+        summary: "Enable an existing project's target with preserved application entry points",
+        result: "PlatformAddReceipt v1 or read-only PlatformAddPlan v1",
+        effects: "Preview reads only. Apply uses the generation lock, publishes config, exclusively seeds missing source files and resumes managed generation",
+        offline: "Local configuration/SDK and hard-link filesystem support required. Build tools are queried by doctor separately",
+        json: true,
+    },
+    CommandReference {
         syntax: "platform list",
         summary: "Report native and Web target adapters, host policy and project selection",
         result: "PlatformInventory v1 with unprobed toolchain readiness",
@@ -232,6 +240,10 @@ const NOTES: &[&str] = &[
 ];
 
 const ERRORS: &[ErrorReference] = &[
+    ErrorReference {
+        code: "PLATFORM_ADDITION_FAILED",
+        meaning: "Platform addition failed validation, ownership, locking or publication. Retry after reviewing the documented recovery boundary",
+    },
     ErrorReference {
         code: "PLATFORM_QUERY_FAILED",
         meaning: "The optional project configuration could not be read or validated for platform inventory",

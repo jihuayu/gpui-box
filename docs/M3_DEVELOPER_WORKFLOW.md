@@ -938,10 +938,59 @@ compileSdk36 and two configured native ABIs.
 macOS is unverified by the current hosted matrix. iOS has copied upstream source
 and an Apple-host requirement, with CLI generation/build adapters still absent.
 Web is unsupported by the current CLI. Their inventory records retain explicit
-acceptance gaps. Platform add, additional target generation/build/run adapters,
+acceptance gaps. Additional target generation/build/run adapters,
 Apple infrastructure, physical devices and native release journeys remain open
 under #73/#7/#8/#9. Existing positional build/dev commands retain their behavior.
 
 Tests cover five host policies, empty-directory operation with an empty PATH,
 Android-only project selection, invalid configuration, unsupported syntax and
 preserved project bytes. The current CLI suite contains72Windows cases.
+
+## Add a platform to an existing project
+
+```sh
+gpui-box platform add android --dry-run --json
+gpui-box platform add android --json
+gpui-box platform add desktop --json
+gpui-box doctor --json
+gpui-box build android
+gpui-box build desktop
+```
+
+PlatformAddPlan v1 includes the exact configuration change, application entry
+point creations or preserved hashes, and the existing generation ChangePlan.
+Preview starts no child processes, writes no locks or files, and works with an
+empty PATH. Targets are the current desktop and Android families. The plan
+records content preconditions for this preview. Apply recomputes them under the
+same generation lock used by ordinary generate. Saved platform-plan replay
+requires a later extension.
+
+Apply validates the complete candidate configuration and managed-output ownership
+before publishing configuration. It appends the requested target without dropping
+existing fields, seeds missing target entry points exclusively, then uses the
+existing generation journal and receipts. Android adds android/src/lib.rs,
+android-custom.gradle.kts and mise.android.toml. Desktop adds desktop/src/main.rs.
+Already-enabled targets preserve customized entry points, fill missing defaults
+and resume managed generation. Re-enabling a previously generated target keeps
+its application-owned sources and validates its retained managed hashes. A new
+target with existing unowned entry points fails before configuration changes.
+Application feature sources, assets, template provenance and existing mise.toml
+remain application-owned. Use the CLI build/dev entry points for the added target.
+Existing task definitions can be extended explicitly by the application author.
+
+Configuration publication is the recovery marker. A process or filesystem failure
+after it can leave the target enabled with a prefix of new entry points or managed
+outputs. Review the reported error, resolve file locks or conflicts, and rerun the
+same platform add command. It fills missing entry points before journal recovery.
+Ordinary generate also recovers managed outputs, while platform add additionally
+supplies missing source defaults. Existing files are preserved through exclusive
+hard-link publication, which requires filesystem support. An interrupted source
+publication can retain a .gpui-box-platform-* sibling file. Inspect and remove that
+exact staging file after verifying that no operation is running. A killed process
+can retain the shared generate.lock and follows the existing stale-lock recovery
+procedure. Project directories must remain caller-controlled during operation.
+Individual publications remain visible between steps.
+
+Toolchain installation, platform runtime/provider readiness and release signing
+retain independent doctor and milestone evidence. Apple/Web target adapters and
+physical-device testing retain their existing acceptance gates.
