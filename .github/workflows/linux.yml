@@ -82,6 +82,10 @@ jobs:
         run: mise exec -- cargo test --locked -p gpui-box-example-hello 2>&1 | tee target/ci/gallery.log
       - name: Check desktop application
         run: mise run check:desktop 2>&1 | tee target/ci/desktop.log
+      - name: Qualify independent facade features
+        env:
+          GPUI_BOX_FEATURE_REPORT_DIR: ${{ github.workspace }}/target/ci/feature-qualification
+        run: mise run check:features 2>&1 | tee target/ci/features.log
       - name: Qualify external SDK and project templates
         env:
           GPUI_BOX_QUALIFICATION_TARGET: desktop

@@ -161,3 +161,44 @@ artifact evidence. Interactive, signed release/install/update, offline bootstrap
 registry/native CLI publication and physical-device gates remain independent.
 
 [Local entry point and report contract](M3_DEVELOPER_WORKFLOW.md#reproducible-external-template-qualification)
+
+## Independent capability feature qualification
+
+```sh
+mise run check:features
+GPUI_BOX_FEATURE_TARGET=android mise -E android run check:features
+```
+
+Set GPUI_BOX_FEATURE_REPORT_DIR to a fresh report directory to repeat a run.
+The default is target/ci/feature-qualification. The harness discovers the
+facade feature names from current Cargo metadata and requires empty default
+features. Each capability and its optional -gpui adapter compiles independently
+with --no-default-features. Additional cases cover an empty facade, all contract
+features together, the host platform, and all adapters with that platform.
+The current facade has 43 capability selections, giving 47 cases per target.
+Windows/Linux use rustc's host triple explicitly. Android uses cargo-ndk at API35
+for ARM64 and x86_64, giving 94 cases across both ABIs.
+
+Before each compilation, cargo tree --edges normal records the selected target's
+runtime dependency graph. Contract selections reject the GPUI engine, renderer
+and platform backend packages. Adapted selections require exactly one GPUI
+package identity resolving to vendor/gpui/crates/gpui. Renamed gpui-pre packages
+fail qualification. Android also rejects unrelated native/Web platform backends.
+Only the selected platform is enabled for the combined adapted case. Build and
+development dependencies retain their own validation, and this graph inspection
+does not evaluate arbitrary future package aliases.
+
+Each case runs cargo check --lib through the pinned mise environment. Tool and
+dependency downloads follow normal Cargo/mise cache settings. These checks
+validate Rust compilation and dependency selection. Native linking, installation,
+provider behavior, assistive-reader interaction and GPU/performance acceptance
+use their independent gates. The existing desktop/APK and external-template
+build steps continue to provide linking/package evidence.
+
+The schema-v1 receipt records source and upstream revisions, Rust/Cargo identity,
+host/target, selected features, normal package identities, commands, exit codes,
+durations and completed cases. It records runtime_executed=false and is written
+on a qualification error as well. Child stdout/stderr use files so background
+helpers cannot retain a capture pipe. All three native jobs run this gate and
+retain its logs/receipt with the existing validation artifacts for 14 days.
+Actual provider/runtime evidence remains with #70 and the service owners.

@@ -73,6 +73,10 @@ run = "cargo run --locked -p gpui-box-cli -- info"
 description = "Build external committed-SDK templates (set GPUI_BOX_QUALIFICATION_TARGET)"
 run = "cargo test --locked -p gpui-box-cli --test qualification -- --ignored --nocapture --test-threads=1"
 
+[tasks."check:features"]
+description = "Compile independent facade features and audit normal dependency graphs"
+run = "cargo test --locked -p gpui-box-cli --test features -- --ignored --nocapture --test-threads=1"
+
 [tasks.check]
 description = "Validate configuration, Rust formatting, tests, and lints"
 run = [
