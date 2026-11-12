@@ -162,6 +162,25 @@ impl Qualification {
                     ],
                     true,
                 )?;
+                let configuration_path = app.join("gpui-box.json");
+                let configuration_bytes =
+                    fs::read(&configuration_path).map_err(|error| error.to_string())?;
+                let configuration = self.cli(
+                    &format!("{label}-config-validate"),
+                    &app,
+                    &["config", "validate"],
+                    true,
+                )?;
+                if configuration["valid"] != true
+                    || configuration["configuration_sha256"]
+                        != format!("{:x}", Sha256::digest(&configuration_bytes))
+                    || fs::read(&configuration_path).map_err(|error| error.to_string())?
+                        != configuration_bytes
+                {
+                    return Err(format!(
+                        "{label} configuration validation changed its input or identity"
+                    ));
+                }
                 let provenance_path = app.join(".gpui-box/template.json");
                 let provenance_bytes =
                     fs::read(&provenance_path).map_err(|error| error.to_string())?;
@@ -336,7 +355,7 @@ impl Qualification {
                         "{label} changed application-owned content or provenance"
                     ));
                 }
-                applications.push(json!({"template": provenance, "targets": targets, "platform_added": platform_added, "build_target": target, "build_completed": enabled, "artifact": artifact_receipt, "path": app}));
+                applications.push(json!({"template": provenance, "configuration": configuration, "targets": targets, "platform_added": platform_added, "build_target": target, "build_completed": enabled, "artifact": artifact_receipt, "path": app}));
             }
         }
         if self.cli(

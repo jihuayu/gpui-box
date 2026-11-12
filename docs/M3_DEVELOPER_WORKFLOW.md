@@ -126,6 +126,37 @@ and #5 acceptance gates.
 
 ## Configuration v1
 
+gpui-box.json is the canonical application configuration. Version 1 remains the
+supported project/service contract. Existing configurations can omit permissions,
+assets and services and receive the documented built-in defaults. Project values
+take precedence over those defaults. Local overlays and installation-lock
+overrides are unsupported. Unsupported versions and unknown fields fail before
+generation. A future migration requires an explicit versioned command contract.
+
+```sh
+gpui-box config schema
+gpui-box config validate --json
+```
+
+The draft 2020-12 editor schema is shipped in
+schemas/gpui-box.project.v1.schema.json and embedded in the CLI. Associate it with
+gpui-box.json through the editor's schema settings. The schema command works
+outside projects without tool/network access. JSON mode wraps the schema in the
+usual response envelope. Human mode emits the bare schema document.
+
+Validation uses the same typed loader and semantic checks as workflow commands
+and generation. Configuration reads are bounded to 1 MiB. The report contains
+raw-byte SHA256/length, schema identity/digest, CLI/upstream/project/service
+versions and normalized optional defaults. It preserves the original bytes and
+performs no distribution, asset, toolchain or native-provider probes. Use doctor,
+SDK verification, builds and runtime qualification for those gates.
+
+The editor schema covers field types, required keys, supported values, numeric
+limits and structural constraints. The CLI additionally validates native path
+components, 32-bit version segments, printable nonblank text, UTF-8 purpose-byte
+limits and duplicate permission kinds. Editor acceptance alone therefore does
+not establish command acceptance. Relative paths retain project-root resolution.
+
 ```json
 {
   "schema_version": 1,

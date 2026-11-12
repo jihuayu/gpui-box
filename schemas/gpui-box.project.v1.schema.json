@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/jihuayu/gpui-box/main/schemas/gpui-box.project.v1.schema.json",
+  "title": "gpui-box project configuration v1",
+  "description": "Structural editor schema for gpui-box.json. Run gpui-box config validate for authoritative UTF-8 byte, numeric segment, native path, duplicate permission-kind and custom URL-scheme validation. Workflow gates validate distribution, assets, tools and runtime. Files are limited to 1 MiB. Schema defaults are annotations and are applied by the CLI's typed configuration loader.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "name", "application_id", "version", "version_code", "distribution", "targets", "update_channel"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+      "description": "Printable application name containing non-whitespace text."
+    },
+    "application_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "description": "Numeric major.minor.patch. Each segment must fit an unsigned 32-bit integer."
+    },
+    "version_code": {"type": "integer", "minimum": 1, "maximum": 2100000000},
+    "distribution": {
+      "type": "string",
+      "description": "Source checkout or exported SDK path, resolved against the project directory. Workflow gates verify existence and SDK integrity."
+    },
+    "targets": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"enum": ["desktop", "android"]}
+    },
+    "update_channel": {"const": "development"},
+    "permissions": {
+      "type": "array",
+      "default": [],
+      "items": {"const": "internet"}
+    },
+    "assets": {
+      "type": "array",
+      "default": ["assets"],
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Project-relative native path containing only normal components. The CLI checks traversal, prefixes and separators for the current host."
+      }
+    },
+    "services": {"$ref": "#/$defs/services", "default": {"schema_version": 1, "permissions": [], "url_schemes": []}}
+  },
+  "$defs": {
+    "services": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {"const": 1, "default": 1},
+        "permissions": {
+          "type": "array",
+          "default": [],
+          "description": "Permission kinds must be unique. Nonempty native declarations require the Android target.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "purpose"],
+            "properties": {
+              "kind": {"enum": ["notifications", "camera", "microphone", "location_when_in_use", "contacts"]},
+              "purpose": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512,
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+                "description": "Printable contextual purpose containing non-whitespace text. The CLI additionally limits UTF-8 length to 512 bytes."
+              }
+            }
+          }
+        },
+        "url_schemes": {
+          "type": "array",
+          "uniqueItems": true,
+          "default": [],
+          "items": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[a-z][a-z0-9+.-]*$",
+            "not": {"enum": ["http", "https", "file", "javascript", "data", "shell", "content", "intent"]}
+          }
+        }
+      }
+    }
+  },
+  "allOf": [{
+    "if": {
+      "required": ["services"],
+      "properties": {
+        "services": {
+          "anyOf": [
+            {"required": ["permissions"], "properties": {"permissions": {"minItems": 1}}},
+            {"required": ["url_schemes"], "properties": {"url_schemes": {"minItems": 1}}}
+          ]
+        }
+      }
+    },
+    "then": {"properties": {"targets": {"contains": {"const": "android"}}}}
+  }]
+}
