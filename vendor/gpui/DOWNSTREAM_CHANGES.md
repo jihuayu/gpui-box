@@ -84,3 +84,23 @@ The guard does not yet account for peak memory in overlapping allocation epochs.
 An explicit cache-disable control supports completed-work hardware A/B. A BGRA
 readback helper bridges isolated output to existing window image paint while
 direct GPU texture import remains pending.
+
+### Bounded retained isolation targets
+
+Retained `QuadLayer` adds optional physical bounds (`None` is the full-viewport
+control). Its 256 MiB guard now sums bounded extents and validates rectangles
+before allocation. Target origin/size camera buffers and quad globals are
+immutable per target and explicitly leased through completion, including root
+cameras. Layer extent/origin changes replace allocations and invalidate parents;
+opacity-only writes still preserve cached contents. Submission counters expose
+live/allocated texture payload and raster target pixels, excluding retired epochs
+and driver overhead.
+
+The shared `GlobalParams` Rust/WGSL ABI gains origin/padding (32 bytes total).
+Legacy initialization keeps zero origin. Quad fragment gradient/SDF coordinates
+recover world position for cropped targets. Retained image/glyph pipelines bind
+an additional camera group; resource ABIs remain unchanged. Layer composition
+uses a bounded six-vertex rectangle and local texture loads. Distribution-owned
+page ink unions select conservative device bounds, and fresh reference rendering
+forces full-viewport textures. See `docs/RETAINED_LAYER_BOUNDS.md` in the parent
+repository for validation, measurements and remaining resource-budget limits.

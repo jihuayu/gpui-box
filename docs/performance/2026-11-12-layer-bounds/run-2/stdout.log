@@ -1,0 +1,7 @@
+Integrated retained GPU Vulkan NVIDIA GeForce GTX 1650 Ti
+Layer bounds [1920, 1080] small-cached-opacity: 675.9 / 1268.3 us
+Layer bounds [1920, 1080] small-material-raster: 810.7 / 1541.2 us
+Layer bounds [1920, 1080] full-surface-control: 1852.3 / 1763.3 us
+Layer bounds [3840, 2160] small-cached-opacity: 1060.8 / 2312.8 us
+Layer bounds [3840, 2160] small-material-raster: 1172.7 / 2477.9 us
+Layer bounds [3840, 2160] full-surface-control: 4772.9 / 4445.2 us

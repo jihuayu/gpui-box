@@ -48,6 +48,7 @@ fn plan(
             layers.push(QuadLayer {
                 id: key(id),
                 opacity: frame.properties.effects[&id].value,
+                bounds: None,
                 draws: draws.into(),
             });
         }
@@ -72,6 +73,7 @@ fn plan(
         layers.push(QuadLayer {
             id: key(id),
             opacity: frame.properties.effects[&id].value,
+            bounds: None,
             draws: draws.into(),
         });
     }
@@ -84,6 +86,7 @@ pub struct CompositionStats {
     pub inspected_items: usize,
     pub planned_items: usize,
     pub layer_records: usize,
+    pub bounds_items: usize,
 }
 
 struct CachedLayer {
@@ -95,10 +98,12 @@ struct Snapshot {
     items: Arc<PaintItems>,
     properties: Arc<PropertyTrees>,
     layers: Vec<CachedLayer>,
+    bounds_pages: Vec<Arc<BTreeMap<NodeId, Rect>>>,
 }
 #[derive(Default)]
 pub(super) struct CompositionCache {
     snapshot: Option<Snapshot>,
+    bounds: BTreeMap<NodeId, Rect>,
 }
 pub(super) type CompositionPlan = (Option<Vec<QuadDraw>>, Vec<QuadLayer>, CompositionStats);
 fn same_topology(a: &PaintItem, b: &PaintItem) -> bool {
@@ -116,6 +121,31 @@ fn same_topology(a: &PaintItem, b: &PaintItem) -> bool {
     }
 }
 impl CompositionCache {
+    pub(super) fn bound_layers(&self, layers: &mut [QuadLayer], surface: [u32; 2], scale: f32) {
+        for layer in layers {
+            let node = NodeId {
+                tree: layer.id[0],
+                slot: layer.id[1] as usize,
+                generation: layer.id[2],
+            };
+            // A pixel fringe covers grayscale glyph snapping and edge AA.
+            layer.bounds = Some(self.bounds.get(&node).map_or([0; 4], |ink| {
+                let x = (ink.x * scale - 1.0).floor().clamp(0.0, surface[0] as f32) as u32;
+                let y = (ink.y * scale - 1.0).floor().clamp(0.0, surface[1] as f32) as u32;
+                let right = ((ink.x + ink.width) * scale + 1.0)
+                    .ceil()
+                    .clamp(0.0, surface[0] as f32) as u32;
+                let bottom = ((ink.y + ink.height) * scale + 1.0)
+                    .ceil()
+                    .clamp(0.0, surface[1] as f32) as u32;
+                if right <= x || bottom <= y {
+                    [0; 4]
+                } else {
+                    [x, y, right - x, bottom - y]
+                }
+            }));
+        }
+    }
     pub(super) fn resolve(
         &mut self,
         frame: &FramePacket,
@@ -158,6 +188,36 @@ impl CompositionCache {
                             })
                     })
         });
+        // Cache nearest-effect ink unions per immutable paint page. Opacity does
+        // not affect the union: hidden content must be ready when restored.
+        let old = self.snapshot.as_ref().filter(|_| reusable);
+        let bounds_pages = frame
+            .items
+            .pages()
+            .iter()
+            .enumerate()
+            .map(|(index, page)| {
+                if let Some(old) = old
+                    && Arc::ptr_eq(page, &old.items.pages()[index])
+                {
+                    return old.bounds_pages[index].clone();
+                }
+                let mut bounds = BTreeMap::<NodeId, Rect>::new();
+                if frame.properties.effects.is_empty() {
+                    return Arc::new(bounds);
+                }
+                for item in page.iter() {
+                    stats.bounds_items += 1;
+                    if let (Some(effect), Some(ink)) = (item.properties.effect, item.ink_bounds()) {
+                        bounds
+                            .entry(effect)
+                            .and_modify(|old| *old = old.union(ink))
+                            .or_insert(ink);
+                    }
+                }
+                Arc::new(bounds)
+            })
+            .collect::<Vec<_>>();
         let order;
         if reusable {
             order = None;
@@ -185,8 +245,31 @@ impl CompositionCache {
                 items: frame.items.clone(),
                 properties: frame.properties.clone(),
                 layers: cached,
+                bounds_pages: vec![],
             });
             order = Some(root);
+        }
+        self.snapshot.as_mut().unwrap().bounds_pages = bounds_pages;
+        let snapshot = self.snapshot.as_ref().unwrap();
+        let mut bounds = BTreeMap::<NodeId, Rect>::new();
+        for page in &snapshot.bounds_pages {
+            for (node, ink) in page.iter() {
+                bounds
+                    .entry(*node)
+                    .and_modify(|old| *old = old.union(*ink))
+                    .or_insert(*ink);
+            }
+        }
+        // Layers are postorder; nested content contributes to every ancestor.
+        for layer in &snapshot.layers {
+            if let Some(ink) = bounds.get(&layer.node).copied()
+                && let Some(parent) = frame.properties.effects[&layer.node].parent
+            {
+                bounds
+                    .entry(parent)
+                    .and_modify(|old| *old = old.union(ink))
+                    .or_insert(ink);
+            }
         }
         let layers = self
             .snapshot
@@ -197,10 +280,12 @@ impl CompositionCache {
             .map(|layer| QuadLayer {
                 id: key(layer.node),
                 opacity: frame.properties.effects[&layer.node].value,
+                bounds: None,
                 draws: layer.draws.clone(),
             })
             .collect::<Vec<_>>();
         stats.layer_records = layers.len();
+        self.bounds = bounds;
         Ok((order, layers, stats))
     }
 }
@@ -208,6 +293,83 @@ impl CompositionCache {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn bounded_layers_track_nested_clipped_ink_and_reuse_opacity_only_pages() {
+        let absolute = |x, y, width, height| Style {
+            position: taffy::Position::Absolute,
+            inset: taffy::Rect {
+                left: length(x),
+                top: length(y),
+                right: taffy::LengthPercentageAuto::auto(),
+                bottom: taffy::LengthPercentageAuto::auto(),
+            },
+            size: taffy::Size {
+                width: length(width),
+                height: length(height),
+            },
+            ..Default::default()
+        };
+        let mut tree = UiTree::new(absolute(0.0, 0.0, 100.0, 100.0), 0).unwrap();
+        let parent = tree
+            .append(tree.root(), absolute(10.0, 20.0, 80.0, 70.0), 0)
+            .unwrap();
+        let child = tree
+            .append(parent, absolute(5.0, 6.0, 40.0, 30.0), 0xff0000ff)
+            .unwrap();
+        let mut tx = Transaction::default();
+        tx.opacity(parent, 0.5);
+        tx.opacity(child, 0.5);
+        tx.clip(
+            parent,
+            Some(Rect {
+                x: 0.0,
+                y: 0.0,
+                width: 30.0,
+                height: 30.0,
+            }),
+        );
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+        let first = tree.frame([100.0; 2]).unwrap();
+        let instances = allocations(&first);
+        let mut cache = CompositionCache::default();
+        let (_, mut layers, stats) = cache.resolve(&first, &instances, false).unwrap();
+        assert_eq!(stats.bounds_items, first.items.len());
+        cache.bound_layers(&mut layers, [150; 2], 1.5);
+        assert_eq!(layers.len(), 2);
+        for layer in &layers {
+            assert_eq!(layer.bounds, Some([21, 38, 40, 38]));
+        }
+        let mut tx = Transaction::default();
+        tx.opacity(parent, 0.0);
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+        let hidden = tree.frame([100.0; 2]).unwrap();
+        let (_, mut layers, stats) = cache.resolve(&hidden, &instances, false).unwrap();
+        assert_eq!(stats.bounds_items, 0);
+        cache.bound_layers(&mut layers, [150; 2], 1.5);
+        assert!(
+            layers
+                .iter()
+                .all(|layer| layer.bounds == Some([21, 38, 40, 38]))
+        );
+        let mut tx = Transaction::default();
+        tx.color(child, 0);
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+        let empty = tree.frame([100.0; 2]).unwrap();
+        let (_, mut layers, stats) = cache.resolve(&empty, &instances, false).unwrap();
+        assert_eq!(stats.bounds_items, empty.items.len());
+        cache.bound_layers(&mut layers, [150; 2], 1.5);
+        assert!(layers.iter().all(|layer| layer.bounds == Some([0; 4])));
+        // Old immutable packets retain their original geometry after publication.
+        let (_, mut layers, _) = cache.resolve(&first, &instances, true).unwrap();
+        cache.bound_layers(&mut layers, [20, 30], 1.0);
+        assert!(
+            layers
+                .iter()
+                .all(|layer| layer.bounds == Some([14, 25, 6, 5]))
+        );
+        cache.bound_layers(&mut layers, [10; 2], 1.0);
+        assert!(layers.iter().all(|layer| layer.bounds == Some([0; 4])));
+    }
     fn allocations(frame: &FramePacket) -> BTreeMap<NodeId, Vec<InstanceHandle>> {
         let mut arena = InstanceArena::default();
         frame

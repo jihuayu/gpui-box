@@ -1,4 +1,4 @@
-param([string]$Output = 'target/retained-runtime-gpu')
+param([string]$Output = 'target/retained-runtime-gpu', [switch]$ValidationOnly, [switch]$LayerBoundsOnly)
 $ErrorActionPreference = 'Stop'
 $workspace = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
 Push-Location -LiteralPath $workspace
@@ -58,6 +58,7 @@ try {
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/completion.rs',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/completion/tests.rs',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer.rs',
+        'vendor/gpui/crates/gpui_wgpu/src/shaders.wgsl',
         'vendor/gpui/crates/gpui_wgpu/src/cosmic_text_system.rs',
         'crates/gpui-box/src/retained/wgpu/composition.rs',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/layers.rs',
@@ -67,6 +68,7 @@ try {
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/glyphs.rs',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/glyphs.wgsl',
         'tooling/rendering-perf/src/retained_gpu.rs', 'tooling/rendering-perf/src/retained_bench.rs',
+        'tooling/rendering-perf/src/retained_layer_bounds.rs',
         'tooling/rendering-perf/src/retained_layers.rs', 'tooling/rendering-perf/src/retained_reactive.rs',
         'tooling/rendering-perf/src/retained_computed.rs',
         'tooling/rendering-perf/src/retained_delivery.rs',
@@ -100,9 +102,29 @@ try {
         base_commit = (& git rev-parse HEAD).Trim()
         rustc = (& mise exec -- rustc -Vv) -join "`n"
         source_hashes = @($hashes)
+        validation_only = [bool]$ValidationOnly
+        layer_bounds_only = [bool]$LayerBoundsOnly
         scope = 'Retained UI frames, hardware pixel comparisons, upload payload counts, in-flight lifecycle'
     } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $Output 'metadata.json') -Encoding utf8
-    & ./target/release/retained-runtime-gpu.exe $Output
-    if ($LASTEXITCODE -ne 0) { throw 'Retained runtime hardware validation failed' }
+    $runArgs = @('"' + (Resolve-Path -LiteralPath $Output).Path + '"')
+    if ($ValidationOnly) { $runArgs += '--validation-only' }
+    if ($LayerBoundsOnly) { $runArgs += '--layer-bounds-only' }
+    $stdout = Join-Path $Output 'stdout.log'
+    $stderr = Join-Path $Output 'stderr.log'
+    $job = Start-Process -FilePath (Join-Path $workspace 'target/release/retained-runtime-gpu.exe') -ArgumentList $runArgs -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+    $observations = [Collections.Generic.List[object]]::new()
+    while (-not $job.HasExited) {
+        $compilers = @(Get-CimInstance Win32_Process -Filter "Name='cargo.exe' OR Name='rustc.exe' OR Name='clippy-driver.exe'" |
+            Select-Object ProcessId, Name)
+        $observations.Add([ordered]@{ at = [DateTimeOffset]::Now.ToString('o'); compilers = $compilers })
+        Start-Sleep -Milliseconds 500
+        $job.Refresh()
+    }
+    $job.WaitForExit()
+    [ordered]@{ interval_ms = 500; samples = @($observations.ToArray()) } | ConvertTo-Json -Depth 6 |
+        Set-Content -LiteralPath (Join-Path $Output 'process-samples.json') -Encoding utf8
+    Get-Content -LiteralPath $stdout
+    Get-Content -LiteralPath $stderr
+    if ($job.ExitCode -ne 0) { throw 'Retained runtime hardware validation failed' }
 }
 finally { Pop-Location }

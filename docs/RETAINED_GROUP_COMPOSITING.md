@@ -29,17 +29,19 @@ hold explicit leases on textures, uniforms and bindings, with the existing
 three-frame queue bound. All writes and draws use the same ordered WGPU queue.
 A switch can disable cache reuse for a semantic equivalent A/B control.
 
-Layers currently cover the full viewport. A validation guard rejects a live
-working set larger than 256 MiB before texture allocation. The hardware suite
-checks rejection and subsequent renderer reset/recovery. This is a per-frame
-working-set guard; peak memory held by overlapping allocation epochs is not yet
-accounted globally. Tight layer bounds, cache admission/LRU, configurable global
-budgets and graceful over-budget fallback remain acceptance work.
+Layers now default to conservative clipped content bounds, including nested
+content and grayscale glyph ink; see [bounded isolation textures](RETAINED_LAYER_BOUNDS.md).
+A full-viewport switch remains as a reference/performance control. The validation
+guard rejects actual live texture extents above 256 MiB before allocation. The
+hardware suite checks both small-layer admission and oversized rejection/recovery.
+This is a per-frame payload guard; peak physical memory held by overlapping
+allocation epochs is not accounted globally. Cache admission/LRU, configurable
+global budgets and graceful over-budget fallback remain acceptance work.
 
 Translation/clip/scroll still resolve into world-space quad records. They can
 invalidate cached raster contents. Reusing raster through GPU transform/clip
-properties remains pending. Filters, blend modes and text/image resources are
-also outside this stage.
+properties remains pending. Filters and blend modes remain pending. Subsequent text/image integration and
+bounded targets are covered by the linked follow-up document.
 
 ## Normal window integration
 

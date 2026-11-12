@@ -176,6 +176,7 @@ pub struct WgpuFrameRenderer {
     composition_cache: composition::CompositionCache,
     cache_composition: bool,
     cache_layers: bool,
+    tight_layer_bounds: bool,
     window_image: Option<(u64, Arc<gpui::RenderImage>)>,
     validation_cache: validation::ValidationCache,
     cache_validation: bool,
@@ -201,6 +202,7 @@ impl WgpuFrameRenderer {
             composition_cache: composition::CompositionCache::default(),
             cache_composition: true,
             cache_layers: true,
+            tight_layer_bounds: true,
             window_image: None,
             validation_cache: validation::ValidationCache::default(),
             cache_validation: true,
@@ -245,6 +247,14 @@ impl WgpuFrameRenderer {
     pub fn set_raster_cache_enabled(&mut self, enabled: bool) {
         if self.cache_layers != enabled {
             self.cache_layers = enabled;
+            self.source = None;
+        }
+    }
+
+    /// Full-viewport textures provide a pixel and performance control.
+    pub fn set_tight_layer_bounds_enabled(&mut self, enabled: bool) {
+        if self.tight_layer_bounds != enabled {
+            self.tight_layer_bounds = enabled;
             self.source = None;
         }
     }
@@ -343,11 +353,15 @@ impl WgpuFrameRenderer {
                 }
             }
         }
-        let (order, layers, composition) = self.composition_cache.resolve(
+        let (order, mut layers, composition) = self.composition_cache.resolve(
             frame,
             &self.instances,
             full_resync || command_count_changed || !self.cache_composition,
         )?;
+        if self.tight_layer_bounds {
+            self.composition_cache
+                .bound_layers(&mut layers, surface, scale);
+        }
         let writes = self
             .arena
             .writes()
@@ -466,6 +480,7 @@ impl WgpuFrameRenderer {
             // Legacy GPUI flattens element opacity. Group isolation instead uses
             // a fresh full renderer with no previous raster-cache contents.
             let mut fresh = Self::new(1)?;
+            fresh.set_tight_layer_bounds_enabled(false);
             fresh.submit(frame, surface, scale)?;
             return fresh.image();
         }
@@ -499,6 +514,7 @@ impl WgpuFrameRenderer {
         replacement.retired_sources = self.retired_sources.clone();
         replacement.policy = self.policy;
         replacement.cache_layers = self.cache_layers;
+        replacement.tight_layer_bounds = self.tight_layer_bounds;
         replacement.cache_validation = self.cache_validation;
         replacement.resource_deltas = self.resource_deltas;
         replacement.cache_composition = self.cache_composition;

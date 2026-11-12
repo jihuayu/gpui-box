@@ -1,0 +1,241 @@
+{
+  "scope": "same renderer; tight versus full-viewport layer textures; Full root redraw; owner commit/publication/submit plus per-frame GPU completion; excludes readback and native presentation; physical texture payload excludes driver allocation overhead and retired epochs",
+  "pooled_runs": 3,
+  "percentiles": "median of 180 samples; P95 nearest rank ceil(0.95*n)",
+  "cases": [
+    {
+      "tight_median_us": 610.45,
+      "tight_p95_us": 885.2,
+      "tight_cpu_median_us": 291.15,
+      "tight": {
+        "live_layer_bytes": 206976,
+        "rasterized_layer_pixels": 0,
+        "property_upload_bytes": 128,
+        "instance_upload_bytes": 0,
+        "bounds_items": 0
+      },
+      "tight_run_medians_us": [
+        586.9,
+        675.9,
+        544.1
+      ],
+      "full_median_us": 1129.8000000000002,
+      "full_p95_us": 1600.6,
+      "full_cpu_median_us": 349.7,
+      "full": {
+        "live_layer_bytes": 66355200,
+        "rasterized_layer_pixels": 0,
+        "property_upload_bytes": 128,
+        "instance_upload_bytes": 0,
+        "bounds_items": 0
+      },
+      "full_run_medians_us": [
+        1027.1,
+        1268.3,
+        1019.9
+      ],
+      "speedup": 1.8507658284871817,
+      "surface": [
+        1920,
+        1080
+      ],
+      "kind": "small-cached-opacity",
+      "samples_per_mode": 180
+    },
+    {
+      "tight_median_us": 887.8,
+      "tight_p95_us": 1318.3,
+      "tight_cpu_median_us": 478.8,
+      "tight": {
+        "live_layer_bytes": 206976,
+        "rasterized_layer_pixels": 51744,
+        "property_upload_bytes": 0,
+        "instance_upload_bytes": 5120,
+        "bounds_items": 41
+      },
+      "tight_run_medians_us": [
+        882.8,
+        810.7,
+        937.8000000000001
+      ],
+      "full_median_us": 1424.9,
+      "full_p95_us": 2172.1000000000004,
+      "full_cpu_median_us": 489.45,
+      "full": {
+        "live_layer_bytes": 66355200,
+        "rasterized_layer_pixels": 16588800,
+        "property_upload_bytes": 0,
+        "instance_upload_bytes": 5120,
+        "bounds_items": 41
+      },
+      "full_run_medians_us": [
+        1321.2,
+        1541.2,
+        1434.9
+      ],
+      "speedup": 1.60497859878351,
+      "surface": [
+        1920,
+        1080
+      ],
+      "kind": "small-material-raster",
+      "samples_per_mode": 180
+    },
+    {
+      "tight_median_us": 1698.45,
+      "tight_p95_us": 2381.6000000000004,
+      "tight_cpu_median_us": 316.95000000000005,
+      "tight": {
+        "live_layer_bytes": 8294400,
+        "rasterized_layer_pixels": 2073600,
+        "property_upload_bytes": 0,
+        "instance_upload_bytes": 640,
+        "bounds_items": 6
+      },
+      "tight_run_medians_us": [
+        1690.0,
+        1852.3000000000002,
+        1665.1999999999998
+      ],
+      "full_median_us": 1754.8000000000002,
+      "full_p95_us": 2391.7000000000003,
+      "full_cpu_median_us": 313.4,
+      "full": {
+        "live_layer_bytes": 8294400,
+        "rasterized_layer_pixels": 2073600,
+        "property_upload_bytes": 0,
+        "instance_upload_bytes": 640,
+        "bounds_items": 6
+      },
+      "full_run_medians_us": [
+        1804.7,
+        1763.3,
+        1638.6000000000001
+      ],
+      "speedup": 1.033177308722659,
+      "surface": [
+        1920,
+        1080
+      ],
+      "kind": "full-surface-control",
+      "samples_per_mode": 180
+    },
+    {
+      "tight_median_us": 1220.6,
+      "tight_p95_us": 1761.0,
+      "tight_cpu_median_us": 393.3,
+      "tight": {
+        "live_layer_bytes": 206976,
+        "rasterized_layer_pixels": 0,
+        "property_upload_bytes": 128,
+        "instance_upload_bytes": 0,
+        "bounds_items": 0
+      },
+      "tight_run_medians_us": [
+        1355.7,
+        1060.8,
+        1272.3000000000002
+      ],
+      "full_median_us": 2451.3,
+      "full_p95_us": 3176.6,
+      "full_cpu_median_us": 360.6,
+      "full": {
+        "live_layer_bytes": 265420800,
+        "rasterized_layer_pixels": 0,
+        "property_upload_bytes": 128,
+        "instance_upload_bytes": 0,
+        "bounds_items": 0
+      },
+      "full_run_medians_us": [
+        2611.9,
+        2312.7999999999997,
+        2342.2999999999997
+      ],
+      "speedup": 2.008274619039817,
+      "surface": [
+        3840,
+        2160
+      ],
+      "kind": "small-cached-opacity",
+      "samples_per_mode": 180
+    },
+    {
+      "tight_median_us": 1301.6,
+      "tight_p95_us": 1912.5,
+      "tight_cpu_median_us": 467.4,
+      "tight": {
+        "live_layer_bytes": 206976,
+        "rasterized_layer_pixels": 51744,
+        "property_upload_bytes": 0,
+        "instance_upload_bytes": 5120,
+        "bounds_items": 41
+      },
+      "tight_run_medians_us": [
+        1530.0,
+        1172.7,
+        1170.0
+      ],
+      "full_median_us": 2551.1,
+      "full_p95_us": 3391.6,
+      "full_cpu_median_us": 519.5,
+      "full": {
+        "live_layer_bytes": 265420800,
+        "rasterized_layer_pixels": 66355200,
+        "property_upload_bytes": 0,
+        "instance_upload_bytes": 5120,
+        "bounds_items": 41
+      },
+      "full_run_medians_us": [
+        2700.1,
+        2477.9,
+        2500.1
+      ],
+      "speedup": 1.9599723417332515,
+      "surface": [
+        3840,
+        2160
+      ],
+      "kind": "small-material-raster",
+      "samples_per_mode": 180
+    },
+    {
+      "tight_median_us": 4520.6,
+      "tight_p95_us": 5617.5,
+      "tight_cpu_median_us": 345.54999999999995,
+      "tight": {
+        "live_layer_bytes": 33177600,
+        "rasterized_layer_pixels": 8294400,
+        "property_upload_bytes": 0,
+        "instance_upload_bytes": 640,
+        "bounds_items": 6
+      },
+      "tight_run_medians_us": [
+        4377.1,
+        4772.9,
+        4498.2
+      ],
+      "full_median_us": 4375.299999999999,
+      "full_p95_us": 5225.2,
+      "full_cpu_median_us": 319.25,
+      "full": {
+        "live_layer_bytes": 33177600,
+        "rasterized_layer_pixels": 8294400,
+        "property_upload_bytes": 0,
+        "instance_upload_bytes": 640,
+        "bounds_items": 6
+      },
+      "full_run_medians_us": [
+        4357.200000000001,
+        4445.2,
+        4344.299999999999
+      ],
+      "speedup": 0.9678582489050124,
+      "surface": [
+        3840,
+        2160
+      ],
+      "kind": "full-surface-control",
+      "samples_per_mode": 180
+    }
+  ]
+}

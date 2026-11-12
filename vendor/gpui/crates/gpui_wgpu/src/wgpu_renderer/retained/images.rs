@@ -51,7 +51,7 @@ pub(super) struct ImageCache {
     pipeline: wgpu::RenderPipeline,
 }
 impl ImageCache {
-    pub fn new(renderer: &WgpuHeadlessRenderer) -> Self {
+    pub fn new(renderer: &WgpuHeadlessRenderer, camera_layout: &wgpu::BindGroupLayout) -> Self {
         let device = &renderer.context.device;
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("retained_image_layout"),
@@ -84,7 +84,7 @@ impl ImageCache {
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("retained_images"),
-            bind_group_layouts: &[Some(&layout)],
+            bind_group_layouts: &[Some(&layout), Some(camera_layout)],
             immediate_size: 0,
         });
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {

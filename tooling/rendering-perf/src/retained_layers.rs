@@ -293,10 +293,17 @@ pub(super) fn run(
     }
     budget_tree.commit(tx, BackendCapabilities::default())?;
     let budget_frame = budget_tree.frame([128.0, 96.0])?;
+    let bounded = renderer.submit(&budget_frame, [3840, 2160], 1.0)?.unwrap();
+    assert_eq!(bounded.gpu.live_layer_bytes, 9 * 50 * 42 * 4);
+    assert_eq!(bounded.gpu.layer_allocations, 9);
+    assert_eq!(bounded.gpu.rasterized_layer_pixels, 9 * 50 * 42);
+    renderer.finish()?;
+    renderer.set_tight_layer_bounds_enabled(false);
     assert!(
         matches!(renderer.submit(&budget_frame, [3840, 2160], 1.0), Err(gpui_box::retained::Error::Gpu(message)) if message.contains("256 MiB"))
     );
     renderer.reset()?;
+    renderer.set_tight_layer_bounds_enabled(true);
     renderer.submit(&budget_frame, [128, 96], 1.0)?;
     compare(
         renderer,

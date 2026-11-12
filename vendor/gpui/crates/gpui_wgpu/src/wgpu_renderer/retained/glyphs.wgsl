@@ -1,3 +1,4 @@
+@group(1) @binding(0) var<uniform> camera: vec4<f32>;
 struct Glyph {
     bounds: vec4<f32>,
     tile: vec4<u32>,
@@ -23,7 +24,7 @@ struct Varying {
     let origin = sign(baseline) * floor(abs(baseline) + vec2(0.5)) + glyph.bounds.zw;
     let p = origin + points[vertex] * vec2<f32>(glyph.tile.zw);
     var out: Varying;
-    out.position = vec4(p / viewport.xy * vec2(2.0,-2.0) + vec2(-1.0,1.0),0.0,1.0);
+    out.position = vec4((p - camera.xy) / camera.zw * vec2(2.0,-2.0) + vec2(-1.0,1.0),0.0,1.0);
     out.index = index;
     out.origin = origin;
     return out;
@@ -31,7 +32,7 @@ struct Varying {
 @fragment fn fs_glyph(input: Varying) -> @location(0) vec4<f32> {
     let glyph = glyphs[input.index];
     let property = properties[glyph.material.x];
-    let p = input.position.xy;
+    let p = input.position.xy + camera.xy;
     if (any(p < property.clip.xy) || any(p >= property.clip.xy + property.clip.zw)) { discard; }
     let local = vec2<u32>(max(p - input.origin,vec2(0.0)));
     let uv = glyph.tile.xy + min(local,glyph.tile.zw-vec2<u32>(1));

@@ -1,0 +1,47 @@
+{
+  "hardware_scenarios": 208,
+  "pixel_comparisons": 207,
+  "malformed_backend_preflight": {
+    "case": "layer-bounds-malformed-preflight",
+    "malformed_rejected": 3,
+    "tight_budget_rejected": true,
+    "valid_retry": true
+  },
+  "core_tests": 114,
+  "gallery_font_and_hardware_click_tests": 12,
+  "clippy": "all selected core/gallery/perf targets, -D warnings; passed",
+  "desktop_wgpu_build": "passed",
+  "audits": [
+    {
+      "run": "layer-bounds-final-validation",
+      "source_hashes_verified": 148,
+      "process_samples": 8,
+      "samples_with_compilers": 0
+    },
+    {
+      "run": "layer-bounds-run-1",
+      "source_hashes_verified": 148,
+      "process_samples": 10,
+      "samples_with_compilers": 0
+    },
+    {
+      "run": "layer-bounds-run-2",
+      "source_hashes_verified": 148,
+      "process_samples": 9,
+      "samples_with_compilers": 0
+    },
+    {
+      "run": "layer-bounds-run-3",
+      "source_hashes_verified": 148,
+      "process_samples": 9,
+      "samples_with_compilers": 0
+    }
+  ],
+  "binary_sha256": "ab9e0231b23bb8c3ab253ec1498419cece58ef6c3123d8bff56a1b0c6920019a",
+  "limitations": [
+    "completed-work wall clock, not GPU timestamps/FPS/native presentation",
+    "texture payload counters are not driver-resident/peak physical memory",
+    "same-binary bounds control, not a prior executable comparison",
+    "compiler observations every 500ms do not exclude shorter processes or unrelated host activity"
+  ]
+}

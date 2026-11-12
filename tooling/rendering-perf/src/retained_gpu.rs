@@ -15,6 +15,7 @@ mod retained_glyph_bench;
 mod retained_hit_index;
 mod retained_image;
 mod retained_image_deltas;
+mod retained_layer_bounds;
 mod retained_layers;
 mod retained_layout;
 mod retained_layout_gpu;
@@ -71,6 +72,19 @@ fn main() -> Result<(), Box<dyn Error>> {
         )?,
     )?;
     let mut results = vec![];
+    if std::env::args().any(|arg| arg == "--layer-bounds-only") {
+        retained_layers::run(&mut renderer, &output, &mut results)?;
+        retained_layer_bounds::run(&mut renderer, &output, &mut results)?;
+        fs::write(
+            output.join("validation.json"),
+            serde_json::to_vec_pretty(&results)?,
+        )?;
+        fs::write(
+            output.join("layer-bounds-benchmark.json"),
+            serde_json::to_vec_pretty(&retained_layer_bounds::benchmark()?)?,
+        )?;
+        return Ok(());
+    }
     let mut tree = UiTree::new(
         Style {
             size: taffy::Size {
@@ -688,14 +702,26 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_validation::run(&mut renderer, &output, &mut results)?;
     retained_image_deltas::run(&mut renderer, &output, &mut results)?;
     retained_composition::run(&mut renderer, &output, &mut results)?;
+    retained_layer_bounds::run(&mut renderer, &output, &mut results)?;
     fs::write(
         output.join("validation.json"),
         serde_json::to_vec_pretty(&results)?,
     )?;
     println!(
-        "{} hardware pixel scenarios passed; one-color bytes=160, batch bytes=480 in one range; bounded frames=3",
-        results.len()
+        "{} hardware scenarios passed ({} pixel comparisons); one-color bytes=160, batch bytes=480 in one range; bounded frames=3",
+        results.len(),
+        results
+            .iter()
+            .filter(|result| result["pixel_equal"] == true)
+            .count()
     );
+    if std::env::args().any(|arg| arg == "--validation-only") {
+        return Ok(());
+    }
+    fs::write(
+        output.join("layer-bounds-benchmark.json"),
+        serde_json::to_vec_pretty(&retained_layer_bounds::benchmark()?)?,
+    )?;
     let benchmark = retained_bench::run()?;
     fs::write(
         output.join("lifecycle-benchmark.json"),

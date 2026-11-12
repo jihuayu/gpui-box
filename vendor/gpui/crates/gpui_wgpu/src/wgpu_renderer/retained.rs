@@ -59,6 +59,10 @@ pub struct QuadSubmission {
     pub partial: bool,
     pub rasterized_layers: usize,
     pub reused_layers: usize,
+    pub live_layer_bytes: u64,
+    pub allocated_layer_bytes: u64,
+    pub rasterized_layer_pixels: u64,
+    pub layer_allocations: usize,
     pub property_upload_bytes: u64,
     pub image_upload_bytes: u64,
     pub image_uploads: usize,
@@ -85,6 +89,7 @@ struct Flight {
     _binding: wgpu::BindGroup,
     _clear: Option<(wgpu::Buffer, wgpu::BindGroup)>,
     _layers: Vec<layers::LayerLease>,
+    _layer_root: Option<layers::TargetLease>,
     _images: images::ImageLease,
     _glyphs: glyphs::GlyphLease,
 }
@@ -127,8 +132,8 @@ impl RetainedQuadRenderer {
         );
         let (buffer, binding) = allocation(&renderer, 1);
         let layers = LayerCache::new(&renderer);
-        let images = images::ImageCache::new(&renderer);
-        let glyphs = glyphs::GlyphCache::new(&renderer);
+        let images = images::ImageCache::new(&renderer, layers.camera_layout());
+        let glyphs = glyphs::GlyphCache::new(&renderer, layers.camera_layout());
         Ok(Self {
             renderer,
             buffer,
@@ -442,6 +447,7 @@ impl RetainedQuadRenderer {
                 &mut pass,
                 &self.images,
                 &self.glyphs,
+                None,
             )?;
         }
         let submission = core.resources.queue.submit([encoder.finish()]);
@@ -462,6 +468,7 @@ impl RetainedQuadRenderer {
                 .as_ref()
                 .map(|(buffer, binding)| (buffer.clone(), binding.bind_group.clone())),
             _layers: self.layers.leases(),
+            _layer_root: self.layers.root_lease(),
             _images: self.images.leases(),
             _glyphs: self.glyphs.leases(),
         });
@@ -491,6 +498,10 @@ impl RetainedQuadRenderer {
             partial: matches!(redraw, QuadRedraw::Damage { .. }),
             rasterized_layers: layer_stats.rasterized,
             reused_layers: layer_stats.reused,
+            live_layer_bytes: layer_stats.live_bytes,
+            allocated_layer_bytes: layer_stats.allocated_bytes,
+            rasterized_layer_pixels: layer_stats.rasterized_pixels,
+            layer_allocations: layer_stats.allocations,
             property_upload_bytes: layer_stats.property_bytes,
             image_upload_bytes: image_stats.bytes,
             image_uploads: image_stats.uploads,
