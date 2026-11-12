@@ -1,4 +1,4 @@
-param([string]$Output = 'target/retained-runtime-gpu', [switch]$ValidationOnly, [switch]$LayerBoundsOnly, [switch]$LayerBudgetOnly, [switch]$LayerReuseOnly, [switch]$ShadowsOnly, [switch]$SpatialOnly, [switch]$PublicationOnly, [switch]$RoutingOnly)
+param([string]$Output = 'target/retained-runtime-gpu', [switch]$ValidationOnly, [switch]$LayerBoundsOnly, [switch]$LayerBudgetOnly, [switch]$LayerReuseOnly, [switch]$ShadowsOnly, [switch]$SpatialOnly, [switch]$PublicationOnly, [switch]$RoutingOnly, [switch]$SpatialIndexOnly)
 $ErrorActionPreference = 'Stop'
 $workspace = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
 Push-Location -LiteralPath $workspace
@@ -70,6 +70,9 @@ try {
         'crates/gpui-box/src/retained/wgpu/routing.rs',
         'crates/gpui-box/src/retained/wgpu/routing/tests.rs',
         'tooling/rendering-perf/src/retained_routing.rs',
+        'tooling/rendering-perf/src/retained_spatial_index.rs',
+        'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/spatial_index.rs',
+        'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/spatial_index/tests.rs',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/allocation_budget.rs',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/completion.rs',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/completion/tests.rs',
@@ -128,6 +131,7 @@ try {
         spatial_only = [bool]$SpatialOnly
         publication_only = [bool]$PublicationOnly
         routing_only = [bool]$RoutingOnly
+        spatial_index_only = [bool]$SpatialIndexOnly
         scope = 'Retained UI frames, hardware pixel comparisons, upload payload counts, in-flight lifecycle'
     } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $Output 'metadata.json') -Encoding utf8
     $runArgs = @('"' + (Resolve-Path -LiteralPath $Output).Path + '"')
@@ -139,6 +143,7 @@ try {
     if ($SpatialOnly) { $runArgs += '--spatial-only' }
     if ($PublicationOnly) { $runArgs += '--publication-only' }
     if ($RoutingOnly) { $runArgs += '--routing-only' }
+    if ($SpatialIndexOnly) { $runArgs += '--spatial-index-only' }
     $stdout = Join-Path $Output 'stdout.log'
     $stderr = Join-Path $Output 'stderr.log'
     $job = Start-Process -FilePath (Join-Path $workspace 'target/release/retained-runtime-gpu.exe') -ArgumentList $runArgs -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr

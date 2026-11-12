@@ -20,6 +20,12 @@ mod allocation_budget_tests;
 #[allow(dead_code)]
 #[path = "../../../../vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/completion.rs"]
 mod completion_protocol_tests;
+#[cfg(test)]
+use gpui_wgpu::SpatialNode;
+#[cfg(test)]
+#[allow(dead_code)]
+#[path = "../../../../vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/spatial_index.rs"]
+mod spatial_index_tests;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 mod composition;
 pub use composition::CompositionStats;
@@ -410,6 +416,18 @@ impl WgpuFrameRenderer {
             self.cache_primitive_routing = enabled;
             self.source = None;
             self.routing_snapshot = None;
+        }
+    }
+
+    /// Retain validated GPU topology and inverse Quad/Shadow references.
+    pub fn indexed_spatial_enabled(&self) -> bool {
+        self.backend.indexed_spatial_enabled()
+    }
+
+    pub fn set_indexed_spatial_enabled(&mut self, enabled: bool) {
+        if self.backend.indexed_spatial_enabled() != enabled {
+            self.backend.set_indexed_spatial_enabled(enabled);
+            self.source = None;
         }
     }
 
@@ -845,6 +863,9 @@ impl WgpuFrameRenderer {
         replacement.policy = self.policy;
         replacement.shared_spatial = self.shared_spatial;
         replacement.cache_primitive_routing = self.cache_primitive_routing;
+        replacement
+            .backend
+            .set_indexed_spatial_enabled(self.backend.indexed_spatial_enabled());
         replacement.cache_layers = self.cache_layers;
         replacement.tight_layer_bounds = self.tight_layer_bounds;
         replacement

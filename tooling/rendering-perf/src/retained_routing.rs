@@ -22,6 +22,27 @@ pub(super) fn run(
     output: &std::path::Path,
     results: &mut Vec<serde_json::Value>,
 ) -> Result<(), Box<dyn Error>> {
+    run_controls(output, results, false)
+}
+pub(super) fn run_backend_controls(
+    output: &std::path::Path,
+    results: &mut Vec<serde_json::Value>,
+) -> Result<(), Box<dyn Error>> {
+    run_controls(output, results, true)
+}
+fn set_control(gpu: &mut WgpuFrameRenderer, enabled: bool, backend: bool) {
+    if backend {
+        gpu.set_indexed_spatial_enabled(enabled);
+    } else {
+        gpu.set_cached_primitive_routing_enabled(enabled);
+    }
+}
+fn run_controls(
+    output: &std::path::Path,
+    results: &mut Vec<serde_json::Value>,
+    backend: bool,
+) -> Result<(), Box<dyn Error>> {
+    let prefix = if backend { "spatial-index" } else { "routing" };
     for copying in [false, true] {
         for shared in [true, false] {
             for scale in [1.0, 1.25, 1.5] {
@@ -75,7 +96,7 @@ pub(super) fn run(
                 let mut renderers = [WgpuFrameRenderer::new(3)?, WgpuFrameRenderer::new(3)?];
                 for (mode, gpu) in renderers.iter_mut().enumerate() {
                     gpu.set_shared_spatial_enabled(shared);
-                    gpu.set_cached_primitive_routing_enabled(mode == 0);
+                    set_control(gpu, mode == 0, backend);
                     gpu.set_policy(CompositorPolicy::Damage)?;
                 }
                 let size = [(192.0 * scale) as u32, (144.0 * scale) as u32];
@@ -158,7 +179,7 @@ pub(super) fn run(
                         }
                         16 => {
                             for (mode, gpu) in renderers.iter_mut().enumerate() {
-                                gpu.set_cached_primitive_routing_enabled(mode != 0);
+                                set_control(gpu, mode != 0, backend);
                             }
                             tx.translation(group, [-1.25, -2.5]);
                         }
@@ -208,11 +229,28 @@ pub(super) fn run(
                             &normal,
                             size,
                             scale,
-                            &format!("routing-{copying}-{shared}-{scale}-{step}-{mode}"),
+                            &format!("{prefix}-{copying}-{shared}-{scale}-{step}-{mode}"),
                             output,
                             results,
                         )?;
                         let value = results.last_mut().unwrap();
+                        value["spatial_indexed"] = submit.gpu.spatial_work.indexed.into();
+                        value["spatial_dense_fallback"] = submit.gpu.spatial_work.dense_fallback.into();
+                        value["spatial_checked_edges"] =
+                            submit.gpu.spatial_work.checked_edges.into();
+                        value["spatial_resolved_nodes"] =
+                            submit.gpu.spatial_work.resolved_nodes.into();
+                        value["quad_references"] = submit.gpu.spatial_work.quad_references.into();
+                        value["shadow_references"] =
+                            submit.gpu.spatial_work.shadow_references.into();
+                        value["quad_affected_instances"] =
+                            submit.gpu.spatial_work.quad_affected_instances.into();
+                        value["shadow_affected_instances"] =
+                            submit.gpu.spatial_work.shadow_affected_instances.into();
+                        if backend && mode == 0 && shared && step == 2 {
+                            assert_eq!(submit.gpu.spatial_work.resolved_nodes, 0);
+                            assert_eq!(submit.gpu.spatial_work.quad_references, 1);
+                        }
                         value["cached"] = submit.routing.cached.into();
                         value["prepared_quad_items"] = submit.routing.prepared_quad_items.into();
                         value["prepared_shadow_items"] =
@@ -231,7 +269,7 @@ pub(super) fn run(
                             changed.updates = Arc::new(Vec::new().into());
                             assert!(gpu.submit(&changed, size, scale).is_err());
                             assert!(gpu.submit(&normal, size, scale)?.is_none());
-                            results.push(serde_json::json!({"case":format!("routing-equal-reject-{copying}-{shared}-{scale}-{mode}"),"same_revision_scene_rejected":true,"valid_equal_retry":true}));
+                            results.push(serde_json::json!({"case":format!("{prefix}-equal-reject-{copying}-{shared}-{scale}-{mode}"),"same_revision_scene_rejected":true,"valid_equal_retry":true}));
                         }
                     }
                     assert_eq!(
@@ -241,7 +279,14 @@ pub(super) fn run(
                 }
                 for (mode, gpu) in renderers.iter_mut().enumerate() {
                     gpu.reset()?;
-                    assert_eq!(gpu.cached_primitive_routing_enabled(), mode != 0);
+                    assert_eq!(
+                        if backend {
+                            gpu.indexed_spatial_enabled()
+                        } else {
+                            gpu.cached_primitive_routing_enabled()
+                        },
+                        mode != 0
+                    );
                 }
             }
         }

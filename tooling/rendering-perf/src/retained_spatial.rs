@@ -484,14 +484,14 @@ fn backend_preflight(results: &mut Vec<serde_json::Value>) -> Result<(), Box<dyn
 }
 
 pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
-    benchmark_impl(false, false, false, false)
+    benchmark_impl(false, false, false, false, false)
 }
 
 pub(super) fn publication_benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
     let mut cases = vec![];
     for sparse in [false, true] {
         for warm in [false, true] {
-            let value = benchmark_impl(true, warm, sparse, false)?;
+            let value = benchmark_impl(true, warm, sparse, false, false)?;
             for case in value["cases"].as_array().unwrap() {
                 let mut result = serde_json::Map::new();
                 for (key, value) in case.as_object().unwrap() {
@@ -514,7 +514,7 @@ pub(super) fn routing_benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
     let mut cases = vec![];
     for sparse in [false, true] {
         for warm in [false, true] {
-            let value = benchmark_impl(false, warm, sparse, true)?;
+            let value = benchmark_impl(false, warm, sparse, true, false)?;
             for case in value["cases"].as_array().unwrap() {
                 let mut result = serde_json::Map::new();
                 for (key, value) in case.as_object().unwrap() {
@@ -534,11 +534,36 @@ pub(super) fn routing_benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
     )
 }
 
+pub(super) fn spatial_index_benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
+    let mut cases = vec![];
+    for sparse in [false, true] {
+        for warm in [false, true] {
+            let value = benchmark_impl(false, warm, sparse, true, true)?;
+            for case in value["cases"].as_array().unwrap() {
+                let mut result = serde_json::Map::new();
+                for (key, value) in case.as_object().unwrap() {
+                    result.insert(
+                        key.replace("shared_", "indexed_")
+                            .replace("world_", "full_"),
+                        value.clone(),
+                    );
+                }
+                result.insert("warm_hit_index".into(), warm.into());
+                cases.push(serde_json::Value::Object(result));
+            }
+        }
+    }
+    Ok(
+        serde_json::json!({"scope":"same owned publisher, cached local primitive routing, shared GPU layout/shader and full root redraw; adaptive indexed spatial preflight/invalidation with dense fallback versus original full prefix/walk scans; commit/publication/submission and per-frame GPU completion; setup/readback/native presentation excluded","rounds":3,"warmup":6,"samples_per_round":20,"max_in_flight":1,"cases":cases}),
+    )
+}
+
 fn benchmark_impl(
     publication: bool,
     warm: bool,
     sparse: bool,
     routing: bool,
+    indexed: bool,
 ) -> Result<serde_json::Value, Box<dyn Error>> {
     let mut cases = vec![];
     for count in [1000, 10000] {
@@ -566,7 +591,8 @@ fn benchmark_impl(
             }
             let mut gpu = WgpuFrameRenderer::new(1)?;
             gpu.set_shared_spatial_enabled(publication || routing || shared);
-            gpu.set_cached_primitive_routing_enabled(routing && shared);
+            gpu.set_cached_primitive_routing_enabled(indexed || routing && shared);
+            gpu.set_indexed_spatial_enabled(indexed && shared);
             let initial = tree.frame([800.0, 600.0])?;
             if warm {
                 initial.hit_test(4.0, 4.0);
@@ -645,8 +671,25 @@ fn benchmark_impl(
                         ]);
                         completed[mode].push(completed_us);
                         bytes[mode] = [submit.gpu.uploaded_bytes, submit.gpu.spatial_upload_bytes];
-                        build_stats[mode] = serde_json::json!({"extracted_nodes":frame.build_stats.extracted_nodes,"copied_pages":frame.build_stats.copied_pages,"copied_items":frame.build_stats.copied_items,"replaced_pages":frame.build_stats.replaced_pages,"moved_items":frame.build_stats.moved_items,"delta_cloned_items":frame.build_stats.delta_cloned_items,"validated_delta_items":submit.validation.validated_delta_items,"shared_delta_items":submit.validation.shared_delta_items,"routing_cached":submit.routing.cached,"inspected_items":submit.routing.inspected_items,"prepared_quad_items":submit.routing.prepared_quad_items,"prepared_shadow_items":submit.routing.prepared_shadow_items,"prepared_spatial_items":submit.routing.prepared_spatial_items,"rebuilt_spatial_items":submit.routing.rebuilt_spatial_items,"untrusted_full_resync":submit.routing.untrusted_full_resync});
-                        if routing {
+                        build_stats[mode] = serde_json::json!({"extracted_nodes":frame.build_stats.extracted_nodes,"copied_pages":frame.build_stats.copied_pages,"copied_items":frame.build_stats.copied_items,"replaced_pages":frame.build_stats.replaced_pages,"moved_items":frame.build_stats.moved_items,"delta_cloned_items":frame.build_stats.delta_cloned_items,"validated_delta_items":submit.validation.validated_delta_items,"shared_delta_items":submit.validation.shared_delta_items,"routing_cached":submit.routing.cached,"inspected_items":submit.routing.inspected_items,"prepared_quad_items":submit.routing.prepared_quad_items,"prepared_shadow_items":submit.routing.prepared_shadow_items,"prepared_spatial_items":submit.routing.prepared_spatial_items,"rebuilt_spatial_items":submit.routing.rebuilt_spatial_items,"untrusted_full_resync":submit.routing.untrusted_full_resync,"spatial_indexed":submit.gpu.spatial_work.indexed,"spatial_full_scan":submit.gpu.spatial_work.full_spatial_scan,"spatial_dense_fallback":submit.gpu.spatial_work.dense_fallback,"spatial_checked_edges":submit.gpu.spatial_work.checked_edges,"spatial_resolved_nodes":submit.gpu.spatial_work.resolved_nodes,"quad_references":submit.gpu.spatial_work.quad_references,"shadow_references":submit.gpu.spatial_work.shadow_references,"quad_affected_instances":submit.gpu.spatial_work.quad_affected_instances,"shadow_affected_instances":submit.gpu.spatial_work.shadow_affected_instances});
+                        if indexed {
+                            assert!(!submit.full_resync && submit.routing.cached);
+                            assert_eq!(submit.gpu.spatial_work.indexed, mode == 0);
+                            if mode == 0 {
+                                assert_eq!(
+                                    submit.gpu.spatial_work.quad_references,
+                                    usize::from(sparse)
+                                );
+                                assert_eq!(
+                                    submit.gpu.spatial_work.resolved_nodes,
+                                    if sparse { 0 } else { count + 2 }
+                                );
+                            } else {
+                                assert_eq!(submit.gpu.spatial_work.quad_references, count + 2);
+                                assert_eq!(submit.gpu.spatial_work.resolved_nodes, count + 2);
+                            }
+                        }
+                        if routing && !indexed {
                             assert!(!submit.full_resync);
                             assert!(!submit.routing.untrusted_full_resync);
                             assert_eq!(submit.routing.cached, mode == 0);
@@ -706,7 +749,9 @@ fn benchmark_impl(
         let value = serde_json::json!({"count":count,"workload":if sparse {"single_material"}else{"ancestor_translation"},"shared_build_stats":build_stats[0],"world_build_stats":build_stats[1],"shared_bytes":bytes[0],"world_bytes":bytes[1],"phase_columns":["commit_us","publication_us","submission_us"],"shared_phases_us":phases[0],"world_phases_us":phases[1],"shared_cpu_us":cpu[0],"world_cpu_us":cpu[1],"shared_completed_us":completed[0],"world_completed_us":completed[1],"shared_median_us":percentile(&completed[0],0.5),"world_median_us":percentile(&completed[1],0.5),"shared_p95_us":percentile(&completed[0],0.95),"world_p95_us":percentile(&completed[1],0.95),"pixel_equal":true});
         println!(
             "{} owner {count} {}: {} / {} us",
-            if routing {
+            if indexed {
+                "SpatialIndex"
+            } else if routing {
                 "Routing"
             } else if publication {
                 "Publication"

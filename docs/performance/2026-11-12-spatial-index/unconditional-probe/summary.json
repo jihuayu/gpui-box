@@ -1,0 +1,212 @@
+{
+  "cases": [
+    {
+      "count": 1000,
+      "workload": "ancestor_translation",
+      "warm_hit_index": false,
+      "indexed": {
+        "completed_median_us": 2243.7,
+        "completed_p95_us": 3305.4,
+        "phase_medians_us": [
+          5.699999999999999,
+          490.4,
+          846.0999999999998
+        ],
+        "samples": 180
+      },
+      "full": {
+        "completed_median_us": 2255.3999999999996,
+        "completed_p95_us": 3418.5,
+        "phase_medians_us": [
+          6.0,
+          513.3000000000001,
+          825.8000000000002
+        ],
+        "samples": 180
+      },
+      "change_percent": -0.5187549880287246
+    },
+    {
+      "count": 10000,
+      "workload": "ancestor_translation",
+      "warm_hit_index": false,
+      "indexed": {
+        "completed_median_us": 20372.2,
+        "completed_p95_us": 24365.899999999998,
+        "phase_medians_us": [
+          6.5,
+          11889.1,
+          7103.100000000002
+        ],
+        "samples": 180
+      },
+      "full": {
+        "completed_median_us": 19290.7,
+        "completed_p95_us": 24382.399999999998,
+        "phase_medians_us": [
+          6.2,
+          11608.5,
+          6584.899999999998
+        ],
+        "samples": 180
+      },
+      "change_percent": 5.606328438055641
+    },
+    {
+      "count": 1000,
+      "workload": "ancestor_translation",
+      "warm_hit_index": true,
+      "indexed": {
+        "completed_median_us": 2137.1,
+        "completed_p95_us": 3029.7000000000003,
+        "phase_medians_us": [
+          5.9,
+          521.7,
+          854.0000000000001
+        ],
+        "samples": 180
+      },
+      "full": {
+        "completed_median_us": 2180.1,
+        "completed_p95_us": 3310.0,
+        "phase_medians_us": [
+          5.800000000000001,
+          502.1,
+          814.6999999999998
+        ],
+        "samples": 180
+      },
+      "change_percent": -1.9723865877712021
+    },
+    {
+      "count": 10000,
+      "workload": "ancestor_translation",
+      "warm_hit_index": true,
+      "indexed": {
+        "completed_median_us": 20416.8,
+        "completed_p95_us": 24537.5,
+        "phase_medians_us": [
+          6.3,
+          12246.599999999999,
+          6803.300000000001
+        ],
+        "samples": 180
+      },
+      "full": {
+        "completed_median_us": 18815.7,
+        "completed_p95_us": 22514.5,
+        "phase_medians_us": [
+          6.0,
+          11437.0,
+          6399.5999999999985
+        ],
+        "samples": 180
+      },
+      "change_percent": 8.509383121542102
+    },
+    {
+      "count": 1000,
+      "workload": "single_material",
+      "warm_hit_index": false,
+      "indexed": {
+        "completed_median_us": 923.0,
+        "completed_p95_us": 2392.3,
+        "phase_medians_us": [
+          4.8,
+          17.0,
+          217.1
+        ],
+        "samples": 180
+      },
+      "full": {
+        "completed_median_us": 1253.8,
+        "completed_p95_us": 3511.5,
+        "phase_medians_us": [
+          5.0,
+          18.5,
+          270.7
+        ],
+        "samples": 180
+      },
+      "change_percent": -26.38379326846386
+    },
+    {
+      "count": 10000,
+      "workload": "single_material",
+      "warm_hit_index": false,
+      "indexed": {
+        "completed_median_us": 527.5,
+        "completed_p95_us": 786.5,
+        "phase_medians_us": [
+          4.6,
+          17.4,
+          213.20000000000002
+        ],
+        "samples": 180
+      },
+      "full": {
+        "completed_median_us": 1002.7,
+        "completed_p95_us": 1273.1000000000001,
+        "phase_medians_us": [
+          5.6,
+          19.6,
+          660.5
+        ],
+        "samples": 180
+      },
+      "change_percent": -47.39204148798245
+    },
+    {
+      "count": 1000,
+      "workload": "single_material",
+      "warm_hit_index": true,
+      "indexed": {
+        "completed_median_us": 377.1,
+        "completed_p95_us": 641.5,
+        "phase_medians_us": [
+          2.9000000000000004,
+          13.999999999999998,
+          148.70000000000002
+        ],
+        "samples": 180
+      },
+      "full": {
+        "completed_median_us": 408.40000000000003,
+        "completed_p95_us": 678.8000000000001,
+        "phase_medians_us": [
+          2.6,
+          12.7,
+          167.1
+        ],
+        "samples": 180
+      },
+      "change_percent": -7.6640548481880515
+    },
+    {
+      "count": 10000,
+      "workload": "single_material",
+      "warm_hit_index": true,
+      "indexed": {
+        "completed_median_us": 520.9,
+        "completed_p95_us": 716.1999999999999,
+        "phase_medians_us": [
+          4.0,
+          20.2,
+          194.3
+        ],
+        "samples": 180
+      },
+      "full": {
+        "completed_median_us": 981.8,
+        "completed_p95_us": 1312.6,
+        "phase_medians_us": [
+          5.3,
+          24.6,
+          649.3
+        ],
+        "samples": 180
+      },
+      "change_percent": -46.94438785903443
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "hardware_scenarios": 1399,
+  "pixel_comparisons": 1336,
+  "core_tests": 134,
+  "retained_only_tests": 110,
+  "gallery_font_hardware_click_tests": 12,
+  "clippy": "selected core/gallery/perf all targets -D warnings; passed",
+  "desktop_wgpu_build": "passed",
+  "audits": [
+    {
+      "run": "validation",
+      "source_hashes_verified": 169,
+      "hardware_scenarios": 1399,
+      "pixel_comparisons": 1336,
+      "process_samples": 72,
+      "samples_with_compilers": 0
+    },
+    {
+      "run": "run-1",
+      "source_hashes_verified": 169,
+      "hardware_scenarios": 460,
+      "pixel_comparisons": 432,
+      "process_samples": 37,
+      "samples_with_compilers": 0
+    },
+    {
+      "run": "run-2",
+      "source_hashes_verified": 169,
+      "hardware_scenarios": 460,
+      "pixel_comparisons": 432,
+      "process_samples": 38,
+      "samples_with_compilers": 0
+    },
+    {
+      "run": "run-3",
+      "source_hashes_verified": 169,
+      "hardware_scenarios": 460,
+      "pixel_comparisons": 432,
+      "process_samples": 37,
+      "samples_with_compilers": 0
+    }
+  ],
+  "binary_sha256": "c63653b806efe4c38da6d9abad8a748a473c5e1f180ec4dc77e67d5ef321229d",
+  "benchmark_round_end_reference_checks": 144,
+  "limits": [
+    "same owned publisher, cached consumer routing, layout/shader/full redraw; only backend spatial index changes",
+    "wall time includes host/driver work; completion differences are not GPU timestamps",
+    "no sample filtering; rotating block order is not perfectly balanced and host/GPU drift remains possible",
+    "500ms compiler observations can miss short activity and exclude no unrelated host work",
+    "affected descendant validation remains linear; producer extraction/composition/resource/lease scans and full RFC acceptance remain open",
+    "fixed dense-frontier heuristic; dense completed medians still regress 6.4% unused / 1.2% warm; sparse 1000-node completed gain unproven",
+    "unconditional probe has separate pre-adaptive sources and is excluded from the four final manifests"
+  ],
+  "historical_probe_reconstructed_manifests": 4,
+  "historical_probe_hashes_per_manifest": 169
+}

@@ -21,6 +21,8 @@ pub use layers::{LayerMemoryStats, QuadDraw, QuadLayer, QuadLayerId};
 
 mod storage;
 mod spatial;
+mod spatial_index;
+pub use spatial_index::SpatialWorkStats;
 pub use spatial::{SpatialBatch, SpatialNode};
 pub use storage::InstanceWrite;
 use storage::PersistentStorage;
@@ -59,6 +61,7 @@ pub enum QuadRedraw {
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct QuadSubmission {
+    pub spatial_work: SpatialWorkStats,
     pub serial: u64,
     pub completed: u64,
     pub uploaded_bytes: u64,
@@ -121,6 +124,9 @@ pub struct RetainedQuadRenderer {
     quads: PersistentStorage<Quad>,
     shadows: PersistentStorage<gpui::Shadow>,
     spatial: spatial::SpatialCache,
+    indexed_spatial: bool,
+    quad_references: spatial_index::ReferenceIndex,
+    shadow_references: spatial_index::ReferenceIndex,
     order: Vec<QuadDraw>,
     size: Option<Size<DevicePixels>>,
     serial: u64,
@@ -163,6 +169,9 @@ impl RetainedQuadRenderer {
             quads,
             shadows,
             spatial,
+            indexed_spatial: true,
+            quad_references: Default::default(),
+            shadow_references: Default::default(),
             order: vec![],
             size: None,
             serial: 0,
@@ -178,6 +187,17 @@ impl RetainedQuadRenderer {
             images,
             glyphs,
         })
+    }
+
+    /// Cached validated spatial topology and inverse primitive references.
+    pub fn indexed_spatial_enabled(&self) -> bool { self.indexed_spatial }
+    pub fn set_indexed_spatial_enabled(&mut self, enabled: bool) {
+        if self.indexed_spatial != enabled {
+            self.indexed_spatial = enabled;
+            self.spatial.clear_index();
+            self.quad_references = Default::default();
+            self.shadow_references = Default::default();
+        }
     }
 
     /// Full declared-instance-range transport control; logical dirtiness and raster work stay unchanged.
@@ -268,8 +288,28 @@ impl RetainedQuadRenderer {
         PersistentStorage::<gpui::Shadow>::validate(
             &self.renderer, batch.shadows.capacity, &batch.shadows.writes,
         )?;
-        self.spatial.validate(&self.renderer, &batch.spatial)?;
+        let spatial_plan = self.spatial.preflight(&self.renderer, &batch.spatial, self.indexed_spatial)?;
+        let mut spatial_work = SpatialWorkStats { indexed: self.indexed_spatial, ..Default::default() };
         if batch.spatial.enabled {
+            spatial_work.dense_fallback = spatial_plan.as_ref().is_some_and(|p| p.dense);
+            spatial_work.full_spatial_scan = spatial_plan.as_ref().is_none_or(|p| p.full || p.dense);
+            spatial_work.checked_edges = spatial_plan.as_ref().filter(|p| !p.dense).map_or(batch.spatial.capacity as usize, |p| p.affected.len());
+            spatial_work.resolved_nodes = spatial_work.checked_edges;
+        }
+        let mut reference_plans = None;
+        if batch.spatial.enabled && self.indexed_spatial {
+            let quads = self.quad_references.prepare(batch.capacity, batch.spatial.capacity,
+                batch.writes.iter().flat_map(|w| w.values.iter().enumerate().map(move |(i,v)| (w.start+i as u32,v.order))),
+                |slot| self.quads.value(slot).order).map_err(anyhow::Error::msg)?;
+            let shadows = self.shadow_references.prepare(batch.shadows.capacity, batch.spatial.capacity,
+                batch.shadows.writes.iter().flat_map(|w| w.values.iter().enumerate().map(move |(i,v)| (w.start+i as u32,v.order))),
+                |slot| self.shadows.value(slot).order).map_err(anyhow::Error::msg)?;
+            spatial_work.quad_references = quads.checked;
+            spatial_work.shadow_references = shadows.checked;
+            reference_plans = Some((quads, shadows));
+        } else if batch.spatial.enabled {
+            spatial_work.quad_references = batch.capacity as usize;
+            spatial_work.shadow_references = batch.shadows.capacity as usize;
             for index in 0..batch.capacity {
                 let property = self.quads.projected(index, &batch.writes).order;
                 anyhow::ensure!(property <= batch.spatial.capacity, "quad spatial reference outside allocation");
@@ -385,6 +425,14 @@ impl RetainedQuadRenderer {
             self.clear = Some((buffer, binding));
         }
         let spatial_all = self.spatial.parameters_change(&batch.spatial);
+        let affected_properties = spatial_plan.as_ref().map(|p| p.affected.as_slice()).unwrap_or(&[]);
+        if let Some((quads, shadows)) = reference_plans {
+            self.quad_references.commit(quads);
+            self.shadow_references.commit(shadows);
+        } else {
+            self.quad_references = Default::default();
+            self.shadow_references = Default::default();
+        }
         let spatial_stats = self.spatial.apply(&self.renderer, batch.spatial)?;
         let mut quad_stats = self.quads.apply(
             &self.renderer, batch.capacity, batch.writes, self.full_instance_uploads,
@@ -393,17 +441,25 @@ impl RetainedQuadRenderer {
             &self.renderer, batch.shadows.capacity, batch.shadows.writes, self.full_instance_uploads,
         )?;
         if self.spatial.enabled && (!spatial_stats.dirty.is_empty() || spatial_all) {
-            for (capacity, shadow, dirty) in [(batch.capacity, false, &mut quad_stats.dirty),
-                (batch.shadows.capacity, true, &mut shadow_stats.dirty)] {
-                for index in 0..capacity {
-                    let property = if shadow { self.shadows.value(index).order } else { self.quads.value(index).order };
-                    if self.spatial.affected(property, &spatial_stats.dirty, spatial_all) {
-                        if let Some(last) = dirty.last_mut().filter(|last| last.end == index) { last.end += 1; }
-                        else { dirty.push(index..index+1); }
+            if self.indexed_spatial && !spatial_work.dense_fallback {
+                spatial_work.quad_affected_instances = self.quad_references.affected(affected_properties, &mut quad_stats.dirty);
+                spatial_work.shadow_affected_instances = self.shadow_references.affected(affected_properties, &mut shadow_stats.dirty);
+            } else {
+                for (capacity, shadow, dirty) in [(batch.capacity, false, &mut quad_stats.dirty),
+                    (batch.shadows.capacity, true, &mut shadow_stats.dirty)] {
+                    for index in 0..capacity {
+                        let property = if shadow { self.shadows.value(index).order } else { self.quads.value(index).order };
+                        if self.spatial.affected(property, &spatial_stats.dirty, spatial_all) {
+                            if shadow { spatial_work.shadow_affected_instances += 1; }
+                            else { spatial_work.quad_affected_instances += 1; }
+                            if let Some(last) = dirty.last_mut().filter(|last| last.end == index) { last.end += 1; }
+                            else { dirty.push(index..index+1); }
+                        }
                     }
                 }
             }
         }
+        self.spatial.commit_index(spatial_plan);
         if let Some(order) = batch.order {
             self.order = order;
         }
@@ -527,6 +583,7 @@ impl RetainedQuadRenderer {
             QuadRedraw::Unchanged => 0,
         };
         Ok(QuadSubmission {
+            spatial_work,
             serial,
             completed: self.completed.load(Ordering::Acquire),
             uploaded_bytes: quad_stats.bytes,

@@ -35,6 +35,7 @@ mod retained_responsive;
 mod retained_routing;
 mod retained_shadows;
 mod retained_spatial;
+mod retained_spatial_index;
 mod retained_structure;
 mod retained_text;
 mod retained_validation;
@@ -83,6 +84,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         )?,
     )?;
     let mut results = vec![];
+    if std::env::args().any(|arg| arg == "--spatial-index-only") {
+        retained_spatial_index::run(&output, &mut results)?;
+        fs::write(
+            output.join("validation.json"),
+            serde_json::to_vec_pretty(&results)?,
+        )?;
+        fs::write(
+            output.join("spatial-index-benchmark.json"),
+            serde_json::to_vec_pretty(&retained_spatial::spatial_index_benchmark()?)?,
+        )?;
+        return Ok(());
+    }
     if std::env::args().any(|arg| arg == "--routing-only") {
         retained_routing::run(&output, &mut results)?;
         fs::write(
@@ -792,6 +805,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_spatial::run(&output, &mut results)?;
     retained_publication::run(&output, &mut results)?;
     retained_routing::run(&output, &mut results)?;
+    retained_spatial_index::run(&output, &mut results)?;
     fs::write(
         output.join("validation.json"),
         serde_json::to_vec_pretty(&results)?,

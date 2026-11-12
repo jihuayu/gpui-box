@@ -74,6 +74,7 @@ pub(super) struct SpatialCache {
     pub shadows: wgpu::RenderPipeline,
     pub enabled: bool,
     scale: f32,
+    index: super::spatial_index::GraphIndex,
 }
 impl SpatialCache {
     pub fn new(renderer: &WgpuHeadlessRenderer) -> Self {
@@ -202,6 +203,7 @@ impl SpatialCache {
             shadows: pipeline("vs_shadow", "fs_shadow"),
             enabled: false,
             scale: 1.0,
+            index: Default::default(),
         }
     }
     fn binding(
@@ -224,6 +226,26 @@ impl SpatialCache {
                 },
             ],
         })
+    }
+    pub fn clear_index(&mut self) { self.index = Default::default(); }
+    pub fn preflight(&mut self, renderer: &WgpuHeadlessRenderer, batch: &SpatialBatch, indexed: bool)
+        -> Result<Option<super::spatial_index::GraphPlan>> {
+        if !indexed { self.validate(renderer, batch)?; return Ok(None); }
+        anyhow::ensure!(batch.scale.is_finite() && batch.scale > 0.0, "invalid spatial scale");
+        PersistentStorage::<SpatialNode>::validate(renderer, batch.capacity, &batch.writes)?;
+        if !batch.enabled {
+            anyhow::ensure!(batch.capacity == 0 && batch.writes.is_empty(), "disabled spatial writes");
+            return Ok(None);
+        }
+        let plan = self.index.prepare(batch.capacity, batch.scale, true,
+            batch.writes.iter().flat_map(|w| w.values.iter().enumerate().map(move |(i,v)| (w.start+i as u32,*v))),
+            |slot| self.storage.value(slot)).map_err(anyhow::Error::msg)?;
+        if plan.dense { self.validate(renderer, batch)?; }
+        Ok(Some(plan))
+    }
+    pub fn commit_index(&mut self, plan: Option<super::spatial_index::GraphPlan>) {
+        if let Some(plan) = plan { self.index.commit(plan); }
+        else { self.clear_index(); }
     }
     pub fn validate(&self, renderer: &WgpuHeadlessRenderer, batch: &SpatialBatch) -> Result<()> {
         anyhow::ensure!(

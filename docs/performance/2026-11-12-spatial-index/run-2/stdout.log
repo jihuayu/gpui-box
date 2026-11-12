@@ -1,0 +1,9 @@
+Integrated retained GPU Vulkan NVIDIA GeForce GTX 1650 Ti
+SpatialIndex owner 1000 translation: 2067.3 / 2106.7999999999997 us
+SpatialIndex owner 10000 translation: 20767.600000000002 / 19184.1 us
+SpatialIndex owner 1000 translation: 2146.9 / 2150.2000000000003 us
+SpatialIndex owner 10000 translation: 19297.7 / 19777.9 us
+SpatialIndex owner 1000 material: 1457.5 / 1326.8 us
+SpatialIndex owner 10000 material: 519.7 / 1011.8 us
+SpatialIndex owner 1000 material: 428.2 / 451.0 us
+SpatialIndex owner 10000 material: 542.7 / 978.1 us

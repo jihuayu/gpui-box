@@ -1,0 +1,7 @@
+{
+  "scope": "unconditional spatial index before adaptive dense fallback; all 4 manifests verified against then-current 169 source files; raw timing/validation/process records retained, PNGs remain in target; changed runtime/protocol source snapshots and tracked patch saved",
+  "base_commit": "72dec75816a90c241b3eaa8c03776f0bf451ff7d",
+  "binary_sha256": "0f3f8e045444bbf4eb61f258b76c09c5405c69bc9bb8a52e4f39a44ba47ffe7a",
+  "source_snapshot": "source-snapshot.zip (verbatim bytes)",
+  "tracked_patch": "source.patch.zip (verbatim patch)"
+}

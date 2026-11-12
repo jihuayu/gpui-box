@@ -1,0 +1,124 @@
+   Compiling taffy v0.15.0 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\taffy)
+   Compiling gpui-box v0.1.0-dev (D:\oss\ggpui-worktrees\rendering-performance-research\crates\gpui-box)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 35.67s
+     Running unittests src\lib.rs (D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\debug\build\gpui-box/cf6747257ee405f3\out\gpui_box-b13efd42a7be0691.exe)
+
+running 110 tests
+test retained::arena::tests::batch_ranges_merge_without_losing_unacknowledged_writes ... ok
+test retained::arena::tests::retired_slots_wait_for_completion_and_old_handles_never_revive ... ok
+test retained::image::tests::owned_resources_validate_and_reject_ambiguous_measurement_atomically ... ok
+test retained::edit::tests::property_only_edit_keeps_layout_and_chunk_fast_paths ... ok
+test retained::edit::tests::cancelled_construction_equal_properties_and_revision_exhaustion_preserve_published_output ... ok
+test retained::edit::tests::child_lists_then_reparent_resolve_draft_edges_and_allow_host_evacuation ... ok
+test retained::edit::tests::cancelled_holes_and_free_slots_do_not_lose_generation_or_layout_inputs ... ok
+test retained::image::tests::replacement_routes_resource_and_intrinsic_inputs_independently ... ok
+test retained::frame_queue::tests::mailbox_coalesces_complete_snapshots_without_reviving_stale_sources ... ok
+test retained::edit::tests::invalid_draft_never_publishes_and_reserved_ids_never_revive ... ok
+test retained::image::tests::removing_image_nodes_retires_logical_bindings_without_reviving_reused_slots ... ok
+test retained::edit::tests::construction_moves_removal_and_properties_publish_one_revision_with_stable_layout ... ok
+test retained::edit::tests::final_leaf_contract_allows_image_container_swaps_and_rejects_invalid_topology ... ok
+test retained::layout_publication::tests::layout_observer_agrees_with_all_final_results_and_original_entry_point ... ok
+test retained::frame_queue::tests::owner_thread_publishes_without_sharing_mutable_ui_and_consumer_gets_final_frame ... ok
+test retained::logical::edit::lifecycle_tests::scope_generation_exhaustion_preserves_children_and_frame ... ok
+test retained::logical::edit::lifecycle_tests::cancelled_lifetimes_remain_idle_and_new_callbacks_never_run ... ok
+test retained::logical::edit::lifecycle_tests::failed_keyed_build_leaves_no_state_effect_or_binding_and_never_revives_handles ... ok
+test retained::logical::edit::lifecycle_tests::background_sender_remains_live_after_failed_disposal_and_expires_after_commit ... ok
+test retained::logical::edit::lifecycle_tests::mixed_key_order_keeps_state_and_chunks_and_sorts_portal_siblings_once ... ok
+test retained::logical::edit::lifecycle_tests::surviving_computations_and_portals_block_disposal_before_callbacks_or_source_changes ... ok
+test retained::logical::edit::tests::explicit_foreign_removal_cannot_authorize_an_unrelated_portal ... ok
+test retained::logical::tests::duplicate_keys_foreign_scopes_and_live_portal_host_removal_are_rejected ... ok
+test retained::logical::edit::lifecycle_tests::keyed_build_observes_final_sources_and_retirement_cleans_all_dependencies_once ... ok
+test retained::logical::tests::keyed_computed_sources_retain_edges_and_dispose_in_dependency_order ... ok
+test retained::logical::edit::lifecycle_tests::surviving_portal_requires_evacuation_and_new_dependencies_cannot_target_retired_state ... ok
+test retained::layout_publication::tests::fixed_parent_and_leaf_sizes_extract_only_changed_geometry_and_retain_pages ... ok
+test retained::logical::edit::lifecycle_tests::postcommit_callback_panics_leave_logical_source_and_render_ownership_consistent ... ok
+test retained::logical::edit::tests::portal_ownership_survives_edits_and_foreign_descendants_preflight_before_sources ... ok
+test retained::logical::edit::lifecycle_tests::zero_output_lifetimes_commit_without_render_work_and_reuse_initialization_once ... ok
+test retained::logical::tests::removing_scope_retires_owned_state_and_portal_renders_but_keeps_shared_sources ... ok
+test retained::logical::tests::keyed_reorder_preserves_scopes_sources_render_ids_and_chunks ... ok
+test retained::logical::tests::scoped_effects_retain_observation_and_cleanup_before_cross_scope_inputs_retire ... ok
+test retained::measure::tests::image_resizing_updates_overflow_and_explicit_style_ratio_takes_precedence ... ok
+test retained::measure::tests::images_keep_ratio_with_explicit_dimensions_and_constraints_are_not_known_sizes ... ok
+test retained::measure::tests::invalid_measures_and_container_attachment_reject_whole_transaction ... ok
+test retained::measure::tests::fixed_baseline_and_padding_participate_in_parent_flex_alignment ... ok
+test retained::measure::tests::owned_intrinsic_inputs_relayout_dependents_and_reuse_unaffected_measure_cache ... ok
+test retained::measure::tests::measure_signal_changes_are_atomic_and_retired_with_logical_owner ... ok
+test retained::paint_store::hit_index::tests::order_visibility_clip_edges_and_slot_reuse_match_linear_hit_contract ... ok
+test retained::primitive::tests::instance_material_changes_reuse_commands_and_damage_old_and_new_alpha ... ok
+test retained::primitive::tests::decoration_is_paint_only_atomic_and_updates_ink_with_transparent_fill ... ok
+test retained::primitive::tests::shadow_draft_construction_publishes_atomically_and_invalid_values_do_not_leak_nodes ... ok
+test retained::primitive::tests::shadow_geometry_handles_inset_and_negative_spread_and_validates_draft_sinks ... ok
+test retained::primitive::tests::shadows_are_atomic_paint_inputs_with_overflow_damage_and_immutable_packets ... ok
+test retained::properties::tests::group_opacity_reuses_commands_and_damages_its_descendants ... ok
+test retained::properties::tests::clip_changes_damage_old_and_new_ink_and_preserve_chunk_identity ... ok
+test retained::properties::tests::movement_damage_contains_both_positions_and_invalid_batch_is_atomic ... ok
+test retained::properties::tests::scroll_clamps_to_layout_extent_keeps_background_and_shares_clip_state ... ok
+test retained::layout_publication::tests::unchanged_final_layout_publishes_no_geometry_and_visibility_structure_resize_fall_back ... ok
+test retained::reactive::computed::tests::failed_settlement_restores_values_from_previous_reads_before_retry ... ok
+test retained::reactive::computed::tests::compute_and_sink_errors_are_atomic_and_caught_error_can_retry ... ok
+test retained::reactive::computed::tests::diamond_batches_are_ordered_once_and_equal_outputs_cut_off ... ok
+test retained::reactive::computed::tests::immutable_edges_validate_registration_disposal_generation_and_readonly_writes ... ok
+test retained::reactive::computed::tests::reads_settle_current_values_savepoints_and_return_to_committed_value ... ok
+test retained::extraction_tests::hidden_property_changes_stay_invisible_until_layout_restore ... ok
+test retained::reactive::delivery::tests::bounded_replacement_retired_sources_and_invalid_batches_do_not_revive_state ... ok
+test retained::reactive::delivery::tests::ownership_readonly_closure_and_waiter_replacement_are_checked ... ok
+test retained::extraction_tests::local_map_edits_share_unmodified_kinds_and_retired_generations_stay_in_old_frames ... ok
+test retained::reactive::edit::tests::cancelled_binding_and_equal_rebinding_change_lifetime_without_requesting_a_frame ... ok
+test retained::reactive::edit::tests::invalid_render_rolls_back_sources_bindings_stats_effects_and_frames ... ok
+test retained::reactive::edit::tests::endpoint_replacement_publishes_final_writer_and_failure_keeps_old_subscription ... ok
+test retained::reactive::delivery::tests::concurrent_senders_are_drained_without_lost_updates_or_shared_ui ... ok
+test retained::paint_store::tests::reordered_generation_reuse_updates_current_indices_and_old_page_lifetimes ... ok
+test retained::reactive::edit::tests::lifetime_reservation_and_revision_exhaustion_reject_before_callbacks ... ok
+test retained::reactive::delivery::tests::worker_burst_coalesces_before_computation_sinks_effects_and_extraction ... ok
+test retained::reactive::edit::tests::property_child_lists_are_settled_before_skipping_removed_sinks ... ok
+test retained::reactive::edit::tests::property_only_and_equal_edits_retain_fast_routes_and_effect_commit_boundary ... ok
+test retained::reactive::edit::tests::source_disposal_can_replace_endpoint_and_new_effects_validate_before_observation ... ok
+test retained::paint_store::tests::hidden_material_changes_and_geometry_changes_use_correct_publication_paths ... ok
+test retained::reactive::edit::tests::sources_derived_new_sinks_and_removed_output_publish_together ... ok
+test retained::reactive::effects::tests::rejected_or_restored_transactions_never_observe_or_cleanup ... ok
+test retained::reactive::effects::tests::effect_dependencies_validate_owner_generation_and_guard_source_disposal ... ok
+test retained::reactive::tests::binding_conflict_disposal_and_subtree_removal_do_not_revive_sinks ... ok
+test retained::reactive::effects::tests::observers_see_only_final_published_values_run_once_and_cleanup_before_rerun ... ok
+test retained::reactive::tests::one_source_fans_out_once_per_final_value_and_uses_one_render_commit ... ok
+test retained::reactive::tests::nested_savepoint_rollback_and_outer_failure_are_atomic ... ok
+test retained::reactive::tests::source_equality_and_final_restore_do_not_dispatch_sinks_or_request_frames ... ok
+test retained::responsive::tests::public_flex_subset_rejects_unimplemented_layout_and_invalid_thresholds ... ok
+test retained::reactive::tests::typed_layout_clip_translation_sinks_and_unbinding_use_the_same_tree ... ok
+test retained::responsive::tests::fixed_container_reads_resolved_content_width_and_never_parent_constraint ... ok
+test retained::responsive::tests::responsive_visibility_removes_whole_subtree_and_restores_same_paint_chunks ... ok
+test retained::responsive::tests::retired_scope_sources_remove_rules_and_new_handles_do_not_inherit_them ... ok
+test retained::responsive::tests::unsafe_container_dependencies_reject_before_binding_or_frame_mutation ... ok
+test retained::responsive::tests::source_outlives_removed_target_and_nested_query_edges_are_rejected ... ok
+test retained::spatial::tests::full_publication_includes_shadow_only_changes_in_authoritative_deltas ... ok
+test retained::spatial::tests::cancelling_inherited_motion_still_publishes_changed_local_placement ... ok
+test retained::responsive::tests::viewport_rules_change_only_at_threshold_and_preserve_ids_and_chunks ... ok
+test retained::structure::tests::invalid_final_graphs_leave_revision_layout_and_snapshot_unchanged ... ok
+test retained::structure::tests::atomic_reparent_and_rotation_preserve_taffy_nodes_chunks_and_old_snapshot ... ok
+test retained::tests::child_reorder_is_atomic_preserves_identity_and_reuses_paint ... ok
+test retained::structure::tests::removals_coalesce_validate_before_retirement_and_preserve_new_generations ... ok
+test retained::tests::final_values_skip_layout_recording_and_frame_requests ... ok
+test retained::structure::tests::logical_permutations_and_portal_moves_publish_once_and_failed_cycle_keeps_sources ... ok
+test retained::tests::color_and_translation_keep_independent_routes_and_share_other_chunks ... ok
+test retained::structure::tests::keyed_mixed_removal_preflights_before_cleanup_and_commits_one_revision ... ok
+test retained::tests::invalid_property_does_not_commit_and_invalid_viewport_can_be_retried ... ok
+test retained::tests::invalid_batch_preserves_all_earlier_values ... ok
+test retained::tests::parent_translation_reuses_commands_and_updates_descendant_hit_geometry ... ok
+test retained::tests::removal_invalidates_descendants_and_reused_slots_preserve_old_snapshots ... ok
+test retained::tests::resized_persistent_flex_matches_a_fresh_tree ... ok
+test retained::properties::store::tests::snapshot_update_copies_logarithmic_paths_and_equal_writes_copy_nothing ... ok
+test retained::paint_store::tests::owned_pages_copy_control_and_full_publication_preserve_snapshots_hits_and_deltas ... ok
+test retained::layout_publication::tests::grid_block_absolute_constraints_and_baselines_match_complete_extraction ... ok
+test retained::paint_store::tests::selective_pages_match_full_extraction_and_preserve_old_packets ... ok
+test retained::layout_publication::tests::flex_dependents_scroll_clamps_inherited_properties_and_mixed_updates_match_full ... ok
+test retained::extraction_tests::nested_property_extraction_matches_full_for_combined_updates_and_removal ... ok
+test retained::paint_store::hit_index::tests::page_index_matches_topmost_clipped_geometry_and_persists_across_updates ... ok
+test retained::reactive::computed::tests::mixed_dag_matches_full_recomputation_with_reads_restores_and_recycled_slots ... ok
+test retained::properties::store::tests::ordered_mixed_edits_match_btree_with_independent_snapshots ... ok
+
+test result: ok. 110 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.66s
+
+   Doc-tests gpui_box
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
