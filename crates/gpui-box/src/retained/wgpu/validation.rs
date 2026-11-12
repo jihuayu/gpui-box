@@ -28,6 +28,9 @@ pub(super) struct ValidationCache {
 }
 
 impl ValidationCache {
+    pub(super) fn paint_index(&self, node: NodeId) -> Option<usize> {
+        self.snapshot.as_ref()?.indices.get(&node).copied()
+    }
     pub(super) fn check(
         &mut self,
         frame: &FramePacket,

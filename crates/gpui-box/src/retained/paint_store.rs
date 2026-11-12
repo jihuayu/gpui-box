@@ -334,7 +334,7 @@ impl UiTree {
                 before.items.patch_owned(patches, &mut stats)
             })
         };
-        let frame = FramePacket {
+        let mut frame = FramePacket {
             tree: self.identity,
             base_revision: Some(before.revision),
             revision: self.revision,
@@ -356,6 +356,7 @@ impl UiTree {
                 bounds: damage,
             },
         };
+        frame.seal_updates(Some(&before));
         self.paint_dirty.clear();
         self.property_dirty.clear();
         self.geometry_dirty.clear();

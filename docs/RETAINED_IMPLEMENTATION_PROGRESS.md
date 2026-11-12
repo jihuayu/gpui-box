@@ -115,6 +115,14 @@ Exact root identity skips duplicate delta comparisons, while public COW mutation
 uses checked item lists. Original selective copying remains an A/B control;
 phase measurements distinguish commit, publication and submission costs.
 
+The [submitted-snapshot routing stage](RETAINED_CONSUMER_ROUTING.md) reuses
+unchanged local Quad/Shadow inputs, updates only changed spatial records and
+bounded anchors, and retains original preparation as an A/B control. Private
+normal-producer provenance ties complete deltas to the actual submitted base;
+unknown or modified transitions force full snapshot recovery, including missing
+removals/damage. Conflicting same-revision roots are rejected before equal-frame
+reuse. Hardware and phase measurements compare both consumer modes.
+
 ## Current integrated foundation
 
 `gpui-box/retained` owns persistent rectangle nodes and a Taffy tree. Nodes carry

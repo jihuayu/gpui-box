@@ -23,6 +23,8 @@ mod completion_protocol_tests;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 mod composition;
 pub use composition::CompositionStats;
+mod routing;
+pub use routing::RoutingStats;
 mod spatial;
 use spatial::SpatialArena;
 mod validation;
@@ -231,6 +233,7 @@ fn gpu_error(error: impl std::fmt::Display) -> Error {
 }
 
 pub struct FrameSubmission {
+    pub routing: RoutingStats,
     pub full_resync: bool,
     pub gpu: QuadSubmission,
     pub validation: ValidationStats,
@@ -251,6 +254,8 @@ pub struct WgpuFrameRenderer {
     shadow_arena: InstanceArena<ShadowRecord>,
     spatial_arena: SpatialArena,
     shared_spatial: bool,
+    cache_primitive_routing: bool,
+    routing_snapshot: Option<routing::Snapshot>,
     shadow_instances: BTreeMap<NodeId, Vec<InstanceHandle>>,
     instances: BTreeMap<NodeId, Vec<InstanceHandle>>,
     source: Option<(u64, u64)>,
@@ -281,6 +286,8 @@ impl WgpuFrameRenderer {
             shadow_arena: InstanceArena::default(),
             spatial_arena: SpatialArena::default(),
             shared_spatial: true,
+            cache_primitive_routing: true,
+            routing_snapshot: None,
             shadow_instances: BTreeMap::new(),
             instances: BTreeMap::new(),
             source: None,
@@ -393,6 +400,90 @@ impl WgpuFrameRenderer {
         }
     }
 
+    /// Reuse unchanged local Quad/Shadow inputs against a proven submitted base.
+    pub fn cached_primitive_routing_enabled(&self) -> bool {
+        self.cache_primitive_routing
+    }
+
+    pub fn set_cached_primitive_routing_enabled(&mut self, enabled: bool) {
+        if self.cache_primitive_routing != enabled {
+            self.cache_primitive_routing = enabled;
+            self.source = None;
+            self.routing_snapshot = None;
+        }
+    }
+
+    fn prepare_primitives(
+        &mut self,
+        item: &PaintItem,
+        property: u32,
+        scale: f32,
+        last_submission: u64,
+        quad: bool,
+        shadow: bool,
+    ) -> Result<bool, Error> {
+        let mut command_count_changed = false;
+        if shadow && (!item.shadows.is_empty() || self.shadow_instances.contains_key(&item.node)) {
+            let handles = self.shadow_instances.entry(item.node).or_default();
+            command_count_changed |= handles.len() != item.shadows.len();
+            while handles.len() > item.shadows.len() {
+                self.shadow_arena
+                    .retire(handles.pop().unwrap(), last_submission)
+                    .map_err(gpu_error)?;
+            }
+            let mut local;
+            let geometry = if property == 0 {
+                item
+            } else {
+                local = item.clone();
+                local.bounds.x = 0.0;
+                local.bounds.y = 0.0;
+                local.clip = None;
+                &local
+            };
+            for (index, shadow) in item.shadows.iter().enumerate() {
+                let mut record = ShadowRecord::new(geometry, *shadow, scale);
+                record.property = property;
+                if let Some(handle) = handles.get(index) {
+                    self.shadow_arena
+                        .update(*handle, record)
+                        .map_err(gpu_error)?;
+                } else {
+                    handles.push(self.shadow_arena.allocate(record));
+                }
+            }
+            if handles.is_empty() {
+                self.shadow_instances.remove(&item.node);
+            }
+        }
+        if quad {
+            let handles = self.instances.entry(item.node).or_default();
+            if handles.len() != item.commands.len() {
+                command_count_changed = true;
+            }
+            while handles.len() > item.commands.len() {
+                self.arena
+                    .retire(handles.pop().expect("excess command"), last_submission)
+                    .map_err(gpu_error)?;
+            }
+            for (index, command) in item.commands.iter().enumerate() {
+                let mut record = record(item, command, scale);
+                record.property = property;
+                if property != 0 {
+                    record.bounds.x = 0.0;
+                    record.bounds.y = 0.0;
+                    record.clip = None;
+                }
+                if let Some(handle) = handles.get(index) {
+                    self.arena.update(*handle, record).map_err(gpu_error)?;
+                } else {
+                    handles.push(self.arena.allocate(record));
+                }
+            }
+        }
+        Ok(command_count_changed)
+    }
+
     fn collect(&mut self) -> Result<(), Error> {
         let completed = self.backend.completed_serial().map_err(gpu_error)?;
         self.arena.collect(completed);
@@ -429,6 +520,14 @@ impl WgpuFrameRenderer {
         {
             return Err(Error::StaleFrame);
         }
+        if self.latest == Some((frame.tree, frame.revision))
+            && self
+                .routing_snapshot
+                .as_ref()
+                .is_some_and(|snapshot| !snapshot.same_scene(frame))
+        {
+            return Err(Error::InvalidFrame);
+        }
         // Completion collection must also run on equal frames: no new visual
         // submission is required to retire the previous immutable frame leases.
         self.collect()?;
@@ -438,7 +537,14 @@ impl WgpuFrameRenderer {
         {
             return Ok(None);
         }
-        let full_resync = self.source.is_none()
+        let untrusted_full_resync = self.source.is_some()
+            && self.source == frame.base_revision.map(|revision| (frame.tree, revision))
+            && !self
+                .routing_snapshot
+                .as_ref()
+                .is_some_and(|snapshot| snapshot.follows(frame));
+        let full_resync = untrusted_full_resync
+            || self.source.is_none()
             || self.source != frame.base_revision.map(|revision| (frame.tree, revision))
             || self.scale != scale;
         self.failed = true;
@@ -474,82 +580,80 @@ impl WgpuFrameRenderer {
         self.arena.collect(completed);
         self.shadow_arena.collect(completed);
         self.spatial_arena.collect(completed);
-        let rebuild_spatial =
-            self.shared_spatial && (full_resync || self.spatial_arena.topology_changed(frame));
+        let plan = if self.cache_primitive_routing && !full_resync {
+            self.routing_snapshot.as_ref().and_then(|snapshot| {
+                snapshot.plan(frame, &self.validation_cache, self.shared_spatial)
+            })
+        } else {
+            None
+        };
+        let rebuild_spatial = self.shared_spatial
+            && (full_resync
+                || plan.as_ref().map_or_else(
+                    || self.spatial_arena.topology_changed(frame),
+                    |p| p.parent_changed,
+                ));
+        let next_snapshot = routing::Snapshot::next(
+            frame,
+            self.routing_snapshot.as_ref(),
+            &self.validation_cache,
+            rebuild_spatial,
+            self.shared_spatial && self.cache_primitive_routing,
+        )?;
+        let mut routing = plan
+            .as_ref()
+            .map_or_else(RoutingStats::default, |p| p.stats);
+        routing.untrusted_full_resync = untrusted_full_resync;
         if rebuild_spatial {
             for item in frame.items.iter() {
                 self.spatial_arena.update(item)?;
+                routing.rebuilt_spatial_items += 1;
             }
         }
         let mut command_count_changed = false;
-        let selected: Box<dyn Iterator<Item = &PaintItem> + '_> = if full_resync {
-            Box::new(frame.items.iter())
-        } else {
-            Box::new(frame.updates.iter())
-        };
-        for item in selected {
-            let property = if rebuild_spatial {
-                self.spatial_arena.slot(item.node)?
-            } else if self.shared_spatial {
-                self.spatial_arena.update(item)?
-            } else {
-                0
-            };
-            if !item.shadows.is_empty() || self.shadow_instances.contains_key(&item.node) {
-                let handles = self.shadow_instances.entry(item.node).or_default();
-                command_count_changed |= handles.len() != item.shadows.len();
-                while handles.len() > item.shadows.len() {
-                    self.shadow_arena
-                        .retire(handles.pop().unwrap(), last_submission)
-                        .map_err(gpu_error)?;
-                }
-                let mut local;
-                let geometry = if property == 0 {
-                    item
+        if let Some(plan) = plan {
+            for entry in plan.entries {
+                let property = if !self.shared_spatial {
+                    0
+                } else if entry.spatial && !rebuild_spatial {
+                    routing.prepared_spatial_items += 1;
+                    self.spatial_arena.update(entry.item)?
+                } else if entry.quad || entry.shadow {
+                    self.spatial_arena.slot(entry.item.node)?
                 } else {
-                    local = item.clone();
-                    local.bounds.x = 0.0;
-                    local.bounds.y = 0.0;
-                    local.clip = None;
-                    &local
+                    continue;
                 };
-                for (index, shadow) in item.shadows.iter().enumerate() {
-                    let mut record = ShadowRecord::new(geometry, *shadow, scale);
-                    record.property = property;
-                    if let Some(handle) = handles.get(index) {
-                        self.shadow_arena
-                            .update(*handle, record)
-                            .map_err(gpu_error)?;
-                    } else {
-                        handles.push(self.shadow_arena.allocate(record));
-                    }
-                }
-                if handles.is_empty() {
-                    self.shadow_instances.remove(&item.node);
-                }
+                routing.prepared_quad_items += usize::from(entry.quad);
+                routing.prepared_shadow_items += usize::from(entry.shadow);
+                command_count_changed |= self.prepare_primitives(
+                    entry.item,
+                    property,
+                    scale,
+                    last_submission,
+                    entry.quad,
+                    entry.shadow,
+                )?;
             }
-            let handles = self.instances.entry(item.node).or_default();
-            if handles.len() != item.commands.len() {
-                command_count_changed = true;
-            }
-            while handles.len() > item.commands.len() {
-                self.arena
-                    .retire(handles.pop().expect("excess command"), last_submission)
-                    .map_err(gpu_error)?;
-            }
-            for (index, command) in item.commands.iter().enumerate() {
-                let mut record = record(item, command, scale);
-                record.property = property;
-                if property != 0 {
-                    record.bounds.x = 0.0;
-                    record.bounds.y = 0.0;
-                    record.clip = None;
-                }
-                if let Some(handle) = handles.get(index) {
-                    self.arena.update(*handle, record).map_err(gpu_error)?;
+        } else {
+            let selected: Box<dyn Iterator<Item = &PaintItem> + '_> = if full_resync {
+                Box::new(frame.items.iter())
+            } else {
+                Box::new(frame.updates.iter())
+            };
+            for item in selected {
+                routing.inspected_items += 1;
+                let property = if rebuild_spatial {
+                    self.spatial_arena.slot(item.node)?
+                } else if self.shared_spatial {
+                    routing.prepared_spatial_items += 1;
+                    self.spatial_arena.update(item)?
                 } else {
-                    handles.push(self.arena.allocate(record));
-                }
+                    0
+                };
+                routing.prepared_quad_items += 1;
+                routing.prepared_shadow_items += 1;
+                command_count_changed |=
+                    self.prepare_primitives(item, property, scale, last_submission, true, true)?;
             }
         }
         let (order, mut layers, composition) = self.composition_cache.resolve(
@@ -615,6 +719,7 @@ impl WgpuFrameRenderer {
         if let Some((tree, _)) = self.latest.filter(|(tree, _)| *tree != frame.tree) {
             self.retired_sources.insert(tree);
         }
+        self.routing_snapshot = Some(next_snapshot);
         self.source = Some((frame.tree, frame.revision));
         self.latest = self.source;
         self.scale = scale;
@@ -623,6 +728,7 @@ impl WgpuFrameRenderer {
         self.collect()?;
         self.failed = false;
         Ok(Some(FrameSubmission {
+            routing,
             full_resync,
             gpu,
             validation,
@@ -738,6 +844,7 @@ impl WgpuFrameRenderer {
         replacement.retired_sources = self.retired_sources.clone();
         replacement.policy = self.policy;
         replacement.shared_spatial = self.shared_spatial;
+        replacement.cache_primitive_routing = self.cache_primitive_routing;
         replacement.cache_layers = self.cache_layers;
         replacement.tight_layer_bounds = self.tight_layer_bounds;
         replacement

@@ -32,6 +32,7 @@ mod retained_publication;
 mod retained_queue;
 mod retained_reactive;
 mod retained_responsive;
+mod retained_routing;
 mod retained_shadows;
 mod retained_spatial;
 mod retained_structure;
@@ -82,6 +83,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         )?,
     )?;
     let mut results = vec![];
+    if std::env::args().any(|arg| arg == "--routing-only") {
+        retained_routing::run(&output, &mut results)?;
+        fs::write(
+            output.join("validation.json"),
+            serde_json::to_vec_pretty(&results)?,
+        )?;
+        fs::write(
+            output.join("routing-benchmark.json"),
+            serde_json::to_vec_pretty(&retained_spatial::routing_benchmark()?)?,
+        )?;
+        return Ok(());
+    }
     if std::env::args().any(|arg| arg == "--publication-only") {
         retained_publication::run(&output, &mut results)?;
         fs::write(
@@ -778,6 +791,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_shadows::run(&mut renderer, &output, &mut results)?;
     retained_spatial::run(&output, &mut results)?;
     retained_publication::run(&output, &mut results)?;
+    retained_routing::run(&output, &mut results)?;
     fs::write(
         output.join("validation.json"),
         serde_json::to_vec_pretty(&results)?,

@@ -1013,7 +1013,7 @@ impl UiTree {
         let items=Arc::new(PaintItems::from(items));
         let delta_cloned_items=updates.as_ref().map_or(0,Vec::len);
         let updates=if let Some(updates)=updates {Arc::new(PaintUpdates::from(updates))} else {PaintUpdates::indexed(items.clone(),update_indices)};
-        let frame = FramePacket {
+        let mut frame = FramePacket {
             tree: self.identity,
             base_revision: self.frame.as_ref().map(|frame| frame.revision),
             revision: self.revision,
@@ -1033,6 +1033,7 @@ impl UiTree {
             properties: Arc::new(properties),
             damage,
         };
+        frame.seal_updates(self.frame.as_ref());
         self.layout_dirty = false;
         self.full_extract_required = false;
         self.geometry_dirty.clear();
