@@ -231,6 +231,17 @@ comparisons, plus hidden native delivery/surface/device replacement. This is
 partial internal transport work; modern desktop visible 120 fps, software
 rendering and the full RFC remain unaccepted.
 
+The [grouped preflight refinement](performance/2026-11-12-grouped-preflight/README.md)
+now coalesces and validates one sorted node at a time while retaining the whole
+final change list until atomic publication. It avoids the extra dense Pending
+array without bypassing overwritten-invalid input checks or last-writer rules.
+Alternating exact binaries reduce dense commit medians 21.6–25.2% and completed
+medians 6.9–14.5%; an ancestor/effects median regresses 30.6%, kept in evidence.
+Two sustained runs produce dense/effects 120 Hz p99 of 29.55–34.33 ms, still
+1,199 consecutive unsatisfied ticks, and dense 60 Hz also fails. Hardware checks
+again pass 2,011 scenarios / 1,921 pixel comparisons. This does not close visible
+presentation, modern desktop hardware or software rendering acceptance.
+
 The latest performance priority is modern desktop GPUs at 120 Hz with effects,
 especially p99/max and burst stalls; software rendering prioritizes responsiveness.
 The [frame-budget decision](ADR_RETAINED_FRAME_BUDGET.md) records API consequences

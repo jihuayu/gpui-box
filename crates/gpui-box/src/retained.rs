@@ -617,82 +617,86 @@ impl UiTree {
         // Stable sorting preserves last-writer semantics while avoiding a
         // separately allocated tree entry for every node in a large animation.
         transaction.patches.sort_by_key(Patch::node);
-        let mut pending: Vec<(NodeId, Pending)> = Vec::new();
-        for patch in transaction.patches {
-            let id = patch.node();
-            node_for(id)?;
-            if pending.last().is_none_or(|(previous, _)| *previous != id) {
-                pending.push((id, Pending::default()));
-            }
-            let entry = &mut pending.last_mut().expect("pending node").1;
-            match patch {
-                Patch::Color(_, color) => entry.color = Some(color),
-                Patch::Style(_, style) => entry.style = Some(style),
-                Patch::Translation(_, translation) => {
-                    if translation.iter().any(|v| !v.is_finite()) {
-                        return Err(Error::InvalidTranslation);
-                    }
-                    entry.translation = Some(translation);
-                }
-                Patch::Clip(_, clip) => {
-                    if clip.is_some_and(|clip| !clip.valid()) {
-                        return Err(Error::InvalidClip);
-                    }
-                    entry.clip = Some(clip);
-                }
-                Patch::Scroll(_, offset) => {
-                    if offset
-                        .iter()
-                        .any(|value| !value.is_finite() || *value < 0.0)
-                    {
-                        return Err(Error::InvalidScroll);
-                    }
-                    entry.scroll = Some(offset);
-                }
-                Patch::Opacity(_, opacity) => {
-                    if !opacity.is_finite() || !(0.0..=1.0).contains(&opacity) {
-                        return Err(Error::InvalidOpacity);
-                    }
-                    entry.opacity = Some(opacity);
-                }
-                Patch::Measure(_, snapshot) => {
-                    if let Some(snapshot) = &snapshot {
-                        snapshot.validate()?;
-                    }
-                    entry.measure = Some(snapshot);
-                }
-                Patch::Decoration(_, decoration) => {
-                    decoration.validate()?;
-                    entry.decoration = Some(decoration);
-                }
-                Patch::Shadows(_, shadows) => {
-                    for shadow in shadows.iter() {
-                        shadow.validate()?;
-                    }
-                    entry.shadows = Some(shadows);
-                }
-                Patch::Image(_, image) => {
-                    entry.image = Some(image);
-                }
-                #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
-                Patch::Text(_, text) => {
-                    entry.text = Some(text);
-                }
-                Patch::Reorder(_, children) => {
-                    let mut previous = node_for(id)?.children.clone();
-                    let mut proposed = children.clone();
-                    previous.sort_unstable();
-                    proposed.sort_unstable();
-                    if previous != proposed {
-                        return Err(Error::InvalidChildren);
-                    }
-                    entry.children = Some(children);
-                }
-            }
-        }
+        // Coalesce one node at a time. The complete validated change list is
+        // still private until every node succeeds, but no second dense array
+        // of wide Pending records has to grow and move before final comparison.
+        let mut patches = transaction.patches.into_iter().peekable();
         let mut changed = Vec::new();
-        for (id, mut entry) in pending {
+        while let Some(mut patch) = patches.next() {
+            let id = patch.node();
             let node = node_for(id)?;
+            let mut entry = Pending::default();
+            loop {
+                match patch {
+                    Patch::Color(_, color) => entry.color = Some(color),
+                    Patch::Style(_, style) => entry.style = Some(style),
+                    Patch::Translation(_, translation) => {
+                        if translation.iter().any(|v| !v.is_finite()) {
+                            return Err(Error::InvalidTranslation);
+                        }
+                        entry.translation = Some(translation);
+                    }
+                    Patch::Clip(_, clip) => {
+                        if clip.is_some_and(|clip| !clip.valid()) {
+                            return Err(Error::InvalidClip);
+                        }
+                        entry.clip = Some(clip);
+                    }
+                    Patch::Scroll(_, offset) => {
+                        if offset
+                            .iter()
+                            .any(|value| !value.is_finite() || *value < 0.0)
+                        {
+                            return Err(Error::InvalidScroll);
+                        }
+                        entry.scroll = Some(offset);
+                    }
+                    Patch::Opacity(_, opacity) => {
+                        if !opacity.is_finite() || !(0.0..=1.0).contains(&opacity) {
+                            return Err(Error::InvalidOpacity);
+                        }
+                        entry.opacity = Some(opacity);
+                    }
+                    Patch::Measure(_, snapshot) => {
+                        if let Some(snapshot) = &snapshot {
+                            snapshot.validate()?;
+                        }
+                        entry.measure = Some(snapshot);
+                    }
+                    Patch::Decoration(_, decoration) => {
+                        decoration.validate()?;
+                        entry.decoration = Some(decoration);
+                    }
+                    Patch::Shadows(_, shadows) => {
+                        for shadow in shadows.iter() {
+                            shadow.validate()?;
+                        }
+                        entry.shadows = Some(shadows);
+                    }
+                    Patch::Image(_, image) => {
+                        entry.image = Some(image);
+                    }
+                    #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+                    Patch::Text(_, text) => {
+                        entry.text = Some(text);
+                    }
+                    Patch::Reorder(_, children) => {
+                        let mut previous = node.children.clone();
+                        let mut proposed = children.clone();
+                        previous.sort_unstable();
+                        proposed.sort_unstable();
+                        if previous != proposed {
+                            return Err(Error::InvalidChildren);
+                        }
+                        entry.children = Some(children);
+                    }
+                }
+                if let Some(next) = patches.next_if(|next| next.node() == id) {
+                    patch = next;
+                } else {
+                    break;
+                }
+            }
             let final_image = entry.image.as_ref().unwrap_or(&node.image);
             let explicit_measure = entry.measure.is_some();
             #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
@@ -1121,6 +1125,57 @@ mod tests {
             )
             .unwrap();
         (tree, child)
+    }
+
+    #[test]
+    fn grouped_preflight_rejects_overwritten_invalid_values_and_late_nodes_atomically() {
+        let (mut tree, first) = fixture();
+        let last = tree.append(tree.root(), Style::default(), 7).unwrap();
+        let before = tree.frame([100.0, 100.0]).unwrap();
+        for invalid in [f32::NAN, f32::INFINITY] {
+            let mut tx = Transaction::default();
+            // Interleave identities: stable grouping must retain each node's
+            // writer order and validate even a subsequently overwritten value.
+            tx.translation(last, [invalid, 0.0]);
+            tx.color(first, 0x123456ff);
+            tx.translation(last, [2.0, 3.0]);
+            tx.color(first, 0xabcdef01);
+            assert_eq!(
+                tree.commit(tx, BackendCapabilities::default()).unwrap_err(),
+                Error::InvalidTranslation
+            );
+            let unchanged = tree.frame([100.0, 100.0]).unwrap();
+            assert_eq!(unchanged.revision, before.revision);
+            assert!(Arc::ptr_eq(&unchanged.items, &before.items));
+        }
+        let mut tx = Transaction::default();
+        tx.translation(last, [1.0, 1.0]);
+        tx.color(first, 0x123456ff);
+        tx.translation(last, [2.0, 3.0]);
+        tx.color(first, 0xabcdef01);
+        let commit = tree.commit(tx, BackendCapabilities::default()).unwrap();
+        assert_eq!(commit.changed_nodes, 2);
+        assert_eq!(commit.revision, before.revision + 1);
+        let after = tree.frame([100.0, 100.0]).unwrap();
+        assert_eq!(
+            after
+                .items
+                .iter()
+                .find(|item| item.node == first)
+                .unwrap()
+                .fill_color,
+            0xabcdef01
+        );
+        assert_eq!(tree.node(last).unwrap().translation, [2.0, 3.0]);
+        assert_eq!(
+            before
+                .items
+                .iter()
+                .find(|item| item.node == first)
+                .unwrap()
+                .fill_color,
+            0x0000ffff
+        );
     }
 
     #[test]

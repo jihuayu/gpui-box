@@ -1,0 +1,64 @@
+{
+  "passed": true,
+  "core_tests_with_gpu_and_text": 148,
+  "retained_text_tests": 123,
+  "example_tests": 11,
+  "example_hardware_test_ignored_in_ordinary_suite": 1,
+  "clippy": "retained-only core and retained-gpu benchmark bins pass -D warnings",
+  "hardware_matrix": {
+    "passed": true,
+    "scenarios": 2011,
+    "pixel_comparisons": 1921,
+    "validation_sha256": "c117ed966b43fb506b1d1002a2e2b7e2acae5e242e5db4240c2a350f77d1c421",
+    "binary_sha256": "a7e323d8d253043be1e8e1c81203378b4d11f962edc664359918f1b6184898c4",
+    "adapter": {
+      "name": "NVIDIA GeForce GTX 1650 Ti",
+      "backend": "Vulkan",
+      "driver": "571.96"
+    },
+    "local_artifacts": "target/grouped-preflight-regression",
+    "command": "target/release/retained-runtime-gpu.exe target/grouped-preflight-regression --validation-only"
+  },
+  "cadence_metadata": {
+    "base_commit": "bc292976eac46a03ad57002b5225ba04875569e9",
+    "started": "2026-11-12T23:22:26.3530463+08:00",
+    "finished": "2026-11-12T23:27:21.7046729+08:00",
+    "binary_sha256": "e31dd16ec38eebf18b754e7ba09ef60642957147ae9ef9f740bcb59fc14316e9",
+    "hardware": "NVIDIA GeForce GTX 1650 Ti, 571.96, 4096 MiB",
+    "cpu": [
+      "AMD Ryzen 7 4800H with Radeon Graphics         "
+    ],
+    "runs": 2,
+    "quick": false,
+    "local_snapshot": true,
+    "sources_stable": true,
+    "no_sampled_compiler_or_benchmark_conflicts": true,
+    "scope": "independent OS visual worker to synchronous GPU completion; local mode uses full-viewport isolated layers; excludes native display and physical input"
+  },
+  "ab_metadata": {
+    "base_commit": "bc292976eac46a03ad57002b5225ba04875569e9",
+    "control_commit": "bc29297",
+    "binaries": [
+      {
+        "mode": "control",
+        "binary_sha256": "5b1a5c32fad06d994767b025d8f1b674a186af9e1048ec64bb4091d065272648"
+      },
+      {
+        "mode": "optimized",
+        "binary_sha256": "e31dd16ec38eebf18b754e7ba09ef60642957147ae9ef9f740bcb59fc14316e9"
+      }
+    ],
+    "started": "2026-11-12T23:19:07.7054312+08:00",
+    "finished": "2026-11-12T23:20:47.1043387+08:00",
+    "runs": 2,
+    "sources_stable": true,
+    "no_sampled_conflicts": true,
+    "gpu": "NVIDIA GeForce GTX 1650 Ti, 571.96, 4096 MiB",
+    "cpu": [
+      "AMD Ryzen 7 4800H with Radeon Graphics         "
+    ],
+    "scope": "alternating previous and current binaries; unchanged local benchmark and layer policy; 120 paired samples per mode/case; no native display"
+  },
+  "native": "not rerun for this grouped-preflight executable; previous compact-transport version has hidden native diagnostics; visible presentation remains open",
+  "goal_complete": false
+}

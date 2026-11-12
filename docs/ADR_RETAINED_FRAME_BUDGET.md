@@ -76,6 +76,42 @@ flowchart LR
    advances epoch. Unsupported platforms return `None`. A Present-return
    timestamp is never named display completion or input-to-photon latency.
 
+## Admission and quality contracts still requiring implementation
+
+Desktop GPU is the primary target. A missed budget must first trigger bounded
+visual sampling, reduced redundant state/snapshot work and reuse of unchanged
+effect content; it must not silently turn off application-requested effects.
+The 120 Hz budget covers arrival-to-completion age as well as throughput. A
+deeper GPU queue cannot be accepted as a latency improvement unless frame age,
+pending work and p99/max also pass. Sustained validation must include bursts,
+not just a continuously warmed stable scene. Surface size, scale, primitive
+mix, effects and resource working set belong to every acceptance result.
+
+CPU rendering prioritizes owner/input responsiveness. Backend capability
+negotiation must distinguish supported exact operations, explicitly permitted
+decorative simplification and unsupported operations before frame work starts.
+It must not call GPU readback or a WGPU software adapter a CPU renderer. Merely
+declaring `SoftwareResponsive` does not activate a renderer or enforce a budget.
+
+A future resumable software job should own its immutable input and resource
+epoch, yield at bounded work boundaries, and expose cancellation/completion.
+Only a complete internally consistent output may replace the previously shown
+frame. Discarding superseded visual jobs must not discard state transactions,
+cleanup or resource releases. Input/hit geometry must identify the shown scene;
+invisible partially rasterized state must not silently become the event target.
+One oversized primitive or allocation must have an explicit outcome instead of
+an unbounded owner-thread loop. These contracts need an actual CPU consumer,
+cooperative execution and fidelity/latency tests before stabilizing public APIs.
+
+Preconstruction admission must happen before source fanout/snapshot building
+for replaceable animation work, while lossless owner events still settle in
+order. It needs a host demand/deadline, bounded pending/in-flight capacity and
+readiness wakeups with no idle polling. Resource or effect working-set admission
+is a separate condition from frame cadence. Current `FrameClock`, last-value
+inbox and postconstruction `FrameQueue` cover only parts of this contract.
+No arbitrary callback may be named budgeted solely because it receives a
+deadline; non-yielding user code cannot be preempted safely by that interface.
+
 ## Alternatives and consequences
 
 Using average FPS hides long stalls. Sleeping relative to completed work hides
@@ -113,6 +149,19 @@ Sustained independent/effects p99 remains about 39 ms at 120 Hz. No application
 API should promise frame deadlines from reduced upload volume alone. Dense
 state preparation, preconstruction admission and local-space effect content
 identity remain necessary, independently of software backend implementation.
+
+Dense property preflight now prepares one grouped node at a time
+after the existing stable sort. It retains every final validated change until
+the whole batch succeeds; it does not publish per-node state. This avoids a
+second dense array of wide pending material/resource/property records and
+redundant identity lookups. Each overwritten input is still checked, last writer
+order within each node is stable, and source/sink publication remains atomic.
+The choice among errors in a multiply-invalid transaction is not a priority or
+event-order API. The [grouped preflight evidence](performance/2026-11-12-grouped-preflight/README.md)
+shows 21.6–25.2% dense commit median and 6.9–14.5% completed median improvement
+in alternating binaries, with an ancestor/effects regression retained.
+Sustained dense/effects p99 remains 29.55–34.33 ms and still fails 60/120 Hz.
+A reduced temporary working set alone does not establish deadline compliance.
 
 ## Remaining acceptance
 
