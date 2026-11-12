@@ -69,6 +69,11 @@ jobs:
           unzip -l platforms/android/app/build/outputs/apk/debug/app-debug.apk | tee target/ci/apk-contents.txt
           grep -F 'lib/arm64-v8a/libgpui_box_android.so' target/ci/apk-contents.txt
           grep -F 'lib/x86_64/libgpui_box_android.so' target/ci/apk-contents.txt
+      - name: Qualify independent facade features on both ABIs
+        env:
+          GPUI_BOX_FEATURE_TARGET: android
+          GPUI_BOX_FEATURE_REPORT_DIR: ${{ github.workspace }}/target/ci/feature-qualification
+        run: mise run check:features 2>&1 | tee target/ci/features.log
       - name: Qualify external SDK and project templates
         env:
           GPUI_BOX_QUALIFICATION_TARGET: android

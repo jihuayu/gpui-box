@@ -64,6 +64,12 @@ jobs:
         run: |
           mise run check:desktop 2>&1 | Tee-Object -FilePath target/ci/desktop.log
           exit $LASTEXITCODE
+      - name: Qualify independent facade features
+        env:
+          GPUI_BOX_FEATURE_REPORT_DIR: ${{ github.workspace }}/target/ci/feature-qualification
+        run: |
+          mise run check:features 2>&1 | Tee-Object -FilePath target/ci/features.log
+          exit $LASTEXITCODE
       - name: Qualify external SDK and project templates
         env:
           GPUI_BOX_QUALIFICATION_TARGET: desktop
