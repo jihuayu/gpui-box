@@ -1,0 +1,110 @@
+{
+  "passed": true,
+  "core_tests": 147,
+  "example_tests": 11,
+  "hardware_matrix": {
+    "passed": true,
+    "scenarios": 2011,
+    "pixel_comparisons": 1921,
+    "validation_sha256": "c117ed966b43fb506b1d1002a2e2b7e2acae5e242e5db4240c2a350f77d1c421",
+    "binary_sha256": "318de9dad701d9912ca506ffc575cdaa16c78226ae26af15790e49745a24ef76",
+    "adapter": {
+      "name": "NVIDIA GeForce GTX 1650 Ti",
+      "backend": "Vulkan",
+      "driver": "571.96"
+    },
+    "local_artifacts": "target/compact-transport-final-regression",
+    "command": "target/release/retained-runtime-gpu.exe target/compact-transport-final-regression --validation-only",
+    "scope": "compact spatial transport, bitmap dirty tracking and binding exact lookup; full local/resolved indexed/original rejection/retry controls"
+  },
+  "clippy": "retained-only core and retained-gpu performance bins passed -D warnings",
+  "native": {
+    "delivery": {
+      "local_artifacts": "target/compact-transport-native-delivery",
+      "metadata.json": {
+        "base_commit": "88d35963ac59eb8c96c9b5cbec50f90b39ac70d9",
+        "started": "2026-11-12T23:11:13.7688260+08:00",
+        "finished": "2026-11-12T23:11:18.9298169+08:00",
+        "binary_sha256": "127d86cb5771b53396779428dbb28e035c16a1c8a20e7a76ca16bc172c0df619",
+        "delivery": true,
+        "readback_control": false,
+        "exit_code": 0,
+        "native_launch": "Start-Process -WindowStyle Hidden; explicit diagnostic draws; visibility reported separately"
+      },
+      "delivery.json": {
+        "passed": true,
+        "platform": "windows",
+        "real_os_worker": true,
+        "real_foreground_executor": true,
+        "native_window": true,
+        "native_window_visible": false,
+        "manual_hidden_draw": true,
+        "automatic_view_renders": 0,
+        "source_messages": 1000,
+        "coalesced": 999,
+        "burst_waker_notifications": 1,
+        "burst_transactions": 1,
+        "burst_computed_evaluations": 1,
+        "burst_effect_runs": 1,
+        "burst_view_renders": 1,
+        "pixel_equal": true,
+        "equal_additional_view_renders": 0,
+        "initial_idle_ms": 250,
+        "post_update_idle_ms": 250,
+        "completion_retired_without_new_frame": true,
+        "completion_frame_leases": 0,
+        "completion_gpu_leases": 0,
+        "completion_extra_view_renders": 0,
+        "completion_idle_counters_stable_ms": 250,
+        "worker_to_delayed_check_us": 567574,
+        "timing_note": "Includes deliberate 150ms diagnostic wait; not wake or input latency. Hidden window draw is explicit, not automatic presentation. Idle checks count view renders and driver work, not OS process wakeups or energy."
+      }
+    },
+    "shared": {
+      "local_artifacts": "target/compact-transport-native",
+      "metadata.json": {
+        "base_commit": "88d35963ac59eb8c96c9b5cbec50f90b39ac70d9",
+        "started": "2026-11-12T23:11:20.0981584+08:00",
+        "finished": "2026-11-12T23:11:24.7992984+08:00",
+        "binary_sha256": "127d86cb5771b53396779428dbb28e035c16a1c8a20e7a76ca16bc172c0df619",
+        "delivery": false,
+        "readback_control": false,
+        "exit_code": 0,
+        "native_launch": "Start-Process -WindowStyle Hidden; explicit diagnostic draws; visibility reported separately"
+      },
+      "result.json": {
+        "passed": true,
+        "native_framebuffer_pixels": 97792,
+        "channel_tolerance": 1,
+        "cached_scene_equal": true,
+        "device_replacement_pixels": 3072,
+        "device_replacement_passed": true,
+        "benchmark_scope": "owner commit/publication/submission plus completed export; same DX12 consumer, full redraw; native draw/present and sprite upload excluded; GPU export reuses only unowned allocations after producer and native read fence completion"
+      },
+      "native-window.json": {
+        "visible": false,
+        "explicit_scene_draw": true,
+        "framebuffer_readback_for_validation": true,
+        "os_present_latency_measured": false
+      },
+      "present-attempt.json": {
+        "device_epoch": 1,
+        "sequence": 1,
+        "status": 0,
+        "queued": true,
+        "present_call_us": 2029.4000000000003,
+        "display_confirmed": false
+      },
+      "native-device-recovery.json": {
+        "passed": true,
+        "pixels": 3072,
+        "device_identity_changed": true,
+        "old_snapshot_retained": true,
+        "full_resync": true,
+        "recoveries": 1,
+        "device_epoch": 1,
+        "redundant_recovery": false
+      }
+    }
+  }
+}

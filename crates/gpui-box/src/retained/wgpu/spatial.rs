@@ -40,9 +40,26 @@ impl SpatialArena {
             .ok_or(Error::InvalidFrame)
     }
     pub fn update(&mut self, item: &PaintItem) -> Result<u32, Error> {
-        self.parents.insert(item.node, item.spatial.parent);
-        let parent = item
-            .spatial
+        self.update_spatial(
+            item.node,
+            &item.spatial,
+            [item.bounds.x, item.bounds.y],
+            item.clip,
+        )
+    }
+    pub fn update_local(&mut self, update: &local::SpatialUpdate) -> Result<u32, Error> {
+        let (origin, clip) = update.anchor.unwrap_or(([0.0; 2], None));
+        self.update_spatial(update.node, &update.spatial, origin, clip)
+    }
+    fn update_spatial(
+        &mut self,
+        node: NodeId,
+        spatial: &SpatialState,
+        origin: [f32; 2],
+        clip: Option<Rect>,
+    ) -> Result<u32, Error> {
+        self.parents.insert(node, spatial.parent);
+        let parent = spatial
             .parent
             .map(|node| self.nodes.get(&node).copied().ok_or(Error::InvalidFrame))
             .transpose()?;
@@ -50,7 +67,6 @@ impl SpatialArena {
         // Only anchor world data changes for descendants beyond a bounded walk.
         let anchor = parent.is_none_or(|(_, depth)| depth == 31);
         let depth = if anchor { 0 } else { parent.unwrap().1 + 1 };
-        let spatial = &item.spatial;
         let rect = |b: Rect| [b.x, b.y, b.width, b.height];
         let value = gpui_wgpu::SpatialNode {
             layout_translation: if anchor {
@@ -70,12 +86,12 @@ impl SpatialArena {
                 spatial.clip.map_or([0.0; 4], rect)
             },
             anchor_clip: if anchor {
-                item.clip.map_or([0.0; 4], rect)
+                clip.map_or([0.0; 4], rect)
             } else {
                 [0.0; 4]
             },
             anchor_origin: if anchor {
-                [item.bounds.x, item.bounds.y, 0.0, 0.0]
+                [origin[0], origin[1], 0.0, 0.0]
             } else {
                 [0.0; 4]
             },
@@ -87,20 +103,20 @@ impl SpatialArena {
                 },
                 depth,
                 if anchor {
-                    2 | if item.clip.is_some() { 8 } else { 0 }
+                    2 | if clip.is_some() { 8 } else { 0 }
                 } else {
                     u32::from(spatial.clip.is_some())
                 },
                 0,
             ],
         };
-        let handle = if let Some((handle, old_depth)) = self.nodes.get_mut(&item.node) {
+        let handle = if let Some((handle, old_depth)) = self.nodes.get_mut(&node) {
             self.arena.update(*handle, value).map_err(gpu_error)?;
             *old_depth = depth;
             *handle
         } else {
             let handle = self.arena.allocate(value);
-            self.nodes.insert(item.node, (handle, depth));
+            self.nodes.insert(node, (handle, depth));
             handle
         };
         handle.slot.checked_add(1).ok_or(Error::InvalidFrame)

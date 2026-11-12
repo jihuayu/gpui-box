@@ -1,0 +1,788 @@
+{
+  "cases": [
+    {
+      "round": 1,
+      "effects": false,
+      "batch": false,
+      "phases": {
+        "commit": {
+          "control": {
+            "samples": 120,
+            "p50_us": 5.800000000000001,
+            "p95_us": 8.3,
+            "p99_us": 12.0,
+            "max_us": 43.5
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 6.0,
+            "p95_us": 8.1,
+            "p99_us": 10.0,
+            "max_us": 12.700000000000001
+          },
+          "p50_reduction_percent": -3.44827586206895,
+          "p95_reduction_percent": 2.4096385542168752
+        },
+        "publication": {
+          "control": {
+            "samples": 120,
+            "p50_us": 6.1,
+            "p95_us": 10.299999999999999,
+            "p99_us": 11.9,
+            "max_us": 13.9
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 6.0,
+            "p95_us": 8.3,
+            "p99_us": 10.6,
+            "max_us": 12.1
+          },
+          "p50_reduction_percent": 1.6393442622950727,
+          "p95_reduction_percent": 19.41747572815532
+        },
+        "submission": {
+          "control": {
+            "samples": 120,
+            "p50_us": 764.0,
+            "p95_us": 1119.4,
+            "p99_us": 1458.3,
+            "max_us": 1463.7
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 704.8,
+            "p95_us": 985.9999999999999,
+            "p99_us": 1076.3000000000002,
+            "max_us": 1158.0
+          },
+          "p50_reduction_percent": 7.748691099476446,
+          "p95_reduction_percent": 11.917098445595876
+        },
+        "completed": {
+          "control": {
+            "samples": 120,
+            "p50_us": 1117.1,
+            "p95_us": 1508.9,
+            "p99_us": 1861.5,
+            "max_us": 1909.7
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 1077.1000000000001,
+            "p95_us": 1400.8,
+            "p99_us": 1438.8999999999999,
+            "max_us": 1552.8
+          },
+          "p50_reduction_percent": 3.5807000268552325,
+          "p95_reduction_percent": 7.164159321359942
+        }
+      },
+      "work_control": {
+        "extracted": 0,
+        "local_changed": 1,
+        "quad_bytes": 0,
+        "spatial_bytes": 96,
+        "draws": 1,
+        "layers_rasterized": 0,
+        "layers_reused": 0
+      },
+      "work_optimized": {
+        "extracted": 0,
+        "local_changed": 1,
+        "quad_bytes": 0,
+        "spatial_bytes": 96,
+        "draws": 1,
+        "layers_rasterized": 0,
+        "layers_reused": 0
+      },
+      "pixel_equal": true
+    },
+    {
+      "round": 1,
+      "effects": false,
+      "batch": true,
+      "phases": {
+        "commit": {
+          "control": {
+            "samples": 120,
+            "p50_us": 5794.299999999999,
+            "p95_us": 6752.400000000001,
+            "p99_us": 6970.2,
+            "max_us": 7098.2
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 5911.7,
+            "p95_us": 7077.1,
+            "p99_us": 8511.9,
+            "max_us": 8531.1
+          },
+          "p50_reduction_percent": -2.0261291269005888,
+          "p95_reduction_percent": -4.808660624370598
+        },
+        "publication": {
+          "control": {
+            "samples": 120,
+            "p50_us": 2445.9,
+            "p95_us": 3018.5,
+            "p99_us": 3219.2000000000003,
+            "max_us": 3556.0
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 2519.7000000000003,
+            "p95_us": 3144.1,
+            "p99_us": 3801.7,
+            "max_us": 3913.8
+          },
+          "p50_reduction_percent": -3.0172942475162667,
+          "p95_reduction_percent": -4.161007122743077
+        },
+        "submission": {
+          "control": {
+            "samples": 120,
+            "p50_us": 10271.5,
+            "p95_us": 12054.8,
+            "p99_us": 13483.9,
+            "max_us": 13578.2
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 8304.199999999999,
+            "p95_us": 10551.1,
+            "p99_us": 13865.7,
+            "max_us": 14255.2
+          },
+          "p50_reduction_percent": 19.15299615440784,
+          "p95_reduction_percent": 12.473869330059383
+        },
+        "completed": {
+          "control": {
+            "samples": 120,
+            "p50_us": 20612.6,
+            "p95_us": 23310.600000000002,
+            "p99_us": 24937.8,
+            "max_us": 24967.9
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 19442.8,
+            "p95_us": 23851.0,
+            "p99_us": 25278.100000000002,
+            "max_us": 27606.5
+          },
+          "p50_reduction_percent": 5.67516955648486,
+          "p95_reduction_percent": -2.3182586462810795
+        }
+      },
+      "work_control": {
+        "extracted": 0,
+        "local_changed": 10000,
+        "quad_bytes": 0,
+        "spatial_bytes": 960000,
+        "draws": 1,
+        "layers_rasterized": 0,
+        "layers_reused": 0
+      },
+      "work_optimized": {
+        "extracted": 0,
+        "local_changed": 10000,
+        "quad_bytes": 0,
+        "spatial_bytes": 960000,
+        "draws": 1,
+        "layers_rasterized": 0,
+        "layers_reused": 0
+      },
+      "pixel_equal": true
+    },
+    {
+      "round": 1,
+      "effects": true,
+      "batch": false,
+      "phases": {
+        "commit": {
+          "control": {
+            "samples": 120,
+            "p50_us": 6.3999999999999995,
+            "p95_us": 8.8,
+            "p99_us": 10.5,
+            "max_us": 11.0
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 6.3999999999999995,
+            "p95_us": 9.799999999999999,
+            "p99_us": 13.299999999999999,
+            "max_us": 17.6
+          },
+          "p50_reduction_percent": 0.0,
+          "p95_reduction_percent": -11.363636363636353
+        },
+        "publication": {
+          "control": {
+            "samples": 120,
+            "p50_us": 8.1,
+            "p95_us": 11.8,
+            "p99_us": 15.299999999999999,
+            "max_us": 17.5
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 7.9,
+            "p95_us": 10.9,
+            "p99_us": 13.7,
+            "max_us": 15.7
+          },
+          "p50_reduction_percent": 2.4691358024691246,
+          "p95_reduction_percent": 7.6271186440677985
+        },
+        "submission": {
+          "control": {
+            "samples": 120,
+            "p50_us": 1260.3,
+            "p95_us": 1766.5,
+            "p99_us": 2183.3,
+            "max_us": 2286.5
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 1269.9,
+            "p95_us": 1654.6,
+            "p99_us": 2124.2000000000003,
+            "max_us": 2323.4
+          },
+          "p50_reduction_percent": -0.7617233991906724,
+          "p95_reduction_percent": 6.334559864138134
+        },
+        "completed": {
+          "control": {
+            "samples": 120,
+            "p50_us": 3661.7,
+            "p95_us": 7426.099999999999,
+            "p99_us": 12665.7,
+            "max_us": 14553.6
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 4056.8999999999996,
+            "p95_us": 7376.4,
+            "p99_us": 12105.4,
+            "max_us": 12193.6
+          },
+          "p50_reduction_percent": -10.792801157932107,
+          "p95_reduction_percent": 0.6692611195647791
+        }
+      },
+      "work_control": {
+        "extracted": 0,
+        "local_changed": 1,
+        "quad_bytes": 0,
+        "spatial_bytes": 96,
+        "draws": 31,
+        "layers_rasterized": 10,
+        "layers_reused": 0
+      },
+      "work_optimized": {
+        "extracted": 0,
+        "local_changed": 1,
+        "quad_bytes": 0,
+        "spatial_bytes": 96,
+        "draws": 31,
+        "layers_rasterized": 10,
+        "layers_reused": 0
+      },
+      "pixel_equal": true
+    },
+    {
+      "round": 1,
+      "effects": true,
+      "batch": true,
+      "phases": {
+        "commit": {
+          "control": {
+            "samples": 120,
+            "p50_us": 5562.6,
+            "p95_us": 6674.8,
+            "p99_us": 7282.2,
+            "max_us": 7358.3
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 5782.8,
+            "p95_us": 6670.5,
+            "p99_us": 6891.3,
+            "max_us": 6985.8
+          },
+          "p50_reduction_percent": -3.9585805199007673,
+          "p95_reduction_percent": 0.06442140588481804
+        },
+        "publication": {
+          "control": {
+            "samples": 120,
+            "p50_us": 2377.7999999999997,
+            "p95_us": 3136.7999999999997,
+            "p99_us": 3330.5,
+            "max_us": 3639.6000000000004
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 2556.1,
+            "p95_us": 3301.1,
+            "p99_us": 3426.7999999999997,
+            "max_us": 3600.1000000000004
+          },
+          "p50_reduction_percent": -7.498528051139708,
+          "p95_reduction_percent": -5.237821984187718
+        },
+        "submission": {
+          "control": {
+            "samples": 120,
+            "p50_us": 10244.9,
+            "p95_us": 12567.800000000001,
+            "p99_us": 14222.699999999999,
+            "max_us": 14286.9
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 8420.5,
+            "p95_us": 9924.9,
+            "p99_us": 11041.5,
+            "max_us": 11959.7
+          },
+          "p50_reduction_percent": 17.80788489882771,
+          "p95_reduction_percent": 21.02913795572814
+        },
+        "completed": {
+          "control": {
+            "samples": 120,
+            "p50_us": 22142.8,
+            "p95_us": 28159.0,
+            "p99_us": 29522.1,
+            "max_us": 30586.2
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 21257.0,
+            "p95_us": 27666.1,
+            "p99_us": 29910.699999999997,
+            "max_us": 33155.4
+          },
+          "p50_reduction_percent": 4.000397420380441,
+          "p95_reduction_percent": 1.7504172733406764
+        }
+      },
+      "work_control": {
+        "extracted": 0,
+        "local_changed": 10000,
+        "quad_bytes": 0,
+        "spatial_bytes": 960000,
+        "draws": 31,
+        "layers_rasterized": 10,
+        "layers_reused": 0
+      },
+      "work_optimized": {
+        "extracted": 0,
+        "local_changed": 10000,
+        "quad_bytes": 0,
+        "spatial_bytes": 960000,
+        "draws": 31,
+        "layers_rasterized": 10,
+        "layers_reused": 0
+      },
+      "pixel_equal": true
+    },
+    {
+      "round": 2,
+      "effects": false,
+      "batch": false,
+      "phases": {
+        "commit": {
+          "control": {
+            "samples": 120,
+            "p50_us": 5.800000000000001,
+            "p95_us": 8.399999999999999,
+            "p99_us": 9.700000000000001,
+            "max_us": 10.1
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 5.800000000000001,
+            "p95_us": 8.399999999999999,
+            "p99_us": 11.7,
+            "max_us": 11.9
+          },
+          "p50_reduction_percent": 0.0,
+          "p95_reduction_percent": 0.0
+        },
+        "publication": {
+          "control": {
+            "samples": 120,
+            "p50_us": 6.1,
+            "p95_us": 9.0,
+            "p99_us": 12.2,
+            "max_us": 12.3
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 5.699999999999999,
+            "p95_us": 8.5,
+            "p99_us": 10.9,
+            "max_us": 15.6
+          },
+          "p50_reduction_percent": 6.557377049180335,
+          "p95_reduction_percent": 5.555555555555558
+        },
+        "submission": {
+          "control": {
+            "samples": 120,
+            "p50_us": 680.2,
+            "p95_us": 981.3999999999999,
+            "p99_us": 1144.5,
+            "max_us": 1214.1999999999998
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 609.5,
+            "p95_us": 976.1,
+            "p99_us": 1052.9,
+            "max_us": 1194.9
+          },
+          "p50_reduction_percent": 10.39400176418701,
+          "p95_reduction_percent": 0.5400448339107244
+        },
+        "completed": {
+          "control": {
+            "samples": 120,
+            "p50_us": 1125.0,
+            "p95_us": 1774.3,
+            "p99_us": 2485.4,
+            "max_us": 4146.099999999999
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 1000.8000000000001,
+            "p95_us": 1355.7,
+            "p99_us": 1488.9,
+            "max_us": 1615.8
+          },
+          "p50_reduction_percent": 11.039999999999994,
+          "p95_reduction_percent": 23.592402637659916
+        }
+      },
+      "work_control": {
+        "extracted": 0,
+        "local_changed": 1,
+        "quad_bytes": 0,
+        "spatial_bytes": 96,
+        "draws": 1,
+        "layers_rasterized": 0,
+        "layers_reused": 0
+      },
+      "work_optimized": {
+        "extracted": 0,
+        "local_changed": 1,
+        "quad_bytes": 0,
+        "spatial_bytes": 96,
+        "draws": 1,
+        "layers_rasterized": 0,
+        "layers_reused": 0
+      },
+      "pixel_equal": true
+    },
+    {
+      "round": 2,
+      "effects": false,
+      "batch": true,
+      "phases": {
+        "commit": {
+          "control": {
+            "samples": 120,
+            "p50_us": 5155.4,
+            "p95_us": 6312.2,
+            "p99_us": 6853.8,
+            "max_us": 7019.2
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 5652.0,
+            "p95_us": 6653.6,
+            "p99_us": 6916.2,
+            "max_us": 7501.0
+          },
+          "p50_reduction_percent": -9.632618225549926,
+          "p95_reduction_percent": -5.4085738728177235
+        },
+        "publication": {
+          "control": {
+            "samples": 120,
+            "p50_us": 1922.6,
+            "p95_us": 2666.4,
+            "p99_us": 2859.1,
+            "max_us": 2938.0
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 2197.3,
+            "p95_us": 3127.3,
+            "p99_us": 3335.9,
+            "max_us": 3586.2
+          },
+          "p50_reduction_percent": -14.287943409965687,
+          "p95_reduction_percent": -17.285478547854783
+        },
+        "submission": {
+          "control": {
+            "samples": 120,
+            "p50_us": 8767.1,
+            "p95_us": 10773.5,
+            "p99_us": 12129.4,
+            "max_us": 12175.2
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 7361.8,
+            "p95_us": 9034.4,
+            "p99_us": 9548.7,
+            "max_us": 10038.2
+          },
+          "p50_reduction_percent": 16.0292457026839,
+          "p95_reduction_percent": 16.142386411101317
+        },
+        "completed": {
+          "control": {
+            "samples": 120,
+            "p50_us": 18166.2,
+            "p95_us": 21297.4,
+            "p99_us": 24746.8,
+            "max_us": 25378.100000000002
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 17981.5,
+            "p95_us": 20663.899999999998,
+            "p99_us": 23799.5,
+            "max_us": 24319.7
+          },
+          "p50_reduction_percent": 1.016723365370853,
+          "p95_reduction_percent": 2.9745414933278425
+        }
+      },
+      "work_control": {
+        "extracted": 0,
+        "local_changed": 10000,
+        "quad_bytes": 0,
+        "spatial_bytes": 960000,
+        "draws": 1,
+        "layers_rasterized": 0,
+        "layers_reused": 0
+      },
+      "work_optimized": {
+        "extracted": 0,
+        "local_changed": 10000,
+        "quad_bytes": 0,
+        "spatial_bytes": 960000,
+        "draws": 1,
+        "layers_rasterized": 0,
+        "layers_reused": 0
+      },
+      "pixel_equal": true
+    },
+    {
+      "round": 2,
+      "effects": true,
+      "batch": false,
+      "phases": {
+        "commit": {
+          "control": {
+            "samples": 120,
+            "p50_us": 6.3,
+            "p95_us": 8.600000000000001,
+            "p99_us": 9.4,
+            "max_us": 10.200000000000001
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 6.6000000000000005,
+            "p95_us": 9.700000000000001,
+            "p99_us": 11.3,
+            "max_us": 12.3
+          },
+          "p50_reduction_percent": -4.761904761904767,
+          "p95_reduction_percent": -12.790697674418606
+        },
+        "publication": {
+          "control": {
+            "samples": 120,
+            "p50_us": 7.6,
+            "p95_us": 10.7,
+            "p99_us": 13.8,
+            "max_us": 14.7
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 7.700000000000001,
+            "p95_us": 10.7,
+            "p99_us": 12.2,
+            "max_us": 17.900000000000002
+          },
+          "p50_reduction_percent": -1.3157894736842257,
+          "p95_reduction_percent": 0.0
+        },
+        "submission": {
+          "control": {
+            "samples": 120,
+            "p50_us": 1195.8999999999999,
+            "p95_us": 1598.6,
+            "p99_us": 1882.8,
+            "max_us": 2202.2999999999997
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 1244.6,
+            "p95_us": 1698.8999999999999,
+            "p99_us": 2089.6,
+            "max_us": 2384.9
+          },
+          "p50_reduction_percent": -4.072246843381566,
+          "p95_reduction_percent": -6.274239959964967
+        },
+        "completed": {
+          "control": {
+            "samples": 120,
+            "p50_us": 3438.8,
+            "p95_us": 6698.400000000001,
+            "p99_us": 8601.8,
+            "max_us": 12850.699999999999
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 3503.7,
+            "p95_us": 6615.9,
+            "p99_us": 11131.800000000001,
+            "max_us": 12141.300000000001
+          },
+          "p50_reduction_percent": -1.8872862626497566,
+          "p95_reduction_percent": 1.2316374059477053
+        }
+      },
+      "work_control": {
+        "extracted": 0,
+        "local_changed": 1,
+        "quad_bytes": 0,
+        "spatial_bytes": 96,
+        "draws": 31,
+        "layers_rasterized": 10,
+        "layers_reused": 0
+      },
+      "work_optimized": {
+        "extracted": 0,
+        "local_changed": 1,
+        "quad_bytes": 0,
+        "spatial_bytes": 96,
+        "draws": 31,
+        "layers_rasterized": 10,
+        "layers_reused": 0
+      },
+      "pixel_equal": true
+    },
+    {
+      "round": 2,
+      "effects": true,
+      "batch": true,
+      "phases": {
+        "commit": {
+          "control": {
+            "samples": 120,
+            "p50_us": 5535.599999999999,
+            "p95_us": 6209.2,
+            "p99_us": 6701.099999999999,
+            "max_us": 6925.4
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 5948.400000000001,
+            "p95_us": 6604.7,
+            "p99_us": 7117.400000000001,
+            "max_us": 7426.8
+          },
+          "p50_reduction_percent": -7.457186212876676,
+          "p95_reduction_percent": -6.369580622302395
+        },
+        "publication": {
+          "control": {
+            "samples": 120,
+            "p50_us": 2189.8999999999996,
+            "p95_us": 2811.1,
+            "p99_us": 3552.2000000000003,
+            "max_us": 3637.3
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 2369.8,
+            "p95_us": 3020.8,
+            "p99_us": 3362.6,
+            "max_us": 3383.7
+          },
+          "p50_reduction_percent": -8.214986985707128,
+          "p95_reduction_percent": -7.459713279499147
+        },
+        "submission": {
+          "control": {
+            "samples": 120,
+            "p50_us": 10004.300000000001,
+            "p95_us": 11523.5,
+            "p99_us": 11821.2,
+            "max_us": 12626.800000000001
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 8309.199999999999,
+            "p95_us": 10019.4,
+            "p99_us": 10617.2,
+            "max_us": 11550.400000000001
+          },
+          "p50_reduction_percent": 16.943714202892778,
+          "p95_reduction_percent": 13.052458020566672
+        },
+        "completed": {
+          "control": {
+            "samples": 120,
+            "p50_us": 21400.2,
+            "p95_us": 27832.2,
+            "p99_us": 29341.9,
+            "max_us": 30159.399999999998
+          },
+          "optimized": {
+            "samples": 120,
+            "p50_us": 21305.399999999998,
+            "p95_us": 27620.9,
+            "p99_us": 30265.8,
+            "max_us": 31182.5
+          },
+          "p50_reduction_percent": 0.44298651414473866,
+          "p95_reduction_percent": 0.7591925898779106
+        }
+      },
+      "work_control": {
+        "extracted": 0,
+        "local_changed": 10000,
+        "quad_bytes": 0,
+        "spatial_bytes": 960000,
+        "draws": 31,
+        "layers_rasterized": 10,
+        "layers_reused": 0
+      },
+      "work_optimized": {
+        "extracted": 0,
+        "local_changed": 10000,
+        "quad_bytes": 0,
+        "spatial_bytes": 960000,
+        "draws": 31,
+        "layers_rasterized": 10,
+        "layers_reused": 0
+      },
+      "pixel_equal": true
+    }
+  ]
+}

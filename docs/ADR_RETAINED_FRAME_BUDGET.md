@@ -104,6 +104,16 @@ previous/current binaries with unchanged layer policy. These changes reduce
 dense CPU cost but do not remove owner transaction work, full validation,
 driver/completion waits or the effect-layer raster/cache design limitations.
 
+The [compact transport evidence](performance/2026-11-12-compact-transport/README.md)
+keeps spatial transport private, removes paint/resource clones and sorts touched
+dirty-bit words for GPU ranges. Source-local ordered memberships remain the
+dispatch authority when exact binding lookup uses a hash table. Dense submit
+medians improve 16–19%; commit/publication regress and total gains are small.
+Sustained independent/effects p99 remains about 39 ms at 120 Hz. No application
+API should promise frame deadlines from reduced upload volume alone. Dense
+state preparation, preconstruction admission and local-space effect content
+identity remain necessary, independently of software backend implementation.
+
 ## Remaining acceptance
 
 - Local-first indexed damage/hit performance and general incremental updates;

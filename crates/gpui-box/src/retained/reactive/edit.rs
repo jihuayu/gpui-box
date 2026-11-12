@@ -31,7 +31,7 @@ pub struct ReactiveEdit<'a, 'tree> {
     next_binding: &'a mut u64,
     bindings: Vec<(BindingId, Binding)>,
     bound_endpoints: BTreeSet<(NodeId, Field)>,
-    live_bindings: &'a BTreeMap<BindingId, Binding>,
+    live_bindings: &'a HashMap<BindingId, Binding>,
     unbound: BTreeSet<BindingId>,
     created: BTreeMap<SourceId, Source>,
     free_sources: Option<Vec<usize>>,

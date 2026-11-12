@@ -1,0 +1,24 @@
+{
+  "base_commit": "88d35963ac59eb8c96c9b5cbec50f90b39ac70d9",
+  "control_commit": "88d3596",
+  "binaries": [
+    {
+      "mode": "control",
+      "binary_sha256": "70283caa915dffca1c79a17ee4811fcd36cad2d73a2d57b8a32d94432c5198a8"
+    },
+    {
+      "mode": "optimized",
+      "binary_sha256": "5b1a5c32fad06d994767b025d8f1b674a186af9e1048ec64bb4091d065272648"
+    }
+  ],
+  "started": "2026-11-12T23:02:44.2447935+08:00",
+  "finished": "2026-11-12T23:04:30.1252160+08:00",
+  "runs": 2,
+  "sources_stable": true,
+  "no_sampled_conflicts": true,
+  "gpu": "NVIDIA GeForce GTX 1650 Ti, 571.96, 4096 MiB",
+  "cpu": [
+    "AMD Ryzen 7 4800H with Radeon Graphics         "
+  ],
+  "scope": "alternating previous and current binaries; unchanged local benchmark and layer policy; 120 paired samples per mode/case; no native display"
+}

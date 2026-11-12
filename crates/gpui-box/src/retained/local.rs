@@ -70,6 +70,15 @@ struct Snapshot {
 #[derive(Clone, Debug)]
 pub struct LocalFrame(Arc<Snapshot>);
 
+/// Internal spatial transport carries no material/resource references. Only
+/// anchors need resolved world coordinates; ordinary entries remain local.
+#[cfg(any(test, feature = "retained-wgpu"))]
+pub(in crate::retained) struct SpatialUpdate {
+    pub node: NodeId,
+    pub spatial: SpatialState,
+    pub anchor: Option<([f32; 2], Option<Rect>)>,
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct LocalFrameStats {
     pub changed_nodes: usize,
@@ -326,7 +335,7 @@ impl LocalFrame {
         Arc::ptr_eq(&self.0, &old.0)
     }
     #[cfg(any(test, feature = "retained-wgpu"))]
-    pub(in crate::retained) fn spatial_updates(&self, old: &Self) -> Option<Vec<PaintItem>> {
+    pub(in crate::retained) fn spatial_updates(&self, old: &Self) -> Option<Vec<SpatialUpdate>> {
         if !self.follows(old) {
             return None;
         }
@@ -348,15 +357,16 @@ impl LocalFrame {
         let mut result = Vec::with_capacity(indices.len());
         for i in indices {
             // Non-anchor GPU records consume exclusively local placement.
-            let item = if self.0.topology.anchors.binary_search(&i).is_ok() {
-                self.resolve_geometry(self.0.template.items[i].node)
-                    .unwrap()
-            } else {
-                let mut item = self.0.template.items[i].clone();
-                item.spatial = self.placement(i).spatial;
-                item
-            };
-            result.push(item);
+            let node = self.0.template.items[i].node;
+            let anchor = self.0.topology.anchors.binary_search(&i).is_ok().then(|| {
+                let item = self.resolve_geometry(node).unwrap();
+                ([item.bounds.x, item.bounds.y], item.clip)
+            });
+            result.push(SpatialUpdate {
+                node,
+                spatial: self.placement(i).spatial,
+                anchor,
+            });
         }
         Some(result)
     }

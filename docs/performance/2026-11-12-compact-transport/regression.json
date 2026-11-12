@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "scenarios": 2011,
+  "pixel_comparisons": 1921,
+  "validation_sha256": "c117ed966b43fb506b1d1002a2e2b7e2acae5e242e5db4240c2a350f77d1c421",
+  "binary_sha256": "318de9dad701d9912ca506ffc575cdaa16c78226ae26af15790e49745a24ef76",
+  "adapter": {
+    "name": "NVIDIA GeForce GTX 1650 Ti",
+    "backend": "Vulkan",
+    "driver": "571.96"
+  },
+  "local_artifacts": "target/compact-transport-final-regression",
+  "command": "target/release/retained-runtime-gpu.exe target/compact-transport-final-regression --validation-only",
+  "scope": "compact spatial transport, bitmap dirty tracking and binding exact lookup; full local/resolved indexed/original rejection/retry controls"
+}

@@ -140,3 +140,29 @@ storage keeps the current snapshot/identity API while enabling future dense
 batch transport. Page size is an implementation choice requiring measurement,
 not a framework contract. Multiple full-prefix arrays and remaining dirty-set,
 reactive sink and GPU dispatch costs still require measurement and optimization.
+
+## Compact update transport and deterministic dispatch
+
+Private local spatial updates carry only NodeId, local SpatialState and optional
+resolved anchor origin/clip. Ordinary entries no longer clone PaintItem or retain
+material, image, glyph and command Arcs merely to update placement. Depth-32
+anchors still use the exact complete ancestry resolver. This is an internal
+transport refinement; public snapshots remain complete and immutable, and the
+backend still validates projected records before submission.
+
+The generic instance arena tracks dirty slots with 64-bit words and a list of
+touched words. Setting an existing bit is idempotent. Writes sort touched words
+and enumerate set bits to preserve ascending slot order and adjacent merging.
+Retirement clears a bit; successful submission alone acknowledges all pending
+writes. Listed-word state stays separate from its bits so removing and reusing
+a slot before acknowledgement cannot duplicate the same word. Sparse iteration
+visits touched words rather than all arena capacity. This trades persistent
+O(capacity/64) bits plus listed metadata for per-dirty-slot ordered allocations.
+
+The reactive binding table uses hashing solely for exact BindingId lookup.
+Source-local ordered sets continue to define dispatch order; detached bindings
+are explicitly sorted before cleanup. Transactions, source ordering, equality,
+failed-draft rollback and monotonically reserved binding identities keep their
+existing semantics. Neither hash iteration nor GPU slot order becomes a public
+event ordering rule. These changes make batch transport cheaper without adding
+an application API that bypasses state or sink validation.

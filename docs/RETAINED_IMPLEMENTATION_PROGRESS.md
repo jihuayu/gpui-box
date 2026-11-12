@@ -218,6 +218,19 @@ including losing ancestor-only cases. It preserves generation/snapshot
 ownership and backend rejection/retry checks. This does not close the remaining
 dense 60/120 Hz, effect raster reuse, native visible or software acceptance.
 
+The [compact transport refinement](performance/2026-11-12-compact-transport/README.md)
+removes PaintItem/resource cloning from local spatial updates and uses touched
+dirty-bit words for arena uploads. Exact binding lookup hashes identities while
+ordered source memberships preserve dispatch. Alternating binaries show 16–19%
+dense submission improvement but only 0.4–5.7% completed median improvement;
+commit/publication and ancestor/effects regressions remain in the report.
+Two sustained runs still fail dense 60/120 Hz: independent/effects 120 Hz p99 is
+39.14–39.27 ms, with 1,199 consecutive unsatisfied ticks. Current-source checks
+pass 147 core / 11 example tests and 2,011 hardware scenarios / 1,921 pixel
+comparisons, plus hidden native delivery/surface/device replacement. This is
+partial internal transport work; modern desktop visible 120 fps, software
+rendering and the full RFC remain unaccepted.
+
 The latest performance priority is modern desktop GPUs at 120 Hz with effects,
 especially p99/max and burst stalls; software rendering prioritizes responsiveness.
 The [frame-budget decision](ADR_RETAINED_FRAME_BUDGET.md) records API consequences

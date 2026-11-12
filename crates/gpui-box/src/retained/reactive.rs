@@ -1,6 +1,12 @@
 //! UI-owner signals and typed property sinks. Only the outer transaction publishes.
 use super::*;
-use std::{any::Any, cell::Cell, collections::BTreeSet, marker::PhantomData, rc::Rc};
+use std::{
+    any::Any,
+    cell::Cell,
+    collections::{BTreeSet, HashMap},
+    marker::PhantomData,
+    rc::Rc,
+};
 mod computed;
 pub use computed::{ComputedInputs, Dependency};
 mod effects;
@@ -31,7 +37,7 @@ impl<T> Clone for Signal<T> {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BindingId {
     owner: u64,
     serial: u64,
@@ -267,7 +273,8 @@ pub struct ReactiveUi {
     identity: u64,
     sources: Vec<SourceSlot>,
     free: Vec<usize>,
-    bindings: BTreeMap<BindingId, Binding>,
+    // Exact identity lookup only. Source-local BTreeSets define dispatch order.
+    bindings: HashMap<BindingId, Binding>,
     endpoints: BTreeMap<(NodeId, Field), BindingId>,
     next_binding: u64,
     next_source_generation: u64,
@@ -290,7 +297,7 @@ impl ReactiveUi {
             identity,
             sources: vec![],
             free: vec![],
-            bindings: BTreeMap::new(),
+            bindings: HashMap::new(),
             endpoints: BTreeMap::new(),
             next_binding: 0,
             next_source_generation: 1,
@@ -534,12 +541,13 @@ impl ReactiveUi {
         Ok(())
     }
     fn retire_dead_bindings(&mut self) {
-        let dead: Vec<_> = self
+        let mut dead: Vec<_> = self
             .bindings
             .iter()
             .filter(|(_, binding)| self.tree.node(binding.node).is_err())
             .map(|(id, _)| *id)
             .collect();
+        dead.sort_unstable();
         for id in dead {
             self.unbind(id).expect("live retired endpoint");
         }
@@ -665,6 +673,45 @@ impl ReactiveTransaction<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn binding_hash_lookup_preserves_source_dispatch_order_after_growth_and_unbinding() {
+        let (mut ui, _) = fixture();
+        let source = ui.signal(0u32);
+        let mut ids = vec![];
+        let log = Rc::new(std::cell::RefCell::new(Vec::new()));
+        for i in 0..257 {
+            let node = ui.append(ui.root(), Style::default(), 0).unwrap();
+            let (id, _) = ui.bind(source, Property::color(node)).unwrap();
+            let log = log.clone();
+            let original = std::mem::replace(
+                &mut ui.bindings.get_mut(&id).unwrap().write,
+                Box::new(|_, _| {}),
+            );
+            ui.bindings.get_mut(&id).unwrap().write = Box::new(move |value, tx| {
+                log.borrow_mut().push(i);
+                original(value, tx);
+            });
+            ids.push(id);
+        }
+        for i in (0..ids.len()).step_by(3) {
+            ui.unbind(ids[i]).unwrap();
+        }
+        ui.transaction(|tx| {
+            tx.set(source, 1)?;
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(
+            *log.borrow(),
+            (0..257).filter(|i| i % 3 != 0).collect::<Vec<_>>()
+        );
+        assert!(ui.unbind(ids[0]).is_err());
+        let (mut foreign, child) = fixture();
+        let other_source = foreign.signal(0);
+        let (other, _) = foreign.bind(other_source, Property::color(child)).unwrap();
+        assert!(ui.unbind(other).is_err());
+    }
 
     pub(super) fn fixture() -> (ReactiveUi, NodeId) {
         let mut tree = UiTree::new(Style::default(), 0xff0000ff).unwrap();

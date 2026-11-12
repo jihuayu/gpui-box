@@ -81,7 +81,7 @@ impl WgpuFrameRenderer {
         // resolved anchors remain validated by the existing GPU preflight.
         self.failed = true;
         for item in &updates {
-            self.spatial_arena.update(item)?;
+            self.spatial_arena.update_local(item)?;
         }
         let gpu = self
             .backend
