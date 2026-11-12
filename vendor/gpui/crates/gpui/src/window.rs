@@ -5429,6 +5429,13 @@ impl Window {
         self.platform_window.gpu_surface_device()
     }
 
+    /// Qualification-only native device replacement through the normal
+    /// platform recovery path.
+    #[cfg(all(feature = "test-support", target_os = "windows"))]
+    pub fn force_gpu_device_replacement_for_test(&self) -> anyhow::Result<()> {
+        self.platform_window.force_gpu_device_replacement_for_test()
+    }
+
     /// Exact device-pixel rectangle used by the GPU surface painter.
     #[cfg(target_os = "windows")]
     pub fn gpu_surface_bounds(&self, bounds: Bounds<Pixels>) -> Bounds<DevicePixels> {

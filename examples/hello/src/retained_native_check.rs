@@ -63,7 +63,8 @@ impl NativeCheck {
         tx.color(root, 0x88776680);
         tree.commit(tx, BackendCapabilities::default()).unwrap();
         let frame = tree.frame([64.0 / scale, 48.0 / scale]).unwrap();
-        gpu.submit(&frame, [64, 48], scale).unwrap();
+        gpu.submit_for_window(window, &frame, [64, 48], scale)
+            .unwrap();
         assert!(gpu.window_surface().is_err());
         drop(extra);
         gpu.window_surface().unwrap().unwrap();
@@ -321,7 +322,8 @@ fn stress(
         tx.color(tree.root(), color);
         tree.commit(tx, BackendCapabilities::default()).unwrap();
         let frame = tree.frame([64.0 / scale, 48.0 / scale]).unwrap();
-        gpu.submit(&frame, [64, 48], scale).unwrap();
+        gpu.submit_for_window(window, &frame, [64, 48], scale)
+            .unwrap();
         let surface = gpu.window_surface().unwrap().unwrap();
         view.update(cx, |view, cx| {
             view.stress = Some(surface);
@@ -362,6 +364,114 @@ fn stress(
     }
     std::fs::write(output.join("native-reuse.json"),format!("{{\"frames\":40,\"pixels\":122880,\"producer_wait_before_native_draw\":false,\"allocations\":{},\"reuses\":{},\"copies\":{},\"live_allocations\":{}}}\n",stats.allocations,stats.reuses,stats.copies,stats.live_allocations)).unwrap();
     Ok(())
+}
+
+fn recover_native_device(
+    window: &mut Window,
+    view: &Entity<NativeCheck>,
+    cx: &mut App,
+    output: &std::path::Path,
+) -> Result<usize, String> {
+    let scale = window.scale_factor();
+    let mut tree = UiTree::new(Style::default(), 0x20406080).unwrap();
+    let mut gpu = WgpuFrameRenderer::new_for_window(window, 3).unwrap();
+    let frame = tree.frame([64.0 / scale, 48.0 / scale]).unwrap();
+    gpu.submit_for_window(window, &frame, [64, 48], scale)
+        .unwrap();
+    let old_surface = gpu.window_surface().unwrap().unwrap();
+    let old_device = window.gpu_surface_device().unwrap();
+    if !old_surface.belongs_to(&old_device) {
+        return Err("initial native surface belongs to the wrong device".into());
+    }
+
+    // The diagnostic scene still owns snapshots from the old device. Drop those
+    // views before exercising the replacement; old producer snapshots retained
+    // only by the caller must remain valid but must not be submitted to a new
+    // native scene.
+    view.update(cx, |view, _| {
+        view.snapshots.clear();
+        view.stress = None;
+    });
+    window
+        .force_gpu_device_replacement_for_test()
+        .map_err(|e| e.to_string())?;
+    let new_device = window.gpu_surface_device().unwrap();
+    if old_surface.belongs_to(&new_device) {
+        return Err("native device replacement retained the old D3D11 identity".into());
+    }
+
+    let mut tx = Transaction::default();
+    tx.color(tree.root(), 0x80c040c0);
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    let frame = tree.frame([64.0 / scale, 48.0 / scale]).unwrap();
+    let submission = gpu
+        .submit_for_window(window, &frame, [64, 48], scale)
+        .unwrap()
+        .ok_or_else(|| "recovered frame unexpectedly skipped submission".to_owned())?;
+    if !submission.full_resync {
+        return Err("recovered frame did not perform a full GPU resync".into());
+    }
+    if gpu.native_recoveries() != 1 || gpu.device_epoch() != 1 {
+        return Err(format!(
+            "native recovery epoch was not advanced: recoveries={}, epoch={}",
+            gpu.native_recoveries(),
+            gpu.device_epoch()
+        ));
+    }
+    let surface = gpu.window_surface().unwrap().unwrap();
+    if !surface.belongs_to(&new_device) || surface.ptr_eq(&old_surface) {
+        return Err("recovered native surface was not recreated for the new device".into());
+    }
+    view.update(cx, |view, cx| {
+        view.stress = Some(surface);
+        cx.notify();
+    });
+    window.draw(cx).clear(cx);
+    let image = window.render_to_image().map_err(|e| e.to_string())?;
+    let expected = gpu.image().unwrap();
+    let mut checked = 0;
+    for y in 0..48 {
+        for x in 0..64 {
+            let source = expected.get_pixel(x, y).0;
+            let actual = image.get_pixel(x + 16, y + 352).0;
+            for channel in 0..3 {
+                let expected = (u32::from(source[channel])
+                    + ([20, 40, 60][channel] * u32::from(255 - source[3]) + 127) / 255)
+                    .min(255) as u8;
+                if actual[channel].abs_diff(expected) > 1 {
+                    return Err(format!(
+                        "recovered native surface differs at {x},{y}: {actual:?}, {source:?}"
+                    ));
+                }
+            }
+            checked += 1;
+        }
+    }
+    // A repeated normal-window submit must reuse the new epoch without another
+    // platform recovery.
+    if gpu
+        .submit_for_window(window, &frame, [64, 48], scale)
+        .unwrap()
+        .is_some()
+    {
+        return Err("equal frame caused redundant GPU submission".into());
+    }
+    if gpu.native_recoveries() != 1 || gpu.device_epoch() != 1 {
+        return Err("stable device identity triggered a redundant recovery".into());
+    }
+    image
+        .save(output.join("native-device-recovery.png"))
+        .map_err(|e| e.to_string())?;
+    std::fs::write(
+        output.join("native-device-recovery.json"),
+        format!(
+            "{{\"passed\":true,\"pixels\":{checked},\"device_identity_changed\":true,\"old_snapshot_retained\":true,\"full_resync\":true,\"recoveries\":{},\"device_epoch\":{},\"redundant_recovery\":false}}\n",
+            gpu.native_recoveries(),
+            gpu.device_epoch()
+        ),
+    )
+    .unwrap();
+    Ok(checked)
 }
 
 fn benchmark(window: &Window, output: &std::path::Path) {
@@ -453,11 +563,12 @@ pub fn open(cx: &mut App, output: PathBuf) {
             // Replaying a cached scene must continue to work without producers.
             let repeat=window.render_to_image().map_err(|e|e.to_string())?;
             if image.as_raw()!=repeat.as_raw() {return Err("cached native scene changed".to_owned());}
+            let recovery_pixels = recover_native_device(window, &view, cx, &output)?;
             stress(window,&view,cx,&output)?;
             benchmark(window,&output);
-            Ok(checked)
+            Ok((checked, recovery_pixels))
         });
-        let report=match result {Ok(Ok(checked))=>format!("{{\"passed\":true,\"native_framebuffer_pixels\":{checked},\"channel_tolerance\":1,\"cached_scene_equal\":true,\"benchmark_scope\":\"owner commit/publication/submission plus completed export; same DX12 consumer, full redraw; native draw/present and sprite upload excluded; GPU export reuses only unowned allocations after producer and native read fence completion\"}}\n"),other=>format!("{{\"passed\":false,\"error\":{:?}}}\n",format!("{other:?}"))};
+        let report=match result {Ok(Ok((checked, recovery_pixels)))=>format!("{{\"passed\":true,\"native_framebuffer_pixels\":{checked},\"channel_tolerance\":1,\"cached_scene_equal\":true,\"device_replacement_pixels\":{recovery_pixels},\"device_replacement_passed\":true,\"benchmark_scope\":\"owner commit/publication/submission plus completed export; same DX12 consumer, full redraw; native draw/present and sprite upload excluded; GPU export reuses only unowned allocations after producer and native read fence completion\"}}\n"),other=>format!("{{\"passed\":false,\"error\":{:?}}}\n",format!("{other:?}"))};
         std::fs::write(output.join("result.json"),report).unwrap();
         cx.update(|cx|cx.quit());
     }).detach();

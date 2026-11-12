@@ -186,9 +186,6 @@ impl Bridge {
             stats: NativeSurfaceStats::default(),
         }
     }
-    pub(super) fn device(&self) -> &ID3D11Device {
-        &self.device
-    }
     pub(super) fn stats(&self) -> NativeSurfaceStats {
         NativeSurfaceStats {
             live_allocations: self.pool.len(),
@@ -334,17 +331,39 @@ impl RetainedQuadRenderer {
             (1..=8).contains(&max_in_flight),
             "max_in_flight must be 1..=8"
         );
-        let (context, format) = WgpuContext::new_d3d11_headless(&device)?;
-        let mut result = Self::from_renderer(
-            WgpuHeadlessRenderer::from_context(context, format)?,
-            max_in_flight,
-        )?;
-        result.native_surface = Some(Bridge::new(device));
-        Ok(result)
+        match WgpuContext::new_d3d11_headless(&device)
+            .and_then(|(context, format)| WgpuHeadlessRenderer::from_context(context, format))
+        {
+            Ok(renderer) => {
+                let mut result = Self::from_renderer(renderer, max_in_flight)?;
+                result.native_surface = Some(Bridge::new(device.clone()));
+                result.native_window_device = Some(device);
+                Ok(result)
+            }
+            Err(error) => {
+                log::warn!(
+                    "Native retained GPU surfaces unavailable; using the readback bridge: {error:#}"
+                );
+                let mut result = Self::new(max_in_flight)?;
+                result.native_window_device = Some(device);
+                result.native_surface_error = Some(format!("{error:#}"));
+                Ok(result)
+            }
+        }
     }
 
     pub fn native_surface_stats(&self) -> Option<NativeSurfaceStats> {
         self.native_surface.as_ref().map(Bridge::stats)
+    }
+
+    pub fn native_surface_error(&self) -> Option<&str> {
+        self.native_surface_error.as_deref()
+    }
+
+    pub fn window_device_matches(&self, device: &ID3D11Device) -> bool {
+        self.native_window_device
+            .as_ref()
+            .is_some_and(|current| current.as_raw() == device.as_raw())
     }
 
     /// An immutable GPU copy of the current retained target, cached per serial.

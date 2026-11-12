@@ -1360,6 +1360,12 @@ pub trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
     fn gpu_surface_device(&self) -> Option<windows::Win32::Graphics::Direct3D11::ID3D11Device> {
         None
     }
+    /// Replaces the native graphics device without inducing a driver-level TDR.
+    /// Qualification uses this to exercise the same platform recovery path.
+    #[cfg(all(feature = "test-support", target_os = "windows"))]
+    fn force_gpu_device_replacement_for_test(&self) -> anyhow::Result<()> {
+        anyhow::bail!("test GPU device replacement is unavailable")
+    }
     fn schedule_frame(&self) {}
     fn sprite_atlas(&self) -> Arc<dyn PlatformAtlas>;
     fn is_subpixel_rendering_supported(&self) -> bool;

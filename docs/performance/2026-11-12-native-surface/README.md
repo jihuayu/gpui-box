@@ -60,6 +60,21 @@ These launched windows were **hidden** and diagnostic draws were explicit.
 Automatic visible presentation, DWM/swapchain latency and native damage/buffer age
 remain unqualified.
 
+The later device-recovery follow-up starts from local commit `439fada` and binary
+SHA-256 `3dbf355955e19cbb0bf984a8acfff2f568c721ccf33585945a8f88a5a8860893`.
+Three independent native processes rebuilt the real D3D11 platform resources with
+a new device identity. Each retained an old snapshot without sampling it on the
+new scene, advanced exactly one retained consumer epoch, submitted a complete
+frame through `submit_for_window`, and matched all 3,072 replacement pixels within
+one channel value. The existing 97,792 fixture/control pixels and cached-scene
+replay also passed. This deterministic replacement does not cover a driver TDR or
+physical adapter removal. The no-matching-DX12 readback fallback is implemented
+but remains hardware-unqualified.
+The same follow-up reran the complete retained hardware matrix; all 1,939
+scenarios and 1,849 pixel comparisons passed on the Vulkan headless path.
+Normal gallery delivery also passed in native-surface and readback-control
+modes, with all 107,136 D3D11 canvas pixels matching in both runs.
+
 The original full matrix passed 1,939 hardware scenarios/1,849 byte-exact pixel
 comparisons. Core/gallery tests passed 135/12, retained-only tests 110, selected
 all-target Clippy and the default desktop Clippy passed with `-D warnings`.

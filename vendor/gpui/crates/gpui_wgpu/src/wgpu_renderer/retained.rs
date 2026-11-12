@@ -129,6 +129,11 @@ pub struct RetainedQuadRenderer {
     renderer: WgpuHeadlessRenderer,
     #[cfg(target_os = "windows")]
     native_surface: Option<native_surface::Bridge>,
+    #[cfg(target_os = "windows")]
+    native_window_device:
+        Option<windows::Win32::Graphics::Direct3D11::ID3D11Device>,
+    #[cfg(target_os = "windows")]
+    native_surface_error: Option<String>,
     quads: PersistentStorage<Quad>,
     shadows: PersistentStorage<gpui::Shadow>,
     spatial: spatial::SpatialCache,
@@ -180,6 +185,10 @@ impl RetainedQuadRenderer {
             renderer,
             #[cfg(target_os = "windows")]
             native_surface: None,
+            #[cfg(target_os = "windows")]
+            native_window_device: None,
+            #[cfg(target_os = "windows")]
+            native_surface_error: None,
             quads,
             shadows,
             spatial,
@@ -244,8 +253,8 @@ impl RetainedQuadRenderer {
 
     pub fn recreate(&self, max_in_flight: usize) -> Result<Self> {
         #[cfg(target_os = "windows")]
-        if let Some(bridge) = &self.native_surface {
-            return Self::new_for_windows_device(bridge.device().clone(), max_in_flight);
+        if let Some(device) = &self.native_window_device {
+            return Self::new_for_windows_device(device.clone(), max_in_flight);
         }
         Self::new(max_in_flight)
     }

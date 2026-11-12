@@ -265,6 +265,14 @@ impl DirectXRenderer {
         })
     }
 
+    #[cfg(feature = "test-support")]
+    pub(crate) fn replace_device_for_test(&mut self) -> Result<()> {
+        let directx_devices = DirectXDevices::new()?;
+        self.handle_device_lost(&directx_devices)?;
+        self.mark_drawable();
+        Ok(())
+    }
+
     fn handle_device_lost_impl(&mut self, directx_devices: &DirectXDevices) -> Result<()> {
         let disable_direct_composition = self.direct_composition.is_none();
 

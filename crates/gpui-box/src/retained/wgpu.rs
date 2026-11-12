@@ -273,6 +273,8 @@ pub struct WgpuFrameRenderer {
     leases: VecDeque<(u64, FramePacket)>,
     max_in_flight: usize,
     failed: bool,
+    device_epoch: u64,
+    native_recoveries: u64,
     reference: Option<RetainedQuadRenderer>,
     policy: CompositorPolicy,
     composition_cache: composition::CompositionCache,
@@ -313,6 +315,8 @@ impl WgpuFrameRenderer {
             leases: VecDeque::new(),
             max_in_flight,
             failed: false,
+            device_epoch: 0,
+            native_recoveries: 0,
             reference: None,
             policy: CompositorPolicy::Full,
             composition_cache: composition::CompositionCache::default(),
@@ -341,9 +345,41 @@ impl WgpuFrameRenderer {
         Self::new(max_in_flight)
     }
 
+    /// Rebuilds the GPU consumer when the platform has replaced its native
+    /// D3D11 device. Logical/layout inputs stay with the caller; the next
+    /// submit is a complete FramePacket resynchronization for the new epoch.
+    #[cfg(target_os = "windows")]
+    pub fn ensure_window_device(&mut self, window: &gpui::Window) -> Result<bool, Error> {
+        let Some(device) = window.gpu_surface_device() else {
+            return Ok(false);
+        };
+        if self.backend.window_device_matches(&device) {
+            return Ok(false);
+        }
+        let backend = RetainedQuadRenderer::new_for_windows_device(device, self.max_in_flight)
+            .map_err(gpu_error)?;
+        self.replace_backend(backend, true)?;
+        Ok(true)
+    }
+
     #[cfg(target_os = "windows")]
     pub fn native_surface_stats(&self) -> Option<gpui_wgpu::NativeSurfaceStats> {
         self.backend.native_surface_stats()
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn native_surface_error(&self) -> Option<&str> {
+        self.backend.native_surface_error()
+    }
+
+    /// Number of completed GPU consumer replacement epochs.
+    pub fn device_epoch(&self) -> u64 {
+        self.device_epoch
+    }
+
+    /// Native device replacements, excluding explicit reset epochs.
+    pub fn native_recoveries(&self) -> u64 {
+        self.native_recoveries
     }
 
     /// Returns a retained immutable native texture, without readback or CPU wait.
@@ -561,6 +597,22 @@ impl WgpuFrameRenderer {
             self.leases.pop_front();
         }
         Ok(())
+    }
+
+    /// Normal window entry point. On Windows, a changed native device rebuilds
+    /// the GPU consumer before consuming the frame as a full new-epoch base.
+    pub fn submit_for_window(
+        &mut self,
+        window: &gpui::Window,
+        frame: &FramePacket,
+        surface: [u32; 2],
+        scale: f32,
+    ) -> Result<Option<FrameSubmission>, Error> {
+        #[cfg(target_os = "windows")]
+        self.ensure_window_device(window)?;
+        #[cfg(not(target_os = "windows"))]
+        let _ = window;
+        self.submit(frame, surface, scale)
     }
 
     /// Submit a complete owned frame. Sequential frames consume their deltas.
@@ -938,16 +990,24 @@ impl WgpuFrameRenderer {
             .map_err(gpu_error)
     }
 
-    /// A new device allocation epoch starts from a full immutable snapshot.
-    pub fn reset(&mut self) -> Result<(), Error> {
-        let mut replacement = Self::with_backend(
-            self.backend
-                .recreate(self.max_in_flight)
-                .map_err(gpu_error)?,
-            self.max_in_flight,
-        )?;
+    fn replace_backend(
+        &mut self,
+        backend: RetainedQuadRenderer,
+        native_recovery: bool,
+    ) -> Result<(), Error> {
+        let device_epoch = self
+            .device_epoch
+            .checked_add(1)
+            .ok_or_else(|| Error::Gpu("device epoch exhausted".into()))?;
+        let native_recoveries = self
+            .native_recoveries
+            .checked_add(u64::from(native_recovery))
+            .ok_or_else(|| Error::Gpu("native recovery count exhausted".into()))?;
+        let mut replacement = Self::with_backend(backend, self.max_in_flight)?;
         replacement.latest = self.latest;
         replacement.retired_sources = self.retired_sources.clone();
+        replacement.device_epoch = device_epoch;
+        replacement.native_recoveries = native_recoveries;
         replacement.policy = self.policy;
         replacement.shared_spatial = self.shared_spatial;
         replacement.shared_content = self.shared_content;
@@ -969,6 +1029,15 @@ impl WgpuFrameRenderer {
         replacement.cache_composition = self.cache_composition;
         *self = replacement;
         Ok(())
+    }
+
+    /// A new device allocation epoch starts from a full immutable snapshot.
+    pub fn reset(&mut self) -> Result<(), Error> {
+        let backend = self
+            .backend
+            .recreate(self.max_in_flight)
+            .map_err(gpu_error)?;
+        self.replace_backend(backend, false)
     }
 }
 

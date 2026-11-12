@@ -875,11 +875,15 @@ impl Render for RetainedDemo {
                             ];
                             frame_queue.publish(frame.clone()).expect("publish visual packet");
                             if let Some(packet) = frame_queue.take_latest().expect("consume visual packet") {
-                                gpu.borrow_mut().submit(&packet, surface, scale).expect("submit UI frame to GPU");
+                                gpu.borrow_mut()
+                                    .submit_for_window(_window, &packet, surface, scale)
+                                    .expect("submit UI frame to GPU");
                             } else {
                                 // Scale/surface demand can change without a new
                                 // logical revision; same-packet submit handles it.
-                                gpu.borrow_mut().submit(&frame, surface, scale).expect("refresh surface geometry");
+                                gpu.borrow_mut()
+                                    .submit_for_window(_window, &frame, surface, scale)
+                                    .expect("refresh surface geometry");
                             }
                         }
                         #[cfg(feature = "retained-wgpu")]

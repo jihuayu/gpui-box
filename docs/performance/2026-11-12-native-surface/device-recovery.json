@@ -1,0 +1,57 @@
+{
+  "passed": true,
+  "scope": "Windows native retained surface device-replacement recovery through the normal submit_for_window path; platform DirectX resources are rebuilt with a new D3D11 identity, then one complete FramePacket is replayed and a real native framebuffer is sampled",
+  "platform": "Windows",
+  "native_api": "D3D11 window scene importing D3D12 shared textures and fences",
+  "base_commit": "439fadad7b35acc6df5fd7b1c732ab7029d387c7",
+  "binary_sha256": "3dbf355955e19cbb0bf984a8acfff2f568c721ccf33585945a8f88a5a8860893",
+  "independent_processes": 3,
+  "raw_qualification_directories": [
+    "target/native-recovery-verified-1",
+    "target/native-recovery-verified-2",
+    "target/native-recovery-verified-3"
+  ],
+  "fixture_control_pixels_per_process": 97792,
+  "replacement_pixels_per_process": 3072,
+  "channel_tolerance": 1,
+  "device_identity_changed": true,
+  "old_snapshot_retained_without_new_device_sampling": true,
+  "full_resync": true,
+  "recoveries_per_process": 1,
+  "device_epoch_per_process": 1,
+  "redundant_recovery_same_identity": false,
+  "cached_scene_replay_equal": true,
+  "source_manifest_stable": true,
+  "compiler_or_competing_gpu_helper_seen": false,
+  "retained_hardware_matrix_scenarios": 1939,
+  "retained_hardware_matrix_pixel_comparisons": 1849,
+  "retained_hardware_matrix_passed": true,
+  "normal_gallery_native_surface_pixels": 107136,
+  "normal_gallery_native_surface_passed": true,
+  "normal_gallery_native_surface_directory": "target/native-delivery-verified",
+  "normal_gallery_readback_control_pixels": 107136,
+  "normal_gallery_readback_control_passed": true,
+  "normal_gallery_readback_control_directory": "target/native-delivery-control-verified",
+  "limitations": [
+    "The test-support platform path creates a new real D3D11 device; it does not induce a driver TDR or physical adapter removal.",
+    "Native scene presentation and OS/DWM latency are outside this check.",
+    "The no-matching-DX12 readback fallback is implemented but was not hardware-qualified on this machine."
+  ],
+  "runs": [
+    {
+      "fixture_control_pixels": 97792,
+      "replacement_pixels": 3072,
+      "passed": true
+    },
+    {
+      "fixture_control_pixels": 97792,
+      "replacement_pixels": 3072,
+      "passed": true
+    },
+    {
+      "fixture_control_pixels": 97792,
+      "replacement_pixels": 3072,
+      "passed": true
+    }
+  ]
+}

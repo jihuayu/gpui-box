@@ -1056,6 +1056,13 @@ impl PlatformWindow for WindowsWindow {
         self.state.renderer.borrow().gpu_surface_device()
     }
 
+    #[cfg(feature = "test-support")]
+    fn force_gpu_device_replacement_for_test(&self) -> anyhow::Result<()> {
+        self.state.renderer.borrow_mut().replace_device_for_test()?;
+        self.state.force_render_pending.set(true);
+        Ok(())
+    }
+
     fn sprite_atlas(&self) -> Arc<dyn PlatformAtlas> {
         self.state.renderer.borrow().sprite_atlas()
     }
