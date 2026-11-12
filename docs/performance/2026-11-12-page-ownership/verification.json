@@ -1,0 +1,56 @@
+{
+  "hardware_scenarios": 483,
+  "pixel_comparisons": 472,
+  "core_tests": 124,
+  "retained_only_tests": 110,
+  "gallery_font_hardware_click_tests": 12,
+  "clippy": "selected core/gallery/perf all targets -D warnings; passed",
+  "desktop_wgpu_build": "passed",
+  "audits": [
+    {
+      "run": "validation",
+      "source_hashes_verified": 163,
+      "hardware_scenarios": 483,
+      "pixel_comparisons": 472,
+      "process_samples": 23,
+      "samples_with_compilers": 0
+    },
+    {
+      "run": "run-1",
+      "source_hashes_verified": 163,
+      "hardware_scenarios": 84,
+      "pixel_comparisons": 78,
+      "process_samples": 21,
+      "samples_with_compilers": 0
+    },
+    {
+      "run": "run-2",
+      "source_hashes_verified": 163,
+      "hardware_scenarios": 84,
+      "pixel_comparisons": 78,
+      "process_samples": 21,
+      "samples_with_compilers": 0
+    },
+    {
+      "run": "run-3",
+      "source_hashes_verified": 163,
+      "hardware_scenarios": 84,
+      "pixel_comparisons": 78,
+      "process_samples": 23,
+      "samples_with_compilers": 0
+    }
+  ],
+  "binary_sha256": "86afa530de1ecd83d4d0a8d5b6e3c56a9d84373c484e54bb7f55b6e3d523281a",
+  "benchmark_round_end_reference_checks": 144,
+  "notes": [
+    "Run-3 contains a slow warm 10,000-descendant block in both modes; it remains unfiltered. Compiler samples during final executions were empty.",
+    "Historical phase-probe source manifest predates ownership changes and is separate from four final audits."
+  ],
+  "limitations": [
+    "same current packet API and renderer in both controls, not an earlier executable comparison",
+    "phase wall time includes owner work and GPU/driver API calls; completion differences are not GPU timestamps",
+    "clone/move counts and PaintItem byte size are logical payload accounting, not allocator RSS or driver memory",
+    "compiler observations at 500ms can miss shorter processes; unrelated host/GPU activity remains possible",
+    "native surface presentation, device-loss and cross-platform 60/120Hz/input/energy qualification remain open"
+  ]
+}

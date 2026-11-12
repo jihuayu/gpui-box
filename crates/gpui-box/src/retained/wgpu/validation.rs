@@ -9,6 +9,8 @@ pub struct ValidationStats {
     pub validated_items: usize,
     /// Effect-reference checks may still walk the scene when the effect map changes.
     pub effect_reference_items: usize,
+    pub validated_delta_items: usize,
+    pub shared_delta_items: usize,
 }
 
 struct Snapshot {
@@ -101,7 +103,9 @@ impl ValidationCache {
                 validate_effects(frame, &old.indices)?;
                 stats.effect_reference_items = frame.items.len();
             }
-            validate_delta(frame, &old.indices)?;
+            let (validated, shared) = validate_delta(frame, &old.indices)?;
+            stats.validated_delta_items = validated;
+            stats.shared_delta_items = shared;
             let cached = self.snapshot.as_mut().expect("matched snapshot");
             cached.items = frame.items.clone();
             cached.properties = frame.properties.clone();
@@ -122,12 +126,14 @@ impl ValidationCache {
             }
         }
         validate_effects(frame, &indices)?;
-        validate_delta(frame, &indices)?;
+        let (validated_delta_items, shared_delta_items) = validate_delta(frame, &indices)?;
         let stats = ValidationStats {
             full_scan: true,
             validated_pages: frame.items.page_count(),
             validated_items: frame.items.len(),
             effect_reference_items: frame.items.len(),
+            validated_delta_items,
+            shared_delta_items,
             ..Default::default()
         };
         self.snapshot = Some(Snapshot {
@@ -297,25 +303,31 @@ fn validate_effects(frame: &FramePacket, indices: &BTreeMap<NodeId, usize>) -> R
     Ok(())
 }
 
-fn validate_delta(frame: &FramePacket, indices: &BTreeMap<NodeId, usize>) -> Result<(), Error> {
+fn validate_delta(
+    frame: &FramePacket,
+    indices: &BTreeMap<NodeId, usize>,
+) -> Result<(usize, usize), Error> {
     let mut updates = BTreeSet::new();
-    for item in frame.updates.iter() {
-        if !updates.insert(item.node)
-            || indices.get(&item.node).is_none_or(|index| {
-                let value = &frame.items[*index];
-                value.spatial != item.spatial
-                    || value.bounds != item.bounds
-                    || value.commands != item.commands
-                    || value.fill_color != item.fill_color
-                    || value.shadows != item.shadows
-                    || value.image != item.image
-                    || !value.same_text(item)
-                    || value.content_bounds != item.content_bounds
-                    || value.clip != item.clip
-                    || value.properties != item.properties
-            })
-        {
-            return Err(Error::InvalidFrame);
+    let trusted_view = frame.updates.matches_items(&frame.items);
+    if !trusted_view {
+        for item in frame.updates.iter() {
+            if !updates.insert(item.node)
+                || indices.get(&item.node).is_none_or(|index| {
+                    let value = &frame.items[*index];
+                    value.spatial != item.spatial
+                        || value.bounds != item.bounds
+                        || value.commands != item.commands
+                        || value.fill_color != item.fill_color
+                        || value.shadows != item.shadows
+                        || value.image != item.image
+                        || !value.same_text(item)
+                        || value.content_bounds != item.content_bounds
+                        || value.clip != item.clip
+                        || value.properties != item.properties
+                })
+            {
+                return Err(Error::InvalidFrame);
+            }
         }
     }
     if frame
@@ -331,12 +343,59 @@ fn validate_delta(frame: &FramePacket, indices: &BTreeMap<NodeId, usize>) -> Res
     {
         return Err(Error::InvalidFrame);
     }
-    Ok(())
+    Ok(if trusted_view {
+        (0, frame.updates.len())
+    } else {
+        (frame.updates.len(), 0)
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn delta_views_require_exact_immutable_snapshot_identity_and_mutation_falls_back() {
+        let (_, _, first) = fixture();
+        let mut cache = ValidationCache::default();
+        let stats = cache.check(&first, [100; 2], 1.0, true).unwrap();
+        assert_eq!(
+            (stats.validated_delta_items, stats.shared_delta_items),
+            (0, first.updates.len())
+        );
+        let mut detached = first.clone();
+        let color = detached.items[70].fill_color;
+        Arc::make_mut(&mut detached.items)[70].fill_color = color;
+        let stats = cache.check(&detached, [100; 2], 1.0, true).unwrap();
+        assert_eq!(
+            (stats.validated_delta_items, stats.shared_delta_items),
+            (first.updates.len(), 0)
+        );
+        let mut malformed = first.clone();
+        Arc::make_mut(&mut malformed.updates)[70].fill_color = 0;
+        assert_eq!(
+            cache.check(&malformed, [100; 2], 1.0, true),
+            Err(Error::InvalidFrame)
+        );
+        let mut malformed = first.clone();
+        Arc::make_mut(&mut malformed.items)[70].fill_color = 0;
+        assert_eq!(
+            cache.check(&malformed, [100; 2], 1.0, true),
+            Err(Error::InvalidFrame)
+        );
+        let mut duplicate = first.clone();
+        duplicate.updates = Arc::new(vec![first.items[70].clone(), first.items[70].clone()].into());
+        assert_eq!(
+            cache.check(&duplicate, [100; 2], 1.0, true),
+            Err(Error::InvalidFrame)
+        );
+        assert!(
+            cache
+                .check(&first, [100; 2], 1.0, true)
+                .unwrap()
+                .shared_delta_items
+                > 0
+        );
+    }
     #[test]
     fn spatial_validation_checks_edges_across_reused_pages_and_rejects_mismatched_deltas() {
         let (_, _, first) = fixture();
@@ -363,7 +422,7 @@ mod tests {
         let mut invalid = first.clone();
         let mut item = first.items[150].clone();
         item.spatial.scroll[0] = 1.0;
-        invalid.updates = Arc::from([item]);
+        invalid.updates = Arc::new([item].into());
         assert_eq!(
             cache.check(&invalid, [100; 2], 1.0, true),
             Err(Error::InvalidFrame)

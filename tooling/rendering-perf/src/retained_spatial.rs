@@ -484,49 +484,124 @@ fn backend_preflight(results: &mut Vec<serde_json::Value>) -> Result<(), Box<dyn
 }
 
 pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
+    benchmark_impl(false, false, false)
+}
+
+pub(super) fn publication_benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
+    let mut cases = vec![];
+    for sparse in [false, true] {
+        for warm in [false, true] {
+            let value = benchmark_impl(true, warm, sparse)?;
+            for case in value["cases"].as_array().unwrap() {
+                let mut result = serde_json::Map::new();
+                for (key, value) in case.as_object().unwrap() {
+                    result.insert(
+                        key.replace("shared_", "owned_").replace("world_", "copy_"),
+                        value.clone(),
+                    );
+                }
+                result.insert("warm_hit_index".into(), warm.into());
+                cases.push(serde_json::Value::Object(result));
+            }
+        }
+    }
+    Ok(
+        serde_json::json!({"scope":"same owner, shared GPU placement, shader and full root redraw; owned page replacement and indexed immutable deltas versus original BTree candidate map/old page cloning/owned delta copies; commit/publication/submission and per-frame GPU completion; warm-hit cases maintain and query the prebuilt persistent index; setup/readback/native presentation excluded", "rounds":3,"warmup":6,"samples_per_round":20,"max_in_flight":1,"paint_item_size_bytes":std::mem::size_of::<PaintItem>(),"cases":cases}),
+    )
+}
+
+fn benchmark_impl(
+    publication: bool,
+    warm: bool,
+    sparse: bool,
+) -> Result<serde_json::Value, Box<dyn Error>> {
     let mut cases = vec![];
     for count in [1000, 10000] {
         let mut controls = vec![];
         for shared in [true, false] {
             let mut tree = UiTree::new(absolute(0.0, 0.0, 800.0, 600.0), 0x171d28ff)?;
+            if publication {
+                tree.set_frame_build_policy(if shared {
+                    FrameBuildPolicy::Selective
+                } else {
+                    FrameBuildPolicy::SelectiveCopy
+                });
+            }
             let parent = tree.append(tree.root(), absolute(0.0, 0.0, 800.0, 600.0), 0)?;
+            let mut target = parent;
             for i in 0..count {
-                tree.append(
+                let node = tree.append(
                     parent,
                     absolute((i % 100) as f32 * 8.0, (i / 100) as f32 * 6.0, 4.0, 3.0),
                     0x4488ccff,
                 )?;
+                if sparse && i == count / 2 {
+                    target = node;
+                }
             }
             let mut gpu = WgpuFrameRenderer::new(1)?;
-            gpu.set_shared_spatial_enabled(shared);
-            gpu.submit(&tree.frame([800.0, 600.0])?, [800, 600], 1.0)?;
+            gpu.set_shared_spatial_enabled(publication || shared);
+            let initial = tree.frame([800.0, 600.0])?;
+            if warm {
+                initial.hit_test(4.0, 4.0);
+            }
+            gpu.submit(&initial, [800, 600], 1.0)?;
             gpu.finish()?;
-            controls.push((tree, parent, gpu));
+            controls.push((tree, target, gpu));
         }
         let mut cpu: [Vec<f64>; 2] = Default::default();
         let mut completed: [Vec<f64>; 2] = Default::default();
         let mut bytes = [[0; 2]; 2];
+        let mut build_stats: [serde_json::Value; 2] = Default::default();
+        let mut phases: [Vec<[f64; 3]>; 2] = Default::default();
         for round in 0..3 {
             for mode in if round % 2 == 0 { [0, 1] } else { [1, 0] } {
                 let (tree, parent, gpu) = &mut controls[mode];
                 for step in 0..26 {
                     let start = Instant::now();
                     let mut tx = Transaction::default();
-                    tx.translation(
-                        *parent,
-                        if step % 2 == 0 {
-                            [1.25, 2.5]
-                        } else {
-                            [3.25, 4.5]
+                    if sparse {
+                        tx.color(
+                            *parent,
+                            if step % 2 == 0 {
+                                0xee4455ff
+                            } else {
+                                0x4488ccff
+                            },
+                        );
+                    } else {
+                        tx.translation(
+                            *parent,
+                            if step % 2 == 0 {
+                                [1.25, 2.5]
+                            } else {
+                                [3.25, 4.5]
+                            },
+                        );
+                    }
+                    tree.commit(
+                        tx,
+                        BackendCapabilities {
+                            solid_color_patch: true,
                         },
-                    );
-                    tree.commit(tx, BackendCapabilities::default())?;
+                    )?;
+                    let commit_us = start.elapsed().as_secs_f64() * 1e6;
                     let frame = tree.frame([800.0, 600.0])?;
+                    if warm {
+                        assert_eq!(frame.hit_test_with_stats(4.0, 4.0).1.built_items, 0);
+                    }
+                    let published_us = start.elapsed().as_secs_f64() * 1e6;
                     let submit = gpu.submit(&frame, [800, 600], 1.0)?.unwrap();
                     let cpu_us = start.elapsed().as_secs_f64() * 1e6;
                     gpu.finish()?;
                     let completed_us = start.elapsed().as_secs_f64() * 1e6;
-                    if mode == 0 {
+                    if sparse {
+                        assert_eq!(
+                            (submit.gpu.uploaded_bytes, submit.gpu.spatial_upload_bytes),
+                            (160, 0)
+                        );
+                        assert_eq!(frame.recorded_chunks, 0);
+                    } else if publication || mode == 0 {
                         assert_eq!(
                             (submit.gpu.uploaded_bytes, submit.gpu.spatial_upload_bytes),
                             (0, 96)
@@ -537,8 +612,32 @@ pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
                     }
                     if step >= 6 {
                         cpu[mode].push(cpu_us);
+                        phases[mode].push([
+                            commit_us,
+                            published_us - commit_us,
+                            cpu_us - published_us,
+                        ]);
                         completed[mode].push(completed_us);
                         bytes[mode] = [submit.gpu.uploaded_bytes, submit.gpu.spatial_upload_bytes];
+                        build_stats[mode] = serde_json::json!({"extracted_nodes":frame.build_stats.extracted_nodes,"copied_pages":frame.build_stats.copied_pages,"copied_items":frame.build_stats.copied_items,"replaced_pages":frame.build_stats.replaced_pages,"moved_items":frame.build_stats.moved_items,"delta_cloned_items":frame.build_stats.delta_cloned_items,"validated_delta_items":submit.validation.validated_delta_items,"shared_delta_items":submit.validation.shared_delta_items});
+                        if publication {
+                            let expected = if sparse { 1 } else { count + 1 };
+                            assert_eq!(frame.build_stats.extracted_nodes, expected);
+                            if mode == 0 {
+                                assert_eq!(
+                                    (
+                                        frame.build_stats.copied_items,
+                                        frame.build_stats.delta_cloned_items,
+                                        submit.validation.validated_delta_items
+                                    ),
+                                    (64, 0, 0)
+                                );
+                                assert_eq!(submit.validation.shared_delta_items, expected);
+                            } else {
+                                assert_eq!(frame.build_stats.delta_cloned_items, expected);
+                                assert_eq!(submit.validation.validated_delta_items, expected);
+                            }
+                        }
                     }
                 }
                 let frame = tree.frame([800.0, 600.0])?;
@@ -556,10 +655,17 @@ pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
             s.sort_by(f64::total_cmp);
             s[((s.len() - 1) as f64 * p).round() as usize]
         };
-        let value = serde_json::json!({"count":count,"shared_bytes":bytes[0],"world_bytes":bytes[1],"shared_cpu_us":cpu[0],"world_cpu_us":cpu[1],"shared_completed_us":completed[0],"world_completed_us":completed[1],"shared_median_us":percentile(&completed[0],0.5),"world_median_us":percentile(&completed[1],0.5),"shared_p95_us":percentile(&completed[0],0.95),"world_p95_us":percentile(&completed[1],0.95),"pixel_equal":true});
+        let value = serde_json::json!({"count":count,"workload":if sparse {"single_material"}else{"ancestor_translation"},"shared_build_stats":build_stats[0],"world_build_stats":build_stats[1],"shared_bytes":bytes[0],"world_bytes":bytes[1],"phase_columns":["commit_us","publication_us","submission_us"],"shared_phases_us":phases[0],"world_phases_us":phases[1],"shared_cpu_us":cpu[0],"world_cpu_us":cpu[1],"shared_completed_us":completed[0],"world_completed_us":completed[1],"shared_median_us":percentile(&completed[0],0.5),"world_median_us":percentile(&completed[1],0.5),"shared_p95_us":percentile(&completed[0],0.95),"world_p95_us":percentile(&completed[1],0.95),"pixel_equal":true});
         println!(
-            "Spatial owner {count}: {} / {} us",
-            value["shared_median_us"], value["world_median_us"]
+            "{} owner {count} {}: {} / {} us",
+            if publication {
+                "Publication"
+            } else {
+                "Spatial"
+            },
+            if sparse { "material" } else { "translation" },
+            value["shared_median_us"],
+            value["world_median_us"]
         );
         cases.push(value);
     }

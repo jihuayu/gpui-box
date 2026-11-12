@@ -938,7 +938,7 @@ mod tests {
         let mut other = UiTree::new(Style::default(), 0).unwrap();
         let other_frame = other.frame([100.0, 100.0]).unwrap();
         let mut invalid = frame.clone();
-        invalid.updates = other_frame.items.iter().cloned().collect::<Vec<_>>().into();
+        invalid.updates = Arc::new(other_frame.items.iter().cloned().collect::<Vec<_>>().into());
         assert_eq!(
             validate(&invalid, [100, 100], 1.0),
             Err(Error::InvalidFrame)

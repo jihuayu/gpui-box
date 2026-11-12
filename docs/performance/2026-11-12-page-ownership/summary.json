@@ -1,0 +1,793 @@
+{
+  "scope": "same owner, shared GPU placement, shader and full root redraw; owned page replacement and indexed immutable deltas versus original BTree candidate map/old page cloning/owned delta copies; commit/publication/submission and per-frame GPU completion; warm-hit cases maintain and query the prebuilt persistent index; setup/readback/native presentation excluded",
+  "executions": 3,
+  "rounds_per_mode": 9,
+  "timed_frames_per_mode_per_case": 180,
+  "paint_item_size_bytes": 368,
+  "cases": [
+    {
+      "count": 1000,
+      "workload": "ancestor_translation",
+      "warm_hit_index": false,
+      "per_execution": [
+        {
+          "run": "run-1",
+          "owned_median_us": 2514.3,
+          "copy_median_us": 3276.5,
+          "owned_p95_us": 3170.3,
+          "copy_p95_us": 3798.3
+        },
+        {
+          "run": "run-2",
+          "owned_median_us": 2531.7,
+          "copy_median_us": 2842.0,
+          "owned_p95_us": 3134.8,
+          "copy_p95_us": 3514.5
+        },
+        {
+          "run": "run-3",
+          "owned_median_us": 2749.7,
+          "copy_median_us": 3498.7999999999997,
+          "owned_p95_us": 3599.4,
+          "copy_p95_us": 4232.299999999999
+        }
+      ],
+      "owned_completed_median_us": 2593.0,
+      "owned_completed_p95_us": 3308.3,
+      "owned_completed_mean_us": 2592.153333333333,
+      "owned_cpu_median_us": 1639.0,
+      "owned_phase_medians_us": {
+        "commit_us": 5.9,
+        "publication_us": 530.8000000000001,
+        "submission_us": 1084.2
+      },
+      "owned_round_medians_us": [
+        2346.0,
+        2701.5,
+        2607.2999999999997,
+        1973.1000000000001,
+        2597.7000000000003,
+        2673.9,
+        2647.3999999999996,
+        2656.5,
+        3026.8
+      ],
+      "owned_build_stats": {
+        "extracted_nodes": 1001,
+        "copied_pages": 1,
+        "copied_items": 64,
+        "replaced_pages": 15,
+        "moved_items": 1001,
+        "delta_cloned_items": 0,
+        "validated_delta_items": 0,
+        "shared_delta_items": 1001
+      },
+      "owned_gpu_bytes": [
+        0,
+        96
+      ],
+      "copy_completed_median_us": 3177.3,
+      "copy_completed_p95_us": 4011.2000000000003,
+      "copy_completed_mean_us": 3214.412222222222,
+      "copy_cpu_median_us": 2248.3999999999996,
+      "copy_phase_medians_us": {
+        "commit_us": 6.2,
+        "publication_us": 942.7,
+        "submission_us": 1279.5
+      },
+      "copy_round_medians_us": [
+        3303.1,
+        3514.5,
+        3168.5,
+        2600.7000000000003,
+        2736.1,
+        3119.1,
+        3506.2000000000003,
+        3487.9,
+        3534.5
+      ],
+      "copy_build_stats": {
+        "extracted_nodes": 1001,
+        "copied_pages": 16,
+        "copied_items": 1002,
+        "replaced_pages": 0,
+        "moved_items": 0,
+        "delta_cloned_items": 1001,
+        "validated_delta_items": 1001,
+        "shared_delta_items": 0
+      },
+      "copy_gpu_bytes": [
+        0,
+        96
+      ],
+      "median_speedup": 1.2253374469726186,
+      "median_time_change_percent": -18.389827841248863
+    },
+    {
+      "count": 10000,
+      "workload": "ancestor_translation",
+      "warm_hit_index": false,
+      "per_execution": [
+        {
+          "run": "run-1",
+          "owned_median_us": 23425.0,
+          "copy_median_us": 33599.5,
+          "owned_p95_us": 26577.0,
+          "copy_p95_us": 38959.4
+        },
+        {
+          "run": "run-2",
+          "owned_median_us": 23502.7,
+          "copy_median_us": 32921.7,
+          "owned_p95_us": 27600.300000000003,
+          "copy_p95_us": 38382.7
+        },
+        {
+          "run": "run-3",
+          "owned_median_us": 22863.100000000002,
+          "copy_median_us": 31012.3,
+          "owned_p95_us": 26829.0,
+          "copy_p95_us": 37335.399999999994
+        }
+      ],
+      "owned_completed_median_us": 23269.399999999998,
+      "owned_completed_p95_us": 27076.4,
+      "owned_completed_mean_us": 23666.816666666666,
+      "owned_cpu_median_us": 21333.600000000002,
+      "owned_phase_medians_us": {
+        "commit_us": 6.3999999999999995,
+        "publication_us": 11598.3,
+        "submission_us": 9597.8
+      },
+      "owned_round_medians_us": [
+        23425.0,
+        22755.8,
+        23802.3,
+        23807.600000000002,
+        23667.4,
+        23084.2,
+        22909.100000000002,
+        22909.100000000002,
+        22778.4
+      ],
+      "owned_build_stats": {
+        "extracted_nodes": 10001,
+        "copied_pages": 1,
+        "copied_items": 64,
+        "replaced_pages": 156,
+        "moved_items": 10001,
+        "delta_cloned_items": 0,
+        "validated_delta_items": 0,
+        "shared_delta_items": 10001
+      },
+      "owned_gpu_bytes": [
+        0,
+        96
+      ],
+      "copy_completed_median_us": 32639.500000000004,
+      "copy_completed_p95_us": 38096.5,
+      "copy_completed_mean_us": 32805.21,
+      "copy_cpu_median_us": 30207.600000000002,
+      "copy_phase_medians_us": {
+        "commit_us": 6.3999999999999995,
+        "publication_us": 18271.199999999997,
+        "submission_us": 11730.900000000001
+      },
+      "copy_round_medians_us": [
+        35457.6,
+        33447.9,
+        31213.100000000002,
+        31538.499999999996,
+        33155.0,
+        35102.2,
+        31186.5,
+        30471.2,
+        31199.2
+      ],
+      "copy_build_stats": {
+        "extracted_nodes": 10001,
+        "copied_pages": 157,
+        "copied_items": 10002,
+        "replaced_pages": 0,
+        "moved_items": 0,
+        "delta_cloned_items": 10001,
+        "validated_delta_items": 10001,
+        "shared_delta_items": 0
+      },
+      "copy_gpu_bytes": [
+        0,
+        96
+      ],
+      "median_speedup": 1.4026790548961299,
+      "median_time_change_percent": -28.707853980606334
+    },
+    {
+      "count": 1000,
+      "workload": "ancestor_translation",
+      "warm_hit_index": true,
+      "per_execution": [
+        {
+          "run": "run-1",
+          "owned_median_us": 2798.6,
+          "copy_median_us": 3076.2,
+          "owned_p95_us": 4510.5,
+          "copy_p95_us": 4227.7
+        },
+        {
+          "run": "run-2",
+          "owned_median_us": 2610.5,
+          "copy_median_us": 3283.5,
+          "owned_p95_us": 5413.6,
+          "copy_p95_us": 4532.5
+        },
+        {
+          "run": "run-3",
+          "owned_median_us": 2564.2999999999997,
+          "copy_median_us": 3221.6,
+          "owned_p95_us": 4003.5,
+          "copy_p95_us": 4881.2
+        }
+      ],
+      "owned_completed_median_us": 2651.8,
+      "owned_completed_p95_us": 4519.099999999999,
+      "owned_completed_mean_us": 2889.253888888889,
+      "owned_cpu_median_us": 1740.7,
+      "owned_phase_medians_us": {
+        "commit_us": 6.6000000000000005,
+        "publication_us": 576.0999999999999,
+        "submission_us": 1149.2
+      },
+      "owned_round_medians_us": [
+        2949.4,
+        2673.2000000000003,
+        2762.3,
+        3086.0,
+        2587.2,
+        2361.6000000000004,
+        3094.4,
+        2470.4,
+        2301.0
+      ],
+      "owned_build_stats": {
+        "extracted_nodes": 1001,
+        "copied_pages": 1,
+        "copied_items": 64,
+        "replaced_pages": 15,
+        "moved_items": 1001,
+        "delta_cloned_items": 0,
+        "validated_delta_items": 0,
+        "shared_delta_items": 1001
+      },
+      "owned_gpu_bytes": [
+        0,
+        96
+      ],
+      "copy_completed_median_us": 3238.8999999999996,
+      "copy_completed_p95_us": 4570.8,
+      "copy_completed_mean_us": 3335.978888888889,
+      "copy_cpu_median_us": 2236.4,
+      "copy_phase_medians_us": {
+        "commit_us": 6.3,
+        "publication_us": 921.4,
+        "submission_us": 1280.6999999999998
+      },
+      "copy_round_medians_us": [
+        3289.3,
+        3107.0,
+        2986.6,
+        3501.9,
+        3283.5,
+        3244.5,
+        3779.6000000000004,
+        3554.7999999999997,
+        2803.5
+      ],
+      "copy_build_stats": {
+        "extracted_nodes": 1001,
+        "copied_pages": 16,
+        "copied_items": 1002,
+        "replaced_pages": 0,
+        "moved_items": 0,
+        "delta_cloned_items": 1001,
+        "validated_delta_items": 1001,
+        "shared_delta_items": 0
+      },
+      "copy_gpu_bytes": [
+        0,
+        96
+      ],
+      "median_speedup": 1.2213967870880154,
+      "median_time_change_percent": -18.126524437308944
+    },
+    {
+      "count": 10000,
+      "workload": "ancestor_translation",
+      "warm_hit_index": true,
+      "per_execution": [
+        {
+          "run": "run-1",
+          "owned_median_us": 22117.7,
+          "copy_median_us": 29312.8,
+          "owned_p95_us": 25758.300000000003,
+          "copy_p95_us": 34469.7
+        },
+        {
+          "run": "run-2",
+          "owned_median_us": 22812.3,
+          "copy_median_us": 29758.6,
+          "owned_p95_us": 27484.3,
+          "copy_p95_us": 33006.4
+        },
+        {
+          "run": "run-3",
+          "owned_median_us": 32554.7,
+          "copy_median_us": 42201.9,
+          "owned_p95_us": 41620.9,
+          "copy_p95_us": 52654.2
+        }
+      ],
+      "owned_completed_median_us": 23259.5,
+      "owned_completed_p95_us": 38683.9,
+      "owned_completed_mean_us": 25724.95888888889,
+      "owned_cpu_median_us": 21319.100000000002,
+      "owned_phase_medians_us": {
+        "commit_us": 6.7,
+        "publication_us": 12045.5,
+        "submission_us": 9456.699999999997
+      },
+      "owned_round_medians_us": [
+        21244.2,
+        23204.1,
+        22037.2,
+        22342.8,
+        23428.5,
+        23214.100000000002,
+        23780.0,
+        36417.8,
+        33636.2
+      ],
+      "owned_build_stats": {
+        "extracted_nodes": 10001,
+        "copied_pages": 1,
+        "copied_items": 64,
+        "replaced_pages": 156,
+        "moved_items": 10001,
+        "delta_cloned_items": 0,
+        "validated_delta_items": 0,
+        "shared_delta_items": 10001
+      },
+      "owned_gpu_bytes": [
+        0,
+        96
+      ],
+      "copy_completed_median_us": 31204.1,
+      "copy_completed_p95_us": 49168.5,
+      "copy_completed_mean_us": 33723.98888888889,
+      "copy_cpu_median_us": 29141.5,
+      "copy_phase_medians_us": {
+        "commit_us": 6.7,
+        "publication_us": 17424.2,
+        "submission_us": 12000.8
+      },
+      "copy_round_medians_us": [
+        28406.600000000002,
+        30427.9,
+        30869.1,
+        30071.1,
+        30653.1,
+        29470.300000000003,
+        32579.499999999996,
+        46579.4,
+        39919.9
+      ],
+      "copy_build_stats": {
+        "extracted_nodes": 10001,
+        "copied_pages": 157,
+        "copied_items": 10002,
+        "replaced_pages": 0,
+        "moved_items": 0,
+        "delta_cloned_items": 10001,
+        "validated_delta_items": 10001,
+        "shared_delta_items": 0
+      },
+      "copy_gpu_bytes": [
+        0,
+        96
+      ],
+      "median_speedup": 1.3415636621595477,
+      "median_time_change_percent": -25.46011581811364
+    },
+    {
+      "count": 1000,
+      "workload": "single_material",
+      "warm_hit_index": false,
+      "per_execution": [
+        {
+          "run": "run-1",
+          "owned_median_us": 435.3,
+          "copy_median_us": 1354.6999999999998,
+          "owned_p95_us": 2772.8,
+          "copy_p95_us": 3990.1
+        },
+        {
+          "run": "run-2",
+          "owned_median_us": 1279.8,
+          "copy_median_us": 1176.1,
+          "owned_p95_us": 2442.0,
+          "copy_p95_us": 2540.3
+        },
+        {
+          "run": "run-3",
+          "owned_median_us": 1412.8999999999999,
+          "copy_median_us": 1318.9,
+          "owned_p95_us": 4644.5,
+          "copy_p95_us": 2148.9
+        }
+      ],
+      "owned_completed_median_us": 1114.7,
+      "owned_completed_p95_us": 3039.1,
+      "owned_completed_mean_us": 1343.3572222222222,
+      "owned_cpu_median_us": 301.6,
+      "owned_phase_medians_us": {
+        "commit_us": 5.4,
+        "publication_us": 18.4,
+        "submission_us": 277.20000000000005
+      },
+      "owned_round_medians_us": [
+        1654.8999999999999,
+        396.8,
+        362.9,
+        1462.8,
+        1557.0,
+        499.50000000000006,
+        1921.8,
+        1412.8999999999999,
+        1036.1000000000001
+      ],
+      "owned_build_stats": {
+        "extracted_nodes": 1,
+        "copied_pages": 1,
+        "copied_items": 64,
+        "replaced_pages": 0,
+        "moved_items": 1,
+        "delta_cloned_items": 0,
+        "validated_delta_items": 0,
+        "shared_delta_items": 1
+      },
+      "owned_gpu_bytes": [
+        160,
+        0
+      ],
+      "copy_completed_median_us": 1255.6,
+      "copy_completed_p95_us": 2575.0,
+      "copy_completed_mean_us": 1359.4016666666666,
+      "copy_cpu_median_us": 298.3,
+      "copy_phase_medians_us": {
+        "commit_us": 5.1000000000000005,
+        "publication_us": 19.4,
+        "submission_us": 273.6
+      },
+      "copy_round_medians_us": [
+        1562.8,
+        1688.6,
+        406.8,
+        1211.8999999999999,
+        1840.4,
+        476.7,
+        1454.0,
+        1410.0,
+        891.6
+      ],
+      "copy_build_stats": {
+        "extracted_nodes": 1,
+        "copied_pages": 1,
+        "copied_items": 64,
+        "replaced_pages": 0,
+        "moved_items": 0,
+        "delta_cloned_items": 1,
+        "validated_delta_items": 1,
+        "shared_delta_items": 0
+      },
+      "copy_gpu_bytes": [
+        160,
+        0
+      ],
+      "median_speedup": 1.12640172243653,
+      "median_time_change_percent": -11.221726664542842
+    },
+    {
+      "count": 10000,
+      "workload": "single_material",
+      "warm_hit_index": false,
+      "per_execution": [
+        {
+          "run": "run-1",
+          "owned_median_us": 1048.5,
+          "copy_median_us": 1036.1999999999998,
+          "owned_p95_us": 1365.0,
+          "copy_p95_us": 1292.3999999999999
+        },
+        {
+          "run": "run-2",
+          "owned_median_us": 1067.0,
+          "copy_median_us": 1046.5,
+          "owned_p95_us": 1361.1000000000001,
+          "copy_p95_us": 1215.8
+        },
+        {
+          "run": "run-3",
+          "owned_median_us": 1298.8999999999999,
+          "copy_median_us": 1306.8000000000002,
+          "owned_p95_us": 1851.6,
+          "copy_p95_us": 1796.7
+        }
+      ],
+      "owned_completed_median_us": 1138.9,
+      "owned_completed_p95_us": 1675.1,
+      "owned_completed_mean_us": 1174.806111111111,
+      "owned_cpu_median_us": 728.6999999999999,
+      "owned_phase_medians_us": {
+        "commit_us": 5.9,
+        "publication_us": 22.6,
+        "submission_us": 698.3
+      },
+      "owned_round_medians_us": [
+        1004.2,
+        1065.4,
+        999.3000000000001,
+        936.3000000000001,
+        1137.3,
+        1118.7,
+        1258.7,
+        1314.8999999999999,
+        1306.8000000000002
+      ],
+      "owned_build_stats": {
+        "extracted_nodes": 1,
+        "copied_pages": 1,
+        "copied_items": 64,
+        "replaced_pages": 0,
+        "moved_items": 1,
+        "delta_cloned_items": 0,
+        "validated_delta_items": 0,
+        "shared_delta_items": 1
+      },
+      "owned_gpu_bytes": [
+        160,
+        0
+      ],
+      "copy_completed_median_us": 1109.6999999999998,
+      "copy_completed_p95_us": 1699.2,
+      "copy_completed_mean_us": 1156.6222222222223,
+      "copy_cpu_median_us": 716.4,
+      "copy_phase_medians_us": {
+        "commit_us": 5.9,
+        "publication_us": 23.5,
+        "submission_us": 685.1999999999999
+      },
+      "copy_round_medians_us": [
+        922.5,
+        1013.9000000000001,
+        1116.8,
+        1024.2,
+        1076.3000000000002,
+        1021.0,
+        1221.4,
+        1417.2,
+        1306.8000000000002
+      ],
+      "copy_build_stats": {
+        "extracted_nodes": 1,
+        "copied_pages": 1,
+        "copied_items": 64,
+        "replaced_pages": 0,
+        "moved_items": 0,
+        "delta_cloned_items": 1,
+        "validated_delta_items": 1,
+        "shared_delta_items": 0
+      },
+      "copy_gpu_bytes": [
+        160,
+        0
+      ],
+      "median_speedup": 0.9743612257441389,
+      "median_time_change_percent": 2.631341804091214
+    },
+    {
+      "count": 1000,
+      "workload": "single_material",
+      "warm_hit_index": true,
+      "per_execution": [
+        {
+          "run": "run-1",
+          "owned_median_us": 444.70000000000005,
+          "copy_median_us": 458.4,
+          "owned_p95_us": 663.7,
+          "copy_p95_us": 670.9
+        },
+        {
+          "run": "run-2",
+          "owned_median_us": 452.6,
+          "copy_median_us": 427.2,
+          "owned_p95_us": 635.5,
+          "copy_p95_us": 709.5
+        },
+        {
+          "run": "run-3",
+          "owned_median_us": 703.9,
+          "copy_median_us": 741.5,
+          "owned_p95_us": 1251.6000000000001,
+          "copy_p95_us": 1321.5
+        }
+      ],
+      "owned_completed_median_us": 514.6999999999999,
+      "owned_completed_p95_us": 918.1999999999999,
+      "owned_completed_mean_us": 565.7105555555555,
+      "owned_cpu_median_us": 257.79999999999995,
+      "owned_phase_medians_us": {
+        "commit_us": 4.1,
+        "publication_us": 19.200000000000003,
+        "submission_us": 233.09999999999997
+      },
+      "owned_round_medians_us": [
+        432.6,
+        403.7,
+        501.5,
+        467.29999999999995,
+        453.9,
+        442.70000000000005,
+        767.6999999999999,
+        678.3,
+        691.5
+      ],
+      "owned_build_stats": {
+        "extracted_nodes": 1,
+        "copied_pages": 1,
+        "copied_items": 64,
+        "replaced_pages": 0,
+        "moved_items": 1,
+        "delta_cloned_items": 0,
+        "validated_delta_items": 0,
+        "shared_delta_items": 1
+      },
+      "owned_gpu_bytes": [
+        160,
+        0
+      ],
+      "copy_completed_median_us": 533.1999999999999,
+      "copy_completed_p95_us": 902.0,
+      "copy_completed_mean_us": 567.7111111111111,
+      "copy_cpu_median_us": 256.6,
+      "copy_phase_medians_us": {
+        "commit_us": 3.8,
+        "publication_us": 19.8,
+        "submission_us": 229.70000000000002
+      },
+      "copy_round_medians_us": [
+        553.2,
+        389.1,
+        459.0,
+        457.5,
+        504.8,
+        393.7,
+        785.6,
+        760.1,
+        542.7
+      ],
+      "copy_build_stats": {
+        "extracted_nodes": 1,
+        "copied_pages": 1,
+        "copied_items": 64,
+        "replaced_pages": 0,
+        "moved_items": 0,
+        "delta_cloned_items": 1,
+        "validated_delta_items": 1,
+        "shared_delta_items": 0
+      },
+      "copy_gpu_bytes": [
+        160,
+        0
+      ],
+      "median_speedup": 1.035943267923062,
+      "median_time_change_percent": -3.4696174043510886
+    },
+    {
+      "count": 10000,
+      "workload": "single_material",
+      "warm_hit_index": true,
+      "per_execution": [
+        {
+          "run": "run-1",
+          "owned_median_us": 1088.6,
+          "copy_median_us": 981.8,
+          "owned_p95_us": 1530.7,
+          "copy_p95_us": 1260.2
+        },
+        {
+          "run": "run-2",
+          "owned_median_us": 1012.6,
+          "copy_median_us": 1041.7,
+          "owned_p95_us": 1334.8999999999999,
+          "copy_p95_us": 1377.2
+        },
+        {
+          "run": "run-3",
+          "owned_median_us": 1153.6000000000001,
+          "copy_median_us": 1239.1,
+          "owned_p95_us": 1822.3,
+          "copy_p95_us": 1837.8999999999999
+        }
+      ],
+      "owned_completed_median_us": 1080.9,
+      "owned_completed_p95_us": 1647.7,
+      "owned_completed_mean_us": 1121.2088888888889,
+      "owned_cpu_median_us": 673.9,
+      "owned_phase_medians_us": {
+        "commit_us": 5.6,
+        "publication_us": 28.199999999999996,
+        "submission_us": 643.8
+      },
+      "owned_round_medians_us": [
+        923.5,
+        1166.8,
+        1082.5,
+        947.2,
+        1078.8,
+        928.6999999999999,
+        1153.6000000000001,
+        1080.9,
+        1226.4
+      ],
+      "owned_build_stats": {
+        "extracted_nodes": 1,
+        "copied_pages": 1,
+        "copied_items": 64,
+        "replaced_pages": 0,
+        "moved_items": 1,
+        "delta_cloned_items": 0,
+        "validated_delta_items": 0,
+        "shared_delta_items": 1
+      },
+      "owned_gpu_bytes": [
+        160,
+        0
+      ],
+      "copy_completed_median_us": 1065.3,
+      "copy_completed_p95_us": 1590.8000000000002,
+      "copy_completed_mean_us": 1134.1727777777778,
+      "copy_cpu_median_us": 693.6,
+      "copy_phase_medians_us": {
+        "commit_us": 5.6,
+        "publication_us": 29.6,
+        "submission_us": 657.0
+      },
+      "copy_round_medians_us": [
+        935.3000000000001,
+        958.3000000000001,
+        1026.5,
+        1047.2,
+        1044.9,
+        1028.6,
+        1383.3,
+        1187.1,
+        1254.3999999999999
+      ],
+      "copy_build_stats": {
+        "extracted_nodes": 1,
+        "copied_pages": 1,
+        "copied_items": 64,
+        "replaced_pages": 0,
+        "moved_items": 0,
+        "delta_cloned_items": 1,
+        "validated_delta_items": 1,
+        "shared_delta_items": 0
+      },
+      "copy_gpu_bytes": [
+        160,
+        0
+      ],
+      "median_speedup": 0.9855675825700804,
+      "median_time_change_percent": 1.4643762320473153
+    }
+  ]
+}

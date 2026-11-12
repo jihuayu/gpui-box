@@ -2,8 +2,11 @@
 use super::*;
 use std::ops::{Index, IndexMut};
 use std::sync::OnceLock;
+mod candidates;
 mod hit_index;
+mod updates;
 pub use hit_index::HitTestStats;
+pub use updates::PaintUpdates;
 
 const PAGE_ITEMS: usize = 64;
 
@@ -13,6 +16,8 @@ const PAGE_ITEMS: usize = 64;
 pub enum FrameBuildPolicy {
     #[default]
     Selective,
+    /// Original candidate map and old-page/delta copying, for measured controls.
+    SelectiveCopy,
     Full,
 }
 
@@ -99,6 +104,45 @@ impl PaintItems {
         result
     }
 }
+impl PaintItems {
+    fn patch_owned(&self, updates: Vec<(usize, PaintItem)>, stats: &mut FrameBuildStats) -> Self {
+        debug_assert!(updates.windows(2).all(|p| p[0].0 < p[1].0));
+        let mut result = self.clone();
+        result.hit_index = OnceLock::new();
+        let mut updates = updates.into_iter();
+        let mut dirty_pages = vec![];
+        while let Some((index, _)) = updates.as_slice().first() {
+            let page = *index / PAGE_ITEMS;
+            let count = updates
+                .as_slice()
+                .partition_point(|(i, _)| *i / PAGE_ITEMS == page);
+            dirty_pages.push(page);
+            stats.moved_items += count;
+            if count == result.pages[page].len() {
+                // Every element is supplied exactly once; no old payload is copied.
+                result.pages[page] =
+                    Arc::new(updates.by_ref().take(count).map(|(_, item)| item).collect());
+                stats.replaced_pages += 1;
+            } else {
+                let values = &mut result.pages[page];
+                stats.copied_pages += 1;
+                stats.copied_items += values.len();
+                let values = Arc::make_mut(values);
+                for (index, item) in updates.by_ref().take(count) {
+                    values[index % PAGE_ITEMS] = item;
+                }
+            }
+        }
+        if let Some(index) = self.hit_index.get() {
+            let _ = result.hit_index.set(hit_index::HitNode::patch(
+                index,
+                &result.pages,
+                &dirty_pages,
+            ));
+        }
+        result
+    }
+}
 impl Index<usize> for PaintItems {
     type Output = PaintItem;
     fn index(&self, index: usize) -> &Self::Output {
@@ -118,6 +162,11 @@ pub struct FrameBuildStats {
     pub extracted_nodes: usize,
     pub copied_pages: usize,
     pub copied_items: usize,
+    /// Complete new pages moved directly from extraction, without cloning old items.
+    pub replaced_pages: usize,
+    pub moved_items: usize,
+    /// Payload copies into independently owned delta lists (view deltas copy none).
+    pub delta_cloned_items: usize,
     pub full_rebuild: bool,
 }
 
@@ -133,7 +182,8 @@ impl UiTree {
         layout_stats: LayoutStats,
     ) -> Result<FramePacket, Error> {
         let before = self.frame.as_ref().expect("published geometry").clone();
-        let mut candidates = BTreeMap::new();
+        let copying = self.frame_build_policy == FrameBuildPolicy::SelectiveCopy;
+        let mut update_indices = vec![];
         let mut updates = vec![];
         let mut damage: Option<Rect> = None;
         let mut stats = FrameBuildStats::default();
@@ -160,6 +210,8 @@ impl UiTree {
                 disjoint.push(range);
             }
         }
+        let mut candidates =
+            candidates::Candidates::new(copying, disjoint.iter().map(|(a, b, _)| *a..*b).collect());
         let mut properties = if disjoint.is_empty() && self.geometry_dirty.is_empty() {
             before.properties.clone()
         } else {
@@ -174,27 +226,27 @@ impl UiTree {
             stats.extracted_nodes += extracted.len();
             for (index, item) in (start..end).zip(extracted) {
                 debug_assert_eq!(item.node, before.items[index].node);
-                candidates.insert(index, item);
+                candidates.insert(index, item, false);
             }
         }
         for id in self.geometry_dirty.iter().copied().collect::<Vec<_>>() {
             let Some(index) = self.paint_indices.get(&id).copied() else {
                 continue;
             };
-            if candidates.contains_key(&index) {
+            if candidates.contains(index) {
                 continue;
             }
             let context = self.subtree_context(id, &before)?;
             let props = Arc::get_mut(&mut properties).expect("private geometry property snapshot");
             let item = self.extract_node(id, context, props, &mut recorded_chunks)?;
             stats.extracted_nodes += 1;
-            candidates.insert(index, item);
+            candidates.insert(index, item, true);
         }
         for id in self.paint_dirty.iter().copied().collect::<Vec<_>>() {
             let Some(index) = self.paint_indices.get(&id).copied() else {
                 continue;
             };
-            if candidates.contains_key(&index) {
+            if candidates.contains(index) {
                 continue;
             }
             stats.extracted_nodes += 1;
@@ -226,7 +278,9 @@ impl UiTree {
                     .map(|text| text.resource.chunk(item.content_bounds.width))
                     .transpose()?;
             }
-            candidates.insert(index, item);
+            // paint_dirty is already unique; only geometry points need guards
+            // against the subsequent paint pass.
+            candidates.insert(index, item, false);
         }
         if properties
             .transforms
@@ -238,7 +292,7 @@ impl UiTree {
             properties = before.properties.clone();
         }
         let mut patches = vec![];
-        for (index, item) in candidates {
+        for (index, item) in candidates.into_sorted() {
             let old = &before.items[index];
             let paint_changed = old.bounds != item.bounds
                 || old.content_bounds != item.content_bounds
@@ -261,7 +315,11 @@ impl UiTree {
             }
             let spatial_changed = old.spatial != item.spatial;
             if paint_changed || spatial_changed {
-                updates.push(item.clone());
+                update_indices.push(index);
+                if copying {
+                    updates.push(item.clone());
+                    stats.delta_cloned_items += 1;
+                }
             }
             if paint_changed || spatial_changed || old.properties != item.properties {
                 patches.push((index, item));
@@ -270,18 +328,26 @@ impl UiTree {
         let items = if patches.is_empty() {
             before.items.clone()
         } else {
-            Arc::new(before.items.patch(&patches, &mut stats))
+            Arc::new(if copying {
+                before.items.patch(&patches, &mut stats)
+            } else {
+                before.items.patch_owned(patches, &mut stats)
+            })
         };
         let frame = FramePacket {
             tree: self.identity,
             base_revision: Some(before.revision),
             revision: self.revision,
-            items,
+            items: items.clone(),
             layout_runs,
             recorded_chunks,
             layout_stats,
             build_stats: stats,
-            updates: updates.into(),
+            updates: if copying {
+                Arc::new(updates.into())
+            } else {
+                PaintUpdates::indexed(items.clone(), update_indices)
+            },
             removed: Arc::from([]),
             order: None,
             properties,
@@ -337,6 +403,147 @@ impl UiTree {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn owned_pages_copy_control_and_full_publication_preserve_snapshots_hits_and_deltas() {
+        let (mut owned, a) = fixture();
+        let (mut copying, b) = fixture();
+        let (mut full, c) = fixture();
+        copying.set_frame_build_policy(FrameBuildPolicy::SelectiveCopy);
+        full.set_frame_build_policy(FrameBuildPolicy::Full);
+        let image = ImageResource::rgba8([1, 1], vec![255, 128, 0, 255]).unwrap();
+        let mut trees = [(&mut owned, a), (&mut copying, b), (&mut full, c)];
+        let mut initial = vec![];
+        for (tree, _) in &mut trees {
+            let first = tree.frame([1000.0; 2]).unwrap();
+            first.hit_test(5.0, 5.0);
+            initial.push(first);
+        }
+        let mut saved = vec![];
+        for round in 0..3 {
+            let mut frames = vec![];
+            for (tree, nodes) in &mut trees {
+                let mut tx = Transaction::default();
+                match round {
+                    0 => {
+                        tx.translation(tree.root(), [8.25, 3.5]);
+                        tx.image(nodes[80], Some(image.clone()));
+                        tx.shadows(
+                            nodes[81],
+                            vec![BoxShadow {
+                                color: 0x55cc99aa,
+                                blur_radius: 2.0,
+                                ..Default::default()
+                            }],
+                        );
+                    }
+                    1 => {
+                        let mut style = tree.style(nodes[70]).unwrap().clone();
+                        style.size.width = length(30.0);
+                        tx.style(nodes[70], style);
+                        tx.translation(nodes[0], [2.5, -1.0]);
+                        tx.clip(
+                            nodes[128],
+                            Some(Rect {
+                                x: 1.0,
+                                y: 1.0,
+                                width: 8.0,
+                                height: 8.0,
+                            }),
+                        );
+                        tx.color(nodes[129], 0x884422ff);
+                    }
+                    _ => {
+                        for node in &nodes[62..130] {
+                            tx.color(*node, 0x00ff0080);
+                        }
+                    }
+                }
+                tree.commit(
+                    tx,
+                    BackendCapabilities {
+                        solid_color_patch: true,
+                    },
+                )
+                .unwrap();
+                frames.push(tree.frame([1000.0; 2]).unwrap());
+            }
+            for control in &frames[1..] {
+                equivalent(&frames[0], control);
+                assert_eq!(
+                    frames[0]
+                        .updates
+                        .iter()
+                        .map(|i| i.node.slot)
+                        .collect::<Vec<_>>(),
+                    control
+                        .updates
+                        .iter()
+                        .map(|i| i.node.slot)
+                        .collect::<Vec<_>>()
+                );
+                for (item, other) in frames[0].items.iter().zip(control.items.iter()) {
+                    assert_eq!(item.shadows, other.shadows);
+                    assert_eq!(item.image, other.image);
+                    assert_eq!(
+                        (
+                            item.spatial.layout_origin,
+                            item.spatial.translation,
+                            item.spatial.scroll,
+                            item.spatial.clip
+                        ),
+                        (
+                            other.spatial.layout_origin,
+                            other.spatial.translation,
+                            other.spatial.scroll,
+                            other.spatial.clip
+                        )
+                    );
+                }
+                for point in [[5.0, 5.0], [15.0, 12.0], [500.5, 30.5], [999.0, 999.0]] {
+                    assert_eq!(
+                        frames[0].hit_test(point[0], point[1]).map(|n| n.slot),
+                        control.hit_test(point[0], point[1]).map(|n| n.slot)
+                    );
+                }
+            }
+            assert_eq!(frames[0].build_stats.delta_cloned_items, 0);
+            for item in frames[0].updates.iter() {
+                let authoritative = frames[0]
+                    .items
+                    .iter()
+                    .find(|i| i.node == item.node)
+                    .unwrap();
+                assert!(std::ptr::eq(item, authoritative));
+            }
+            if round == 0 {
+                assert_eq!(
+                    (
+                        frames[0].build_stats.copied_items,
+                        frames[0].build_stats.replaced_pages,
+                        frames[0].build_stats.moved_items
+                    ),
+                    (0, 4, 201)
+                );
+                assert_eq!(
+                    (
+                        frames[1].build_stats.copied_items,
+                        frames[1].build_stats.delta_cloned_items
+                    ),
+                    (201, 201)
+                );
+                assert_eq!(frames[0].hit_test_with_stats(15.0, 12.0).1.built_items, 0);
+                saved = frames;
+            }
+        }
+        drop(trees);
+        drop((owned, copying, full));
+        assert_eq!(saved[0].updates[0].bounds.x, 8.25);
+        assert_eq!(initial[0].items[0].bounds.x, 0.0);
+        let mut changed = saved[0].clone();
+        Arc::make_mut(&mut changed.updates)[0].fill_color = 0x112233ff;
+        assert_ne!(changed.updates[0].fill_color, changed.items[0].fill_color);
+        assert_eq!(saved[0].items[81].image, Some(image));
+    }
     fn fixture() -> (UiTree, Vec<NodeId>) {
         let mut tree = UiTree::new(
             Style {
@@ -417,7 +624,9 @@ mod tests {
                 extracted_nodes: 1,
                 copied_pages: 1,
                 copied_items: 64,
-                full_rebuild: false
+                full_rebuild: false,
+                moved_items: 1,
+                ..Default::default()
             }
         );
         assert_eq!(before.items.shared_pages(&after.items), 3);

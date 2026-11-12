@@ -28,6 +28,7 @@ mod retained_paint_store;
 mod retained_primitive;
 mod retained_properties;
 mod retained_property_gpu;
+mod retained_publication;
 mod retained_queue;
 mod retained_reactive;
 mod retained_responsive;
@@ -81,6 +82,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         )?,
     )?;
     let mut results = vec![];
+    if std::env::args().any(|arg| arg == "--publication-only") {
+        retained_publication::run(&output, &mut results)?;
+        fs::write(
+            output.join("validation.json"),
+            serde_json::to_vec_pretty(&results)?,
+        )?;
+        fs::write(
+            output.join("publication-benchmark.json"),
+            serde_json::to_vec_pretty(&retained_spatial::publication_benchmark()?)?,
+        )?;
+        return Ok(());
+    }
     if std::env::args().any(|arg| arg == "--spatial-only") {
         retained_spatial::run(&output, &mut results)?;
         fs::write(
@@ -764,6 +777,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_layer_reuse::run(&output, &mut results)?;
     retained_shadows::run(&mut renderer, &output, &mut results)?;
     retained_spatial::run(&output, &mut results)?;
+    retained_publication::run(&output, &mut results)?;
     fs::write(
         output.join("validation.json"),
         serde_json::to_vec_pretty(&results)?,

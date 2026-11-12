@@ -1,5 +1,10 @@
 # Paged paint snapshots and selective publication
 
+The [page ownership follow-up](RETAINED_PAGE_OWNERSHIP.md) now moves complete
+changed pages and shares authoritative items with delta views. Partial pages
+still copy on write; `SelectiveCopy` preserves the original selective-copy
+control described by this historical stage's measurements.
+
 The persistent owner now keeps a generation-checked node-to-paint index and
 publishes immutable `PaintItems` as 64-item pages. Local material/paint changes
 extract only dirty visible nodes and copy only touched pages. Old `FramePacket`

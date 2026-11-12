@@ -23,7 +23,7 @@ mod extraction_tests;
 mod layout_publication;
 mod measure;
 mod paint_store;
-pub use paint_store::{FrameBuildPolicy, FrameBuildStats, HitTestStats, PaintItems};
+pub use paint_store::{FrameBuildPolicy, FrameBuildStats, HitTestStats, PaintItems, PaintUpdates};
 #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
 pub mod paragraph;
 #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
@@ -104,7 +104,7 @@ pub struct FramePacket {
     pub recorded_chunks: u64,
     pub layout_stats: LayoutStats,
     pub build_stats: FrameBuildStats,
-    pub updates: Arc<[PaintItem]>,
+    pub updates: Arc<PaintUpdates>,
     pub removed: Arc<[NodeId]>,
     pub order: Option<Arc<[NodeId]>>,
     pub properties: Arc<PropertyTrees>,
@@ -938,7 +938,7 @@ impl UiTree {
             cached.build_stats = FrameBuildStats::default();
             return Ok(cached);
         }
-        if self.frame_build_policy == FrameBuildPolicy::Selective
+        if self.frame_build_policy != FrameBuildPolicy::Full
             && !self.layout_dirty
             && self.frame.is_some()
         {
@@ -949,7 +949,7 @@ impl UiTree {
         if self.layout_dirty {
             layout_stats = self.compute_layout(viewport)?;
         }
-        if self.frame_build_policy == FrameBuildPolicy::Selective
+        if self.frame_build_policy != FrameBuildPolicy::Full
             && !self.full_extract_required
             && self.frame.is_some()
         {
@@ -980,23 +980,16 @@ impl UiTree {
             .map(|frame| frame.items.iter().map(|item| (item.node, item)).collect())
             .unwrap_or_default();
         let current: BTreeMap<_, _> = items.iter().map(|item| (item.node, item)).collect();
-        let updates = items
-            .iter()
-            .filter(|item| {
-                previous.get(&item.node).is_none_or(|old| {
-                    old.bounds != item.bounds
-                        || old.spatial != item.spatial
-                        || old.shadows != item.shadows
-                        || old.commands != item.commands
-                        || old.fill_color != item.fill_color
-                        || old.image != item.image
-                        || !old.same_text(item)
-                        || old.content_bounds != item.content_bounds
-                        || old.clip != item.clip
-                })
-            })
-            .cloned()
-            .collect::<Vec<_>>();
+        let update_indices = items.iter().enumerate().filter_map(|(index,item)| {
+            previous.get(&item.node).is_none_or(|old| {
+                old.bounds != item.bounds || old.spatial != item.spatial || old.shadows != item.shadows
+                    || old.commands != item.commands || old.fill_color != item.fill_color
+                    || old.image != item.image || !old.same_text(item)
+                    || old.content_bounds != item.content_bounds || old.clip != item.clip
+            }).then_some(index)
+        }).collect::<Vec<_>>();
+        let copying = self.frame_build_policy != FrameBuildPolicy::Selective;
+        let updates = copying.then(|| update_indices.iter().map(|index| items[*index].clone()).collect::<Vec<_>>());
         let removed = previous
             .keys()
             .filter(|id| !current.contains_key(id))
@@ -1017,6 +1010,9 @@ impl UiTree {
             viewport_changed,
             order_changed,
         );
+        let items=Arc::new(PaintItems::from(items));
+        let delta_cloned_items=updates.as_ref().map_or(0,Vec::len);
+        let updates=if let Some(updates)=updates {Arc::new(PaintUpdates::from(updates))} else {PaintUpdates::indexed(items.clone(),update_indices)};
         let frame = FramePacket {
             tree: self.identity,
             base_revision: self.frame.as_ref().map(|frame| frame.revision),
@@ -1024,13 +1020,14 @@ impl UiTree {
             build_stats: FrameBuildStats {
                 extracted_nodes: items.len(),
                 full_rebuild: true,
+                delta_cloned_items,
                 ..Default::default()
             },
-            items: Arc::new(items.into()),
+            items,
             layout_runs,
             recorded_chunks,
             layout_stats,
-            updates: updates.into(),
+            updates,
             removed: removed.into(),
             order: order_changed.then(|| order.into()),
             properties: Arc::new(properties),
