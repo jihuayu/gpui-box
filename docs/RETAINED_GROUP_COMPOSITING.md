@@ -34,8 +34,9 @@ content and grayscale glyph ink; see [bounded isolation textures](RETAINED_LAYER
 A full-viewport switch remains as a reference/performance control. The validation
 guard rejects actual live texture extents above 256 MiB before allocation. The
 hardware suite checks both small-layer admission and oversized rejection/recovery.
-This is a per-frame payload guard; peak physical memory held by overlapping
-allocation epochs is not accounted globally. Cache admission/LRU, configurable
+The subsequent [allocation-budget stage](RETAINED_LAYER_BUDGET.md) accounts
+unique layer payload across overlapping in-flight epochs and waits on pressure.
+Driver/nonlayer/global-device physical memory is not accounted by that cap. Cache admission/LRU, configurable
 global budgets and graceful over-budget fallback remain acceptance work.
 
 Translation/clip/scroll still resolve into world-space quad records. They can

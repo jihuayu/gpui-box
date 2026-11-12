@@ -26,7 +26,7 @@ fn wait(receiver: &mut CompletionReceiver) -> Result<Option<u64>, Box<dyn Error>
         std::thread::park_timeout(remaining);
     }
 }
-fn collect_through(
+pub(super) fn collect_through(
     renderer: &mut WgpuFrameRenderer,
     receiver: &mut CompletionReceiver,
     serial: u64,

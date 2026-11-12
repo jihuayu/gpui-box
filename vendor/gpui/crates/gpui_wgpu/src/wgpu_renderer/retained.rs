@@ -8,6 +8,7 @@ use std::{
     time::Duration,
 };
 pub type RetainedImage = image::RgbaImage;
+mod allocation_budget;
 mod completion;
 pub use completion::{CompletionReceiver, CompletionStats};
 mod glyphs;
@@ -16,7 +17,7 @@ pub use glyphs::{GlyphBatch, GlyphDrawId, GlyphGeometry, GlyphUpdates, RetainedG
 mod layers;
 pub use images::{ImageUpdates, QuadImage, QuadImageId};
 use layers::LayerCache;
-pub use layers::{QuadDraw, QuadLayer, QuadLayerId};
+pub use layers::{LayerMemoryStats, QuadDraw, QuadLayer, QuadLayerId};
 
 pub struct QuadWrite {
     pub start: u32,
@@ -63,6 +64,8 @@ pub struct QuadSubmission {
     pub allocated_layer_bytes: u64,
     pub rasterized_layer_pixels: u64,
     pub layer_allocations: usize,
+    pub layer_memory: LayerMemoryStats,
+    pub layer_budget_waits: usize,
     pub property_upload_bytes: u64,
     pub image_upload_bytes: u64,
     pub image_uploads: usize,
@@ -155,6 +158,20 @@ impl RetainedQuadRenderer {
             glyphs,
         })
     }
+
+    /// Adjust the unique isolated-texture payload cap after retiring this epoch.
+    pub fn set_layer_budget_bytes(&mut self, bytes: u64) -> Result<()> {
+        anyhow::ensure!(bytes > 0, "layer budget must be positive");
+        anyhow::ensure!(!self.failed, "recreate renderer after failed submission");
+        if bytes == self.layers.memory().limit_bytes { return Ok(()); }
+        self.finish()?;
+        self.layers.configure_budget(bytes);
+        self.force_full = true;
+        Ok(())
+    }
+
+    /// Observational: completion must be collected before retired leases leave.
+    pub fn layer_memory(&self) -> LayerMemoryStats { self.layers.memory() }
 
     pub fn adapter_info(&self) -> wgpu::AdapterInfo {
         self.renderer.context.adapter.get_info()
@@ -259,6 +276,7 @@ impl RetainedQuadRenderer {
             batch.size,
             &image_ids,
             &glyph_ids,
+            self.layers.memory().limit_bytes,
         )?;
         let serial = self
             .serial
@@ -295,10 +313,22 @@ impl RetainedQuadRenderer {
             })?;
             self.completed_serial()?;
         }
-        self.failed = true;
         let size_changed = self.size != Some(batch.size);
+        let required = self.layers.prepare(&batch.layers, batch.size, size_changed);
+        let mut layer_budget_waits = 0;
+        while self.layers.memory().resident_bytes.checked_add(required)
+            .is_none_or(|bytes| bytes > self.layers.memory().limit_bytes)
+        {
+            let oldest = self.flights.front().context("layer reservations exceed budget without pending work")?
+                .submission.clone();
+            self.renderer.context.device.poll(wgpu::PollType::Wait {
+                submission_index: Some(oldest), timeout: Some(Duration::from_secs(30)),
+            })?;
+            self.completed_serial()?;
+            layer_budget_waits += 1;
+        }
+        self.failed = true;
         if size_changed {
-            self.layers.clear();
             // Set shared globals and target through the same reference path.
             self.renderer.render(&Scene::default(), batch.size)?;
             self.size = Some(batch.size);
@@ -502,6 +532,8 @@ impl RetainedQuadRenderer {
             allocated_layer_bytes: layer_stats.allocated_bytes,
             rasterized_layer_pixels: layer_stats.rasterized_pixels,
             layer_allocations: layer_stats.allocations,
+            layer_memory: self.layers.memory(),
+            layer_budget_waits,
             property_upload_bytes: layer_stats.property_bytes,
             image_upload_bytes: image_stats.bytes,
             image_uploads: image_stats.uploads,

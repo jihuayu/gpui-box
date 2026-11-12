@@ -1,0 +1,42 @@
+{
+  "hardware_scenarios": 213,
+  "pixel_comparisons": 211,
+  "core_tests": 116,
+  "gallery_font_hardware_click_tests": 12,
+  "clippy": "selected core/gallery/perf targets -D warnings; passed",
+  "desktop_wgpu_build": "passed",
+  "audits": [
+    {
+      "run": "layer-budget-validation",
+      "source_hashes_verified": 150,
+      "process_samples": 8,
+      "samples_with_compilers": 0
+    },
+    {
+      "run": "layer-budget-run-1",
+      "source_hashes_verified": 150,
+      "process_samples": 5,
+      "samples_with_compilers": 0
+    },
+    {
+      "run": "layer-budget-run-2",
+      "source_hashes_verified": 150,
+      "process_samples": 5,
+      "samples_with_compilers": 0
+    },
+    {
+      "run": "layer-budget-run-3",
+      "source_hashes_verified": 150,
+      "process_samples": 5,
+      "samples_with_compilers": 0
+    }
+  ],
+  "binary_sha256": "6f0abe7e4eb84161039ecfe46bd9f454ab6f8c4680f9ec0bec3dd78ac3631af0",
+  "limitations": [
+    "unique texture payload reservations, not driver physical memory",
+    "nonlayer resources, other renderers and old device epochs excluded",
+    "completed batch timing, not GPU timestamps/FPS/native presentation",
+    "per-frame CPU spans include possible queue/budget waits",
+    "compiler observations every 500ms can miss shorter processes; other host activity is not excluded"
+  ]
+}

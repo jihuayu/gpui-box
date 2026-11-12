@@ -14,13 +14,17 @@ use gpui_wgpu::{
 // workspace's locked dependencies, without resolving the upstream test tree.
 #[cfg(test)]
 #[allow(dead_code)]
+#[path = "../../../../vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/allocation_budget.rs"]
+mod allocation_budget_tests;
+#[cfg(test)]
+#[allow(dead_code)]
 #[path = "../../../../vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/completion.rs"]
 mod completion_protocol_tests;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 mod composition;
 pub use composition::CompositionStats;
 mod validation;
-pub use gpui_wgpu::{CompletionReceiver, CompletionStats};
+pub use gpui_wgpu::{CompletionReceiver, CompletionStats, LayerMemoryStats};
 pub use validation::ValidationStats;
 #[cfg(test)]
 use validation::validate;
@@ -257,6 +261,25 @@ impl WgpuFrameRenderer {
             self.tight_layer_bounds = enabled;
             self.source = None;
         }
+    }
+
+    /// Bound unique texture payload across live cache entries and in-flight epochs.
+    /// Reconfiguration completes pending work and invalidates cached layers.
+    pub fn set_layer_budget_bytes(&mut self, bytes: u64) -> Result<(), Error> {
+        if bytes == self.backend.layer_memory().limit_bytes {
+            return Ok(());
+        }
+        self.backend
+            .set_layer_budget_bytes(bytes)
+            .map_err(gpu_error)?;
+        self.collect()?;
+        self.source = None;
+        Ok(())
+    }
+
+    /// Counters only; call `poll` to collect completed resource leases.
+    pub fn layer_memory(&self) -> LayerMemoryStats {
+        self.backend.layer_memory()
     }
 
     fn collect(&mut self) -> Result<(), Error> {
@@ -515,6 +538,10 @@ impl WgpuFrameRenderer {
         replacement.policy = self.policy;
         replacement.cache_layers = self.cache_layers;
         replacement.tight_layer_bounds = self.tight_layer_bounds;
+        replacement
+            .backend
+            .set_layer_budget_bytes(self.backend.layer_memory().limit_bytes)
+            .map_err(gpu_error)?;
         replacement.cache_validation = self.cache_validation;
         replacement.resource_deltas = self.resource_deltas;
         replacement.cache_composition = self.cache_composition;

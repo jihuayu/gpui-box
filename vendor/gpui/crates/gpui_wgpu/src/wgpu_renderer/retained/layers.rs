@@ -37,6 +37,19 @@ struct Layer {
     opacity: f32,
     draws: Arc<[QuadDraw]>,
     valid: bool,
+    _memory: Arc<allocation_budget::Allocation>,
+}
+
+/// Unique isolated texture payload held by the cache and completion leases.
+/// Excludes driver alignment, buffers, the main target, images and glyphs.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct LayerMemoryStats {
+    pub limit_bytes: u64,
+    pub live_bytes: u64,
+    pub resident_bytes: u64,
+    pub retired_bytes: u64,
+    pub peak_resident_bytes: u64,
+    pub resident_allocations: u64,
 }
 
 #[derive(Default)]
@@ -56,6 +69,7 @@ pub(super) type TargetLease = (wgpu::Buffer, wgpu::BindGroup, wgpu::Buffer, wgpu
 pub(super) type LayerLease = (
     wgpu::Texture, wgpu::Buffer, wgpu::BindGroup,
     wgpu::Buffer, wgpu::BindGroup, wgpu::Buffer, wgpu::BindGroup,
+    Arc<allocation_budget::Allocation>,
 );
 
 pub(super) struct LayerCache {
@@ -64,6 +78,9 @@ pub(super) struct LayerCache {
     camera_layout: wgpu::BindGroupLayout,
     root: Option<Target>,
     pipeline: wgpu::RenderPipeline,
+    budget: allocation_budget::AllocationBudget,
+    limit_bytes: u64,
+    live_bytes: u64,
 }
 
 impl LayerCache {
@@ -157,12 +174,53 @@ impl LayerCache {
             camera_layout,
             root: None,
             pipeline,
+            budget: allocation_budget::AllocationBudget::default(),
+            limit_bytes: 256 * 1024 * 1024,
+            live_bytes: 0,
         }
     }
 
     pub fn clear(&mut self) {
         self.layers.clear();
         self.root = None;
+        self.live_bytes = 0;
+    }
+
+    pub fn memory(&self) -> LayerMemoryStats {
+        let resident = self.budget.bytes();
+        LayerMemoryStats {
+            limit_bytes: self.limit_bytes,
+            live_bytes: self.live_bytes,
+            resident_bytes: resident,
+            retired_bytes: resident.saturating_sub(self.live_bytes),
+            peak_resident_bytes: self.budget.peak(),
+            resident_allocations: self.budget.count(),
+        }
+    }
+
+    /// Caller completes and collects all flights before resetting this epoch.
+    pub fn configure_budget(&mut self, bytes: u64) {
+        self.clear();
+        self.budget = allocation_budget::AllocationBudget::default();
+        self.limit_bytes = bytes;
+    }
+
+    /// Drop stale cache ownership before considering a new allocation. Flights
+    /// retain their own shared reservations until the owner collects completion.
+    pub fn prepare(&mut self, layers: &[QuadLayer], size: Size<DevicePixels>, reset: bool) -> u64 {
+        if reset { self.clear(); }
+        let desired: BTreeMap<_, _> = layers.iter().map(|layer| (layer.id, Self::bounds(layer, size))).collect();
+        self.layers.retain(|id, layer| {
+            let keep = desired.get(id) == Some(&layer.bounds);
+            if !keep { self.live_bytes -= Self::bytes(layer.bounds); }
+            keep
+        });
+        desired.iter().filter(|(id, _)| !self.layers.contains_key(*id))
+            .map(|(_, bounds)| Self::bytes(*bounds)).sum()
+    }
+
+    fn bytes(bounds: [u32; 4]) -> u64 {
+        u64::from(bounds[2].max(1)) * u64::from(bounds[3].max(1)) * 4
     }
 
     pub fn validate(
@@ -172,6 +230,7 @@ impl LayerCache {
         size: Size<DevicePixels>,
         images: &BTreeSet<QuadImageId>,
         glyphs: &BTreeSet<GlyphDrawId>,
+        limit_bytes: u64,
     ) -> Result<()> {
         let mut seen = BTreeSet::new();
         let mut bytes = 0u64;
@@ -186,14 +245,16 @@ impl LayerCache {
                     && y.checked_add(height).is_some_and(|end| end <= size.height.0 as u32),
                 "invalid isolated layer bounds"
             );
-            bytes = bytes.saturating_add(u64::from(width.max(1)) * u64::from(height.max(1)) * 4);
+            bytes = bytes.checked_add(u64::from(width.max(1)) * u64::from(height.max(1)) * 4)
+                .context("layer payload overflow")?;
             Self::validate_draws(&layer.draws, &seen, capacity, images, glyphs)?;
             anyhow::ensure!(seen.insert(layer.id), "duplicate or cyclic layer");
         }
         Self::validate_draws(order, &seen, capacity, images, glyphs)?;
         anyhow::ensure!(
-            bytes <= 256 * 1024 * 1024,
-            "isolated layers exceed 256 MiB budget"
+            bytes <= limit_bytes,
+            "isolated layers exceed {} MiB budget ({} bytes required; {} byte limit)",
+            limit_bytes / (1024 * 1024), bytes, limit_bytes
         );
         Ok(())
     }
@@ -274,7 +335,9 @@ impl LayerCache {
             _globals_buffer: globals_buffer, globals: globals_binding }
     }
 
-    fn allocate(&self, renderer: &WgpuHeadlessRenderer, bounds: [u32; 4]) -> Layer {
+    fn allocate(&self, renderer: &WgpuHeadlessRenderer, bounds: [u32; 4]) -> Result<Layer> {
+        let memory = self.budget.reserve(Self::bytes(bounds), self.limit_bytes)
+            .context("layer allocation exceeds admitted budget")?;
         let device = &renderer.context.device;
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("retained_isolated_layer"),
@@ -316,7 +379,7 @@ impl LayerCache {
                 },
             ],
         });
-        Layer {
+        Ok(Layer {
             bounds,
             target,
             texture,
@@ -326,7 +389,8 @@ impl LayerCache {
             opacity: -1.0,
             draws: Arc::from([]),
             valid: false,
-        }
+            _memory: memory,
+        })
     }
 
     pub fn render(
@@ -348,14 +412,13 @@ impl LayerCache {
             self.root = Some(self.target(renderer, [0, 0, size.width.0 as u32, size.height.0 as u32]));
         }
         let mut changed = BTreeSet::new();
-        let live: BTreeSet<_> = layers.iter().map(|layer| layer.id).collect();
-        self.layers.retain(|id, _| live.contains(id));
         for layer in layers {
             let bounds = Self::bounds(&layer, size);
             let bytes = u64::from(bounds[2].max(1)) * u64::from(bounds[3].max(1)) * 4;
             stats.live_bytes += bytes;
             if self.layers.get(&layer.id).is_none_or(|old| old.bounds != bounds) {
-                self.layers.insert(layer.id, self.allocate(renderer, bounds));
+                self.layers.insert(layer.id, self.allocate(renderer, bounds)?);
+                self.live_bytes += bytes;
                 stats.allocated_bytes += bytes;
                 stats.allocations += 1;
             }
@@ -487,6 +550,7 @@ impl LayerCache {
                     layer.binding.clone(),
                     layer.target._camera_buffer.clone(), layer.target.camera.clone(),
                     layer.target._globals_buffer.clone(), layer.target.globals.clone(),
+                    layer._memory.clone(),
                 )
             })
             .collect()

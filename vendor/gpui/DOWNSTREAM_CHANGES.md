@@ -104,3 +104,22 @@ uses a bounded six-vertex rectangle and local texture loads. Distribution-owned
 page ink unions select conservative device bounds, and fresh reference rendering
 forces full-viewport textures. See `docs/RETAINED_LAYER_BOUNDS.md` in the parent
 repository for validation, measurements and remaining resource-budget limits.
+
+### Completion-held isolated texture allocation budget
+
+`retained/allocation_budget.rs` adds shared reservations per actual layer texture
+allocation. Cache entries and explicit completion leases share one reservation;
+only the final reference releases its byte/count accounting. Admission prunes
+stale cache entries after packet validation, computes replacement payload and
+waits for oldest submissions when overlapping epochs would exceed the cap.
+Default cap remains 256 MiB; a positive configurable cap finishes/retires the
+previous budget epoch, clears layer caches and forces resynchronization.
+`LayerMemoryStats` observes live/resident/retired/peak payload and unique allocation
+count without polling; submission stats also record budget-pressure waits.
+
+The cap covers isolated texture payload within one renderer/device epoch. Driver
+alignment/pooling, nonlayer resources and other device epochs are outside it;
+oversized live scenes still reject. The distribution tests include the pure
+reservation module directly and exercise actual pressure waits, idle native
+completion retirement, reset policy retention, and atomic oversized-packet
+rejection/retry. See `docs/RETAINED_LAYER_BUDGET.md` in the parent repository.

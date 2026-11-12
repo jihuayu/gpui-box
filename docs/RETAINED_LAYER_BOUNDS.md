@@ -53,8 +53,11 @@ allocated texture payload/count, and raster target pixels. These are logical
 RGBA payload/target-area counters, not measured driver-resident memory, actual
 covered fragments or peak physical allocation. They exclude texture alignment,
 buffer overhead, main target, resources and retired epochs. The 256 MiB guard
-now sums actual live layer extents (including dummy pixels); it still does not
-provide cross-frame physical budgets, admission/LRU or over-budget fallback.
+now sums actual live layer extents (including dummy pixels). The subsequent
+[cross-frame allocation budget](RETAINED_LAYER_BUDGET.md) also accounts unique
+texture payload in pending epochs and waits before replacement allocation.
+Global driver/other-resource physical budgets, admission/LRU and oversized-live
+working-set fallback remain pending.
 
 ## Correctness and timing evidence
 

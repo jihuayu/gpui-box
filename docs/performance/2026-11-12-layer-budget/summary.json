@@ -1,0 +1,82 @@
+{
+  "scope": "same renderer; 256 MiB versus one-layer allocation payload budget; alternating physical origins; Full root redraw; owner commit/publication/submission plus final completion; excludes readback/native presentation; payload counters exclude driver overhead, buffers and nonlayer resources",
+  "executions": 3,
+  "rounds_per_mode": 9,
+  "timed_frames_per_mode": 180,
+  "cases": [
+    {
+      "quads": 4,
+      "layer_payload_bytes": 4336816,
+      "default_completed_mean_us": 617.2677777777777,
+      "default_completed_rounds_us": [
+        599.6949999999999,
+        630.725,
+        644.725,
+        586.755,
+        614.9599999999999,
+        739.01,
+        596.625,
+        554.6650000000001,
+        588.25
+      ],
+      "default_cpu_median_us": 526.15,
+      "default_peak_payload_bytes": 13010448,
+      "default_max_retired_bytes": 8673632,
+      "default_budget_waits": 0,
+      "bounded_completed_mean_us": 1064.395,
+      "bounded_completed_rounds_us": [
+        1050.155,
+        1119.56,
+        1261.3849999999998,
+        1053.385,
+        998.135,
+        1109.6699999999998,
+        1008.0350000000001,
+        978.665,
+        1000.5649999999999
+      ],
+      "bounded_cpu_median_us": 997.4000000000001,
+      "bounded_peak_payload_bytes": 4336816,
+      "bounded_max_retired_bytes": 0,
+      "bounded_budget_waits": 171,
+      "completed_cost_percent": 72.43650783650533
+    },
+    {
+      "quads": 128,
+      "layer_payload_bytes": 4336816,
+      "default_completed_mean_us": 10872.452222222222,
+      "default_completed_rounds_us": [
+        10683.805,
+        11447.545000000002,
+        11386.22,
+        10702.744999999999,
+        10796.740000000002,
+        10712.41,
+        10675.744999999999,
+        10677.0,
+        10769.86
+      ],
+      "default_cpu_median_us": 10579.650000000001,
+      "default_peak_payload_bytes": 13010448,
+      "default_max_retired_bytes": 8673632,
+      "default_budget_waits": 0,
+      "bounded_completed_mean_us": 11381.71611111111,
+      "bounded_completed_rounds_us": [
+        11159.92,
+        11924.515,
+        11525.355,
+        11220.0,
+        11255.055,
+        11341.48,
+        11360.009999999998,
+        11191.5,
+        11457.61
+      ],
+      "bounded_cpu_median_us": 11211.2,
+      "bounded_peak_payload_bytes": 4336816,
+      "bounded_max_retired_bytes": 0,
+      "bounded_budget_waits": 171,
+      "completed_cost_percent": 4.68398369089178
+    }
+  ]
+}

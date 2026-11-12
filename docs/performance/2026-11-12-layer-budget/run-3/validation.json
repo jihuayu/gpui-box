@@ -1,0 +1,80 @@
+[
+  {
+    "case": "layer-budget-shared-cache",
+    "pixel_equal": true,
+    "revision": 31,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache",
+    "memory": {
+      "limit_bytes": 268435456,
+      "live_bytes": 8400,
+      "resident_bytes": 8400,
+      "retired_bytes": 0,
+      "peak_resident_bytes": 8400,
+      "resident_allocations": 1
+    }
+  },
+  {
+    "case": "layer-budget-idle-retirement",
+    "pixel_equal": true,
+    "revision": 32,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "original full GPUI renderer",
+    "before_collection": {
+      "limit_bytes": 8400,
+      "live_bytes": 0,
+      "resident_bytes": 8400,
+      "retired_bytes": 8400,
+      "peak_resident_bytes": 8400,
+      "resident_allocations": 1
+    },
+    "after_collection": {
+      "limit_bytes": 8400,
+      "live_bytes": 0,
+      "resident_bytes": 0,
+      "retired_bytes": 0,
+      "peak_resident_bytes": 8400,
+      "resident_allocations": 0
+    }
+  },
+  {
+    "case": "layer-budget-reset-limit",
+    "pixel_equal": true,
+    "revision": 33,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "layer-budget-pressure-wait",
+    "pixel_equal": true,
+    "revision": 147,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache",
+    "budget_waits": 16,
+    "memory": {
+      "limit_bytes": 4336816,
+      "live_bytes": 4336816,
+      "resident_bytes": 4336816,
+      "retired_bytes": 0,
+      "peak_resident_bytes": 4336816,
+      "resident_allocations": 1
+    }
+  },
+  {
+    "case": "layer-budget-preflight-retry",
+    "rejected_before_mutation": true,
+    "valid_retry_serial": 2
+  }
+]
