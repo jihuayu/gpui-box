@@ -165,3 +165,40 @@ writes, malformed retry and buffer growth with an outstanding prior submission.
 See `docs/RETAINED_SHADOWS.md` and its frozen evidence in the parent repository.
 Vulkan output is qualified here; native DirectX/Metal framebuffer verification,
 general-shape primitives and global resource budgets remain pending.
+
+### Shared hierarchical retained placement
+
+`retained/spatial.rs` and `spatial.wgsl` share 96-byte logical placement nodes
+between Quad and Shadow, using common typed mirrors/growth/uploads and explicit
+completion-held property buffer/settings/binding leases. Typed initial GPU
+placeholders now match CPU empty records, including nonzero empty-anchor
+sentinels. A retained-only shader
+variant transforms the pinned shared transport loads, passes world origin/clip
+as flat varyings and leaves fragment primitive math free of tree traversal.
+Exact source-match assertions guard the variant against upstream drift.
+
+Enabled batches use `order = property slot + 1`; zero retains world instances.
+Retained shadow raw origins carry logical offset/signed expansion until vertex
+resolution. The pinned struct sizes do not change. Parent/depth/reference/range
+and resolved finite-coordinate preflight runs before mutation; bounded 32-node
+walks use resolved anchors for deeper trees. Property ancestry changes invalidate
+raster ranges even with no geometry writes. Submission stats expose property
+bytes/ranges and generation independently of compositor opacity. Default raw
+batches retain the original convention; the distribution consumer defaults to
+shared placement and provides a world-instance/reset-preserved control.
+
+The shared Quad/Shadow fragment mask test now uses exact world pixel centers.
+Interpolated distances could change sign at an inclusive mask boundary between
+full and cropped targets, dropping a row of shadow. Direct comparisons preserve
+inclusive minimum/maximum edges and empty-mask behavior. Analytical color checks
+cover fill/shadow, both property modes and both target extents. Native Vulkan
+pixels are verified; native DirectX/Metal framebuffer qualification remains open.
+
+Owner packets now publish local placement independently of resolved hit/damage
+geometry. Reparenting rebuilds depth/anchor metadata even with unchanged world
+bounds/order; retired GPU slots clear to empty anchors before reuse. The hardware
+suite covers mixed text/images, scrolling, isolated caches, deep/recycled chains,
+malformed retry and overlapping property-buffer replacement. See the parent
+repository's `docs/RETAINED_GPU_SPATIAL.md`, architecture decision and evidence.
+Full affine/complex clips, shared image/glyph adoption, indexed preflight and
+global physical budgets remain pending.

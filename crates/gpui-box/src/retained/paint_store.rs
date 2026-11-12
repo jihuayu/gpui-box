@@ -259,10 +259,11 @@ impl UiTree {
                     damage = Some(damage.map_or(ink, |previous| previous.union(ink)));
                 }
             }
-            if paint_changed {
+            let spatial_changed = old.spatial != item.spatial;
+            if paint_changed || spatial_changed {
                 updates.push(item.clone());
             }
-            if paint_changed || old.properties != item.properties {
+            if paint_changed || spatial_changed || old.properties != item.properties {
                 patches.push((index, item));
             }
         }

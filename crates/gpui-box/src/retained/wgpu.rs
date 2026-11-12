@@ -23,6 +23,8 @@ mod completion_protocol_tests;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 mod composition;
 pub use composition::CompositionStats;
+mod spatial;
+use spatial::SpatialArena;
 mod validation;
 pub use gpui_wgpu::{CompletionReceiver, CompletionStats, LayerMemoryStats};
 pub use validation::ValidationStats;
@@ -35,6 +37,7 @@ struct Record {
     color: u32,
     clip: Option<Rect>,
     decoration: QuadDecoration,
+    property: u32,
 }
 
 impl Record {
@@ -47,6 +50,7 @@ impl Record {
             ),
         };
         Quad {
+            order: self.property,
             bounds,
             content_mask: ContentMask {
                 bounds: self.clip.map_or(bounds, |clip| Bounds {
@@ -73,6 +77,7 @@ fn record(item: &PaintItem, command: &DisplayCommand, scale: f32) -> Record {
         height: bounds.height * scale,
     };
     Record {
+        property: 0,
         bounds: scaled(item.bounds),
         color,
         clip: item.clip.map(scaled),
@@ -87,6 +92,9 @@ fn record(item: &PaintItem, command: &DisplayCommand, scale: f32) -> Record {
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct ShadowRecord {
     geometry: ShadowGeometry,
+    property: u32,
+    offset: [f32; 2],
+    spread: f32,
     blur: f32,
     color: u32,
     inset: bool,
@@ -102,6 +110,13 @@ impl ShadowRecord {
         };
         let g = item.shadow_geometry(value);
         Self {
+            property: 0,
+            offset: value.offset,
+            spread: if value.inset {
+                -value.spread_radius
+            } else {
+                value.spread_radius
+            },
             geometry: ShadowGeometry {
                 bounds: scaled(g.bounds),
                 element_bounds: scaled(g.element_bounds),
@@ -121,15 +136,29 @@ impl ShadowRecord {
             size: size(ScaledPixels(b.width), ScaledPixels(b.height)),
         };
         gpui::Shadow {
-            order: 0,
+            order: self.property,
             blur_radius: ScaledPixels(self.blur),
-            bounds: bounds(self.geometry.bounds),
+            bounds: if self.property == 0 {
+                bounds(self.geometry.bounds)
+            } else {
+                Bounds {
+                    origin: point(ScaledPixels(self.offset[0]), ScaledPixels(self.offset[1])),
+                    ..bounds(self.geometry.bounds)
+                }
+            },
             corner_radii: gpui::Corners::all(ScaledPixels(self.geometry.radius)),
             content_mask: ContentMask {
                 bounds: bounds(self.clip.unwrap_or(self.geometry.ink)),
             },
             color: rgba(self.color).into(),
-            element_bounds: bounds(self.geometry.element_bounds),
+            element_bounds: if self.property == 0 {
+                bounds(self.geometry.element_bounds)
+            } else {
+                Bounds {
+                    origin: point(ScaledPixels(self.spread), ScaledPixels(0.0)),
+                    ..bounds(self.geometry.element_bounds)
+                }
+            },
             element_corner_radii: gpui::Corners::all(ScaledPixels(self.geometry.element_radius)),
             inset: u32::from(self.inset),
             pad: 0,
@@ -220,6 +249,8 @@ pub struct WgpuFrameRenderer {
     backend: RetainedQuadRenderer,
     arena: InstanceArena<Record>,
     shadow_arena: InstanceArena<ShadowRecord>,
+    spatial_arena: SpatialArena,
+    shared_spatial: bool,
     shadow_instances: BTreeMap<NodeId, Vec<InstanceHandle>>,
     instances: BTreeMap<NodeId, Vec<InstanceHandle>>,
     source: Option<(u64, u64)>,
@@ -248,6 +279,8 @@ impl WgpuFrameRenderer {
             backend: RetainedQuadRenderer::new(max_in_flight).map_err(gpu_error)?,
             arena: InstanceArena::default(),
             shadow_arena: InstanceArena::default(),
+            spatial_arena: SpatialArena::default(),
+            shared_spatial: true,
             shadow_instances: BTreeMap::new(),
             instances: BTreeMap::new(),
             source: None,
@@ -347,10 +380,24 @@ impl WgpuFrameRenderer {
         self.backend.layer_memory()
     }
 
+    /// Select shared hierarchical placement or the original world-instance control.
+    /// Switching forces a complete snapshot resynchronization on the next submit.
+    pub fn shared_spatial_enabled(&self) -> bool {
+        self.shared_spatial
+    }
+
+    pub fn set_shared_spatial_enabled(&mut self, enabled: bool) {
+        if self.shared_spatial != enabled {
+            self.shared_spatial = enabled;
+            self.source = None;
+        }
+    }
+
     fn collect(&mut self) -> Result<(), Error> {
         let completed = self.backend.completed_serial().map_err(gpu_error)?;
         self.arena.collect(completed);
         self.shadow_arena.collect(completed);
+        self.spatial_arena.collect(completed);
         while self
             .leases
             .front()
@@ -407,6 +454,7 @@ impl WgpuFrameRenderer {
         };
         let last_submission = self.backend.last_serial();
         for node in retire {
+            self.spatial_arena.retire(node, last_submission)?;
             if let Some(handles) = self.shadow_instances.remove(&node) {
                 for handle in handles {
                     self.shadow_arena
@@ -425,6 +473,14 @@ impl WgpuFrameRenderer {
         let completed = self.backend.completed_serial().map_err(gpu_error)?;
         self.arena.collect(completed);
         self.shadow_arena.collect(completed);
+        self.spatial_arena.collect(completed);
+        let rebuild_spatial =
+            self.shared_spatial && (full_resync || self.spatial_arena.topology_changed(frame));
+        if rebuild_spatial {
+            for item in frame.items.iter() {
+                self.spatial_arena.update(item)?;
+            }
+        }
         let mut command_count_changed = false;
         let selected: Box<dyn Iterator<Item = &PaintItem> + '_> = if full_resync {
             Box::new(frame.items.iter())
@@ -432,6 +488,13 @@ impl WgpuFrameRenderer {
             Box::new(frame.updates.iter())
         };
         for item in selected {
+            let property = if rebuild_spatial {
+                self.spatial_arena.slot(item.node)?
+            } else if self.shared_spatial {
+                self.spatial_arena.update(item)?
+            } else {
+                0
+            };
             if !item.shadows.is_empty() || self.shadow_instances.contains_key(&item.node) {
                 let handles = self.shadow_instances.entry(item.node).or_default();
                 command_count_changed |= handles.len() != item.shadows.len();
@@ -440,8 +503,19 @@ impl WgpuFrameRenderer {
                         .retire(handles.pop().unwrap(), last_submission)
                         .map_err(gpu_error)?;
                 }
+                let mut local;
+                let geometry = if property == 0 {
+                    item
+                } else {
+                    local = item.clone();
+                    local.bounds.x = 0.0;
+                    local.bounds.y = 0.0;
+                    local.clip = None;
+                    &local
+                };
                 for (index, shadow) in item.shadows.iter().enumerate() {
-                    let record = ShadowRecord::new(item, *shadow, scale);
+                    let mut record = ShadowRecord::new(geometry, *shadow, scale);
+                    record.property = property;
                     if let Some(handle) = handles.get(index) {
                         self.shadow_arena
                             .update(*handle, record)
@@ -464,7 +538,13 @@ impl WgpuFrameRenderer {
                     .map_err(gpu_error)?;
             }
             for (index, command) in item.commands.iter().enumerate() {
-                let record = record(item, command, scale);
+                let mut record = record(item, command, scale);
+                record.property = property;
+                if property != 0 {
+                    record.bounds.x = 0.0;
+                    record.bounds.y = 0.0;
+                    record.clip = None;
+                }
                 if let Some(handle) = handles.get(index) {
                     self.arena.update(*handle, record).map_err(gpu_error)?;
                 } else {
@@ -511,6 +591,7 @@ impl WgpuFrameRenderer {
                         })
                         .collect(),
                 },
+                spatial: self.spatial_arena.batch(self.shared_spatial, scale),
                 cache_layers: self.cache_layers,
                 glyphs: glyph_updates(frame, scale, full_resync)?,
                 size: size(
@@ -528,6 +609,9 @@ impl WgpuFrameRenderer {
             .map_err(gpu_error)?;
         self.arena.acknowledge();
         self.shadow_arena.acknowledge();
+        if self.shared_spatial {
+            self.spatial_arena.acknowledge();
+        }
         if let Some((tree, _)) = self.latest.filter(|(tree, _)| *tree != frame.tree) {
             self.retired_sources.insert(tree);
         }
@@ -614,6 +698,7 @@ impl WgpuFrameRenderer {
             // a fresh full renderer with no previous raster-cache contents.
             let mut fresh = Self::new(1)?;
             fresh.set_tight_layer_bounds_enabled(false);
+            fresh.set_shared_spatial_enabled(false);
             fresh.submit(frame, surface, scale)?;
             return fresh.image();
         }
@@ -652,6 +737,7 @@ impl WgpuFrameRenderer {
         replacement.latest = self.latest;
         replacement.retired_sources = self.retired_sources.clone();
         replacement.policy = self.policy;
+        replacement.shared_spatial = self.shared_spatial;
         replacement.cache_layers = self.cache_layers;
         replacement.tight_layer_bounds = self.tight_layer_bounds;
         replacement

@@ -114,13 +114,17 @@ pub(super) struct PersistentStorage<T: Instance> {
 impl<T: Instance> PersistentStorage<T> {
     pub fn new(renderer: &WgpuHeadlessRenderer, label: &'static str) -> Self {
         let (buffer, binding) = allocation::<T>(renderer, 1, label);
-        Self {
+        let storage = Self {
             buffer,
             binding,
             generation: 1,
             mirror: vec![T::empty()],
             label,
-        }
+        };
+        // Typed empties may contain nonzero sentinels (spatial anchors). Keep
+        // the initial GPU placeholder identical to the CPU mirror before writes.
+        storage.upload(renderer, 0, &storage.mirror);
+        storage
     }
     pub fn validate(
         renderer: &WgpuHeadlessRenderer,
@@ -221,6 +225,17 @@ impl<T: Instance> PersistentStorage<T> {
             bytes,
         );
         bytes.len() as u64
+    }
+    pub fn value(&self, index: u32) -> T {
+        self.mirror.get(index as usize).copied().unwrap_or_else(T::empty)
+    }
+    pub fn projected(&self, index: u32, writes: &[InstanceWrite<T>]) -> T {
+        for write in writes.iter().rev() {
+            if let Some(value) = index.checked_sub(write.start).and_then(|offset| write.values.get(offset as usize)) {
+                return *value;
+            }
+        }
+        self.value(index)
     }
     pub fn lease(&self) -> StorageLease {
         (self.buffer.clone(), self.binding.bind_group.clone())

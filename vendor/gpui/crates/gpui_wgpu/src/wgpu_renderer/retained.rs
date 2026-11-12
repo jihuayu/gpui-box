@@ -20,6 +20,8 @@ use layers::LayerCache;
 pub use layers::{LayerMemoryStats, QuadDraw, QuadLayer, QuadLayerId};
 
 mod storage;
+mod spatial;
+pub use spatial::{SpatialBatch, SpatialNode};
 pub use storage::InstanceWrite;
 use storage::PersistentStorage;
 pub type QuadWrite = InstanceWrite<Quad>;
@@ -37,6 +39,7 @@ pub struct QuadBatch {
     pub images: ImageUpdates,
     pub glyphs: GlyphUpdates,
     pub shadows: ShadowBatch,
+    pub spatial: SpatialBatch,
     pub cache_layers: bool,
     pub size: Size<DevicePixels>,
     pub redraw: QuadRedraw,
@@ -62,6 +65,9 @@ pub struct QuadSubmission {
     pub shadow_upload_bytes: u64,
     pub shadow_upload_ranges: usize,
     pub shadow_buffer_generation: u64,
+    pub spatial_upload_bytes: u64,
+    pub spatial_upload_ranges: usize,
+    pub spatial_buffer_generation: u64,
     pub upload_ranges: usize,
     pub draw_calls: usize,
     pub in_flight: usize,
@@ -102,6 +108,7 @@ struct Flight {
     // Explicit leases keep replaced allocations alive through completion.
     _quads: storage::StorageLease,
     _shadows: storage::StorageLease,
+    _spatial: spatial::SpatialLease,
     _clear: Option<(wgpu::Buffer, wgpu::BindGroup)>,
     _layers: Vec<layers::LayerLease>,
     _layer_root: Option<layers::TargetLease>,
@@ -113,6 +120,7 @@ pub struct RetainedQuadRenderer {
     renderer: WgpuHeadlessRenderer,
     quads: PersistentStorage<Quad>,
     shadows: PersistentStorage<gpui::Shadow>,
+    spatial: spatial::SpatialCache,
     order: Vec<QuadDraw>,
     size: Option<Size<DevicePixels>>,
     serial: u64,
@@ -146,6 +154,7 @@ impl RetainedQuadRenderer {
         );
         let quads = PersistentStorage::new(&renderer, "retained_quad_slots");
         let shadows = PersistentStorage::new(&renderer, "retained_shadow_slots");
+        let spatial = spatial::SpatialCache::new(&renderer);
         let layers = LayerCache::new(&renderer);
         let images = images::ImageCache::new(&renderer, layers.camera_layout());
         let glyphs = glyphs::GlyphCache::new(&renderer, layers.camera_layout());
@@ -153,6 +162,7 @@ impl RetainedQuadRenderer {
             renderer,
             quads,
             shadows,
+            spatial,
             order: vec![],
             size: None,
             serial: 0,
@@ -258,6 +268,17 @@ impl RetainedQuadRenderer {
         PersistentStorage::<gpui::Shadow>::validate(
             &self.renderer, batch.shadows.capacity, &batch.shadows.writes,
         )?;
+        self.spatial.validate(&self.renderer, &batch.spatial)?;
+        if batch.spatial.enabled {
+            for index in 0..batch.capacity {
+                let property = self.quads.projected(index, &batch.writes).order;
+                anyhow::ensure!(property <= batch.spatial.capacity, "quad spatial reference outside allocation");
+            }
+            for index in 0..batch.shadows.capacity {
+                let property = self.shadows.projected(index, &batch.shadows.writes).order;
+                anyhow::ensure!(property <= batch.spatial.capacity, "shadow spatial reference outside allocation");
+            }
+        }
         let order = batch.order.as_ref().unwrap_or(&self.order);
         let image_ids = self.images.validate(
             &batch.images,
@@ -363,12 +384,26 @@ impl RetainedQuadRenderer {
                 });
             self.clear = Some((buffer, binding));
         }
-        let quad_stats = self.quads.apply(
+        let spatial_all = self.spatial.parameters_change(&batch.spatial);
+        let spatial_stats = self.spatial.apply(&self.renderer, batch.spatial)?;
+        let mut quad_stats = self.quads.apply(
             &self.renderer, batch.capacity, batch.writes, self.full_instance_uploads,
         )?;
-        let shadow_stats = self.shadows.apply(
+        let mut shadow_stats = self.shadows.apply(
             &self.renderer, batch.shadows.capacity, batch.shadows.writes, self.full_instance_uploads,
         )?;
+        if self.spatial.enabled && (!spatial_stats.dirty.is_empty() || spatial_all) {
+            for (capacity, shadow, dirty) in [(batch.capacity, false, &mut quad_stats.dirty),
+                (batch.shadows.capacity, true, &mut shadow_stats.dirty)] {
+                for index in 0..capacity {
+                    let property = if shadow { self.shadows.value(index).order } else { self.quads.value(index).order };
+                    if self.spatial.affected(property, &spatial_stats.dirty, spatial_all) {
+                        if let Some(last) = dirty.last_mut().filter(|last| last.end == index) { last.end += 1; }
+                        else { dirty.push(index..index+1); }
+                    }
+                }
+            }
+        }
         if let Some(order) = batch.order {
             self.order = order;
         }
@@ -401,6 +436,7 @@ impl RetainedQuadRenderer {
             &self.renderer,
             &self.quads.binding,
             &self.shadows.binding,
+            &self.spatial,
             &mut encoder,
             batch.layers,
             &quad_stats.dirty,
@@ -450,6 +486,7 @@ impl RetainedQuadRenderer {
                 core,
                 &self.quads.binding,
                 &self.shadows.binding,
+                &self.spatial,
                 &self.order,
                 &mut pass,
                 &self.images,
@@ -470,6 +507,7 @@ impl RetainedQuadRenderer {
             submission,
             _quads: self.quads.lease(),
             _shadows: self.shadows.lease(),
+            _spatial: self.spatial.lease(),
             _clear: self
                 .clear
                 .as_ref()
@@ -496,6 +534,9 @@ impl RetainedQuadRenderer {
             shadow_upload_bytes: shadow_stats.bytes,
             shadow_upload_ranges: shadow_stats.ranges,
             shadow_buffer_generation: self.shadows.generation,
+            spatial_upload_bytes: spatial_stats.bytes,
+            spatial_upload_ranges: spatial_stats.ranges,
+            spatial_buffer_generation: self.spatial.generation(),
             draw_calls: layer_stats.draws
                 + if redraw == QuadRedraw::Unchanged {
                     0

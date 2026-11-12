@@ -187,6 +187,7 @@ pub(super) fn run(
         images: Default::default(),
         glyphs: Default::default(),
         shadows: Default::default(),
+        spatial: Default::default(),
         cache_layers: true,
         size: gpui::size(gpui::DevicePixels(64), gpui::DevicePixels(64)),
         redraw: gpui_wgpu::QuadRedraw::Full,

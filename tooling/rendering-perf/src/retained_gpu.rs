@@ -32,6 +32,7 @@ mod retained_queue;
 mod retained_reactive;
 mod retained_responsive;
 mod retained_shadows;
+mod retained_spatial;
 mod retained_structure;
 mod retained_text;
 mod retained_validation;
@@ -47,6 +48,10 @@ fn compare(
 ) -> Result<(), Box<dyn Error>> {
     let actual = renderer.image()?;
     let reference = renderer.reference_image(frame, size, scale)?;
+    if actual.as_raw() != reference.as_raw() {
+        actual.save(output.join(format!("{name}-actual.png")))?;
+        reference.save(output.join(format!("{name}-reference.png")))?;
+    }
     assert!(
         actual.as_raw() == reference.as_raw(),
         "pixel mismatch in {name}"
@@ -66,6 +71,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
     fs::create_dir_all(&output)?;
     let mut renderer = WgpuFrameRenderer::new(3)?;
+    renderer.set_shared_spatial_enabled(false);
     let info = renderer.adapter_info();
     println!("Integrated retained GPU {:?} {}", info.backend, info.name);
     fs::write(
@@ -75,6 +81,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         )?,
     )?;
     let mut results = vec![];
+    if std::env::args().any(|arg| arg == "--spatial-only") {
+        retained_spatial::run(&output, &mut results)?;
+        fs::write(
+            output.join("validation.json"),
+            serde_json::to_vec_pretty(&results)?,
+        )?;
+        fs::write(
+            output.join("spatial-benchmark.json"),
+            serde_json::to_vec_pretty(&retained_spatial::benchmark()?)?,
+        )?;
+        return Ok(());
+    }
     if std::env::args().any(|arg| arg == "--shadows-only") {
         retained_shadows::run(&mut renderer, &output, &mut results)?;
         fs::write(
@@ -745,6 +763,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_layer_budget::run(&output, &mut results)?;
     retained_layer_reuse::run(&output, &mut results)?;
     retained_shadows::run(&mut renderer, &output, &mut results)?;
+    retained_spatial::run(&output, &mut results)?;
     fs::write(
         output.join("validation.json"),
         serde_json::to_vec_pretty(&results)?,

@@ -17,6 +17,7 @@ struct Snapshot {
     items: Arc<PaintItems>,
     properties: Arc<PropertyTrees>,
     indices: BTreeMap<NodeId, usize>,
+    children: BTreeMap<NodeId, Vec<usize>>,
 }
 
 #[derive(Default)]
@@ -56,7 +57,10 @@ impl ValidationCache {
             changed.iter().all(|index| {
                 let a = &frame.items.pages()[*index];
                 let b = &old.items.pages()[*index];
-                a.len() == b.len() && a.iter().zip(b.iter()).all(|(a, b)| a.node == b.node)
+                a.len() == b.len()
+                    && a.iter()
+                        .zip(b.iter())
+                        .all(|(a, b)| a.node == b.node && a.spatial.parent == b.spatial.parent)
             })
         });
         if let Some((old, changed)) = stable {
@@ -70,6 +74,17 @@ impl ValidationCache {
                     validate_item(item, scale)?;
                     stats.validated_items += 1;
                 }
+            }
+            let mut spatial_indices = BTreeSet::new();
+            for page in changed {
+                for item in frame.items.pages()[*page].iter() {
+                    spatial_indices.insert(old.indices[&item.node]);
+                    spatial_indices
+                        .extend(old.children.get(&item.node).into_iter().flatten().copied());
+                }
+            }
+            for index in spatial_indices {
+                validate_spatial(frame, index, &old.indices)?;
             }
             if frame
                 .properties
@@ -99,6 +114,13 @@ impl ValidationCache {
                 return Err(Error::InvalidFrame);
             }
         }
+        let mut children = BTreeMap::<NodeId, Vec<usize>>::new();
+        for (index, item) in frame.items.iter().enumerate() {
+            validate_spatial(frame, index, &indices)?;
+            if let Some(parent) = item.spatial.parent {
+                children.entry(parent).or_default().push(index);
+            }
+        }
         validate_effects(frame, &indices)?;
         validate_delta(frame, &indices)?;
         let stats = ValidationStats {
@@ -114,6 +136,7 @@ impl ValidationCache {
             items: frame.items.clone(),
             properties: frame.properties.clone(),
             indices,
+            children,
         });
         Ok(stats)
     }
@@ -193,6 +216,47 @@ fn validate_item(item: &PaintItem, scale: f32) -> Result<(), Error> {
     Ok(())
 }
 
+fn validate_spatial(
+    frame: &FramePacket,
+    index: usize,
+    indices: &BTreeMap<NodeId, usize>,
+) -> Result<(), Error> {
+    let item = &frame.items[index];
+    let spatial = &item.spatial;
+    if spatial
+        .layout_origin
+        .iter()
+        .chain(&spatial.translation)
+        .chain(&spatial.scroll)
+        .any(|v| !v.is_finite())
+        || spatial.scroll.iter().any(|v| *v < 0.0)
+        || spatial
+            .clip
+            .into_iter()
+            .chain(spatial.root_clip)
+            .any(|b| !b.valid())
+    {
+        return Err(Error::InvalidFrame);
+    }
+    let parent = if let Some(parent) = spatial.parent {
+        let parent_index = *indices.get(&parent).ok_or(Error::InvalidFrame)?;
+        if parent_index >= index || spatial.root_clip.is_some() {
+            return Err(Error::InvalidFrame);
+        }
+        Some(&frame.items[parent_index])
+    } else {
+        if index != 0 {
+            return Err(Error::InvalidFrame);
+        }
+        None
+    };
+    let (origin, clip) = spatial.resolve(parent);
+    if origin != [item.bounds.x, item.bounds.y] || clip != item.clip {
+        return Err(Error::InvalidFrame);
+    }
+    Ok(())
+}
+
 fn validate_effect_reference(item: &PaintItem, properties: &PropertyTrees) -> Result<(), Error> {
     if item
         .properties
@@ -239,7 +303,8 @@ fn validate_delta(frame: &FramePacket, indices: &BTreeMap<NodeId, usize>) -> Res
         if !updates.insert(item.node)
             || indices.get(&item.node).is_none_or(|index| {
                 let value = &frame.items[*index];
-                value.bounds != item.bounds
+                value.spatial != item.spatial
+                    || value.bounds != item.bounds
                     || value.commands != item.commands
                     || value.fill_color != item.fill_color
                     || value.shadows != item.shadows
@@ -272,6 +337,45 @@ fn validate_delta(frame: &FramePacket, indices: &BTreeMap<NodeId, usize>) -> Res
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn spatial_validation_checks_edges_across_reused_pages_and_rejects_mismatched_deltas() {
+        let (_, _, first) = fixture();
+        let mut cache = ValidationCache::default();
+        cache.check(&first, [100; 2], 1.0, true).unwrap();
+        let mut invalid = first.clone();
+        Arc::make_mut(&mut invalid.items)[0].spatial.scroll[0] = 1.0;
+        assert_eq!(
+            cache.check(&invalid, [100; 2], 1.0, true),
+            Err(Error::InvalidFrame)
+        );
+        let mut invalid = first.clone();
+        Arc::make_mut(&mut invalid.items)[150].spatial.parent = Some(first.items[150].node);
+        assert_eq!(
+            cache.check(&invalid, [100; 2], 1.0, true),
+            Err(Error::InvalidFrame)
+        );
+        let mut invalid = first.clone();
+        Arc::make_mut(&mut invalid.items)[150].spatial.translation[0] = 1.0;
+        assert_eq!(
+            cache.check(&invalid, [100; 2], 1.0, true),
+            Err(Error::InvalidFrame)
+        );
+        let mut invalid = first.clone();
+        let mut item = first.items[150].clone();
+        item.spatial.scroll[0] = 1.0;
+        invalid.updates = Arc::from([item]);
+        assert_eq!(
+            cache.check(&invalid, [100; 2], 1.0, true),
+            Err(Error::InvalidFrame)
+        );
+        assert_eq!(
+            cache
+                .check(&first, [100; 2], 1.0, true)
+                .unwrap()
+                .validated_items,
+            0
+        );
+    }
     fn fixture() -> (UiTree, Vec<NodeId>, FramePacket) {
         let mut tree = UiTree::new(Style::default(), 0).unwrap();
         let mut nodes = vec![];

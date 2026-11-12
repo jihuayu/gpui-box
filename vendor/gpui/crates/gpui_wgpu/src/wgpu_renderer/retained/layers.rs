@@ -420,6 +420,7 @@ impl LayerCache {
         renderer: &WgpuHeadlessRenderer,
         binding: &InstanceBinding,
         shadows: &InstanceBinding,
+        spatial: &spatial::SpatialCache,
         encoder: &mut wgpu::CommandEncoder,
         layers: Vec<QuadLayer>,
         writes: &[Range<u32>],
@@ -499,6 +500,7 @@ impl LayerCache {
                     &renderer.core,
                     binding,
                     shadows,
+                    spatial,
                     &layer.draws,
                     &mut pass,
                     images,
@@ -526,6 +528,7 @@ impl LayerCache {
         core: &WgpuRendererCore,
         binding: &InstanceBinding,
         shadows: &InstanceBinding,
+        spatial: &spatial::SpatialCache,
         draws: &[QuadDraw],
         pass: &mut wgpu::RenderPass<'_>,
         images: &images::ImageCache,
@@ -547,13 +550,15 @@ impl LayerCache {
             };
             match draw {
                 QuadDraw::Instances(range) => {
-                    pass.set_pipeline(&core.resources.pipelines.quads);
+                    pass.set_pipeline(if spatial.enabled { &spatial.quads } else { &core.resources.pipelines.quads });
+                    if spatial.enabled { pass.set_bind_group(2, &spatial.binding, &[]); }
                     pass.set_bind_group(0, &target.globals, &[]);
                     pass.set_bind_group(1, &binding.bind_group, &[]);
                     pass.draw(0..4, binding.first_instance + range.start..binding.first_instance + range.end);
                 },
                 QuadDraw::Shadows(range) => {
-                    pass.set_pipeline(&core.resources.pipelines.shadows);
+                    pass.set_pipeline(if spatial.enabled { &spatial.shadows } else { &core.resources.pipelines.shadows });
+                    if spatial.enabled { pass.set_bind_group(2, &spatial.binding, &[]); }
                     pass.set_bind_group(0, &target.globals, &[]);
                     pass.set_bind_group(1, &shadows.bind_group, &[]);
                     pass.draw(0..4, shadows.first_instance + range.start..shadows.first_instance + range.end);

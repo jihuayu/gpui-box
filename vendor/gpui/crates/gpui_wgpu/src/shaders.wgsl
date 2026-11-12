@@ -570,12 +570,15 @@ fn vs_quad(@builtin(vertex_index) vertex_id: u32, @builtin(instance_index) insta
 
 @fragment
 fn fs_quad(input: QuadVarying) -> @location(0) vec4<f32> {
-    // Alpha clip first, since we don't have `clip_distance`.
-    if (any(input.clip_distances < vec4<f32>(0.0))) {
+    let quad = load_quad(input.quad_id);
+    // Evaluate the exact world pixel center: interpolated distances can change
+    // sign at a clip boundary when the same scene uses a cropped target.
+    let clip_point = input.position.xy + globals.viewport_origin;
+    if (any(quad.content_mask.size <= vec2<f32>(0.0)) ||
+        any(clip_point < quad.content_mask.origin) ||
+        any(clip_point > quad.content_mask.origin + quad.content_mask.size)) {
         return vec4<f32>(0.0);
     }
-
-    let quad = load_quad(input.quad_id);
 
     let background_color = gradient_color(quad.background, (input.position.xy + globals.viewport_origin), quad.bounds,
         input.background_solid, input.background_color0, input.background_color1);
@@ -1009,12 +1012,15 @@ fn vs_shadow(@builtin(vertex_index) vertex_id: u32, @builtin(instance_index) ins
 
 @fragment
 fn fs_shadow(input: ShadowVarying) -> @location(0) vec4<f32> {
-    // Alpha clip first, since we don't have `clip_distance`.
-    if (any(input.clip_distances < vec4<f32>(0.0))) {
+    let shadow = load_shadow(input.shadow_id);
+    // Evaluate the exact world pixel center: interpolated distances can change
+    // sign at a clip boundary when the same scene uses a cropped target.
+    let clip_point = input.position.xy + globals.viewport_origin;
+    if (any(shadow.content_mask.size <= vec2<f32>(0.0)) ||
+        any(clip_point < shadow.content_mask.origin) ||
+        any(clip_point > shadow.content_mask.origin + shadow.content_mask.size)) {
         return vec4<f32>(0.0);
     }
-
-    let shadow = load_shadow(input.shadow_id);
     let half_size = shadow.bounds.size / 2.0;
     let center = shadow.bounds.origin + half_size;
     let center_to_point = (input.position.xy + globals.viewport_origin) - center;

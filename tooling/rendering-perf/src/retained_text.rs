@@ -172,6 +172,7 @@ fn backend_delta_validation() -> Result<(), Box<dyn Error>> {
         images: Default::default(),
         glyphs: updates,
         shadows: Default::default(),
+        spatial: Default::default(),
         cache_layers: true,
         size: gpui::size(gpui::DevicePixels(32), gpui::DevicePixels(16)),
         redraw: QuadRedraw::Full,

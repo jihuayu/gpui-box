@@ -1,0 +1,141 @@
+{
+  "scope": "owner parent translation through commit/publication/submission and per-frame GPU completion; shared hierarchy versus original world-instance geometry; same tree/local geometry/full root redraw; excludes setup/readback/native presentation; CPU subtree extraction and allocation scans remain included",
+  "executions": 3,
+  "rounds_per_mode": 9,
+  "timed_frames_per_mode": 180,
+  "percentile_rule": "nearest sample in sorted data, matching Rust benchmark rounding",
+  "cases": [
+    {
+      "count": 1000,
+      "per_execution": [
+        {
+          "run": "run-1",
+          "shared_median_us": 2835.2,
+          "world_median_us": 3303.8,
+          "shared_p95_us": 3906.7,
+          "world_p95_us": 4523.700000000001
+        },
+        {
+          "run": "run-2",
+          "shared_median_us": 3420.4,
+          "world_median_us": 3418.3999999999996,
+          "shared_p95_us": 5137.9,
+          "world_p95_us": 4045.1000000000004
+        },
+        {
+          "run": "run-3",
+          "shared_median_us": 3611.8,
+          "world_median_us": 3526.7,
+          "shared_p95_us": 4633.5,
+          "world_p95_us": 4376.599999999999
+        }
+      ],
+      "shared_bytes": [
+        0,
+        96
+      ],
+      "shared_completed_median_us": 3287.8,
+      "shared_completed_p95_us": 4848.3,
+      "shared_completed_mean_us": 3436.8611111111113,
+      "shared_cpu_median_us": 2279.2,
+      "shared_completed_round_medians_us": [
+        3038.6,
+        2941.6,
+        2692.1,
+        3448.3,
+        3742.3,
+        3180.0,
+        3646.2000000000003,
+        3553.4,
+        3611.8
+      ],
+      "world_bytes": [
+        160160,
+        0
+      ],
+      "world_completed_median_us": 3461.5,
+      "world_completed_p95_us": 4437.2,
+      "world_completed_mean_us": 3479.0933333333332,
+      "world_cpu_median_us": 2403.0,
+      "world_completed_round_medians_us": [
+        3415.3999999999996,
+        3357.7,
+        3303.8,
+        3749.9,
+        3478.9,
+        3144.5,
+        3658.5,
+        3589.4,
+        3288.5
+      ],
+      "median_speedup": 1.0528316807591702,
+      "median_time_change_percent": -5.018055756175066
+    },
+    {
+      "count": 10000,
+      "per_execution": [
+        {
+          "run": "run-1",
+          "shared_median_us": 31635.2,
+          "world_median_us": 33603.7,
+          "shared_p95_us": 39613.200000000004,
+          "world_p95_us": 45177.6
+        },
+        {
+          "run": "run-2",
+          "shared_median_us": 31042.0,
+          "world_median_us": 32317.5,
+          "shared_p95_us": 36936.6,
+          "world_p95_us": 38275.799999999996
+        },
+        {
+          "run": "run-3",
+          "shared_median_us": 31418.7,
+          "world_median_us": 31686.899999999998,
+          "shared_p95_us": 35636.6,
+          "world_p95_us": 36775.0
+        }
+      ],
+      "shared_bytes": [
+        0,
+        96
+      ],
+      "shared_completed_median_us": 31417.0,
+      "shared_completed_p95_us": 37393.9,
+      "shared_completed_mean_us": 32040.86888888889,
+      "shared_cpu_median_us": 29436.899999999998,
+      "shared_completed_round_medians_us": [
+        31417.0,
+        31786.399999999998,
+        35053.4,
+        33445.700000000004,
+        30370.399999999998,
+        31042.0,
+        31102.600000000002,
+        30391.7,
+        33343.1
+      ],
+      "world_bytes": [
+        1600160,
+        0
+      ],
+      "world_completed_median_us": 32442.899999999998,
+      "world_completed_p95_us": 41284.3,
+      "world_completed_mean_us": 33244.62611111111,
+      "world_cpu_median_us": 29574.199999999997,
+      "world_completed_round_medians_us": [
+        31984.0,
+        33560.600000000006,
+        40630.399999999994,
+        31763.100000000002,
+        34381.799999999996,
+        31791.300000000003,
+        30575.600000000002,
+        32599.999999999996,
+        31974.000000000004
+      ],
+      "median_speedup": 1.0326542954451412,
+      "median_time_change_percent": -3.1621710759518917
+    }
+  ]
+}

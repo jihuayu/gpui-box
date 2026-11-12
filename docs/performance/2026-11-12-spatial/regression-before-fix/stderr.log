@@ -1,0 +1,4 @@
+
+thread 'main' (50636) panicked at tooling\rendering-perf\src\retained_gpu.rs:55:5:
+pixel mismatch in spatial-true-1-4
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

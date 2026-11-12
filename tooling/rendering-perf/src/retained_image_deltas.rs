@@ -22,6 +22,7 @@ fn backend_checks() -> Result<(), Box<dyn Error>> {
         images,
         glyphs: Default::default(),
         shadows: Default::default(),
+        spatial: Default::default(),
         cache_layers: true,
         size: gpui::size(gpui::DevicePixels(32), gpui::DevicePixels(16)),
         redraw: QuadRedraw::Full,

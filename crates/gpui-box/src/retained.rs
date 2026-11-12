@@ -32,6 +32,8 @@ pub use measure::{CustomMeasureSnapshot, ImageIntrinsicSize, LayoutStats, Measur
 mod primitive;
 mod properties;
 pub use primitive::{BoxShadow, QuadDecoration, ShadowGeometry};
+mod spatial;
+pub use spatial::SpatialState;
 mod edit;
 pub mod reactive;
 pub mod responsive;
@@ -87,6 +89,8 @@ pub struct PaintItem {
     pub content_bounds: Rect,
     pub clip: Option<Rect>,
     pub properties: PropertyState,
+    /// Local render placement, separate from resolved paint/hit geometry.
+    pub spatial: SpatialState,
 }
 
 /// Owned output can be read after the producing tree has changed or been dropped.
@@ -981,6 +985,8 @@ impl UiTree {
             .filter(|item| {
                 previous.get(&item.node).is_none_or(|old| {
                     old.bounds != item.bounds
+                        || old.spatial != item.spatial
+                        || old.shadows != item.shadows
                         || old.commands != item.commands
                         || old.fill_color != item.fill_color
                         || old.image != item.image

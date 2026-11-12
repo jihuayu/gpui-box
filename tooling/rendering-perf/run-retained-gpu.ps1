@@ -1,4 +1,4 @@
-param([string]$Output = 'target/retained-runtime-gpu', [switch]$ValidationOnly, [switch]$LayerBoundsOnly, [switch]$LayerBudgetOnly, [switch]$LayerReuseOnly, [switch]$ShadowsOnly)
+param([string]$Output = 'target/retained-runtime-gpu', [switch]$ValidationOnly, [switch]$LayerBoundsOnly, [switch]$LayerBudgetOnly, [switch]$LayerReuseOnly, [switch]$ShadowsOnly, [switch]$SpatialOnly)
 $ErrorActionPreference = 'Stop'
 $workspace = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
 Push-Location -LiteralPath $workspace
@@ -58,6 +58,12 @@ try {
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/storage.rs',
         'vendor/gpui/crates/gpui/src/scene.rs',
         'tooling/rendering-perf/src/retained_shadows.rs',
+        'crates/gpui-box/src/retained/spatial.rs',
+        'crates/gpui-box/src/retained/wgpu/spatial.rs',
+        'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/spatial.rs',
+        'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/spatial.wgsl',
+        'vendor/gpui/crates/gpui_wgpu/src/shaders_storage.wgsl',
+        'tooling/rendering-perf/src/retained_spatial.rs',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/allocation_budget.rs',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/completion.rs',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/completion/tests.rs',
@@ -113,6 +119,7 @@ try {
         layer_budget_only = [bool]$LayerBudgetOnly
         layer_reuse_only = [bool]$LayerReuseOnly
         shadows_only = [bool]$ShadowsOnly
+        spatial_only = [bool]$SpatialOnly
         scope = 'Retained UI frames, hardware pixel comparisons, upload payload counts, in-flight lifecycle'
     } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $Output 'metadata.json') -Encoding utf8
     $runArgs = @('"' + (Resolve-Path -LiteralPath $Output).Path + '"')
@@ -121,6 +128,7 @@ try {
     if ($LayerBudgetOnly) { $runArgs += '--layer-budget-only' }
     if ($LayerReuseOnly) { $runArgs += '--layer-reuse-only' }
     if ($ShadowsOnly) { $runArgs += '--shadows-only' }
+    if ($SpatialOnly) { $runArgs += '--spatial-only' }
     $stdout = Join-Path $Output 'stdout.log'
     $stderr = Join-Path $Output 'stderr.log'
     $job = Start-Process -FilePath (Join-Path $workspace 'target/release/retained-runtime-gpu.exe') -ArgumentList $runArgs -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr

@@ -101,6 +101,14 @@ impl UiTree {
                     stack.push((*child, [x - scroll[0], y - scroll[1]], clip, state));
                 }
             }
+            let spatial = SpatialState {
+                parent: node.parent,
+                layout_origin: [layout.location.x, layout.location.y],
+                translation: node.translation,
+                scroll,
+                clip: node.clip,
+                root_clip: node.parent.is_none().then_some(inherited_clip).flatten(),
+            };
             let node = self.node_mut(id);
             let commands = node
                 .chunk
@@ -165,6 +173,7 @@ impl UiTree {
                 },
                 clip,
                 properties: paint_state,
+                spatial,
             });
         }
         Ok(items)

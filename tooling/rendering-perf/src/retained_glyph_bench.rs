@@ -53,6 +53,7 @@ pub(super) fn run() -> Result<serde_json::Value, Box<dyn Error>> {
                 }],
             },
             shadows: Default::default(),
+            spatial: Default::default(),
             cache_layers: true,
             size: gpui::size(gpui::DevicePixels(800), gpui::DevicePixels(600)),
             redraw: QuadRedraw::Full,

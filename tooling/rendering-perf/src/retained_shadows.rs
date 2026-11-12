@@ -512,6 +512,7 @@ pub(super) fn run(
     let grown = gpu.submit(&frame, [512, 384], 1.0)?.unwrap();
     assert!(grown.gpu.shadow_buffer_generation > first.gpu.shadow_buffer_generation);
     assert!(grown.gpu.buffer_generation > first.gpu.buffer_generation);
+    assert!(grown.gpu.spatial_buffer_generation > first.gpu.spatial_buffer_generation);
     assert!(
         grown.gpu.in_flight > 1,
         "shadow growth workload must retain a prior submission lease"
@@ -536,6 +537,8 @@ pub(super) fn run(
     result["in_flight_at_growth"] = grown.gpu.in_flight.into();
     result["completed_at_growth"] = grown.gpu.completed.into();
     result["prior_serial"] = first.gpu.serial.into();
+    result["spatial_generation_before"] = first.gpu.spatial_buffer_generation.into();
+    result["spatial_generation_after"] = grown.gpu.spatial_buffer_generation.into();
     result["shadow_generation_before"] = first.gpu.shadow_buffer_generation.into();
     result["shadow_generation_after"] = grown.gpu.shadow_buffer_generation.into();
     let mut backend = gpui_wgpu::RetainedQuadRenderer::new(3)?;
@@ -550,6 +553,7 @@ pub(super) fn run(
             capacity: 1,
             writes: values,
         },
+        spatial: Default::default(),
         cache_layers: true,
         size: gpui::size(gpui::DevicePixels(64), gpui::DevicePixels(64)),
         redraw: gpui_wgpu::QuadRedraw::Full,
@@ -635,6 +639,7 @@ pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
                 capacity: count as u32,
                 writes,
             },
+            spatial: Default::default(),
             cache_layers: true,
             size: gpui::size(gpui::DevicePixels(800), gpui::DevicePixels(600)),
             redraw: gpui_wgpu::QuadRedraw::Full,
