@@ -1,0 +1,44 @@
+{
+  "hardware_scenarios": 224,
+  "pixel_comparisons": 221,
+  "analytical_origin_only_scenarios": 1,
+  "backend_preflight_scenarios": 2,
+  "core_tests": 116,
+  "gallery_font_hardware_click_tests": 12,
+  "clippy": "selected core/gallery/perf targets -D warnings; passed",
+  "desktop_wgpu_build": "passed",
+  "audits": [
+    {
+      "run": "layer-reuse-validation",
+      "source_hashes_verified": 151,
+      "process_samples": 8,
+      "samples_with_compilers": 0
+    },
+    {
+      "run": "layer-reuse-run-1",
+      "source_hashes_verified": 151,
+      "process_samples": 8,
+      "samples_with_compilers": 0
+    },
+    {
+      "run": "layer-reuse-run-2",
+      "source_hashes_verified": 151,
+      "process_samples": 8,
+      "samples_with_compilers": 0
+    },
+    {
+      "run": "layer-reuse-run-3",
+      "source_hashes_verified": 151,
+      "process_samples": 8,
+      "samples_with_compilers": 0
+    }
+  ],
+  "binary_sha256": "9c01a7c1e05d32db4cdadc4b8f6c3074e334c372b4b94c5857c8d3a063610d64",
+  "limitations": [
+    "explicit isolated texture payload, not driver memory",
+    "completed batch throughput, not individual latency/GPU timestamps/FPS",
+    "queue/budget waits can occur inside CPU wall spans",
+    "post-submit reservation maxima are mode-specific, unlike global historical peaks",
+    "compiler observations every 500ms can miss shorter processes; other host activity remains possible"
+  ]
+}

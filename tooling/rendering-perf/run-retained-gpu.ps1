@@ -1,4 +1,4 @@
-param([string]$Output = 'target/retained-runtime-gpu', [switch]$ValidationOnly, [switch]$LayerBoundsOnly, [switch]$LayerBudgetOnly)
+param([string]$Output = 'target/retained-runtime-gpu', [switch]$ValidationOnly, [switch]$LayerBoundsOnly, [switch]$LayerBudgetOnly, [switch]$LayerReuseOnly)
 $ErrorActionPreference = 'Stop'
 $workspace = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
 Push-Location -LiteralPath $workspace
@@ -69,6 +69,7 @@ try {
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/glyphs.rs',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/glyphs.wgsl',
         'tooling/rendering-perf/src/retained_gpu.rs', 'tooling/rendering-perf/src/retained_bench.rs',
+        'tooling/rendering-perf/src/retained_layer_reuse.rs',
         'tooling/rendering-perf/src/retained_layer_budget.rs',
         'tooling/rendering-perf/src/retained_layer_bounds.rs',
         'tooling/rendering-perf/src/retained_layers.rs', 'tooling/rendering-perf/src/retained_reactive.rs',
@@ -107,12 +108,14 @@ try {
         validation_only = [bool]$ValidationOnly
         layer_bounds_only = [bool]$LayerBoundsOnly
         layer_budget_only = [bool]$LayerBudgetOnly
+        layer_reuse_only = [bool]$LayerReuseOnly
         scope = 'Retained UI frames, hardware pixel comparisons, upload payload counts, in-flight lifecycle'
     } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $Output 'metadata.json') -Encoding utf8
     $runArgs = @('"' + (Resolve-Path -LiteralPath $Output).Path + '"')
     if ($ValidationOnly) { $runArgs += '--validation-only' }
     if ($LayerBoundsOnly) { $runArgs += '--layer-bounds-only' }
     if ($LayerBudgetOnly) { $runArgs += '--layer-budget-only' }
+    if ($LayerReuseOnly) { $runArgs += '--layer-reuse-only' }
     $stdout = Join-Path $Output 'stdout.log'
     $stderr = Join-Path $Output 'stderr.log'
     $job = Start-Process -FilePath (Join-Path $workspace 'target/release/retained-runtime-gpu.exe') -ArgumentList $runArgs -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr

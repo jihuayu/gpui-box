@@ -263,6 +263,14 @@ impl WgpuFrameRenderer {
         }
     }
 
+    /// Keep same-extent layer textures across origin changes (default true).
+    pub fn set_layer_texture_reuse_enabled(&mut self, enabled: bool) {
+        if self.backend.layer_texture_reuse_enabled() != enabled {
+            self.backend.set_layer_texture_reuse_enabled(enabled);
+            self.source = None;
+        }
+    }
+
     /// Bound unique texture payload across live cache entries and in-flight epochs.
     /// Reconfiguration completes pending work and invalidates cached layers.
     pub fn set_layer_budget_bytes(&mut self, bytes: u64) -> Result<(), Error> {
@@ -538,6 +546,9 @@ impl WgpuFrameRenderer {
         replacement.policy = self.policy;
         replacement.cache_layers = self.cache_layers;
         replacement.tight_layer_bounds = self.tight_layer_bounds;
+        replacement
+            .backend
+            .set_layer_texture_reuse_enabled(self.backend.layer_texture_reuse_enabled());
         replacement
             .backend
             .set_layer_budget_bytes(self.backend.layer_memory().limit_bytes)

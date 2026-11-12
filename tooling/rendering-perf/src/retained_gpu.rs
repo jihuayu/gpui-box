@@ -17,6 +17,7 @@ mod retained_image;
 mod retained_image_deltas;
 mod retained_layer_bounds;
 mod retained_layer_budget;
+mod retained_layer_reuse;
 mod retained_layers;
 mod retained_layout;
 mod retained_layout_gpu;
@@ -73,6 +74,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         )?,
     )?;
     let mut results = vec![];
+    if std::env::args().any(|arg| arg == "--layer-reuse-only") {
+        retained_layer_reuse::run(&output, &mut results)?;
+        fs::write(
+            output.join("validation.json"),
+            serde_json::to_vec_pretty(&results)?,
+        )?;
+        fs::write(
+            output.join("layer-reuse-benchmark.json"),
+            serde_json::to_vec_pretty(&retained_layer_reuse::benchmark()?)?,
+        )?;
+        return Ok(());
+    }
     if std::env::args().any(|arg| arg == "--layer-budget-only") {
         retained_layer_budget::run(&output, &mut results)?;
         fs::write(
@@ -717,6 +730,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_composition::run(&mut renderer, &output, &mut results)?;
     retained_layer_bounds::run(&mut renderer, &output, &mut results)?;
     retained_layer_budget::run(&output, &mut results)?;
+    retained_layer_reuse::run(&output, &mut results)?;
     fs::write(
         output.join("validation.json"),
         serde_json::to_vec_pretty(&results)?,
@@ -739,6 +753,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     fs::write(
         output.join("layer-budget-benchmark.json"),
         serde_json::to_vec_pretty(&retained_layer_budget::benchmark()?)?,
+    )?;
+    fs::write(
+        output.join("layer-reuse-benchmark.json"),
+        serde_json::to_vec_pretty(&retained_layer_reuse::benchmark()?)?,
     )?;
     let benchmark = retained_bench::run()?;
     fs::write(

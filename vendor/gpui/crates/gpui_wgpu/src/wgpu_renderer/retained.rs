@@ -64,6 +64,8 @@ pub struct QuadSubmission {
     pub allocated_layer_bytes: u64,
     pub rasterized_layer_pixels: u64,
     pub layer_allocations: usize,
+    pub rebased_layer_textures: usize,
+    pub layer_target_bytes: u64,
     pub layer_memory: LayerMemoryStats,
     pub layer_budget_waits: usize,
     pub property_upload_bytes: u64,
@@ -158,6 +160,15 @@ impl RetainedQuadRenderer {
             glyphs,
         })
     }
+
+    /// Force texture replacement on origin changes for correctness/performance controls.
+    pub fn set_layer_texture_reuse_enabled(&mut self, enabled: bool) {
+        if self.layers.reuse_textures != enabled {
+            self.layers.reuse_textures = enabled;
+            self.force_full = true;
+        }
+    }
+    pub fn layer_texture_reuse_enabled(&self) -> bool { self.layers.reuse_textures }
 
     /// Adjust the unique isolated-texture payload cap after retiring this epoch.
     pub fn set_layer_budget_bytes(&mut self, bytes: u64) -> Result<()> {
@@ -532,6 +543,8 @@ impl RetainedQuadRenderer {
             allocated_layer_bytes: layer_stats.allocated_bytes,
             rasterized_layer_pixels: layer_stats.rasterized_pixels,
             layer_allocations: layer_stats.allocations,
+            rebased_layer_textures: layer_stats.rebased,
+            layer_target_bytes: layer_stats.target_bytes,
             layer_memory: self.layers.memory(),
             layer_budget_waits,
             property_upload_bytes: layer_stats.property_bytes,

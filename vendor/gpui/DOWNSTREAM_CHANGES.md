@@ -123,3 +123,19 @@ oversized live scenes still reject. The distribution tests include the pure
 reservation module directly and exercise actual pressure waits, idle native
 completion retirement, reset policy retention, and atomic oversized-packet
 rejection/retry. See `docs/RETAINED_LAYER_BUDGET.md` in the parent repository.
+
+### Reuse layer allocations on physical origin changes
+
+Same-extent target moves now retain their texture, view, buffers, bindings and
+shared allocation reservation. Each distinct layer's camera/global buffer allows
+COPY_DST; once-per-submission origin writes (48 bytes) follow prior submitted
+reads on the same queue. This supersedes immutable-on-origin target creation:
+buffers remain distinct per layer, and no target camera changes between passes
+inside one encoder. Rebasing always invalidates contents and nested parents,
+including when the caller supplied no primitive/resource writes. Extent changes
+still use replacement/admission. The default-on reuse setting has a forced
+replacement control and survives consumer reset. Submission stats distinguish
+rebased textures and camera/global payload. The distribution hardware checks
+mixed nested/fractional scenes and an independent target-only crop oracle; its
+budget-pressure controls explicitly disable reuse. See the parent repository's
+`docs/RETAINED_LAYER_REUSE.md` for measurements and remaining GPU-property work.

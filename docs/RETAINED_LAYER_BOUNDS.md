@@ -28,8 +28,10 @@ bounds index and selective backend invalidation remain possible follow-up work.
 
 ## GPU coordinates, invalidation and ownership
 
-Every target owns immutable camera and quad-global buffers containing its
-physical origin and size. Quad vertices subtract the origin; the quad fragment
+Every target owns distinct camera and quad-global buffers containing its
+physical origin and size. Subsequent [origin reuse](RETAINED_LAYER_REUSE.md)
+updates these once per frame on the same queue; they are not shared/reassigned
+between targets or passes. Quad vertices subtract the origin; the quad fragment
 shader restores it before gradient/SDF evaluation. Image and glyph shaders use
 the same target camera and recover world coordinates for clipping/materials.
 Nested composition draws the child's physical rectangle into the parent's
@@ -41,8 +43,10 @@ always supplies zero origin and retains its original viewport and alpha policy.
 Only retained layer targets use nonzero origins. Existing image/glyph resource
 record ABIs and delta accounting remain unchanged.
 
-Changing the physical origin or extent allocates a replacement layer and
-invalidates parent contents. Stable bounds preserve the texture. Own opacity
+Changing the physical extent allocates a replacement layer and invalidates
+parent contents. Same-extent origin changes now preserve the texture and
+update 48 bytes of target parameters before rerasterization; stable bounds
+preserve both parameters and texture. Own opacity
 still updates a 16-byte uniform while reusing its raster. Leases explicitly keep
 replaced textures, opacity buffers, camera/global buffers and bindings through
 GPU completion; root camera leases also survive target replacement. Reset

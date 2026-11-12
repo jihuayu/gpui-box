@@ -66,8 +66,10 @@ an unchanged cache and valid retry. Existing mixed primitive/pixel cases remain
 part of the final regression run.
 
 Completed-work controls compare the same renderer and workload under the default
-cap and a one-layer cap. Physical origins alternate so every update needs a new
-allocation. Low-overdraw and 128-overlap cases expose the memory/queue-overlap
+cap and a one-layer cap. The control explicitly disables [origin texture reuse](RETAINED_LAYER_REUSE.md),
+so alternating physical origins still require replacement allocations and
+exercise budget pressure. Default origin reuse now avoids that replacement when
+extents remain stable. Low-overdraw and 128-overlap cases expose the memory/queue-overlap
 tradeoff. Both use full root redraw, three frames in flight, rotating mode order,
 six warmups and twenty timed frames per round with final GPU completion. Texture
 readback/reference checks happen outside timing. [Frozen evidence](performance/2026-11-12-layer-budget/README.md) records 213

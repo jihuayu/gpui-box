@@ -62,6 +62,8 @@ pub(super) struct LayerStats {
     pub allocated_bytes: u64,
     pub rasterized_pixels: u64,
     pub allocations: usize,
+    pub rebased: usize,
+    pub target_bytes: u64,
 }
 
 pub(super) type TargetLease = (wgpu::Buffer, wgpu::BindGroup, wgpu::Buffer, wgpu::BindGroup);
@@ -81,6 +83,7 @@ pub(super) struct LayerCache {
     budget: allocation_budget::AllocationBudget,
     limit_bytes: u64,
     live_bytes: u64,
+    pub reuse_textures: bool,
 }
 
 impl LayerCache {
@@ -177,6 +180,7 @@ impl LayerCache {
             budget: allocation_budget::AllocationBudget::default(),
             limit_bytes: 256 * 1024 * 1024,
             live_bytes: 0,
+            reuse_textures: true,
         }
     }
 
@@ -211,7 +215,9 @@ impl LayerCache {
         if reset { self.clear(); }
         let desired: BTreeMap<_, _> = layers.iter().map(|layer| (layer.id, Self::bounds(layer, size))).collect();
         self.layers.retain(|id, layer| {
-            let keep = desired.get(id) == Some(&layer.bounds);
+            let keep = desired.get(id).is_some_and(|bounds| {
+                *bounds == layer.bounds || (self.reuse_textures && bounds[2..] == layer.bounds[2..])
+            });
             if !keep { self.live_bytes -= Self::bytes(layer.bounds); }
             keep
         });
@@ -292,16 +298,32 @@ impl LayerCache {
         layer.bounds.unwrap_or([0, 0, size.width.0 as u32, size.height.0 as u32])
     }
 
+    fn target_values(bounds: [u32; 4]) -> ([f32; 4], GlobalParams) {
+        let values = [bounds[0] as f32, bounds[1] as f32,
+            bounds[2].max(1) as f32, bounds[3].max(1) as f32];
+        (values, GlobalParams {
+            viewport_size: [values[2], values[3]], viewport_origin: [values[0], values[1]],
+            premultiplied_alpha: 0, pad: 0, origin_pad: [0; 2],
+        })
+    }
+
+    fn write_target(renderer: &WgpuHeadlessRenderer, target: &Target, bounds: [u32; 4]) {
+        let (camera, globals) = Self::target_values(bounds);
+        // Each target is written once, before this frame's encoder is submitted.
+        // Prior submitted reads precede these writes on the same WGPU queue.
+        renderer.context.queue.write_buffer(&target._camera_buffer, 0, bytemuck::cast_slice(&camera));
+        renderer.context.queue.write_buffer(&target._globals_buffer, 0, bytemuck::bytes_of(&globals));
+    }
+
     fn target(&self, renderer: &WgpuHeadlessRenderer, bounds: [u32; 4]) -> Target {
         use wgpu::util::DeviceExt;
         let core = &renderer.core;
         let device = &renderer.context.device;
-        let camera_values = [bounds[0] as f32, bounds[1] as f32,
-            bounds[2].max(1) as f32, bounds[3].max(1) as f32];
+        let (camera_values, globals) = Self::target_values(bounds);
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("retained_target_camera"),
             contents: bytemuck::cast_slice(&camera_values),
-            usage: wgpu::BufferUsages::UNIFORM,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
         let camera = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("retained_target_camera_binding"),
@@ -310,15 +332,10 @@ impl LayerCache {
                 binding: 0, resource: camera_buffer.as_entire_binding(),
             }],
         });
-        let globals = GlobalParams {
-            viewport_size: [camera_values[2], camera_values[3]],
-            viewport_origin: [camera_values[0], camera_values[1]],
-            premultiplied_alpha: 0, pad: 0, origin_pad: [0; 2],
-        };
         let globals_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("retained_target_globals"),
             contents: bytemuck::bytes_of(&globals),
-            usage: wgpu::BufferUsages::UNIFORM,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
         let globals_binding = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("retained_target_globals_binding"),
@@ -416,11 +433,22 @@ impl LayerCache {
             let bounds = Self::bounds(&layer, size);
             let bytes = u64::from(bounds[2].max(1)) * u64::from(bounds[3].max(1)) * 4;
             stats.live_bytes += bytes;
-            if self.layers.get(&layer.id).is_none_or(|old| old.bounds != bounds) {
+            if !self.layers.contains_key(&layer.id) {
                 self.layers.insert(layer.id, self.allocate(renderer, bounds)?);
                 self.live_bytes += bytes;
                 stats.allocated_bytes += bytes;
                 stats.allocations += 1;
+                stats.target_bytes += 48;
+            } else {
+                let cached = self.layers.get_mut(&layer.id).unwrap();
+                if cached.bounds != bounds {
+                    anyhow::ensure!(cached.bounds[2..] == bounds[2..], "layer extent changed after admission");
+                    Self::write_target(renderer, &cached.target, bounds);
+                    cached.bounds = bounds;
+                    cached.valid = false;
+                    stats.rebased += 1;
+                    stats.target_bytes += 48;
+                }
             }
             let previous = &self.layers[&layer.id];
             let opacity_changed = previous.opacity != layer.opacity;

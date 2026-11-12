@@ -136,10 +136,11 @@ pub(super) fn run(
         results,
     )?;
 
-    // Real GPU pressure: replacement textures fit separately but cannot overlap.
+    // Forced replacement control: preserve pressure coverage despite origin reuse.
     let (mut tree, group) = fixture(1200.0, 900.0, 128)?;
     let limit = 1202 * 902 * 4;
     let mut renderer = WgpuFrameRenderer::new(3)?;
+    renderer.set_layer_texture_reuse_enabled(false);
     renderer.set_layer_budget_bytes(limit)?;
     renderer.submit(&tree.frame([1400.0, 1000.0])?, [1400, 1000], 1.0)?;
     let mut waits = 0;
@@ -212,6 +213,7 @@ pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
     for quads in [4, 128] {
         let (mut tree, group) = fixture(1200.0, 900.0, quads)?;
         let mut renderer = WgpuFrameRenderer::new(3)?;
+        renderer.set_layer_texture_reuse_enabled(false);
         let narrow = 1202 * 902 * 4;
         let mut rounds: [Vec<f64>; 2] = Default::default();
         let mut cpu: [Vec<f64>; 2] = Default::default();
