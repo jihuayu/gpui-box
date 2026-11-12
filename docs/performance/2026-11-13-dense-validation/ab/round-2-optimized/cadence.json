@@ -1,0 +1,8 @@
+{
+  "scope": "absolute-clock OS worker -> bounded UpdateSender -> owner executor wake -> computed/typed binding/transaction -> local or resolved frame queue -> GPU submit/completion; local mode uses full-viewport isolated layers; no native present or physical input; source and owner skips reported; sleep scheduler delay included",
+  "quick": false,
+  "local_snapshot": true,
+  "max_in_flight": 2,
+  "synchronous_completion_per_frame": true,
+  "cases": []
+}

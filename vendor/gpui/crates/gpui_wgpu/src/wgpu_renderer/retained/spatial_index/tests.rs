@@ -369,3 +369,106 @@ fn dense_fallback_keeps_topology_and_sparse_followup_resolves_actual_ancestors()
             .is_err()
     );
 }
+
+#[test]
+fn dense_transport_overlap_uses_final_parent_and_preserves_rejection_retry() {
+    let mut nodes = vec![child(0, 1); 130];
+    nodes[0] = anchor(0.0);
+    nodes[129] = anchor(9.0);
+    let mut index = GraphIndex::default();
+    let p = index
+        .prepare(130, 1.0, true, std::iter::empty(), |s| nodes[s as usize])
+        .unwrap();
+    index.commit(p);
+    // More than the dense threshold, all overlapping on one slot. An earlier
+    // writer is record-valid but has an invalid final graph edge.
+    let mut writes = vec![(1, child(999, 1)); 80];
+    writes.push((1, child(129, 1)));
+    let p = index
+        .prepare(130, 1.0, true, writes.clone().into_iter(), |s| {
+            nodes[s as usize]
+        })
+        .unwrap();
+    assert!(p.dense);
+    assert_eq!(p.parents, vec![(1, Some(129))]);
+    // Later batch validation fails: dropping the plan cannot modify topology.
+    drop(p);
+    assert_eq!(index.parents[1], Some(0));
+    let p = index
+        .prepare(130, 1.0, true, writes.into_iter(), |s| nodes[s as usize])
+        .unwrap();
+    nodes[1] = child(129, 1);
+    validate_projected(&nodes, 1.0).unwrap();
+    index.commit(p);
+    assert_eq!(index.parents[1], Some(129));
+    let p = index
+        .prepare(130, 1.0, true, [(129, anchor(11.0))].into_iter(), |s| {
+            nodes[s as usize]
+        })
+        .unwrap();
+    assert!(!p.dense);
+    assert!(
+        p.values
+            .iter()
+            .any(|(s, v)| *s == 1 && v.origin == [12.0, 2.0])
+    );
+}
+
+#[test]
+fn projected_depth_validation_handles_permuted_slots_and_unreferenced_overflow() {
+    // Reverse slot order deliberately rules out a preorder assumption. Cover
+    // all shader depths with fractional origin, scroll and nested clips.
+    let mut nodes: Vec<_> = (0..256)
+        .map(|i| {
+            if i % 32 == 31 {
+                anchor(i as f32 * 0.25)
+            } else {
+                let mut n = child(i + 1, 31 - i % 32);
+                n.layout_translation = [0.125, -0.25, 0.5, 0.75];
+                n.scroll = [0.25, 0.125, 0.0, 0.0];
+                n.links[2] |= 1;
+                n.clip = [1.0, 2.0, 40.0, 50.0];
+                n
+            }
+        })
+        .collect();
+    validate_projected(&nodes, 1.5).unwrap();
+    let mut graph = GraphIndex::default();
+    let p = graph
+        .prepare(256, 1.5, false, std::iter::empty(), |s| nodes[s as usize])
+        .unwrap();
+    graph.commit(p);
+    assert_eq!(graph.resolved, full(&nodes));
+    for invalid in [
+        SpatialNode {
+            links: [0, 1, 0, 0],
+            ..nodes[0]
+        },
+        SpatialNode {
+            links: [999, 1, 0, 0],
+            ..nodes[0]
+        },
+        SpatialNode {
+            links: [u32::MAX, 1, 2, 0],
+            ..nodes[0]
+        },
+        SpatialNode {
+            links: [1, 32, 0, 0],
+            ..nodes[0]
+        },
+    ] {
+        let old = nodes[0];
+        nodes[0] = invalid;
+        assert!(validate_projected(&nodes, 1.5).is_err());
+        nodes[0] = old;
+    }
+    nodes[31] = anchor(f32::MAX * 0.75);
+    nodes[30].layout_translation = [f32::MAX * 0.75, 0.0, 0.0, 0.0];
+    assert!(validate_projected(&nodes, 1.0).is_err());
+    nodes[30].layout_translation = [0.0; 4];
+    assert!(validate_projected(&nodes, 2.0).is_err());
+    nodes[31] = anchor(0.0);
+    nodes[31].links[2] |= 8;
+    nodes[31].anchor_clip = [f32::MAX * 0.75, 0.0, f32::MAX * 0.75, 1.0];
+    assert!(validate_projected(&nodes, 1.0).is_err());
+}

@@ -96,6 +96,67 @@ RFC tracker remains authoritative for remaining platform and acceptance work.
 
 ## Measured outcome
 
+### Dense backend validation refinement
+
+Dense transport now uses a contiguous write list and epoch-stamped reverse
+membership to retain the final parent per slot before constructing an ordered
+map. The existing density threshold may select a full check for heavily
+overlapping transport even when unique dirty membership is small; it is a
+private work heuristic, never caller authority to omit validation. The final
+projected prefix resolves in 32 depth buckets, once per node, retaining exact
+root-to-leaf f32 operation order. Slot order need not be topological. Raw record
+and range validation still checks every overwritten value; final graph edges
+use last-writer semantics. Unreferenced/re-exposed slots remain validated.
+
+Plans commit only after all packet consumers pass. Temporary stamps may advance
+on rejection; authoritative parent/child state, mirrors, serials and pixels do
+not. Dense plans invalidate resolved memo state so a later sparse update reads
+the actual committed ancestor mirror. The original full-walk backend remains
+available with indexed spatial validation disabled. This costs an additional
+O(N) temporary resolved array and depth membership alongside the projected
+mirror; it is not a physical memory admission guarantee. No public owner API,
+buffer ABI or shader changes are required. See the
+[alternating and sustained evidence](performance/2026-11-13-dense-validation/README.md).
+
+### Next API decision: placement-independent effects
+
+This section is a proposed contract, not an implemented cache capability.
+Modern desktop 120 Hz acceptance requires avoiding redundant effect raster
+work as well as CPU preflight. A stable layer ID alone cannot identify reusable
+pixels: current target coordinates and primitive clips remain world-relative.
+The proposed renderer boundary separates immutable local content identity,
+placement, and raster environment, with the following requirements:
+
+- Content identity includes ordered children/commands, materials and resource
+  epochs, local clips/scroll, nested effect content and the applicable fidelity
+  policy. An ancestor moving the whole isolated group may change placement
+  without changing its local content. Independently moving a child changes
+  that group's content; it cannot be hidden as a placement-only cache hit.
+- Clips inside an isolated group affect raster content. An external clip may
+  move to composition only when the renderer proves equivalence with the
+  original clipping/isolation order, including nested groups and shadows.
+  Group opacity remains semantic and is never reduced for responsiveness.
+- Raster environment includes physical scale, extent, color/alpha convention,
+  resource/device epochs and sampling phase. Integer physical translations can
+  be exact texture-load reuse for a qualified subset. Fractional movement,
+  scaling, rotation or bilinear filtering can change edge/text coverage;
+  they require explicit equivalence tests or rerasterization. A cache may not
+  silently weaken the exact mode merely to improve benchmark throughput.
+- Content versions and placement handles remain private, generation-checked
+  and immutable per submitted snapshot. Cache eviction cannot change scene
+  semantics. Allocation pressure must have a bounded fallback/defer outcome;
+  older submissions retain resources until their own completion fences.
+
+Before exposing this as a public framework contract, compare cached and fresh
+output for positive/negative integer and fractional motion, nested external
+clips, overlapping opacity, shadows, text/images, viewport edges, scale changes,
+resource replacement and multi-flight eviction. Measure rasterized pixels,
+allocation spikes, frame age and p99/max at 60/120 Hz. Today's local route still
+rerasterizes moving effects and uses full-viewport layers; this proposal does
+not count as that implementation or acceptance.
+
+### Original shared-hierarchy baseline
+
 The shared hierarchy removes descendant Quad/Shadow uploads for the covered
 ancestor updates, and the complete hardware regression passes 399 scenarios.
 Owner-to-completion timings show only small, variable median changes (about

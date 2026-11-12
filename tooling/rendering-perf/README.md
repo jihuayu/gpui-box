@@ -119,3 +119,43 @@ and their limits. `run-retained-gpu.ps1` also checks logical scopes, measured
 geometry, responsive thresholds/RTL/content-box queries and hidden subtrees.
 The [responsive contract](../../docs/RETAINED_RESPONSIVE_CONTRACT.md) documents
 the supported subset and rejected dependency patterns.
+
+## Sustained frame deadlines and correlated stalls
+
+Build `dense-runtime-perf` with `retained-gpu`, then run `run-dense.ps1 -Local`
+for the real retained source/inbox/owner/transaction/local-snapshot/submission
+chain with synchronous completion. `-Pipeline` instead uses bounded two-flight
+submission and coalesced timestamped completion receipts, comparing capacity
+admission before/after owner construction. Each normal run has ten-second
+60/120 Hz cases at 1,000/10,000 nodes, ancestor/independent placement updates
+and shadows/isolated opacity. Two independent processes preserve run variation.
+`-Pressure` uses a larger scaled target and one flight; it is a separate workload.
+
+```powershell
+./tooling/rendering-perf/run-dense.ps1 -Output target/frame-deadlines -Runs 2 -Local
+python tooling/rendering-perf/analyze-dense.py target/frame-deadlines
+python tooling/rendering-perf/analyze-frame-budget.py target/frame-deadlines
+./tooling/rendering-perf/run-dense.ps1 -Output target/frame-pipeline -SkipBuild -Runs 2 -Pipeline
+python tooling/rendering-perf/analyze-pipeline.py target/frame-pipeline
+```
+
+Independent absolute-clock producers keep arrivals running while owner work is
+late. Superseded ticks count as unsatisfied work and are never deleted from
+deadline/burst accounting. Percentiles cover consumed samples. The frame-budget
+analyzer sums phases within each individual raw row before computing owner-work
+and source-age percentiles; it never adds independently computed percentiles.
+It preserves the ten longest correlated completion samples per case. Owner
+submission spans can include driver/backpressure waits; post-submit residual
+includes finish/queue/scheduling and is not GPU execution time. The pipeline
+analyzer separately reports owner completion-observation delay and same-sample
+owner build/submit budgets. Coalesced receipts give upper bounds for earlier
+serials, not per-submit GPU timestamps. Neither test measures native Present,
+compositor/display completion or physical input latency.
+
+`run-local-ab.ps1` compares a preserved previous executable and the current
+executable in alternating process order; keep benchmark/shader/layer policy
+unchanged and retain losses. Source hashes, exact executable hashes and sampled
+compiler/benchmark conflicts accompany the captures. Never build concurrently
+with a formal run. This mobile regression host does not qualify modern desktop
+GPUs at 120 fps. See the [current dense backend evidence](../../docs/performance/2026-11-13-dense-validation/README.md)
+and [API budget decisions](../../docs/ADR_RETAINED_FRAME_BUDGET.md).

@@ -209,6 +209,68 @@ The [journal evidence](performance/2026-11-13-dirty-journal/README.md) shows
 30.2–39.4% dense commit median reduction, but dense/effects 120 Hz p99 is still
 32.59–33.87 ms. No deadline guarantee or unchecked caller batch API follows.
 
+### Separate owner blocking from completion delay
+
+The frame-budget analyzer derives commit + publication + submission for each
+individual raw sample before computing percentiles. It also derives source age
+at submit and the residual after submit. It never sums phase percentiles or
+labels that residual GPU execution time: driver work, finish/wakeup scheduling
+and previous queue work may contribute. Submission is an owner-blocking span,
+not a pure CPU instruction measure. Superseded ticks remain outside consumed
+sample distributions and count independently as unsatisfied work.
+
+In the journal-stage baseline, independent/effects 120 Hz owner spans alone have
+12.76–13.19 ms medians and 15.80–16.39 ms p99. Every non-initial consumed sample
+already exceeds 8.333 ms in owner work (527/586 samples), before synchronous
+finish. Ancestor/effects owner spans have about 1.3 ms medians. These results
+support separate owner-work and resource/completion budgets: a faster raster
+GPU alone cannot establish dense 120 Hz. Per-frame submission may still include
+driver waits; do not infer a hardware-independent CPU lower bound. A CPU renderer
+must avoid running raster/effect jobs inside those lossless owner transactions,
+and must preserve an immutable complete shown frame while bounded worker jobs
+yield or are superseded. Implemented backend negotiation/cooperative raster and
+visible input responsiveness tests remain required.
+
+Run `python tooling/rendering-perf/analyze-frame-budget.py <cadence-directory>`
+against completed raw captures for reproducible same-sample accounting.
+
+### Current dense preflight outcome and next ordering
+
+The [dense backend stage](performance/2026-11-13-dense-validation/README.md)
+keeps the full-walk control and reduces dense submission medians 7.0–19.7%
+in alternating exact binaries. Current sustained dense/effects owner medians
+remain 12.33–12.56 ms at 120 Hz; p99 is 15.73–23.71 ms. Every non-initial
+consumed sample (514/618) is already over budget before finish. One run's
+source-to-completion p99 worsens to 38.80 ms while the other improves to
+28.24 ms; sequential historical comparisons cannot establish causality.
+
+All 48 current-version pipelined cases have zero capacity and layer-budget waits.
+Dense/effects 120 Hz completion upper-bound p99 is 27.37–29.36 ms; source-to-owner
+completion observation p99 is 37.83–39.59 ms. Receipt handling alone adds
+13.10–14.21 ms p99. Before-work admission loses in the second process and wins
+slightly in the first with no waits, so this is not an observed gate benefit.
+Keeping the owner runnable is independently necessary for resource retirement
+and future interaction responsiveness. Native hidden regressions pass but do
+not qualify visible presentation. Physical input latency is still unmeasured.
+
+Prioritize the following API-relevant work before tuning GPU queue depth:
+
+1. Preserve local content and placement separately for isolated effects, with
+   sampling/clip/resource epochs in reuse eligibility. Dense independently
+   moving children still invalidate their content; ancestor motion may qualify
+   for reuse. See the proposed spatial ADR contract and exactness acceptance.
+2. Bound owner construction and consumer dispatch costs before promising a
+   frame deadline. A backend submit currently includes many node/resource/layer
+   checks and may wait on driver or resource admission. A capacity observation
+   is not a nonblocking submission reservation or a cost guarantee.
+3. Define producer visual demand separately from lossless state transitions.
+   Replaceable samples may remain pending until admitted; a ten-thousand-sink
+   transaction must never be half committed merely to yield to a deadline.
+4. Implement an actual software consumer with bounded jobs and capability
+   outcomes. Keep input/lifecycle owner work runnable, retain a complete shown
+   frame, and explicitly associate interaction geometry with that scene. The
+   GPU offscreen measurements do not qualify CPU responsiveness.
+
 ## Remaining acceptance
 
 - Local-first indexed damage/hit performance and general incremental updates;

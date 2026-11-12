@@ -1,0 +1,525 @@
+{
+  "interval_ms": 500,
+  "samples": [
+    {
+      "at": "2026-11-13T00:21:30.3065216+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:31.1602143+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:31.9912095+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:32.8165870+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:33.7058080+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:34.5224168+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:35.3223409+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:36.1587122+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:36.9850906+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:37.8247731+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:38.6553241+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:39.4730008+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:40.2809886+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:41.0945860+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:41.9397454+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:42.7695138+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:43.6281119+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:44.5121889+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:45.3667111+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:46.2018621+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:47.0398492+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:47.8641628+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:48.6907072+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:49.5106404+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:50.3226506+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:51.1521722+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:51.9609225+08:00",
+      "case": "round-1-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:53.2877318+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:54.1344281+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:54.9551648+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:55.7928009+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:56.6208239+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:57.4281150+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:58.2438591+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:59.0680895+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:21:59.8754047+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:00.7129819+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:01.5314081+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:02.3330030+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:03.1579809+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:04.0158495+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:04.8581896+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:05.6964534+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:06.5332730+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:07.3565042+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:08.1729054+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:08.9909277+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:09.8162581+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:10.6386457+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:11.4766789+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:12.2808378+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:13.1173248+08:00",
+      "case": "round-1-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:14.1905591+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:15.0350023+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:15.8546504+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:16.6857143+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:17.5212580+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:18.3359620+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:19.1672703+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:19.9752007+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:20.7816460+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:21.6127001+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:22.4271247+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:23.2359303+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:24.0745617+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:24.8923227+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:25.7190968+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:26.5339187+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:27.3543678+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:28.1902283+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:29.0428195+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:29.8494145+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:30.6630893+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:31.4780031+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:32.2906150+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:33.0797337+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:33.9705912+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:34.7902001+08:00",
+      "case": "round-2-optimized",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:35.8549400+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:36.6830632+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:37.5124860+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:38.3815575+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:39.2035620+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:40.0251225+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:40.8460757+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:41.6514878+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:42.4577471+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:43.2695188+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:44.0781921+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:44.8803221+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:45.6980806+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:46.5317777+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:47.3679648+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:48.1798527+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:48.9895596+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:49.8450765+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:50.6788038+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:51.4859781+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:52.3035683+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:53.1171389+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:53.9135640+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:54.7349868+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:55.5641304+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    },
+    {
+      "at": "2026-11-13T00:22:56.3827309+08:00",
+      "case": "round-2-control",
+      "conflicts": []
+    }
+  ]
+}

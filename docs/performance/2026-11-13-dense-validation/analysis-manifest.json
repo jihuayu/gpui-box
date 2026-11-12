@@ -1,0 +1,6 @@
+{
+  "tooling/rendering-perf/analyze-dense.py": "1e1fd294c760ef929b75089f87d7d2479559dfbbbbc053f8c36496d257fac0b0",
+  "tooling/rendering-perf/analyze-local-ab.py": "0d6096d689577ceecbb4ce449e0cc68a2e7676e1f5125ad1b8806bcf928acaaa",
+  "tooling/rendering-perf/analyze-frame-budget.py": "171a4ff8d997588c4f913bab93aadd71d607e80a956c6ce5c9ad7c071066529d",
+  "tooling/rendering-perf/analyze-pipeline.py": "a6af6a03222db8f15416007958ae6385b17908efef74584d9d9dfa1678640fb4"
+}

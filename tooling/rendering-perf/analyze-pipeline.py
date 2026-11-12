@@ -1,10 +1,22 @@
 """Validate every target tick and retain paired tails, including losing modes."""
 import json
+import math
 from pathlib import Path
 import sys
 
 root = Path(sys.argv[1])
 summary = []
+
+
+def distribution(values):
+    values = sorted(values)
+    assert values and all(math.isfinite(v) and v >= 0 for v in values)
+    return {"samples": len(values), **{
+        name: values[min(len(values) - 1, math.ceil(fraction * len(values)) - 1)]
+        for name, fraction in (("p50_us", .50), ("p95_us", .95), ("p99_us", .99), ("max_us", 1.0))
+    }}
+
+
 for run in sorted(root.glob("run-*")):
     if not run.is_dir():
         continue
@@ -40,7 +52,21 @@ for run in sorted(root.glob("run-*")):
         assert skipped + missed == case["unsatisfied_ticks_upper_bound"]
         assert case["maximum_gpu_in_flight"] <= case["max_in_flight"]
         assert case["leases_retired"] and case["pixel_equal"]
-        summary.append({"run": run.name, **{k: v for k, v in case.items() if k != "raw"}})
+        # Sum phases only inside the same row. Postconstruction capacity waits
+        # are included in submit_and_admission; preconstruction waits are before
+        # entered and remain in source age, never silently subtracted as a win.
+        owner = [sum(row[key] for key in ("commit_us", "publication_us", "submit_and_admission_us"))
+                 for row in rows]
+        submit_age = [row["source_to_owner_us"] + work for row, work in zip(rows, owner)]
+        budget = 1e6 / case["target_hz"]
+        summary.append({"run": run.name, **{k: v for k, v in case.items() if k != "raw"},
+                        "derived_scope": "same-sample owner build/submit including postconstruction admission; source age includes preconstruction admission; receipts are covering upper bounds, not GPU execution or display times",
+                        "owner_build_submit": distribution(owner),
+                        "source_to_submit": distribution(submit_age),
+                        "owner_build_submit_over_budget": sum(v > budget for v in owner),
+                        "already_late_at_submit": sum(v > budget for v in submit_age),
+                        "worst_owner_observation_samples": sorted(
+                            rows, key=lambda row: row["source_to_owner_completion_observation_us"], reverse=True)[:10]})
 (root / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
 print("run nodes batch effects hz before: p95/p99/max ms; skips/misses/burst; waits")
 for r in summary:

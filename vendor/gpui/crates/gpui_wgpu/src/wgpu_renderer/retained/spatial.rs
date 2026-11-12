@@ -242,7 +242,21 @@ impl SpatialCache {
         let plan = self.index.prepare(batch.capacity, batch.scale, true,
             batch.writes.iter().flat_map(|w| w.values.iter().enumerate().map(move |(i,v)| (w.start+i as u32,*v))),
             |slot| self.storage.value(slot)).map_err(anyhow::Error::msg)?;
-        if plan.dense { self.validate(renderer, batch)?; }
+        if plan.dense {
+            // Raw records/ranges/scale already passed above. Validate the exact
+            // final prefix, including unreferenced and re-exposed mirror slots.
+            let mut projected: Vec<_> = (0..batch.capacity)
+                .map(|index| self.storage.value(index)).collect();
+            for write in &batch.writes {
+                let start = write.start as usize;
+                let end = (start + write.values.len()).min(projected.len());
+                if start < end {
+                    projected[start..end].copy_from_slice(&write.values[..end - start]);
+                }
+            }
+            super::spatial_index::validate_projected(&projected, batch.scale)
+                .map_err(anyhow::Error::msg)?;
+        }
         Ok(Some(plan))
     }
     pub fn commit_index(&mut self, plan: Option<super::spatial_index::GraphPlan>) {

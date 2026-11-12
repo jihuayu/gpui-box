@@ -59,8 +59,7 @@ impl GraphIndex {
         writes: impl Iterator<Item = (u32, SpatialNode)>,
         read: impl Fn(u32) -> SpatialNode,
     ) -> Result<GraphPlan, &'static str> {
-        let writes: BTreeMap<_, _> = writes.filter(|(slot, _)| *slot < capacity).collect();
-        let get = |slot| writes.get(&slot).copied().unwrap_or_else(|| read(slot));
+        let writes: Vec<_> = writes.filter(|(slot, _)| *slot < capacity).collect();
         let capacity = capacity as usize;
         let full = !self.valid || self.parents.len() != capacity || self.scale != scale;
         self.scratch.resize(capacity, Scratch::default());
@@ -73,13 +72,37 @@ impl GraphIndex {
                 1
             }
         };
+        // Dense transport does not need an ordered lookup map: the caller
+        // validates the complete projected prefix before committing this plan.
+        // Reverse membership keeps only the final writer, including overlaps
+        // whose overwritten parent would be invalid to insert into the index.
+        let budget = (capacity / 4).max(64);
+        if adaptive && !full && writes.len() > budget {
+            let mut parents = Vec::with_capacity(writes.len().min(capacity));
+            for (slot, node) in writes.into_iter().rev() {
+                if self.visited[slot as usize] != self.epoch {
+                    self.visited[slot as usize] = self.epoch;
+                    parents.push((slot, (node.links[2] & 2 == 0).then_some(node.links[0])));
+                }
+            }
+            return Ok(GraphPlan {
+                capacity,
+                scale,
+                full: false,
+                dense: true,
+                parents,
+                values: vec![],
+                affected: vec![],
+            });
+        }
+        let writes: BTreeMap<_, _> = writes.into_iter().collect();
+        let get = |slot| writes.get(&slot).copied().unwrap_or_else(|| read(slot));
         let mut affected: Vec<u32> = if full {
             (0..capacity as u32).collect()
         } else {
             writes.keys().copied().collect()
         };
         if !full {
-            let budget = (capacity / 4).max(64);
             if adaptive && affected.len() > budget {
                 return Ok(GraphPlan::dense(capacity, scale, &writes));
             }
@@ -231,6 +254,53 @@ impl GraphIndex {
         self.scale = plan.scale;
         self.valid = true;
     }
+}
+
+/// Full projected-prefix validation for dense fallback. Depth is bounded by the
+/// shader ABI, not by slot order: parents may be stored after their children.
+/// Resolve each node once in depth order, retaining exact f32 operation order.
+/// The caller validates raw records/ranges/scale before entering this function.
+pub(super) fn validate_projected(nodes: &[SpatialNode], scale: f32) -> Result<(), &'static str> {
+    let mut buckets: [Vec<usize>; 32] = Default::default();
+    for (slot, node) in nodes.iter().enumerate() {
+        if node.links[1] >= 32 {
+            return Err("invalid spatial depth");
+        }
+        if node.links[2] & 2 != 0 {
+            if node.links[1] != 0 || node.links[0] != u32::MAX {
+                return Err("invalid spatial anchor");
+            }
+        } else if nodes
+            .get(node.links[0] as usize)
+            .and_then(|p| p.links[1].checked_add(1))
+            != Some(node.links[1])
+        {
+            return Err("cyclic or invalid spatial parent/depth");
+        }
+        buckets[node.links[1] as usize].push(slot);
+    }
+    let mut resolved = vec![Resolved::default(); nodes.len()];
+    for slot in buckets.into_iter().flatten() {
+        let node = nodes[slot];
+        let parent = (node.links[2] & 2 == 0).then(|| resolved[node.links[0] as usize]);
+        let state = resolve_node(node, parent);
+        if !state
+            .origin
+            .iter()
+            .all(|v| v.is_finite() && (*v * scale).is_finite())
+        {
+            return Err("scaled spatial origin overflow");
+        }
+        if let Some(c) = state.clip
+            && ![c[0], c[1], c[2], c[3], c[0] + c[2], c[1] + c[3]]
+                .iter()
+                .all(|v| (*v * scale).is_finite())
+        {
+            return Err("spatial clip overflow");
+        }
+        resolved[slot] = state;
+    }
+    Ok(())
 }
 
 impl GraphPlan {

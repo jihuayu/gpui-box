@@ -130,8 +130,10 @@ capacity/scale changes and invalidated aggregate bounds rebuild from actual
 mirrors. CPU plans commit only after all preflight checks pass. Indexed raster
 dependencies preserve the original full-scan A/B control, including adversarial
 raw batches, unreferenced overflow, prefix reexposure and rejection/retry checks.
-The measured unconditional prototype is retained; dense frontiers now fall back
-to original spatial walks while sparse frames retain indexed reference checks.
+The measured unconditional prototype is retained; dense frontiers use full-prefix
+validation while sparse frames retain indexed reference checks. The later dense
+backend stage replaces repeated full ancestry walks with depth-ordered resolution;
+the original walk remains an explicit control.
 Resolved memos are invalidated across dense changes, with bounded actual-mirror
 ancestor reconstruction on following sparse frames.
 
@@ -286,6 +288,27 @@ and 1,199 consecutive unsatisfied ticks. All 152 core / 11 example tests,
 2,011 hardware scenarios / 1,921 pixel comparisons and hidden native delivery /
 shared-output / device-replacement checks pass. No visible or modern desktop
 120 fps qualification or software renderer is claimed; the goal stays active.
+
+The [dense spatial backend stage](performance/2026-11-13-dense-validation/README.md)
+removes dense ordered-map construction and repeated ancestry walks while
+preserving raw-record checks, overlapping last writers, unreferenced-prefix
+validation and rejected-plan retry. Alternating exact binaries reduce dense
+submit medians 7.0–19.7% and completed medians 2.7–15.9%; the second ancestor/effects
+case regresses 33.0% in completed median. Current synchronous sustained dense/effects
+120 Hz p99 is 38.80 / 28.24 ms, with 1,199 consecutive unsatisfied ticks in each
+run. Same-sample owner work alone has 12.33–12.56 ms medians and every non-initial
+consumed 120 Hz dense/effects sample exceeds budget before finish. The new analyzer
+preserves correlated longest stalls instead of summing phase percentiles.
+154 core tests, 11 ordinary example tests and 2,013 hardware scenarios / 1,921
+pixel comparisons pass. All 48 pipelined cases preserve bounded flights, final
+reference pixels and lease retirement, with zero capacity/resource waits. Dense/effects
+120 Hz completion upper-bound p99 remains 27.37–29.36 ms and owner receipt observation
+p99 37.83–39.59 ms; extra receipt handling p99 is 13.10–14.21 ms. Both admission
+orders retain 1,199 consecutive unsatisfied ticks, including losing cases. Current
+hidden native delivery, 97,792 shared pixels and 3,072 recovery pixels pass.
+Placement-independent effects now have a proposed content/placement/raster-environment
+contract, including fractional sampling/clip/resource-epoch limits; implementation,
+visible modern desktop qualification and actual CPU rendering remain open.
 
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |

@@ -15,6 +15,16 @@ read needed ancestors from the actual mirror. The threshold is a heuristic,
 with its original losing probe retained alongside final measurements. Dense
 completed-time improvement remains unproven; the frozen results include losses.
 
+The subsequent [dense preflight refinement](performance/2026-11-13-dense-validation/README.md)
+retains this full-prefix fallback and original-walk control, but avoids dense
+ordered-map construction and resolves each projected node once in depth order.
+Transport density can select full checking before unique-slot deduplication;
+overlapping final writers and rejected plans retain the same correctness rules.
+Additional temporary resolved/depth arrays cost O(N) memory. Alternating exact
+binaries now show 7.0–19.7% dense submit median and 2.7–15.9% completed median
+improvement, with a losing ancestor/effects round retained. Current sustained
+dense/effects 120 Hz p99 still spans 28.24–38.80 ms and does not meet deadlines.
+
 This reuse is based on backend-owned actual mirrors, including the full
 addressable prefix. Public raw batches need no caller trust token. Final-write
 projection handles overlaps; existing typed field/range checks still run for every submitted write.

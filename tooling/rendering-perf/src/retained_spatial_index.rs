@@ -13,7 +13,76 @@ pub(super) fn run(
     for indexed in [true, false] {
         preflight(indexed, results)?;
         dense_then_sparse(indexed, results)?;
+        dense_permuted_overlap(indexed, results)?;
     }
+    Ok(())
+}
+
+fn dense_permuted_overlap(
+    indexed: bool,
+    results: &mut Vec<serde_json::Value>,
+) -> Result<(), Box<dyn Error>> {
+    let mut gpu = gpui_wgpu::RetainedQuadRenderer::new(3)?;
+    gpu.set_indexed_spatial_enabled(indexed);
+    let mut nodes: Vec<_> = (0..160)
+        .map(|i| {
+            if i % 32 == 31 {
+                anchor(0.0)
+            } else {
+                SpatialNode {
+                    layout_translation: [0.125, 0.25, 0.0, 0.0],
+                    links: [i + 1, 31 - i % 32, 0, 0],
+                    ..Default::default()
+                }
+            }
+        })
+        .collect();
+    gpu.submit(batch(
+        160,
+        vec![InstanceWrite {
+            start: 0,
+            values: nodes.clone(),
+        }],
+        vec![],
+        vec![],
+    ))?;
+    let mut overwritten = nodes[0];
+    overwritten.links[0] = 999;
+    let mut writes: Vec<_> = (0..80)
+        .map(|_| InstanceWrite {
+            start: 0,
+            values: vec![overwritten],
+        })
+        .collect();
+    writes.push(InstanceWrite {
+        start: 0,
+        values: vec![nodes[0]],
+    });
+    let update = gpu.submit(batch(160, writes, vec![], vec![]))?;
+    if indexed {
+        assert!(update.spatial_work.dense_fallback);
+    }
+    // Whole-prefix dense validation must reject overflow on an unreferenced
+    // node, keep the committed serial/base and permit an unchanged retry.
+    nodes[31] = anchor(f32::MAX * 0.75);
+    nodes[30].layout_translation = [f32::MAX * 0.75, 0.0, 0.0, 0.0];
+    let serial = gpu.last_serial();
+    assert!(
+        gpu.submit(batch(
+            160,
+            vec![InstanceWrite {
+                start: 0,
+                values: nodes
+            }],
+            vec![],
+            vec![]
+        ))
+        .is_err()
+    );
+    assert_eq!(gpu.last_serial(), serial);
+    gpu.submit(batch(160, vec![], vec![], vec![]))?;
+    gpu.finish()?;
+    results.push(serde_json::json!({"case":format!("spatial-dense-permuted-overlap-{indexed}"),"all_32_depths":true,"parent_after_child":true,"overwritten_invalid_edge":true,"unreferenced_overflow_rejected":true,"unchanged_retry":true}));
     Ok(())
 }
 fn anchor(x: f32) -> SpatialNode {
