@@ -69,6 +69,35 @@ jobs:
           unzip -l platforms/android/app/build/outputs/apk/debug/app-debug.apk | tee target/ci/apk-contents.txt
           grep -F 'lib/arm64-v8a/libgpui_box_android.so' target/ci/apk-contents.txt
           grep -F 'lib/x86_64/libgpui_box_android.so' target/ci/apk-contents.txt
+      - name: Verify instrumentation result checking
+        run: python3 -B -m unittest discover -s tooling/android -p 'test_*.py'
+      - name: Enable hosted emulator KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo udevadm settle --timeout=30
+          test -c /dev/kvm
+          sudo chmod 0666 /dev/kvm
+          {
+            id
+            stat /dev/kvm
+            test -r /dev/kvm && test -w /dev/kvm
+          } 2>&1 | tee target/ci/kvm.txt
+      - name: Run the full API35 emulator suite
+        timeout-minutes: 20
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          ram-size: 4096M
+          disk-size: 6G
+          emulator-boot-timeout: 600
+          disable-animations: false
+          emulator-options: -no-window -gpu lavapipe -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
+          script: bash tooling/android/check-emulator.sh
       - name: Qualify independent facade features on both ABIs
         env:
           GPUI_BOX_FEATURE_TARGET: android

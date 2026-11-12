@@ -16,6 +16,7 @@ import androidx.test.rule.ActivityTestRule
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
 import org.junit.Assert.*
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -25,7 +26,14 @@ import java.util.concurrent.TimeUnit
 @Suppress("DEPRECATION")
 @RunWith(AndroidJUnit4::class)
 class PlatformFoundationTest {
-    @get:Rule val activityRule = ActivityTestRule(MainActivity::class.java)
+    @get:Rule val activityRule = ActivityTestRule(MainActivity::class.java, false, false)
+
+    @Before fun launchWithoutAccessibilityFocusChanges() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.getUiAutomation(android.app.UiAutomation.FLAG_DONT_USE_ACCESSIBILITY)
+        activityRule.launchActivity(null)
+        instrumentation.waitForIdleSync()
+    }
 
     private fun withView(action: (GpuiView) -> Unit) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -203,19 +211,21 @@ class PlatformFoundationTest {
         // InputMethodManager dismissal completes asynchronously. Back during
         // that transition correctly belongs to the keyboard instead of GPUI.
         var keyboardVisible = true
-        val deadline = SystemClock.uptimeMillis() + 5_000
-        while (keyboardVisible && SystemClock.uptimeMillis() < deadline) {
+        var hiddenSince = 0L
+        val deadline = SystemClock.uptimeMillis() + 15_000
+        while (SystemClock.uptimeMillis() < deadline) {
             instrumentation.waitForIdleSync()
             withView { view ->
                 val ime = view.context.getSystemService(InputMethodManager::class.java)
                 keyboardVisible = imeAnimationRunning || view.rootWindowInsets?.isVisible(WindowInsets.Type.ime()) == true || ime.isActive(view)
             }
-            if (keyboardVisible) SystemClock.sleep(50)
+            if (keyboardVisible) hiddenSince = 0L
+            else if (hiddenSince == 0L) hiddenSince = SystemClock.uptimeMillis()
+            if (hiddenSince != 0L && SystemClock.uptimeMillis() - hiddenSince >= 500) break
+            SystemClock.sleep(50)
         }
         assertFalse("The IME must finish hiding before testing navigation back", keyboardVisible)
-        // Accessibility activation can restore editor focus and reopen the IME
-        // after the visibility check. This navigation-only case keeps it disabled.
-        instrumentation.getUiAutomation(android.app.UiAutomation.FLAG_DONT_USE_ACCESSIBILITY)
+        assertTrue("The hidden IME must remain stable before navigation back", hiddenSince != 0L && SystemClock.uptimeMillis() - hiddenSince >= 500)
         instrumentation.waitForIdleSync()
         instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         // A native back callback updates Rust state, then GPUI removes the old

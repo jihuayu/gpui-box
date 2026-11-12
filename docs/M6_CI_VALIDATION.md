@@ -202,3 +202,43 @@ on a qualification error as well. Child stdout/stderr use files so background
 helpers cannot retain a capture pipe. All three native jobs run this gate and
 retain its logs/receipt with the existing validation artifacts for 14 days.
 Actual provider/runtime evidence remains with #70 and the service owners.
+
+## Hosted Android emulator runtime
+
+The Android job starts a fresh API35 Google APIs x86_64 Pixel7 AVD after building
+and inspecting both APKs. The emulator runner action uses a fixed commit and KVM
+on Ubuntu24.04. Lavapipe supplies software Vulkan rendering. Emulator and
+system-image package versions follow the recorded SDK tuple. Animations remain
+enabled for the IME/back cases, with snapshots disabled and 4096MiB RAM.
+KVM setup waits for udev events, requires the character device, applies access
+permissions to the ephemeral runner device and records its effective identity
+and permissions before startup.
+The SDK package configuration and emulator invocation follow the upstream
+runner and Android graphics documentation.
+
+[Pinned emulator runner](https://github.com/ReactiveCircus/android-emulator-runner/tree/a421e43855164a8197daf9d8d40fe71c6996bb0d)
+
+[Android emulator graphics modes](https://developer.android.com/studio/run/emulator-acceleration)
+
+tooling/android/check-emulator.sh accepts only an emulator serial, verifies API35
+and x86_64, installs the built application/test APKs and resets example app data
+before the full suite. It runs AndroidJUnitRunner with a 12minute client limit.
+Its verifier requires the success summary, at least23tests, one normal final
+completion code, consistent counts, every ordered start/success pair and unique
+test identities. Failed/skipped/truncated/duplicated output fails the gate even
+when adb exits successfully. Fixture checks exercise those rejection paths.
+
+The existing validation artifact retains application/test APK SHA256 values,
+source revision, Python/emulator/system-image identity, device properties,
+page size/density, instrumentation output and a schema-v1 verification receipt.
+An exit trap also collects logcat, SurfaceFlinger diagnostics and a screenshot
+on failure. Every adb client and diagnostic capture has a timeout plus forced
+termination grace so an offline emulator cannot block failure reporting.
+Setup/client timeouts retain their available diagnostics without a
+successful verification receipt. The runner owns this temporary emulator and
+stops it when the action ends. Application-data reset is specific to the example.
+
+This runtime observation covers a software-GPU emulator. TalkBack speech, real
+Chinese IME candidate UI, device-loss recovery, vendor-GPU/16KB environments and
+physical devices retain their independent M1/M6 acceptance gates. Physical-device
+testing remains deferred.
