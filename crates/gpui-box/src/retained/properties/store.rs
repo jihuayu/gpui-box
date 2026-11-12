@@ -104,7 +104,10 @@ impl<T> PropertyMap<T> {
 impl<T: Clone + PartialEq> PropertyMap<T> {
     /// Sparse edits preserve shared paths; dense edits merge once and rebuild a
     /// balanced root. No-op batches preserve snapshot identity in both cases.
-    pub(super) fn apply_edits(&mut self, mut edits: Vec<(NodeId, Option<PropertyNode<T>>)>) {
+    pub(in crate::retained) fn apply_edits(
+        &mut self,
+        mut edits: Vec<(NodeId, Option<PropertyNode<T>>)>,
+    ) {
         edits.sort_unstable_by_key(|(id, _)| *id);
         debug_assert!(edits.windows(2).all(|pair| pair[0].0 != pair[1].0));
         edits.retain(|(id, value)| self.get(id) != value.as_ref());

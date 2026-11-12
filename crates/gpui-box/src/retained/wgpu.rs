@@ -28,6 +28,8 @@ use gpui_wgpu::SpatialNode;
 mod spatial_index_tests;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 mod composition;
+#[path = "wgpu/local.rs"]
+mod local_consumer;
 pub use composition::CompositionStats;
 mod routing;
 pub use routing::RoutingStats;
@@ -271,6 +273,8 @@ pub struct WgpuFrameRenderer {
     scale: f32,
     surface: [u32; 2],
     leases: VecDeque<(u64, FramePacket)>,
+    local_leases: VecDeque<(u64, local::LocalFrame)>,
+    local_snapshot: Option<local::LocalFrame>,
     max_in_flight: usize,
     failed: bool,
     device_epoch: u64,
@@ -313,6 +317,8 @@ impl WgpuFrameRenderer {
             scale: 1.0,
             surface: [0, 0],
             leases: VecDeque::new(),
+            local_leases: VecDeque::new(),
+            local_snapshot: None,
             max_in_flight,
             failed: false,
             device_epoch: 0,
@@ -596,6 +602,13 @@ impl WgpuFrameRenderer {
         {
             self.leases.pop_front();
         }
+        while self
+            .local_leases
+            .front()
+            .is_some_and(|(serial, _)| *serial <= completed)
+        {
+            self.local_leases.pop_front();
+        }
         Ok(())
     }
 
@@ -623,6 +636,32 @@ impl WgpuFrameRenderer {
         surface: [u32; 2],
         scale: f32,
     ) -> Result<Option<FrameSubmission>, Error> {
+        if let Some(local) = &self.local_snapshot
+            && self.latest == Some((frame.tree, frame.revision))
+        {
+            let expected = local.resolve();
+            if frame.properties != expected.properties
+                || frame.items.len() != expected.items.len()
+                || !frame.items.iter().zip(expected.items.iter()).all(|(a, b)| {
+                    a.node == b.node
+                        && a.bounds == b.bounds
+                        && a.content_bounds == b.content_bounds
+                        && a.content_offsets == b.content_offsets
+                        && a.clip == b.clip
+                        && a.spatial == b.spatial
+                        && a.properties == b.properties
+                        && a.fill_color == b.fill_color
+                        && a.commands == b.commands
+                        && a.shadows == b.shadows
+                        && a.image == b.image
+                        && a.same_text(b)
+                })
+            {
+                return Err(Error::InvalidFrame);
+            }
+            self.routing_snapshot = None;
+        }
+        self.local_snapshot = None;
         if self.failed {
             return Err(Error::Gpu("reset after failed frame submission".into()));
         }
@@ -651,6 +690,17 @@ impl WgpuFrameRenderer {
             && self.scale == scale
             && self.surface == surface
         {
+            // Switching from local representation must still retain an
+            // authoritative root for subsequent conflicting-same-revision checks.
+            if self.routing_snapshot.is_none() {
+                self.routing_snapshot = Some(routing::Snapshot::next(
+                    frame,
+                    None,
+                    &self.validation_cache,
+                    true,
+                    self.shared_spatial && self.cache_primitive_routing,
+                )?);
+            }
             return Ok(None);
         }
         let untrusted_full_resync = self.source.is_some()
@@ -929,7 +979,7 @@ impl WgpuFrameRenderer {
             submitted,
             completed,
             gpu_leases,
-            frame_leases: self.leases.len(),
+            frame_leases: self.leases.len() + self.local_leases.len(),
         }
     }
     pub fn completion_stats(&self) -> Option<CompletionStats> {

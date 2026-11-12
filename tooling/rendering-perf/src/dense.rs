@@ -136,12 +136,38 @@ fn distribution(values: impl Iterator<Item = f64>) -> Value {
     json!({"samples":values.len(), "p50_us":percentile(0.5), "p95_us":percentile(0.95),
         "p99_us":percentile(0.99), "max_us":values.last().unwrap()})
 }
+// Keep the resolved control's stack-owned packet and allocation cost intact.
+#[allow(clippy::large_enum_variant)]
+enum OutputFrame {
+    Resolved(FramePacket),
+    Local(local::LocalFrame),
+}
+fn output_frame(
+    ui: &mut ReactiveUi,
+    local: bool,
+) -> Result<OutputFrame, gpui_box::retained::Error> {
+    Ok(if local {
+        OutputFrame::Local(ui.local_frame([800.0, 600.0])?)
+    } else {
+        OutputFrame::Resolved(ui.frame([800.0, 600.0])?)
+    })
+}
+fn submit_output(
+    gpu: &mut WgpuFrameRenderer,
+    frame: &OutputFrame,
+) -> Result<Option<wgpu::FrameSubmission>, gpui_box::retained::Error> {
+    match frame {
+        OutputFrame::Local(frame) => gpu.submit_local(frame, [800, 600], 1.0),
+        OutputFrame::Resolved(frame) => gpu.submit(frame, [800, 600], 1.0),
+    }
+}
 fn cadence(
     count: usize,
     effects: bool,
     batch: bool,
     hz: u32,
     seconds: f64,
+    local: bool,
 ) -> Result<Value, Box<dyn Error>> {
     let (tree, parent, nodes) = fixture(count, effects)?;
     let mut ui = ReactiveUi::new(
@@ -168,9 +194,10 @@ fn cadence(
     let sender = ui.update_sender(&receiver, signal)?;
     let mut gpu = WgpuFrameRenderer::new(2)?;
     let adapter = format!("{:?}", gpu.adapter_info());
-    gpu.submit(&ui.frame([800.0, 600.0])?, [800, 600], 1.0)?;
+    submit_output(&mut gpu, &output_frame(&mut ui, local)?)?;
     gpu.finish()?;
     let queue = frame_queue::FrameQueue::new();
+    let local_queue = frame_queue::LocalFrameQueue::new();
     let rate = pacing::FrameRate::hz(hz).unwrap();
     let period = rate.budget();
     let start = Instant::now() + Duration::from_millis(20);
@@ -222,14 +249,22 @@ fn cadence(
         skipped += superseded;
         consecutive += superseded;
         longest = longest.max(consecutive);
-        let frame = ui.frame([800.0, 600.0])?;
+        let frame = output_frame(&mut ui, local)?;
         // Skipping an even number of alternating samples can produce equal
         // state. The mailbox correctly suppresses that revision; retain the
         // last complete snapshot instead of assuming every tick changes it.
-        queue.publish(frame.clone())?;
-        let frame = queue.take_latest()?.unwrap_or(frame);
+        let frame = match frame {
+            OutputFrame::Resolved(frame) => {
+                queue.publish(frame.clone())?;
+                OutputFrame::Resolved(queue.take_latest()?.unwrap_or(frame))
+            }
+            OutputFrame::Local(frame) => {
+                local_queue.publish(frame.clone())?;
+                OutputFrame::Local(local_queue.take_latest()?.unwrap_or(frame))
+            }
+        };
         let published = Instant::now();
-        let submission = gpu.submit(&frame, [800, 600], 1.0)?;
+        let submission = submit_output(&mut gpu, &frame)?;
         let submitted = Instant::now();
         // This is a conservative synchronous completion scope. Native present
         // has a separate receipt; this value must never be called photon latency.
@@ -281,7 +316,7 @@ fn cadence(
     })
     .collect();
     Ok(
-        json!({"nodes":count,"effects":effects,"batch":batch,"target_hz":hz,"duration_seconds":seconds,
+        json!({"nodes":count,"effects":effects,"batch":batch,"local_snapshot":local,"target_hz":hz,"duration_seconds":seconds,
         "adapter":adapter,"expected_ticks":slots,"consumed_ticks":rows.len(),"superseded_ticks":skipped,
         "gpu_submissions":rows.iter().filter(|r| r["gpu_submitted"]==true).count(),
         "producer_superseded_ticks":producer_skipped,
@@ -304,6 +339,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let quick = std::env::args().any(|v| v == "--quick");
     let cadence_only = std::env::args().any(|v| v == "--cadence-only");
     let paired_only = std::env::args().any(|v| v == "--paired-only");
+    let local = std::env::args().any(|v| v == "--local");
     let count = 10000;
     let mut cases = vec![];
     for effects in if cadence_only {
@@ -334,9 +370,23 @@ fn main() -> Result<(), Box<dyn Error>> {
                         let start = Instant::now();
                         update(tree, *parent, nodes, step, batch)?;
                         let committed = Instant::now();
-                        let frame = tree.frame([800.0, 600.0])?;
+                        let local_frame = if local && mode == 0 {
+                            Some(tree.local_frame([800.0, 600.0])?)
+                        } else {
+                            None
+                        };
+                        let frame = if local_frame.is_none() {
+                            Some(tree.frame([800.0, 600.0])?)
+                        } else {
+                            None
+                        };
                         let published = Instant::now();
-                        let submit = gpu.submit(&frame, [800, 600], 1.0)?.unwrap();
+                        let submit = if let Some(frame) = &local_frame {
+                            gpu.submit_local(frame, [800, 600], 1.0)?
+                        } else {
+                            gpu.submit(frame.as_ref().unwrap(), [800, 600], 1.0)?
+                        }
+                        .unwrap();
                         let submitted = Instant::now();
                         gpu.finish()?;
                         let complete = Instant::now();
@@ -347,7 +397,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 (submitted - published).as_secs_f64() * 1e6,
                                 (complete - start).as_secs_f64() * 1e6,
                             ]);
-                            work[mode] = json!({"extracted":frame.build_stats.extracted_nodes,
+                            work[mode] = json!({"extracted":frame.as_ref().map_or(0,|f|f.build_stats.extracted_nodes),
+                                "local_changed":local_frame.as_ref().map(|f|f.stats().changed_nodes),
                                 "quad_bytes":submit.gpu.uploaded_bytes,"spatial_bytes":submit.gpu.spatial_upload_bytes,
                                 "draws":submit.gpu.draw_calls,"layers_rasterized":submit.gpu.rasterized_layers,
                                 "layers_reused":submit.gpu.reused_layers});
@@ -386,8 +437,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::fs::write(
         output.join("paired.json"),
         serde_json::to_vec_pretty(&json!({"cases":cases,
-        "scope":"owner transaction/publication/submission/GPU completion; same runtime/shaders, complete reextraction control; native presentation excluded",
-        "quick":quick}))?,
+        "scope":"owner transaction/publication/submission/GPU completion; same runtime/shaders, complete reextraction control; local mode uses full-viewport isolated layers while resolved control uses tight bounds; native presentation excluded",
+        "quick":quick,"local_snapshot":local}))?,
     )?;
     let mut sustained = vec![];
     for (nodes, batch) in if paired_only {
@@ -397,7 +448,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     } {
         for effects in [false, true] {
             for hz in [60, 120] {
-                let result = cadence(nodes, effects, batch, hz, if quick { 1.0 } else { 10.0 })?;
+                let result = cadence(
+                    nodes,
+                    effects,
+                    batch,
+                    hz,
+                    if quick { 1.0 } else { 10.0 },
+                    local,
+                )?;
                 println!(
                     "cadence nodes={nodes} effects={effects} batch={batch} hz={hz}: {}, skipped={}, misses={}",
                     result["source_to_gpu_complete"],
@@ -411,8 +469,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::fs::write(
         output.join("cadence.json"),
         serde_json::to_vec_pretty(&json!({
-        "scope":"absolute-clock OS worker -> bounded UpdateSender -> owner executor wake -> computed/typed binding/transaction -> FramePacket queue -> GPU submit/completion; no native present or physical input; source and owner skips reported; sleep scheduler delay included",
-        "quick":quick,"max_in_flight":2,"synchronous_completion_per_frame":true,"cases":sustained}))?,
+        "scope":"absolute-clock OS worker -> bounded UpdateSender -> owner executor wake -> computed/typed binding/transaction -> local or resolved frame queue -> GPU submit/completion; local mode uses full-viewport isolated layers; no native present or physical input; source and owner skips reported; sleep scheduler delay included",
+        "quick":quick,"local_snapshot":local,"max_in_flight":2,"synchronous_completion_per_frame":true,"cases":sustained}))?,
     )?;
     Ok(())
 }

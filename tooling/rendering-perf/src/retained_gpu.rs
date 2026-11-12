@@ -23,6 +23,7 @@ mod retained_layers;
 mod retained_layout;
 mod retained_layout_gpu;
 mod retained_lifecycle;
+mod retained_local;
 mod retained_logical;
 mod retained_measure;
 mod retained_paint_store;
@@ -85,6 +86,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         )?,
     )?;
     let mut results = vec![];
+    if std::env::args().any(|arg| arg == "--local-only") {
+        retained_local::run(&output, &mut results)?;
+        fs::write(
+            output.join("validation.json"),
+            serde_json::to_vec_pretty(&results)?,
+        )?;
+        println!(
+            "{} local snapshot hardware comparisons passed",
+            results.len()
+        );
+        return Ok(());
+    }
     if std::env::args().any(|arg| arg == "--content-spatial-only") {
         retained_content_spatial::run(&output, &mut results)?;
         fs::write(
@@ -820,6 +833,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_routing::run(&output, &mut results)?;
     retained_spatial_index::run(&output, &mut results)?;
     retained_content_spatial::run(&output, &mut results)?;
+    retained_local::run(&output, &mut results)?;
     fs::write(
         output.join("validation.json"),
         serde_json::to_vec_pretty(&results)?,

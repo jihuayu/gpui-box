@@ -1,0 +1,16 @@
+effects=false batch=false: {"samples":120,"p50_us":1075.4,"p95_us":1419.3000000000002,"p99_us":1877.4,"max_us":2358.7} / {"samples":120,"p50_us":15272.199999999999,"p95_us":17225.600000000002,"p99_us":18354.0,"max_us":18843.100000000002}
+effects=false batch=true: {"samples":120,"p50_us":29206.5,"p95_us":33068.6,"p99_us":35216.4,"max_us":36044.5} / {"samples":120,"p50_us":41589.1,"p95_us":46626.0,"p99_us":47345.0,"max_us":49238.4}
+effects=true batch=false: {"samples":120,"p50_us":3036.8,"p95_us":6466.7,"p99_us":9743.4,"max_us":10180.099999999999} / {"samples":120,"p50_us":18249.2,"p95_us":20459.2,"p99_us":20904.3,"max_us":21152.1}
+effects=true batch=true: {"samples":120,"p50_us":31670.2,"p95_us":36472.200000000004,"p99_us":39299.6,"max_us":43051.3} / {"samples":120,"p50_us":44170.3,"p95_us":51436.1,"p99_us":58876.1,"max_us":59105.6}
+cadence nodes=1000 effects=false batch=false hz=60: {"samples":600,"p50_us":3178.033,"p95_us":5521.333,"p99_us":7791.700000000001,"max_us":8498.699999999999}, skipped=0, misses=0
+cadence nodes=1000 effects=false batch=false hz=120: {"samples":1200,"p50_us":3158.467,"p95_us":5572.866999999999,"p99_us":7683.933,"max_us":9106.233}, skipped=0, misses=4
+cadence nodes=1000 effects=true batch=false hz=60: {"samples":600,"p50_us":5731.667,"p95_us":11418.233,"p99_us":12560.833,"max_us":19244.533}, skipped=0, misses=1
+cadence nodes=1000 effects=true batch=false hz=120: {"samples":1200,"p50_us":3590.6000000000004,"p95_us":5964.467000000001,"p99_us":7108.7,"max_us":10474.133}, skipped=0, misses=2
+cadence nodes=10000 effects=false batch=false hz=60: {"samples":600,"p50_us":3909.767,"p95_us":5483.3,"p99_us":9087.833,"max_us":10058.599999999999}, skipped=0, misses=0
+cadence nodes=10000 effects=false batch=false hz=120: {"samples":1200,"p50_us":4367.567,"p95_us":8421.167,"p99_us":9735.267,"max_us":10659.633}, skipped=0, misses=63
+cadence nodes=10000 effects=true batch=false hz=60: {"samples":600,"p50_us":6888.1669999999995,"p95_us":12694.4,"p99_us":13778.0,"max_us":14756.633}, skipped=0, misses=0
+cadence nodes=10000 effects=true batch=false hz=120: {"samples":1200,"p50_us":4585.967,"p95_us":7358.667,"p99_us":8326.467,"max_us":13439.267}, skipped=0, misses=12
+cadence nodes=10000 effects=false batch=true hz=60: {"samples":319,"p50_us":40964.7,"p95_us":48997.8,"p99_us":51548.667,"max_us":53656.667}, skipped=281, misses=318
+cadence nodes=10000 effects=false batch=true hz=120: {"samples":322,"p50_us":35673.200000000004,"p95_us":41912.167,"p99_us":44816.433000000005,"max_us":46714.033}, skipped=878, misses=321
+cadence nodes=10000 effects=true batch=true hz=60: {"samples":286,"p50_us":44701.433,"p95_us":52793.933000000005,"p99_us":58261.100000000006,"max_us":63398.76699999999}, skipped=314, misses=285
+cadence nodes=10000 effects=true batch=true hz=120: {"samples":287,"p50_us":39038.299999999996,"p95_us":46609.4,"p99_us":51900.4,"max_us":54002.3}, skipped=913, misses=286

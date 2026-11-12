@@ -382,6 +382,7 @@ impl UiTree {
         frame.seal_updates(Some(&before));
         self.paint_dirty.clear();
         self.property_dirty.clear();
+        self.local_dirty.clear();
         self.geometry_dirty.clear();
         self.dirty = false;
         self.frame = Some(frame.clone());

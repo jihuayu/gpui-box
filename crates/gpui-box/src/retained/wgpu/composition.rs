@@ -162,6 +162,20 @@ fn same_topology(a: &PaintItem, b: &PaintItem) -> bool {
     }
 }
 impl CompositionCache {
+    pub(super) fn local_spatial_layers(&self) -> Vec<QuadLayer> {
+        self.snapshot.as_ref().map_or_else(Vec::new, |snapshot| {
+            snapshot
+                .layers
+                .iter()
+                .map(|layer| QuadLayer {
+                    id: key(layer.node),
+                    opacity: snapshot.properties.effects[&layer.node].value,
+                    bounds: None,
+                    draws: layer.draws.clone(),
+                })
+                .collect()
+        })
+    }
     pub(super) fn bound_layers(&self, layers: &mut [QuadLayer], surface: [u32; 2], scale: f32) {
         for layer in layers {
             let node = NodeId {

@@ -1,8 +1,9 @@
 # ADR: Desktop frame deadlines and responsive software rendering
 
 Status: active implementation; scheduling and publication optimizations exist.
-The CPU renderer, native sustained presentation, and local-first packet redesign
-remain open. This decision does not close the RFC acceptance goal.
+An experimental local-first snapshot now feeds the normal GPU gallery. The CPU
+renderer, native sustained presentation and complete local hit/damage/cache
+design remain open. This decision does not close the RFC acceptance goal.
 
 ## Requirements
 
@@ -50,7 +51,10 @@ flowchart LR
    local-first snapshot must expose explicit `resolve_geometry(node)` and
    consistent hit-test/damage traversal, with shared immutable local chunks and
    property ancestry. Preserve old snapshots and complete resync. The new
-   packet contract is proposed, not implemented by this stage.
+   experimental `LocalFrame` now implements publication and a direct GPU
+   spatial consumer with those explicit resolution APIs. Damage remains full,
+   hit traversal linear, and opacity/layout/material/skipped-base transitions
+   recover through full resolution. See the [local snapshot decision](ADR_RETAINED_LOCAL_SNAPSHOT.md).
 4. Retain the current packet contract during measured optimizations: reuse
    owned local payloads and ordered f32 geometry operations for property-only
    updates; aggregate sparse property edits across disjoint subtrees; rebuild
@@ -94,7 +98,9 @@ adopting performance claims or tuning defaults.
 
 ## Remaining acceptance
 
-- Local-first snapshot, damage and hit semantics; affine/complex clip support.
+- Local-first indexed damage/hit performance and general incremental updates;
+  affine/complex clip support. The experimental snapshot's correctness path
+  currently uses full damage and linear hit traversal.
 - Local-space layer cache keys/placement so ancestor movement can retain
   unchanged effect raster content instead of rerasterizing each layer.
 - Native visible 60/120 Hz sustained source-to-present qualification, accurate

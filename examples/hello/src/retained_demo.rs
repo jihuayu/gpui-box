@@ -20,6 +20,24 @@ enum WindowRaster {
     Gpu(WindowsGpuSurface),
 }
 
+// The vector bridge keeps its existing stack-owned packet without another heap
+// allocation; this enum has only one live instance per canvas prepaint.
+#[allow(clippy::large_enum_variant)]
+enum SceneFrame {
+    Resolved(gpui_box::retained::FramePacket),
+    #[cfg(feature = "retained-wgpu")]
+    Local(gpui_box::retained::local::LocalFrame),
+}
+impl SceneFrame {
+    fn resolve(&self)->gpui_box::retained::FramePacket {
+        match self {
+            Self::Resolved(frame) => frame.clone(),
+            #[cfg(feature = "retained-wgpu")]
+            Self::Local(frame) => frame.resolve(),
+        }
+    }
+}
+
 #[cfg(feature = "retained-wgpu")]
 impl WindowRaster {
     fn image(&self) -> Option<std::sync::Arc<RenderImage>> {
@@ -857,8 +875,12 @@ impl Render for RetainedDemo {
                         }
                         let mut environment = LayoutEnvironment::new([f32::from(bounds.size.width), f32::from(bounds.size.height)]);
                         environment.device_scale = _window.scale_factor();
-                        let frame = responsive.borrow_mut().frame(&mut tree.borrow_mut(), &environment)
-                            .expect("resolve responsive retained frame").frame;
+                        #[cfg(feature = "retained-wgpu")]
+                        let frame=if gpu.is_some() {
+                            SceneFrame::Local(responsive.borrow_mut().local_frame(&mut tree.borrow_mut(),&environment).expect("publish local retained scene"))
+                        } else {SceneFrame::Resolved(responsive.borrow_mut().frame(&mut tree.borrow_mut(),&environment).expect("resolve responsive retained frame").frame)};
+                        #[cfg(not(feature = "retained-wgpu"))]
+                        let frame=SceneFrame::Resolved(responsive.borrow_mut().frame(&mut tree.borrow_mut(),&environment).expect("resolve responsive retained frame").frame);
                         #[cfg(feature = "retained-wgpu")]
                         if let Some(gpu) = &gpu {
                             let scale = _window.scale_factor();
@@ -873,7 +895,11 @@ impl Render for RetainedDemo {
                                 (f32::from(bounds.size.width) * scale).ceil().max(1.0) as u32,
                                 (f32::from(bounds.size.height) * scale).ceil().max(1.0) as u32,
                             ];
-                            frame_queue.publish(frame.clone()).expect("publish visual packet");
+                            if let SceneFrame::Local(packet)=&frame {
+                                gpu.borrow_mut().submit_local_for_window(_window,packet,surface,scale).expect("submit local UI frame to GPU");
+                            } else {
+                            let resolved=frame.resolve();
+                            frame_queue.publish(resolved.clone()).expect("publish visual packet");
                             if let Some(packet) = frame_queue.take_latest().expect("consume visual packet") {
                                 gpu.borrow_mut()
                                     .submit_for_window(_window, &packet, surface, scale)
@@ -882,8 +908,9 @@ impl Render for RetainedDemo {
                                 // Scale/surface demand can change without a new
                                 // logical revision; same-packet submit handles it.
                                 gpu.borrow_mut()
-                                    .submit_for_window(_window, &frame, surface, scale)
+                                    .submit_for_window(_window, &resolved, surface, scale)
                                     .expect("refresh surface geometry");
+                            }
                             }
                         }
                         #[cfg(feature = "retained-wgpu")]
@@ -909,15 +936,18 @@ impl Render for RetainedDemo {
                         }
                         #[cfg(not(feature = "retained-wgpu"))]
                         let raster = WindowRaster::Vector;
+                        // Resolve world geometry only for the vector bridge.
+                        // Native GPU paint retains the immutable local snapshot.
+                        let resolved=matches!(raster,WindowRaster::Vector).then(||frame.resolve());
                         let mut cache = image_cache.borrow_mut();
-                        let live:std::collections::BTreeSet<_> = frame.items.iter().filter(|_| matches!(raster, WindowRaster::Vector)).filter_map(|item| item.image.as_ref().map(ImageResource::id)).collect();
+                        let live:std::collections::BTreeSet<_> = resolved.iter().flat_map(|frame|frame.items.iter()).filter_map(|item| item.image.as_ref().map(ImageResource::id)).collect();
                         let retired:Vec<_> = cache.keys().filter(|id| !live.contains(id)).copied().collect();
                         for id in retired {
                             if let Some(image) = cache.remove(&id) {
                                 _window.drop_image(image).expect("retire decoded image sprite");
                             }
                         }
-                        for resource in frame.items.iter().filter(|_| matches!(raster, WindowRaster::Vector)).filter_map(|item| item.image.as_ref()) {
+                        for resource in resolved.iter().flat_map(|frame|frame.items.iter()).filter_map(|item| item.image.as_ref()) {
                             cache.entry(resource.id()).or_insert_with(|| {
                                 let mut bgra = resource.pixels().to_vec();
                                 for pixel in bgra.as_chunks_mut::<4>().0 {pixel.swap(0,2);}
@@ -941,6 +971,7 @@ impl Render for RetainedDemo {
                                 .expect("paint isolated groups");
                             return;
                         }
+                        let frame=frame.resolve();
                         for item in frame.items.iter() {
                             let viewport = Rect {x:0.0,y:0.0,width:f32::from(bounds.size.width),height:f32::from(bounds.size.height)};
                             let mask = Some(item.clip.map_or(viewport, |clip| clip.intersect(viewport))).map(|clip| ContentMask {

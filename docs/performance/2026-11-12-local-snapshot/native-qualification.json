@@ -1,0 +1,138 @@
+{
+  "delivery": {
+    "metadata.json": {
+      "base_commit": "43d5bc5b0572b61ba598d8894530e0a9bf4cdbd4",
+      "started": "2026-11-12T22:17:24.2073443+08:00",
+      "finished": "2026-11-12T22:17:29.4599619+08:00",
+      "binary_sha256": "706fb30947e9fb1986a90599dee98d94ad999d9cf2974767bd193c3becfdd923",
+      "delivery": true,
+      "readback_control": false,
+      "exit_code": 0,
+      "native_launch": "Start-Process -WindowStyle Hidden; explicit diagnostic draws; visibility reported separately"
+    },
+    "delivery.json": {
+      "passed": true,
+      "platform": "windows",
+      "real_os_worker": true,
+      "real_foreground_executor": true,
+      "native_window": true,
+      "native_window_visible": false,
+      "manual_hidden_draw": true,
+      "automatic_view_renders": 0,
+      "source_messages": 1000,
+      "coalesced": 999,
+      "burst_waker_notifications": 1,
+      "burst_transactions": 1,
+      "burst_computed_evaluations": 1,
+      "burst_effect_runs": 1,
+      "burst_view_renders": 1,
+      "pixel_equal": true,
+      "equal_additional_view_renders": 0,
+      "initial_idle_ms": 250,
+      "post_update_idle_ms": 250,
+      "completion_retired_without_new_frame": true,
+      "completion_frame_leases": 0,
+      "completion_gpu_leases": 0,
+      "completion_extra_view_renders": 0,
+      "completion_idle_counters_stable_ms": 250,
+      "worker_to_delayed_check_us": 602870,
+      "timing_note": "Includes deliberate 150ms diagnostic wait; not wake or input latency. Hidden window draw is explicit, not automatic presentation. Idle checks count view renders and driver work, not OS process wakeups or energy."
+    },
+    "local_artifacts": "target/local-current-native-delivery",
+    "manifest_sha256": "8c0c94f2f9d9d518e3ea904b7fb8390a734ce635c0c8cc7fe102534acfdbd7f6"
+  },
+  "shared": {
+    "metadata.json": {
+      "base_commit": "43d5bc5b0572b61ba598d8894530e0a9bf4cdbd4",
+      "started": "2026-11-12T22:17:30.6800144+08:00",
+      "finished": "2026-11-12T22:17:35.5314301+08:00",
+      "binary_sha256": "706fb30947e9fb1986a90599dee98d94ad999d9cf2974767bd193c3becfdd923",
+      "delivery": false,
+      "readback_control": false,
+      "exit_code": 0,
+      "native_launch": "Start-Process -WindowStyle Hidden; explicit diagnostic draws; visibility reported separately"
+    },
+    "result.json": {
+      "passed": true,
+      "native_framebuffer_pixels": 97792,
+      "channel_tolerance": 1,
+      "cached_scene_equal": true,
+      "device_replacement_pixels": 3072,
+      "device_replacement_passed": true,
+      "benchmark_scope": "owner commit/publication/submission plus completed export; same DX12 consumer, full redraw; native draw/present and sprite upload excluded; GPU export reuses only unowned allocations after producer and native read fence completion"
+    },
+    "native-window.json": {
+      "visible": false,
+      "explicit_scene_draw": true,
+      "framebuffer_readback_for_validation": true,
+      "os_present_latency_measured": false
+    },
+    "present-attempt.json": {
+      "device_epoch": 1,
+      "sequence": 1,
+      "status": 0,
+      "queued": true,
+      "present_call_us": 1556.8,
+      "display_confirmed": false
+    },
+    "native-device-recovery.json": {
+      "passed": true,
+      "pixels": 3072,
+      "device_identity_changed": true,
+      "old_snapshot_retained": true,
+      "full_resync": true,
+      "recoveries": 1,
+      "device_epoch": 1,
+      "redundant_recovery": false
+    },
+    "local_artifacts": "target/local-current-native",
+    "manifest_sha256": "8c0c94f2f9d9d518e3ea904b7fb8390a734ce635c0c8cc7fe102534acfdbd7f6"
+  },
+  "readback": {
+    "metadata.json": {
+      "base_commit": "43d5bc5b0572b61ba598d8894530e0a9bf4cdbd4",
+      "started": "2026-11-12T22:17:36.6929926+08:00",
+      "finished": "2026-11-12T22:17:41.1520036+08:00",
+      "binary_sha256": "706fb30947e9fb1986a90599dee98d94ad999d9cf2974767bd193c3becfdd923",
+      "delivery": false,
+      "readback_control": true,
+      "exit_code": 0,
+      "native_launch": "Start-Process -WindowStyle Hidden; explicit diagnostic draws; visibility reported separately"
+    },
+    "result.json": {
+      "passed": true,
+      "native_framebuffer_pixels": 97792,
+      "channel_tolerance": 1,
+      "cached_scene_equal": true,
+      "device_replacement_pixels": 3072,
+      "device_replacement_passed": true,
+      "benchmark_scope": "owner commit/publication/submission plus completed export; same DX12 consumer, full redraw; native draw/present and sprite upload excluded; GPU export reuses only unowned allocations after producer and native read fence completion"
+    },
+    "native-window.json": {
+      "visible": false,
+      "explicit_scene_draw": true,
+      "framebuffer_readback_for_validation": true,
+      "os_present_latency_measured": false
+    },
+    "present-attempt.json": {
+      "device_epoch": 1,
+      "sequence": 1,
+      "status": 0,
+      "queued": true,
+      "present_call_us": 1304.8999999999999,
+      "display_confirmed": false
+    },
+    "native-device-recovery.json": {
+      "passed": true,
+      "pixels": 3072,
+      "device_identity_changed": true,
+      "old_snapshot_retained": true,
+      "full_resync": true,
+      "recoveries": 1,
+      "device_epoch": 1,
+      "redundant_recovery": false
+    },
+    "local_artifacts": "target/local-current-readback",
+    "manifest_sha256": "8c0c94f2f9d9d518e3ea904b7fb8390a734ce635c0c8cc7fe102534acfdbd7f6"
+  }
+}

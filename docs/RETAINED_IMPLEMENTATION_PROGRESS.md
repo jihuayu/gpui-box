@@ -195,6 +195,21 @@ driver-induced TDR/physical device removal or cross-platform acceptance.
 
 ## Full-goal acceptance tracking
 
+The experimental [local snapshot route](ADR_RETAINED_LOCAL_SNAPSHOT.md) now
+publishes persistent local placement overrides and feeds the normal GPU canvas
+without resolving every moved descendant. A private predecessor identity
+authorizes spatial updates; depth-32 anchors keep shader traversal bounded.
+Skipped bases, unsupported capabilities, opacity/layout/material changes and
+device/surface recovery use complete resolution. The resolved path remains a
+control and vector bridge. Local hit geometry is exact but linear; damage and
+isolated layer extents are currently full viewport. Those costs remain in the
+performance evidence and require local-space indexing/cache follow-up.
+The [two-run local evidence](performance/2026-11-12-local-snapshot/README.md)
+shows 80–93% ancestor completed-work median reductions against the complete
+route, while 120 Hz misses and small-scene tail regressions remain. Dense
+independent updates still exceed 60/120 Hz. This is not visible presentation
+or modern desktop GPU acceptance.
+
 The latest performance priority is modern desktop GPUs at 120 Hz with effects,
 especially p99/max and burst stalls; software rendering prioritizes responsiveness.
 The [frame-budget decision](ADR_RETAINED_FRAME_BUDGET.md) records API consequences
@@ -221,7 +236,7 @@ it does not claim sustained visible 120 fps.
 | Persistent Taffy | Long-lived nodes, style/children setters, owned image/fixed/shaped paragraph snapshots, constraint-dependent wrap, baseline/overflow updates, actual leaf/measure-call and layout-write/net-change counts, root cache and resize handling; optional observed output writes from pinned vendored Taffy | General constraint-dependent custom inputs, paragraph conformance, independent islands, full node visits/cache-hit counters |
 | Paint chunks / property trees | Shared local fill commands and immutable shadow bundles; immutable 64-item paint pages with owned complete-page replacement, sparse partial-page copying, authoritative indexed delta views and original selective-copy controls; selective local material and disjoint property-subtree extraction, indexed node patches/subtree ranges; persistent ordered page-bounds hit index with selective path updates; immutable cached glyph geometry and base-relative backend updates preserving unmodified draws; persistent sparse transform/clip/scroll/effect maps with inherited state, constant-time snapshot cloning and path copying; bulk construction for full extraction; actual-layout-output selective geometry/subtree extraction with stable visibility/order | General stable chunk IDs/store, full affine transforms, incremental visibility/structure/viewport extraction, tighter/adaptive spatial indexing and general hit geometry |
 | GPU arena | Generic CPU allocation table with generations and deferred slot reuse; shared typed WGPU Quad/Shadow/96-byte spatial-node mirrors, geometric growth, range uploads and completion-held replacement buffer/binding leases, including actual overlapping-submission growth checks | General resource/material records, budgets, compaction and other backends |
-| Batch GPU updates | Adjacent upload merging; 96-byte ancestor placement patches and bounded deep-anchor patches with unchanged Quad/Shadow geometry; 10,000-object translation and 10,000-signal color pixel verification; CPU per-signal/coalesced/typed-batch comparison; completed-work redraw A/B | Sustained 60/120Hz animation, general batch/fragmented order throughput and tuning |
+| Batch GPU updates | Adjacent upload merging; 96-byte ancestor placement patches and bounded deep-anchor patches with unchanged Quad/Shadow geometry; 10,000-object translation and 10,000-signal color pixel verification; CPU per-signal/coalesced/typed-batch comparison; completed-work redraw A/B | Sustained tests now cover ancestor and dense independent updates with raw tail/deadline evidence; remaining work is meeting 120Hz, pipelined native visible qualification, general fragmented order throughput and tuning |
 | P2 property / composite | Translation/clip/scroll reuse commands and resolved hit/damage geometry; default Quad/Shadow path shares hierarchical 96-byte GPU placement slots, bounded deep anchors and local primitive geometry with property-driven raster invalidation, stable slot references and correct reparent/removal/reuse; backend-owned indexed shader-parent/finite validation, inverse Quad/Shadow users, transactional preflight and prefix reexposure checks; image and glyph draws share the same hierarchy through ordered content offsets and existing 48/32-byte records, with exact-base input routing, inverse dependencies and retained-bound checks; isolated subtree opacity supports nesting and 16-byte property-only updates | Full affine/complex clips, adoption across other primitive types, remaining resource/order/layer dispatch, other-platform texture import, native presentation/damage qualification and NativeView geometry |
 | Text / images / complex primitives | Solid/decorated quads and rounded-box drop/inset shadows with ordinary typed clicks, clipped ink and persistent 112-byte records; immutable decoded RGBA textures, base-relative image draw updates and reference-counted shared texture ownership; owned uniform-font LTR paragraphs and grayscale glyph masks, four-width chunks, system/font/scale identity, packed R8 pages, persistent 48-byte local glyph ranges, independent 16-byte color / 32-byte local or world property slots, shared content references and adjacent batch merging; typed normal clicks, clip/opacity, CPU blend and lifecycle pixels | Arbitrary paths/general-shape shadows/filters, automatic font subscriptions, robust glyph pressure/compaction, general/rich-text materials; bidi/rich-text/selection/color/subpixel text; image decoding/fit/filter/color/animation/atlas/batching and physical resource budgets |
 | Flex / responsive contract | Opt-in validated Flex subset, separate layout/scale environment, threshold-equality rules, RTL/actual-window resize, bounded fixed content-box queries with dependency rejection | Broad Flex conformance/rounding, full environment subscriptions, constraint builders, general query dependency graph and adaptive structures; indexed rule dispatch |
@@ -235,9 +250,11 @@ application, color/translation route coexistence, shared chunks, inherited
 translation hit testing, persistent-vs-fresh Flex geometry, zero-size viewport,
 subtree removal, slot reuse, invalid viewport/translation and stable child reorder.
 
-Local material/paint publication extracts dirty visible nodes and copies affected
-64-item pages plus the N/64 page directory. Visual properties extract disjoint
-dirty subtrees and copy only modified paths in persistent property maps.
+The resolved compatibility path for local material/paint publication extracts dirty visible nodes and copies affected
+64-item pages plus the N/64 page directory. Resolved visual properties extract disjoint
+dirty subtrees and copy only modified paths in persistent property maps. The
+experimental local snapshot route instead retains unchanged descendants and
+publishes sparse local placement overrides for stable property-only frames.
 Stable-visibility/order layout updates observe actual Taffy output writes and
 extract only changed items or moved/scrolled subtrees. Structural/visibility/order
 and viewport changes still walk all live nodes and rebuild indices. Commands and unchanged pages are

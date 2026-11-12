@@ -315,6 +315,9 @@ impl ReactiveUi {
     pub fn frame(&mut self, viewport: [f32; 2]) -> Result<FramePacket, Error> {
         self.tree.frame(viewport)
     }
+    pub fn local_frame(&mut self, viewport: [f32; 2]) -> Result<local::LocalFrame, Error> {
+        self.tree.local_frame(viewport)
+    }
     pub fn stats(&self) -> ReactiveStats {
         self.stats
     }

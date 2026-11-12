@@ -15,6 +15,7 @@ pub use taffy::style_helpers::{length, percent};
 pub mod arena;
 pub mod frame_queue;
 mod image;
+pub mod local;
 pub mod logical;
 pub mod pacing;
 pub use image::ImageResource;
@@ -364,12 +365,14 @@ pub struct UiTree {
     layout_written: std::collections::BTreeSet<NodeId>,
     geometry_dirty: std::collections::BTreeSet<NodeId>,
     property_dirty: std::collections::BTreeSet<NodeId>,
+    local_dirty: std::collections::BTreeSet<NodeId>,
     paint_subtree_ends: std::collections::HashMap<NodeId, usize>,
     paint_dirty: std::collections::BTreeSet<NodeId>,
     paint_indices: std::collections::HashMap<NodeId, usize>,
     frame_build_policy: FrameBuildPolicy,
     viewport: Option<[f32; 2]>,
     frame: Option<FramePacket>,
+    local_frame: Option<local::LocalFrame>,
 }
 
 #[derive(Default)]
@@ -453,12 +456,14 @@ impl UiTree {
             layout_written: Default::default(),
             geometry_dirty: Default::default(),
             property_dirty: Default::default(),
+            local_dirty: Default::default(),
             paint_subtree_ends: Default::default(),
             paint_dirty: Default::default(),
             paint_indices: Default::default(),
             frame_build_policy: Default::default(),
             viewport: None,
             frame: None,
+            local_frame: None,
         })
     }
 
@@ -467,6 +472,14 @@ impl UiTree {
     }
     /// Most recently published output, including its own committed revision.
     pub fn published_frame(&self) -> Option<&FramePacket> {
+        if let Some(local) = &self.local_frame
+            && self
+                .frame
+                .as_ref()
+                .is_some_and(|frame| local.revision() > frame.revision)
+        {
+            return Some(local.resolved_frame());
+        }
         self.frame.as_ref()
     }
     pub fn style(&self, id: NodeId) -> Result<&Style, Error> {
@@ -801,6 +814,11 @@ impl UiTree {
             }
             if property_changed {
                 self.property_dirty.insert(id);
+                // A local subscriber needs changes since its last snapshot.
+                // Resolved-only users must not accumulate retired generations.
+                if self.local_frame.is_some() {
+                    self.local_dirty.insert(id);
+                }
             }
             if structure_changed {
                 let children = entry.children.expect("changed children");
@@ -1064,6 +1082,7 @@ impl UiTree {
         self.geometry_dirty.clear();
         self.finish_layout_publication();
         self.property_dirty.clear();
+        self.local_dirty.clear();
         self.paint_dirty.clear();
         self.index_paint_items(&frame.items);
         self.dirty = false;

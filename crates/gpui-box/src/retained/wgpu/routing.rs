@@ -34,6 +34,26 @@ pub(super) struct Plan<'a> {
     pub stats: RoutingStats,
 }
 impl Snapshot {
+    pub fn equivalent_scene(&self, frame: &FramePacket) -> bool {
+        self.tree == frame.tree
+            && self.revision == frame.revision
+            && self.properties == frame.properties
+            && self.items.len() == frame.items.len()
+            && self.items.iter().zip(frame.items.iter()).all(|(a, b)| {
+                a.node == b.node
+                    && a.bounds == b.bounds
+                    && a.content_bounds == b.content_bounds
+                    && a.content_offsets == b.content_offsets
+                    && a.clip == b.clip
+                    && a.spatial == b.spatial
+                    && a.properties == b.properties
+                    && a.fill_color == b.fill_color
+                    && a.commands == b.commands
+                    && a.shadows == b.shadows
+                    && a.image == b.image
+                    && a.same_text(b)
+            })
+    }
     pub fn follows(&self, frame: &FramePacket) -> bool {
         frame.updates.follows_snapshot(
             frame,

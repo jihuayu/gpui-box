@@ -1,0 +1,80 @@
+{
+  "passed": true,
+  "core_tests": 144,
+  "shared_example_tests": 11,
+  "hardware_click_test": "passed before journal cleanup; final native delivery passed after cleanup",
+  "clippy": "core retained-only and GPU/perf/native feature configurations passed -D warnings",
+  "regression": {
+    "passed": true,
+    "scenarios": 2011,
+    "pixel_comparisons": 1921,
+    "validation_sha256": "c117ed966b43fb506b1d1002a2e2b7e2acae5e242e5db4240c2a350f77d1c421",
+    "binary_sha256": "541ae1c97b194760472046de5fb50898b19466455eeddd3461035cb86c7cee1d",
+    "adapter": {
+      "name": "NVIDIA GeForce GTX 1650 Ti",
+      "backend": "Vulkan",
+      "driver": "571.96"
+    },
+    "local_artifacts": "target/local-final-full-regression",
+    "command": "target/release/retained-runtime-gpu.exe target/local-final-full-regression --validation-only",
+    "scope": "final journal lifetime cleanup included"
+  },
+  "quick_metadata": {
+    "base_commit": "43d5bc5b0572b61ba598d8894530e0a9bf4cdbd4",
+    "started": "2026-11-12T22:30:46.7278061+08:00",
+    "finished": "2026-11-12T22:31:12.1076200+08:00",
+    "binary_sha256": "045b231650444c351c89c5e33858427c70798cdb586b674b5db3c02c3e37b0b2",
+    "hardware": "NVIDIA GeForce GTX 1650 Ti, 571.96, 4096 MiB",
+    "cpu": [
+      "AMD Ryzen 7 4800H with Radeon Graphics         "
+    ],
+    "runs": 1,
+    "quick": true,
+    "local_snapshot": true,
+    "sources_stable": true,
+    "no_sampled_compiler_or_benchmark_conflicts": true,
+    "scope": "independent OS visual worker to synchronous GPU completion; local mode uses full-viewport isolated layers; excludes native display and physical input"
+  },
+  "quick_paired_cases": 4,
+  "quick_cadence_cases": 12,
+  "quick_all_final_pixels_equal": true,
+  "quick_scope": "1 second per case smoke only; not substituted for formal 10-second tails",
+  "native_delivery": {
+    "passed": true,
+    "platform": "windows",
+    "real_os_worker": true,
+    "real_foreground_executor": true,
+    "native_window": true,
+    "native_window_visible": false,
+    "manual_hidden_draw": true,
+    "automatic_view_renders": 0,
+    "source_messages": 1000,
+    "coalesced": 999,
+    "burst_waker_notifications": 1,
+    "burst_transactions": 1,
+    "burst_computed_evaluations": 1,
+    "burst_effect_runs": 1,
+    "burst_view_renders": 1,
+    "pixel_equal": true,
+    "equal_additional_view_renders": 0,
+    "initial_idle_ms": 250,
+    "post_update_idle_ms": 250,
+    "completion_retired_without_new_frame": true,
+    "completion_frame_leases": 0,
+    "completion_gpu_leases": 0,
+    "completion_extra_view_renders": 0,
+    "completion_idle_counters_stable_ms": 250,
+    "worker_to_delayed_check_us": 598488,
+    "timing_note": "Includes deliberate 150ms diagnostic wait; not wake or input latency. Hidden window draw is explicit, not automatic presentation. Idle checks count view renders and driver work, not OS process wakeups or energy."
+  },
+  "native_metadata": {
+    "base_commit": "43d5bc5b0572b61ba598d8894530e0a9bf4cdbd4",
+    "started": "2026-11-12T22:31:14.3807004+08:00",
+    "finished": "2026-11-12T22:31:19.5175850+08:00",
+    "binary_sha256": "82abe893f610f5ffed14cb971c0950109786e787e4bc938c47d9d9af31becf31",
+    "delivery": true,
+    "readback_control": false,
+    "exit_code": 0,
+    "native_launch": "Start-Process -WindowStyle Hidden; explicit diagnostic draws; visibility reported separately"
+  }
+}

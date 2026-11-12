@@ -159,6 +159,9 @@ impl LogicalUi {
     pub fn frame(&mut self, viewport: [f32; 2]) -> Result<FramePacket, Error> {
         self.ui.frame(viewport)
     }
+    pub fn local_frame(&mut self, viewport: [f32; 2]) -> Result<local::LocalFrame, Error> {
+        self.ui.local_frame(viewport)
+    }
     pub fn children(&self, scope: ScopeId) -> Result<&[ScopeId], Error> {
         Ok(&self.scope(scope)?.children)
     }

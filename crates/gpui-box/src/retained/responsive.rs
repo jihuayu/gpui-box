@@ -231,6 +231,60 @@ pub struct ResponsiveFrame {
 }
 
 impl ResponsiveBindings {
+    /// Resolve style rules through the same bounded layout contract, then
+    /// publish local placement. Stable property-only frames never materialize
+    /// descendant world geometry just to inspect fixed container widths.
+    pub fn local_frame(
+        &mut self,
+        ui: &mut LogicalUi,
+        environment: &LayoutEnvironment,
+    ) -> Result<local::LocalFrame, Error> {
+        environment.validate()?;
+        self.bindings.retain(|binding| {
+            ui.read(binding.source).is_ok() && ui.reactive().tree().node(binding.target).is_ok()
+        });
+        for binding in &self.bindings {
+            self.validate_query(ui.reactive().tree(), binding.target, binding.query)?;
+        }
+        let viewport = self
+            .bindings
+            .iter()
+            .filter(|binding| matches!(binding.query, StyleQuery::ViewportInline))
+            .map(|binding| {
+                (
+                    binding.source,
+                    binding
+                        .styles
+                        .select(environment.layout_viewport[0], environment.direction),
+                )
+            })
+            .collect();
+        Self::apply(ui, viewport)?;
+        let before = ui.local_frame(environment.layout_viewport)?;
+        let tree = ui.reactive().tree();
+        let mut containers = vec![];
+        for binding in &self.bindings {
+            if let StyleQuery::ContainerInline(container) = binding.query {
+                let layout = tree.layout.layout(tree.node(container)?.layout)?;
+                let width = (layout.size.width
+                    - layout.padding.left
+                    - layout.padding.right
+                    - layout.border.left
+                    - layout.border.right
+                    - layout.scrollbar_size.width)
+                    .max(0.0);
+                containers.push((
+                    binding.source,
+                    binding.styles.select(width, environment.direction),
+                ));
+            }
+        }
+        if Self::apply(ui, containers)? > 0 {
+            ui.local_frame(environment.layout_viewport)
+        } else {
+            Ok(before)
+        }
+    }
     pub fn new() -> Self {
         Self::default()
     }

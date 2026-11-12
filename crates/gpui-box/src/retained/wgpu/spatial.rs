@@ -1,11 +1,12 @@
 //! Shared GPU placement slots with bounded root-to-leaf shader walks.
 use super::*;
+use std::collections::HashMap;
 
 #[derive(Default)]
 pub(super) struct SpatialArena {
     arena: InstanceArena<gpui_wgpu::SpatialNode>,
-    nodes: BTreeMap<NodeId, (InstanceHandle, u32)>,
-    parents: BTreeMap<NodeId, Option<NodeId>>,
+    nodes: HashMap<NodeId, (InstanceHandle, u32)>,
+    parents: HashMap<NodeId, Option<NodeId>>,
     cleared: Vec<gpui_wgpu::InstanceWrite<gpui_wgpu::SpatialNode>>,
 }
 impl SpatialArena {

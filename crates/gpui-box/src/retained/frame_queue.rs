@@ -2,6 +2,65 @@
 use super::*;
 use std::sync::Mutex;
 
+/// A single pending immutable local snapshot. Same source/revision ordering as
+/// the resolved mailbox, without forcing world-geometry materialization.
+#[derive(Default)]
+pub struct LocalFrameQueue {
+    state: Mutex<LocalState>,
+}
+#[derive(Default)]
+struct LocalState {
+    source: Option<u64>,
+    revision: Option<u64>,
+    pending: Option<local::LocalFrame>,
+    stats: FrameQueueStats,
+}
+impl LocalFrameQueue {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn publish(&self, frame: local::LocalFrame) -> Result<bool, Error> {
+        let mut state = self.state.lock().map_err(|_| Error::FrameQueuePoisoned)?;
+        if state.source.is_some_and(|tree| tree != frame.tree()) {
+            return Err(Error::InvalidFrame);
+        }
+        if state
+            .revision
+            .is_some_and(|revision| revision > frame.revision())
+        {
+            return Err(Error::StaleFrame);
+        }
+        if state.revision == Some(frame.revision()) {
+            state.stats.equal += 1;
+            return Ok(false);
+        }
+        let wake = state.pending.is_none();
+        state.source = Some(frame.tree());
+        state.revision = Some(frame.revision());
+        state.pending = Some(frame);
+        state.stats.published += 1;
+        state.stats.coalesced += u64::from(!wake);
+        state.stats.pending = 1;
+        Ok(wake)
+    }
+    pub fn take_latest(&self) -> Result<Option<local::LocalFrame>, Error> {
+        let mut state = self.state.lock().map_err(|_| Error::FrameQueuePoisoned)?;
+        let frame = state.pending.take();
+        if frame.is_some() {
+            state.stats.consumed += 1;
+            state.stats.pending = 0;
+        }
+        Ok(frame)
+    }
+    pub fn stats(&self) -> Result<FrameQueueStats, Error> {
+        Ok(self
+            .state
+            .lock()
+            .map_err(|_| Error::FrameQueuePoisoned)?
+            .stats)
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct FrameQueueStats {
     pub published: u64,
