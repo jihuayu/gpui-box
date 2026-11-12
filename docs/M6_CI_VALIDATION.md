@@ -210,6 +210,9 @@ and inspecting both APKs. The emulator runner action uses a fixed commit and KVM
 on Ubuntu24.04. SwiftShader supplies software Vulkan rendering. Emulator and
 system-image package versions follow the recorded SDK tuple. Animations remain
 enabled for the IME/back cases, with snapshots disabled and 4096MiB RAM.
+KVM setup waits for udev events, requires the character device, applies access
+permissions to the ephemeral runner device and records its effective identity
+and permissions before startup.
 The SDK package configuration and emulator invocation follow the upstream
 runner and Android graphics documentation.
 

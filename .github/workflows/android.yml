@@ -76,7 +76,14 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-          test -r /dev/kvm && test -w /dev/kvm
+          sudo udevadm settle --timeout=30
+          test -c /dev/kvm
+          sudo chmod 0666 /dev/kvm
+          {
+            id
+            stat /dev/kvm
+            test -r /dev/kvm && test -w /dev/kvm
+          } 2>&1 | tee target/ci/kvm.txt
       - name: Run the full API35 emulator suite
         timeout-minutes: 20
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
