@@ -2205,6 +2205,7 @@ dependencies = [
  "gpui-notifications",
  "gpui-permissions",
  "gpui-power",
+ "gpui-push",
  "gpui-secrets",
  "gpui-sharing",
  "gpui-system",
@@ -2427,6 +2428,21 @@ dependencies = [
  "gpui-system",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "gpui-push"
+version = "0.1.0-dev"
+dependencies = [
+ "gpui",
+ "gpui-app-data",
+ "gpui-permissions",
+ "gpui-secrets",
+ "gpui-system",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
 ]
 
 [[package]]
