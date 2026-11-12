@@ -9,6 +9,10 @@ use std::{
 };
 pub type RetainedImage = image::RgbaImage;
 mod allocation_budget;
+#[cfg(target_os = "windows")]
+mod native_surface;
+#[cfg(target_os = "windows")]
+pub use native_surface::NativeSurfaceStats;
 mod completion;
 pub use completion::{CompletionReceiver, CompletionStats};
 mod glyphs;
@@ -123,6 +127,8 @@ struct Flight {
 
 pub struct RetainedQuadRenderer {
     renderer: WgpuHeadlessRenderer,
+    #[cfg(target_os = "windows")]
+    native_surface: Option<native_surface::Bridge>,
     quads: PersistentStorage<Quad>,
     shadows: PersistentStorage<gpui::Shadow>,
     spatial: spatial::SpatialCache,
@@ -151,7 +157,11 @@ impl RetainedQuadRenderer {
             (1..=8).contains(&max_in_flight),
             "max_in_flight must be 1..=8"
         );
-        let renderer = WgpuHeadlessRenderer::new()?;
+        Self::from_renderer(WgpuHeadlessRenderer::new()?, max_in_flight)
+    }
+
+    fn from_renderer(renderer: WgpuHeadlessRenderer, max_in_flight: usize) -> Result<Self> {
+        anyhow::ensure!((1..=8).contains(&max_in_flight), "max_in_flight must be 1..=8");
         anyhow::ensure!(
             renderer.context.adapter.get_info().device_type != wgpu::DeviceType::Cpu,
             "hardware GPU required"
@@ -168,6 +178,8 @@ impl RetainedQuadRenderer {
         let glyphs = glyphs::GlyphCache::new(&renderer, layers.camera_layout(), &spatial.layout);
         Ok(Self {
             renderer,
+            #[cfg(target_os = "windows")]
+            native_surface: None,
             quads,
             shadows,
             spatial,
@@ -229,6 +241,14 @@ impl RetainedQuadRenderer {
 
     /// Observational: completion must be collected before retired leases leave.
     pub fn layer_memory(&self) -> LayerMemoryStats { self.layers.memory() }
+
+    pub fn recreate(&self, max_in_flight: usize) -> Result<Self> {
+        #[cfg(target_os = "windows")]
+        if let Some(bridge) = &self.native_surface {
+            return Self::new_for_windows_device(bridge.device().clone(), max_in_flight);
+        }
+        Self::new(max_in_flight)
+    }
 
     pub fn adapter_info(&self) -> wgpu::AdapterInfo {
         self.renderer.context.adapter.get_info()
@@ -643,6 +663,8 @@ impl RetainedQuadRenderer {
 
     /// Wait for submitted work without a texture readback.
     pub fn finish(&mut self) -> Result<u64> {
+        #[cfg(target_os = "windows")]
+        if let Some(bridge) = &mut self.native_surface { bridge.finish(&self.renderer)?; }
         if let Some(latest) = self.flights.back() {
             self.renderer.context.device.poll(wgpu::PollType::Wait {
                 submission_index: Some(latest.submission.clone()),
@@ -658,11 +680,12 @@ impl RetainedQuadRenderer {
         Ok(image)
     }
 
-    /// Readback bridge for existing window paint; direct texture import is pending.
+    /// Readback bridge for the legacy straight-alpha BGRA sprite path.
     pub fn window_image(&mut self) -> Result<Arc<gpui::RenderImage>> {
         let mut image = self.image()?;
         for pixel in image.pixels_mut() {
-            pixel.0.swap(0, 2);
+            if pixel.0[3] == 255 { pixel.0.swap(0, 2); }
+            else { gpui::swap_rgba_pa_to_bgra(&mut pixel.0); }
         }
         Ok(Arc::new(gpui::RenderImage::new(vec![image::Frame::new(
             image,

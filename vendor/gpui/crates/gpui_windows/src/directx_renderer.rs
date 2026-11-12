@@ -92,6 +92,7 @@ struct DirectXRenderPipelines {
     mono_sprites: PipelineState<MonochromeSprite>,
     subpixel_sprites: PipelineState<SubpixelSprite>,
     poly_sprites: PipelineState<PolychromeSprite>,
+    gpu_surfaces: PipelineState<PolychromeSprite>,
 }
 
 struct DirectXGlobalElements {
@@ -195,6 +196,10 @@ impl DirectXRenderer {
             height: 1,
             skip_draws: false,
         })
+    }
+
+    pub(crate) fn gpu_surface_device(&self) -> Option<ID3D11Device> {
+        self.devices.as_ref().map(|devices| devices.device.clone())
     }
 
     pub(crate) fn sprite_atlas(&self) -> Arc<dyn PlatformAtlas> {
@@ -814,8 +819,29 @@ impl DirectXRenderer {
     }
 
     fn draw_surfaces(&mut self, surfaces: &[PaintSurface]) -> Result<()> {
-        if surfaces.is_empty() {
-            return Ok(());
+        let devices = self.devices.as_ref().context("devices missing")?;
+        let context: ID3D11DeviceContext4 = devices.device_context.cast()?;
+        for surface in surfaces {
+            let source = &surface.gpu_surface;
+            anyhow::ensure!(source.belongs_to(&devices.device), "GPU surface belongs to an old or different device");
+            unsafe { context.Wait(source.ready_fence(), source.ready_value())?; }
+            let [width, height] = source.size();
+            let sprite = PolychromeSprite {
+                order: 0, pad: 0, grayscale: false.into(), opacity: 1.0,
+                bounds: surface.bounds, content_mask: surface.content_mask, corner_radii: Corners::default(),
+                tile: AtlasTile {
+                    texture_id: AtlasTextureId { index: 0, kind: AtlasTextureKind::Polychrome },
+                    tile_id: TileId(0), padding: 0,
+                    bounds: Bounds { origin: Point::default(), size: size(DevicePixels(width as i32), DevicePixels(height as i32)) },
+                },
+            };
+            self.pipelines.gpu_surfaces.update_buffer(&devices.device, &devices.device_context, &[sprite])?;
+            update_batch_start(&devices.device_context, self.globals.batch_params_buffer.as_ref().context("batch buffer missing")?, 0)?;
+            self.pipelines.gpu_surfaces.draw_with_texture(
+                &devices.device_context, &[Some(source.texture_view().clone())],
+                slice::from_ref(&self.globals.sampler), 1,
+            )?;
+            source.signal_read_complete(&context)?;
         }
         Ok(())
     }
@@ -998,6 +1024,10 @@ impl DirectXRenderPipelines {
             create_blend_state(device)?,
         )?;
 
+        let gpu_surfaces = PipelineState::new(
+            device, "gpu_surface_pipeline", ShaderModule::GpuSurface, 1,
+            create_premultiplied_blend_state(device)?,
+        )?;
         Ok(Self {
             shadow_pipeline,
             quad_pipeline,
@@ -1007,6 +1037,7 @@ impl DirectXRenderPipelines {
             mono_sprites,
             subpixel_sprites,
             poly_sprites,
+            gpu_surfaces,
         })
     }
 }
@@ -1492,6 +1523,21 @@ fn set_rasterizer_state(device: &ID3D11Device, device_context: &ID3D11DeviceCont
 
 // https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ns-d3d11-d3d11_blend_desc
 #[inline]
+fn create_premultiplied_blend_state(device: &ID3D11Device) -> Result<ID3D11BlendState> {
+    let mut desc = D3D11_BLEND_DESC::default();
+    desc.RenderTarget[0].BlendEnable = true.into();
+    desc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+    desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+    desc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+    desc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+    desc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+    desc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+    desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL.0 as u8;
+    let mut state = None;
+    unsafe { device.CreateBlendState(&desc, Some(&mut state))?; }
+    state.context("creating premultiplied blend state")
+}
+
 fn create_blend_state(device: &ID3D11Device) -> Result<ID3D11BlendState> {
     let mut desc = D3D11_BLEND_DESC::default();
     desc.RenderTarget[0].BlendEnable = true.into();
@@ -1716,6 +1762,7 @@ pub(crate) mod shader_resources {
         MonochromeSprite,
         SubpixelSprite,
         PolychromeSprite,
+        GpuSurface,
     }
 
     #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -1784,6 +1831,10 @@ pub(crate) mod shader_resources {
                 ShaderModule::SubpixelSprite => match target {
                     ShaderTarget::Vertex => SUBPIXEL_SPRITE_VERTEX_BYTES,
                     ShaderTarget::Fragment => SUBPIXEL_SPRITE_FRAGMENT_BYTES,
+                },
+                ShaderModule::GpuSurface => match target {
+                    ShaderTarget::Vertex => GPU_SURFACE_VERTEX_BYTES,
+                    ShaderTarget::Fragment => GPU_SURFACE_FRAGMENT_BYTES,
                 },
                 ShaderModule::PolychromeSprite => match target {
                     ShaderTarget::Vertex => POLYCHROME_SPRITE_VERTEX_BYTES,
@@ -1869,6 +1920,7 @@ pub(crate) mod shader_resources {
                 ShaderModule::MonochromeSprite => "monochrome_sprite",
                 ShaderModule::SubpixelSprite => "subpixel_sprite",
                 ShaderModule::PolychromeSprite => "polychrome_sprite",
+                ShaderModule::GpuSurface => "gpu_surface",
             }
         }
     }

@@ -287,8 +287,15 @@ pub struct WgpuFrameRenderer {
 
 impl WgpuFrameRenderer {
     pub fn new(max_in_flight: usize) -> Result<Self, Error> {
+        Self::with_backend(
+            RetainedQuadRenderer::new(max_in_flight).map_err(gpu_error)?,
+            max_in_flight,
+        )
+    }
+
+    fn with_backend(backend: RetainedQuadRenderer, max_in_flight: usize) -> Result<Self, Error> {
         Ok(Self {
-            backend: RetainedQuadRenderer::new(max_in_flight).map_err(gpu_error)?,
+            backend,
             arena: InstanceArena::default(),
             shadow_arena: InstanceArena::default(),
             spatial_arena: SpatialArena::default(),
@@ -317,6 +324,32 @@ impl WgpuFrameRenderer {
             cache_validation: true,
             resource_deltas: true,
         })
+    }
+
+    /// Creates a consumer that can share immutable GPU snapshots with this window.
+    /// Platforms without this facility retain the existing readback adapter.
+    pub fn new_for_window(window: &gpui::Window, max_in_flight: usize) -> Result<Self, Error> {
+        #[cfg(target_os = "windows")]
+        if let Some(device) = window.gpu_surface_device() {
+            return Self::with_backend(
+                RetainedQuadRenderer::new_for_windows_device(device, max_in_flight)
+                    .map_err(gpu_error)?,
+                max_in_flight,
+            );
+        }
+        let _ = window;
+        Self::new(max_in_flight)
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn native_surface_stats(&self) -> Option<gpui_wgpu::NativeSurfaceStats> {
+        self.backend.native_surface_stats()
+    }
+
+    /// Returns a retained immutable native texture, without readback or CPU wait.
+    #[cfg(target_os = "windows")]
+    pub fn window_surface(&mut self) -> Result<Option<gpui::WindowsGpuSurface>, Error> {
+        self.backend.window_surface().map_err(gpu_error)
     }
 
     pub fn adapter_info(&self) -> gpui_wgpu::wgpu::AdapterInfo {
@@ -907,7 +940,12 @@ impl WgpuFrameRenderer {
 
     /// A new device allocation epoch starts from a full immutable snapshot.
     pub fn reset(&mut self) -> Result<(), Error> {
-        let mut replacement = Self::new(self.max_in_flight)?;
+        let mut replacement = Self::with_backend(
+            self.backend
+                .recreate(self.max_in_flight)
+                .map_err(gpu_error)?,
+            self.max_in_flight,
+        )?;
         replacement.latest = self.latest;
         replacement.retired_sources = self.retired_sources.clone();
         replacement.policy = self.policy;

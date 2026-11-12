@@ -1,0 +1,31 @@
+   Compiling windows v0.62.2
+warning: linker stdout: 正在创建库 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\release\build\ztracing_macro/6eb23f79695dd41b\out\ztracing_macro-dc71a7ca94a7eca9.dll.lib 和对象 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\release\build\ztracing_macro/6eb23f79695dd41b\out\ztracing_macro-dc71a7ca94a7eca9.dll.exp
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `ztracing_macro` (lib) generated 1 warning
+warning: linker stdout: 正在创建库 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\release\build\derive_refineable/77bf108187bda48b\out\derive_refineable-c5105e4f0aa12865.dll.lib 和对象 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\release\build\derive_refineable/77bf108187bda48b\out\derive_refineable-c5105e4f0aa12865.dll.exp
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+   Compiling gpui v0.2.2 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\gpui)
+warning: `derive_refineable` (lib) generated 1 warning
+   Compiling scheduler v0.1.0 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\scheduler)
+   Compiling http_client v0.1.0 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\http_client)
+   Compiling collections v0.1.0 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\collections)
+warning: linker stdout: 正在创建库 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\release\build\gpui_macros/1b4f6d65ef10a743\out\gpui_macros-a027f7b9e7c3e239.dll.lib 和对象 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\release\build\gpui_macros/1b4f6d65ef10a743\out\gpui_macros-a027f7b9e7c3e239.dll.exp
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `gpui_macros` (lib) generated 1 warning
+   Compiling gpu-allocator v0.28.0
+   Compiling wgpu-hal v30.0.0 (https://github.com/gfx-rs/wgpu?rev=cddb2f5d80dc0009b2ef6767635140cacf90a007#cddb2f5d)
+   Compiling wgpu-core-deps-windows v30.0.0 (https://github.com/gfx-rs/wgpu?rev=cddb2f5d80dc0009b2ef6767635140cacf90a007#cddb2f5d)
+   Compiling wgpu-core v30.0.0 (https://github.com/gfx-rs/wgpu?rev=cddb2f5d80dc0009b2ef6767635140cacf90a007#cddb2f5d)
+   Compiling wgpu v30.0.0 (https://github.com/gfx-rs/wgpu?rev=cddb2f5d80dc0009b2ef6767635140cacf90a007#cddb2f5d)
+   Compiling gpui_wgpu v0.1.0 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\gpui_wgpu)
+   Compiling gpui-box v0.1.0-dev (D:\oss\ggpui-worktrees\rendering-performance-research\crates\gpui-box)
+   Compiling gpui-box-rendering-perf v0.1.0-dev (D:\oss\ggpui-worktrees\rendering-performance-research\tooling\rendering-perf)
+    Finished `release` profile [optimized] target(s) in 3m 35s
+Integrated retained GPU Vulkan NVIDIA GeForce GTX 1650 Ti
+1939 hardware scenarios passed (1849 pixel comparisons); one-color bytes=160, batch bytes=480 in one range; bounded frames=3

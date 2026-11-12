@@ -12,6 +12,21 @@ use std::{cell::RefCell, rc::Rc};
 #[cfg(feature = "retained-wgpu")]
 pub(super) mod delivery_check;
 
+enum WindowRaster {
+    Vector,
+    #[cfg(feature = "retained-wgpu")]
+    Image(std::sync::Arc<RenderImage>),
+    #[cfg(all(feature = "retained-wgpu", target_os = "windows"))]
+    Gpu(WindowsGpuSurface),
+}
+
+#[cfg(feature = "retained-wgpu")]
+impl WindowRaster {
+    fn image(&self) -> Option<std::sync::Arc<RenderImage>> {
+        match self { Self::Image(image) => Some(image.clone()), _ => None }
+    }
+}
+
 pub struct RetainedDemo {
     tree: Rc<RefCell<LogicalUi>>,
     responsive: Rc<RefCell<ResponsiveBindings>>,
@@ -39,6 +54,8 @@ pub struct RetainedDemo {
     draft_effects: Rc<std::cell::Cell<usize>>,
     draft_cleanups: Rc<std::cell::Cell<usize>>,
     render_count: usize,
+    #[cfg(all(feature = "native-check", target_os = "windows"))]
+    canvas_bounds: Rc<std::cell::Cell<Option<Bounds<DevicePixels>>>>,
     #[cfg(feature = "retained-wgpu")]
     gpu: Option<Rc<RefCell<gpui_box::retained::wgpu::WgpuFrameRenderer>>>,
     #[cfg(feature = "retained-wgpu")]
@@ -460,6 +477,8 @@ impl RetainedDemo {
             draft_effects: Rc::new(std::cell::Cell::new(0)),
             draft_cleanups: Rc::new(std::cell::Cell::new(0)),
             render_count: 0,
+            #[cfg(all(feature = "native-check", target_os = "windows"))]
+            canvas_bounds: Rc::new(std::cell::Cell::new(None)),
             #[cfg(feature = "retained-wgpu")]
             gpu: None,
             #[cfg(feature = "retained-wgpu")]
@@ -473,8 +492,18 @@ impl RetainedDemo {
         }
     }
 
-    #[cfg(feature = "retained-wgpu")]
+    #[cfg(all(feature = "retained-wgpu", test))]
     pub fn with_gpu(cx: &mut Context<Self>) -> Self {
+        Self::with_renderer(cx, gpui_box::retained::wgpu::WgpuFrameRenderer::new(3).expect("create GPU frame consumer"))
+    }
+
+    #[cfg(feature = "retained-wgpu")]
+    pub fn with_gpu_for_window(window: &Window, cx: &mut Context<Self>) -> Self {
+        Self::with_renderer(cx, gpui_box::retained::wgpu::WgpuFrameRenderer::new_for_window(window, 3).expect("create native GPU frame consumer"))
+    }
+
+    #[cfg(feature = "retained-wgpu")]
+    fn with_renderer(cx: &mut Context<Self>, renderer: gpui_box::retained::wgpu::WgpuFrameRenderer) -> Self {
         let mut view = Self::new(cx);
         view.tree
             .borrow_mut()
@@ -482,7 +511,7 @@ impl RetainedDemo {
                 solid_color_patch: true,
             });
         view.gpu = Some(Rc::new(RefCell::new(
-            gpui_box::retained::wgpu::WgpuFrameRenderer::new(3).expect("create GPU frame consumer"),
+            renderer,
         )));
         let gpu = view.gpu.as_ref().unwrap();
         let mut completions = gpu
@@ -521,6 +550,8 @@ impl Render for RetainedDemo {
         let rasterizer = self.rasterizer.clone();
         let text_signal = self.text;
         let responsive = self.responsive.clone();
+        #[cfg(all(feature = "native-check", target_os = "windows"))]
+        let canvas_bounds = self.canvas_bounds.clone();
         #[cfg(feature = "retained-wgpu")]
         let gpu = self.gpu.clone();
         #[cfg(feature = "retained-wgpu")]
@@ -831,6 +862,13 @@ impl Render for RetainedDemo {
                         #[cfg(feature = "retained-wgpu")]
                         if let Some(gpu) = &gpu {
                             let scale = _window.scale_factor();
+                            #[cfg(target_os = "windows")]
+                            let physical = _window.gpu_surface_bounds(bounds);
+                            #[cfg(all(feature = "native-check", target_os = "windows"))]
+                            canvas_bounds.set(Some(physical));
+                            #[cfg(target_os = "windows")]
+                            let surface = [physical.size.width.0.max(1) as u32, physical.size.height.0.max(1) as u32];
+                            #[cfg(not(target_os = "windows"))]
                             let surface = [
                                 (f32::from(bounds.size.width) * scale).ceil().max(1.0) as u32,
                                 (f32::from(bounds.size.height) * scale).ceil().max(1.0) as u32,
@@ -845,33 +883,37 @@ impl Render for RetainedDemo {
                             }
                         }
                         #[cfg(feature = "retained-wgpu")]
-                        let raster = gpu
-                            .as_ref()
-                            .filter(|_| !frame.properties.effects.is_empty() || frame.items.iter().any(|item| item.image.is_some() || item.text.is_some()))
-                            .map(|gpu| {
-                                gpu.borrow_mut()
-                                    .window_image()
-                                    .expect("read isolated groups for window paint")
-                            });
+                        let raster = if let Some(gpu) = &gpu {
+                            let mut gpu = gpu.borrow_mut();
+                            #[cfg(target_os = "windows")]
+                            let native = if std::env::var_os("GPUI_RETAINED_READBACK").is_none() {
+                                gpu.window_surface().expect("export native GPU snapshot")
+                            } else { None };
+                            #[cfg(target_os = "windows")]
+                            if let Some(surface) = native { WindowRaster::Gpu(surface) }
+                            else { WindowRaster::Image(gpu.window_image().expect("read GPU window image")) }
+                            #[cfg(not(target_os = "windows"))]
+                            { WindowRaster::Image(gpu.window_image().expect("read GPU window image")) }
+                        } else { WindowRaster::Vector };
                         #[cfg(feature = "retained-wgpu")]
-                        if let Some(previous) = presented_image.replace(raster.clone())
-                            && raster.as_ref().is_none_or(|image| image.id != previous.id)
+                        if let Some(previous) = presented_image.replace(raster.image())
+                            && raster.image().as_ref().is_none_or(|image| image.id != previous.id)
                         {
                             _window
                                 .drop_image(previous)
                                 .expect("retire previous readback image");
                         }
                         #[cfg(not(feature = "retained-wgpu"))]
-                        let raster: Option<std::sync::Arc<RenderImage>> = None;
+                        let raster = WindowRaster::Vector;
                         let mut cache = image_cache.borrow_mut();
-                        let live:std::collections::BTreeSet<_> = frame.items.iter().filter_map(|item| item.image.as_ref().map(ImageResource::id)).collect();
+                        let live:std::collections::BTreeSet<_> = frame.items.iter().filter(|_| matches!(raster, WindowRaster::Vector)).filter_map(|item| item.image.as_ref().map(ImageResource::id)).collect();
                         let retired:Vec<_> = cache.keys().filter(|id| !live.contains(id)).copied().collect();
                         for id in retired {
                             if let Some(image) = cache.remove(&id) {
                                 _window.drop_image(image).expect("retire decoded image sprite");
                             }
                         }
-                        for resource in frame.items.iter().filter_map(|item| item.image.as_ref()) {
+                        for resource in frame.items.iter().filter(|_| matches!(raster, WindowRaster::Vector)).filter_map(|item| item.image.as_ref()) {
                             cache.entry(resource.id()).or_insert_with(|| {
                                 let mut bgra = resource.pixels().to_vec();
                                 for pixel in bgra.as_chunks_mut::<4>().0 {pixel.swap(0,2);}
@@ -882,8 +924,14 @@ impl Render for RetainedDemo {
                         }
                         (frame, raster, cache.clone())
                     },
-                    |bounds, (frame, raster, images), window, _| {
-                        if let Some(raster) = raster {
+                    |bounds, (frame, _raster, images), window, _| {
+                        #[cfg(all(feature = "retained-wgpu", target_os = "windows"))]
+                        if let WindowRaster::Gpu(surface) = &_raster {
+                            window.paint_gpu_surface(bounds, surface.clone());
+                            return;
+                        }
+                        #[cfg(feature = "retained-wgpu")]
+                        if let WindowRaster::Image(raster) = _raster {
                             window
                                 .paint_image(bounds, bounds, Corners::default(), raster, 0, false)
                                 .expect("paint isolated groups");

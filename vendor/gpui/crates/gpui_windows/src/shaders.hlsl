@@ -1266,3 +1266,11 @@ float4 polychrome_sprite_fragment(PolychromeSpriteFragmentInput input): SV_Targe
     color.a *= sprite.opacity * saturate(0.5 - distance);
     return color;
 }
+
+PolychromeSpriteVertexOutput gpu_surface_vertex(uint vertex_id: SV_VertexID, uint instance_id: SV_InstanceID) {
+    return polychrome_sprite_vertex(vertex_id, instance_id);
+}
+float4 gpu_surface_fragment(PolychromeSpriteFragmentInput input): SV_Target {
+    PolychromeSprite sprite = poly_sprites[input.sprite_id];
+    return t_sprite.Sample(s_sprite, input.tile_position) * saturate(0.5 - quad_sdf(input.position.xy, sprite.bounds, sprite.corner_radii));
+}

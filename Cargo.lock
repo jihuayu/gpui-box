@@ -2078,6 +2078,7 @@ version = "0.1.0-dev"
 dependencies = [
  "gpui",
  "gpui-box",
+ "gpui_platform",
  "gpui_wgpu",
  "image",
  "unicode-segmentation",
@@ -2255,6 +2256,7 @@ dependencies = [
  "gpui_linux",
  "gpui_macos",
  "gpui_web",
+ "gpui_wgpu",
  "gpui_windows",
 ]
 
@@ -2326,6 +2328,7 @@ dependencies = [
  "unicode-segmentation",
  "web-sys",
  "wgpu",
+ "windows 0.62.2",
  "zed-font-kit",
 ]
 

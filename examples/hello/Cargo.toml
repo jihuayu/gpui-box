@@ -7,9 +7,11 @@ publish.workspace = true
 
 [features]
 retained-wgpu = ["gpui-box/retained-wgpu"]
+native-check = ["retained-wgpu", "gpui/test-support", "dep:gpui_platform", "gpui_platform/test-support"]
 
 [dependencies]
 gpui.workspace = true
+gpui_platform = { workspace = true, optional = true }
 gpui-box = { workspace = true, features = ["retained", "retained-text"] }
 unicode-segmentation = "1.12"
 image = { version = "0.25.10", default-features = false }

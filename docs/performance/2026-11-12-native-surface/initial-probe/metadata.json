@@ -1,0 +1,6 @@
+{
+  "source_base": "af4253c",
+  "binary_sha256": "e3dd443d0ac1f3c43045caf1edda4248cf1a691497cd5d47c4a96e66cf42487b",
+  "source_count": 134,
+  "scope": "Exploratory immutable allocation-per-frame prototype, before pooling. No process sampler; all raw samples retained. Native framebuffer validation passed; export timing excludes native drawing, presentation and sprite upload."
+}

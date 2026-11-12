@@ -1,0 +1,26 @@
+{
+  "source_base": "af4253c",
+  "binary_sha256": "31896790ba8f3031fba49e7b133d9038878946fccdd185d691a93a59487fdd19",
+  "selected_sources_per_native_run": 123,
+  "native_runs": 3,
+  "delivery_runs": 2,
+  "source_manifests_verified": 5,
+  "source_zips_verified": [
+    "source.zip",
+    "initial-probe/source.zip"
+  ],
+  "native_scenarios_per_run": {
+    "fixture_pixels_including_readback_controls": 97792,
+    "stress_frames": 40,
+    "stress_pixels": 122880
+  },
+  "normal_canvas_pixels_per_delivery": 107136,
+  "full_gpu_scenarios": 1939,
+  "full_gpu_pixel_comparisons": 1849,
+  "core_tests": 135,
+  "gallery_tests": 12,
+  "retained_only_tests": 110,
+  "visible_os_presentation_measured": false,
+  "wgpu_revision": "cddb2f5d80dc0009b2ef6767635140cacf90a007",
+  "wgpu_checkout_tracked_modifications": false
+}

@@ -9,6 +9,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use wgpu::TextureFormat;
 
+#[cfg(all(target_os = "windows", feature = "retained-renderer"))]
+mod native_windows;
+
 #[derive(Clone)]
 pub struct WgpuContext {
     pub instance: wgpu::Instance,

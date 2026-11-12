@@ -18,6 +18,7 @@ use smallvec::SmallVec;
 use windows::{
     Win32::{
         Foundation::*,
+        Graphics::Direct3D11::ID3D11Device,
         Graphics::Dwm::*,
         Graphics::Gdi::*,
         System::{
@@ -1049,6 +1050,10 @@ impl PlatformWindow for WindowsWindow {
             .renderer
             .borrow_mut()
             .render_to_image(scene, self.state.background_appearance.get())
+    }
+
+    fn gpu_surface_device(&self) -> Option<ID3D11Device> {
+        self.state.renderer.borrow().gpu_surface_device()
     }
 
     fn sprite_atlas(&self) -> Arc<dyn PlatformAtlas> {

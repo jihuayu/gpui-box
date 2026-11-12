@@ -1,0 +1,23 @@
+warning: linker stdout: 正在创建库 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\release\build\ztracing_macro/6eb23f79695dd41b\out\ztracing_macro-dc71a7ca94a7eca9.dll.lib 和对象 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\release\build\ztracing_macro/6eb23f79695dd41b\out\ztracing_macro-dc71a7ca94a7eca9.dll.exp
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `ztracing_macro` (lib) generated 1 warning
+warning: linker stdout: 正在创建库 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\release\build\derive_refineable/77bf108187bda48b\out\derive_refineable-c5105e4f0aa12865.dll.lib 和对象 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\release\build\derive_refineable/77bf108187bda48b\out\derive_refineable-c5105e4f0aa12865.dll.exp
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `derive_refineable` (lib) generated 1 warning
+warning: linker stdout: 正在创建库 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\release\build\gpui_macros/1b4f6d65ef10a743\out\gpui_macros-a027f7b9e7c3e239.dll.lib 和对象 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\release\build\gpui_macros/1b4f6d65ef10a743\out\gpui_macros-a027f7b9e7c3e239.dll.exp
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `gpui_macros` (lib) generated 1 warning
+   Compiling gpui v0.2.2 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\gpui)
+   Compiling gpui_windows v0.1.0 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\gpui_windows)
+   Compiling gpui_wgpu v0.1.0 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\gpui_wgpu)
+   Compiling gpui_platform v0.1.0 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\gpui_platform)
+   Compiling gpui-box v0.1.0-dev (D:\oss\ggpui-worktrees\rendering-performance-research\crates\gpui-box)
+   Compiling gpui-box-example-hello v0.1.0-dev (D:\oss\ggpui-worktrees\rendering-performance-research\examples\hello)
+   Compiling gpui-box-example-desktop v0.1.0-dev (D:\oss\ggpui-worktrees\rendering-performance-research\examples\desktop)
+    Finished `release` profile [optimized] target(s) in 1m 33s

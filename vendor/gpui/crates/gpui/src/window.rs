@@ -5423,6 +5423,30 @@ impl Window {
         });
     }
 
+    /// Returns the current native D3D11 device for GPU surface interoperability.
+    #[cfg(target_os = "windows")]
+    pub fn gpu_surface_device(&self) -> Option<windows::Win32::Graphics::Direct3D11::ID3D11Device> {
+        self.platform_window.gpu_surface_device()
+    }
+
+    /// Exact device-pixel rectangle used by the GPU surface painter.
+    #[cfg(target_os = "windows")]
+    pub fn gpu_surface_bounds(&self, bounds: Bounds<Pixels>) -> Bounds<DevicePixels> {
+        self.snap_bounds(bounds).map(|value| DevicePixels(value.0 as i32))
+    }
+
+    /// Paints an immutable, premultiplied GPU snapshot at the current scene order.
+    #[cfg(target_os = "windows")]
+    pub fn paint_gpu_surface(&mut self, bounds: Bounds<Pixels>, gpu_surface: crate::WindowsGpuSurface) {
+        self.invalidator.debug_assert_paint();
+        self.next_frame.scene.insert_primitive(crate::PaintSurface {
+            order: 0,
+            bounds: self.snap_bounds(bounds),
+            content_mask: self.snapped_content_mask(),
+            gpu_surface,
+        });
+    }
+
     /// Removes an image from the sprite atlas.
     pub fn drop_image(&mut self, data: Arc<RenderImage>) -> Result<()> {
         for frame_index in 0..data.frame_count() {

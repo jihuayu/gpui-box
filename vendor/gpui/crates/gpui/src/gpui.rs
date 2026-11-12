@@ -59,6 +59,10 @@ mod text_system;
 mod util;
 mod view;
 mod window;
+#[cfg(target_os = "windows")]
+mod windows_gpu_surface;
+#[cfg(target_os = "windows")]
+pub use windows_gpu_surface::{WindowsGpuSurface, WindowsGpuSurfaceRetirement};
 
 #[cfg(feature = "profiler")]
 mod debug_overlay;

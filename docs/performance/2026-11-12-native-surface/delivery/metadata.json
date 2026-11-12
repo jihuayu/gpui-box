@@ -1,0 +1,10 @@
+{
+  "base_commit": "af4253c09f32fe7a48b2ef2bde962f689e04b74c",
+  "started": "2026-11-12T17:37:30.4299152+08:00",
+  "finished": "2026-11-12T17:37:36.1431999+08:00",
+  "binary_sha256": "31896790ba8f3031fba49e7b133d9038878946fccdd185d691a93a59487fdd19",
+  "delivery": true,
+  "readback_control": false,
+  "exit_code": 0,
+  "native_launch": "Start-Process -WindowStyle Hidden; explicit diagnostic draws; visibility reported separately"
+}

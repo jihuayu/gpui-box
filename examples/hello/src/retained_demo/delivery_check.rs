@@ -8,8 +8,8 @@ use std::{
 
 pub(crate) fn open(cx: &mut App, output: PathBuf) {
     let window = cx
-        .open_window(WindowOptions::default(), |_, cx| {
-            cx.new(RetainedDemo::with_gpu)
+        .open_window(WindowOptions::default(), |window, cx| {
+            cx.new(|cx| RetainedDemo::with_gpu_for_window(window, cx))
         })
         .expect("open source-delivery desktop check");
     let view = window
@@ -49,19 +49,32 @@ pub(crate) fn open(cx: &mut App, output: PathBuf) {
                 // Draw explicitly only for this diagnostic and label that fact.
                 cx.update(|cx| AnyWindowHandle::from(window).update(cx, |_, window, cx| window.draw(cx).clear(cx)).expect("draw hidden diagnostic"));
             }
+            let actual_scale = window.update(cx, |_, window, _| window.scale_factor()).expect("native scale");
             let (after, renders, revision, pixel_equal, source_final, queue) = view.update(cx, |view, _| {
                 let tree = view.tree.borrow();
                 let packet = tree.published_frame().unwrap();
                 let gpu = view.gpu.as_ref().unwrap();
                 let mut gpu = gpu.borrow_mut();
                 let actual = gpu.image().unwrap();
-                // Native scale is reflected by the actual surface dimensions;
-                // use the packet's viewport width resolved by root layout.
-                let root = &packet.items[0];
-                let scale = actual.width() as f32 / root.bounds.width;
+                // Use the actual scale; endpoint snapping may change pixel extent.
+                let scale = actual_scale;
                 let reference = gpu.reference_image(packet, [actual.width(),actual.height()],scale).unwrap();
                 (tree.stats(),view.render_count,packet.revision,actual.as_raw()==reference.as_raw(),view.observed_color.get(),sender.stats().unwrap())
             });
+            #[cfg(all(feature = "native-check", target_os = "windows"))]
+            {
+                let (bounds, expected, native_stats) = view.read_with(cx, |view, _| {
+                    let mut gpu=view.gpu.as_ref().unwrap().borrow_mut();
+                    (view.canvas_bounds.get().unwrap(),gpu.image().unwrap(),gpu.native_surface_stats().unwrap())
+                });
+                let native=cx.update(|cx| AnyWindowHandle::from(window).update(cx, |_, window, _| window.render_to_image()).expect("native framebuffer")).map_err(|e|e.to_string())?;
+                if [bounds.size.width.0 as u32,bounds.size.height.0 as u32] != [expected.width(),expected.height()] {return Err("native canvas dimensions differ".into());}
+                for y in 0..expected.height() {for x in 0..expected.width() {
+                    if native.get_pixel(bounds.origin.x.0 as u32+x,bounds.origin.y.0 as u32+y) != expected.get_pixel(x,y) {return Err(format!("normal native canvas differs at {x},{y}"));}
+                }}
+                native.save(output.with_extension("framebuffer.png")).map_err(|e|e.to_string())?;
+                std::fs::write(output.with_extension("canvas.json"),format!("{{\"pixel_equal\":true,\"pixels\":{},\"native_snapshot_copies\":{},\"native_allocations\":{},\"readback_control\":{}}}\n",expected.width()*expected.height(),native_stats.copies,native_stats.allocations,std::env::var_os("GPUI_RETAINED_READBACK").is_some())).map_err(|e|e.to_string())?;
+            }
             let worker_to_checked_us = start.elapsed().as_micros();
             if after.transactions != before.transactions+1 || after.computed_evaluations != before.computed_evaluations+1 || after.effect_runs != before.effect_runs+1 {
                 return Err("burst was not one computed/effect transaction".into());

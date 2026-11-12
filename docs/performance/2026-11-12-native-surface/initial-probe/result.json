@@ -1,0 +1,1 @@
+{"passed":true,"native_framebuffer_pixels":97792,"max_channel_difference":1,"cached_scene_equal":true,"benchmark_scope":"owner commit/publication/submission plus completed export; same DX12 consumer, full redraw; native draw/present and sprite upload excluded; GPU export allocates an immutable texture each changed frame"}

@@ -10,6 +10,7 @@ publish.workspace = true
 
 [features]
 retained-wgpu = ["gpui-box-example-hello/retained-wgpu"]
+native-check = ["retained-wgpu", "gpui-box-example-hello/native-check"]
 
 [dependencies]
 gpui-box = { workspace = true, features = ["desktop"] }

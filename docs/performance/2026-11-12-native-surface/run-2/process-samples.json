@@ -1,0 +1,25 @@
+{
+  "interval_ms": 500,
+  "samples": [
+    {
+      "at": "2026-11-12T17:37:18.6602953+08:00",
+      "compilers": [],
+      "other_gpu_helpers": []
+    },
+    {
+      "at": "2026-11-12T17:37:19.8040561+08:00",
+      "compilers": [],
+      "other_gpu_helpers": []
+    },
+    {
+      "at": "2026-11-12T17:37:20.9584666+08:00",
+      "compilers": [],
+      "other_gpu_helpers": []
+    },
+    {
+      "at": "2026-11-12T17:37:22.2455807+08:00",
+      "compilers": [],
+      "other_gpu_helpers": []
+    }
+  ]
+}

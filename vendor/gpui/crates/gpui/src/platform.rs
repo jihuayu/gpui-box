@@ -1355,6 +1355,11 @@ pub trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
     fn on_appearance_changed(&self, callback: Box<dyn FnMut()>);
     fn on_button_layout_changed(&self, _callback: Box<dyn FnMut()>) {}
     fn draw(&self, scene: &Scene);
+    /// The current native D3D11 device, if this window supports shared GPU surfaces.
+    #[cfg(target_os = "windows")]
+    fn gpu_surface_device(&self) -> Option<windows::Win32::Graphics::Direct3D11::ID3D11Device> {
+        None
+    }
     fn schedule_frame(&self) {}
     fn sprite_atlas(&self) -> Arc<dyn PlatformAtlas>;
     fn is_subpixel_rendering_supported(&self) -> bool;

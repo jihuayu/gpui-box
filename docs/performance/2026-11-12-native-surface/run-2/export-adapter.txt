@@ -1,0 +1,1 @@
+AdapterInfo { name: "NVIDIA GeForce GTX 1650 Ti", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: "0000:01:00.0", driver: "32.0.15.7196", driver_info: "", backend: Dx12, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None }

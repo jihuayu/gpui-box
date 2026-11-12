@@ -2414,6 +2414,10 @@ pub struct WgpuHeadlessRenderer {
 impl WgpuHeadlessRenderer {
     pub fn new() -> anyhow::Result<Self> {
         let (context, target_format) = WgpuContext::new_headless()?;
+        Self::from_context(context, target_format)
+    }
+
+    fn from_context(context: WgpuContext, target_format: wgpu::TextureFormat) -> anyhow::Result<Self> {
         // The device may be shared with earlier renderers; observe only errors raised from
         // here on, including any while this renderer builds its pipelines.
         let observed_error_generation = context.errors().current_generation();

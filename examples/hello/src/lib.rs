@@ -1,6 +1,10 @@
 //! One Rust page shared by the desktop executable and Android native library.
 mod input;
 mod retained_demo;
+#[cfg(all(feature = "native-check", target_os = "windows"))]
+mod retained_native_check;
+#[cfg(all(feature = "native-check", target_os = "windows"))]
+pub use retained_native_check::open as check_retained_native;
 #[cfg(test)]
 mod retained_paragraph_tests;
 use gpui::prelude::FluentBuilder;
@@ -100,8 +104,8 @@ pub fn open_retained(cx: &mut App) {
 /// Opens the normal gallery with offscreen WGPU delta consumption enabled.
 #[cfg(feature = "retained-wgpu")]
 pub fn open_retained_gpu(cx: &mut App) {
-    cx.open_window(WindowOptions::default(), |_, cx| {
-        cx.new(retained_demo::RetainedDemo::with_gpu)
+    cx.open_window(WindowOptions::default(), |window, cx| {
+        cx.new(|cx| retained_demo::RetainedDemo::with_gpu_for_window(window, cx))
     })
     .expect("open retained GPU integration example");
     cx.activate(true);

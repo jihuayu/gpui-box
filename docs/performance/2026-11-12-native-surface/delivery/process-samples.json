@@ -1,0 +1,30 @@
+{
+  "interval_ms": 500,
+  "samples": [
+    {
+      "at": "2026-11-12T17:37:31.0628217+08:00",
+      "compilers": [],
+      "other_gpu_helpers": []
+    },
+    {
+      "at": "2026-11-12T17:37:32.1935624+08:00",
+      "compilers": [],
+      "other_gpu_helpers": []
+    },
+    {
+      "at": "2026-11-12T17:37:33.3055278+08:00",
+      "compilers": [],
+      "other_gpu_helpers": []
+    },
+    {
+      "at": "2026-11-12T17:37:34.4097570+08:00",
+      "compilers": [],
+      "other_gpu_helpers": []
+    },
+    {
+      "at": "2026-11-12T17:37:35.5565805+08:00",
+      "compilers": [],
+      "other_gpu_helpers": []
+    }
+  ]
+}
