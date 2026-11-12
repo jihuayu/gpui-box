@@ -47,6 +47,7 @@ enum Field {
     Opacity,
     Measure,
     Decoration,
+    Shadows,
     Image,
     #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
     Text,
@@ -116,6 +117,15 @@ impl Property<Option<MeasureSnapshot>> {
             node,
             field: Field::Measure,
             write: |node, value, tx| tx.measure(node, value.clone()),
+        }
+    }
+}
+impl Property<Arc<[BoxShadow]>> {
+    pub fn shadows(node: NodeId) -> Self {
+        Self {
+            node,
+            field: Field::Shadows,
+            write: |node, value, tx| tx.patches.push(Patch::Shadows(node, value.clone())),
         }
     }
 }

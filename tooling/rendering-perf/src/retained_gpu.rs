@@ -31,6 +31,7 @@ mod retained_property_gpu;
 mod retained_queue;
 mod retained_reactive;
 mod retained_responsive;
+mod retained_shadows;
 mod retained_structure;
 mod retained_text;
 mod retained_validation;
@@ -74,6 +75,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         )?,
     )?;
     let mut results = vec![];
+    if std::env::args().any(|arg| arg == "--shadows-only") {
+        retained_shadows::run(&mut renderer, &output, &mut results)?;
+        fs::write(
+            output.join("validation.json"),
+            serde_json::to_vec_pretty(&results)?,
+        )?;
+        fs::write(
+            output.join("shadows-benchmark.json"),
+            serde_json::to_vec_pretty(&retained_shadows::benchmark()?)?,
+        )?;
+        return Ok(());
+    }
     if std::env::args().any(|arg| arg == "--layer-reuse-only") {
         retained_layer_reuse::run(&output, &mut results)?;
         fs::write(
@@ -731,6 +744,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     retained_layer_bounds::run(&mut renderer, &output, &mut results)?;
     retained_layer_budget::run(&output, &mut results)?;
     retained_layer_reuse::run(&output, &mut results)?;
+    retained_shadows::run(&mut renderer, &output, &mut results)?;
     fs::write(
         output.join("validation.json"),
         serde_json::to_vec_pretty(&results)?,
@@ -757,6 +771,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     fs::write(
         output.join("layer-reuse-benchmark.json"),
         serde_json::to_vec_pretty(&retained_layer_reuse::benchmark()?)?,
+    )?;
+    fs::write(
+        output.join("shadows-benchmark.json"),
+        serde_json::to_vec_pretty(&retained_shadows::benchmark()?)?,
     )?;
     let benchmark = retained_bench::run()?;
     fs::write(

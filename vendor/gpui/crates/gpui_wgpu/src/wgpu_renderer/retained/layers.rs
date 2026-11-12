@@ -7,6 +7,7 @@ pub type QuadLayerId = [u64; 3];
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum QuadDraw {
     Instances(Range<u32>),
+    Shadows(Range<u32>),
     Layer(QuadLayerId),
     Image(QuadImageId),
     Glyphs(GlyphDrawId),
@@ -233,6 +234,7 @@ impl LayerCache {
         layers: &[QuadLayer],
         order: &[QuadDraw],
         capacity: u32,
+        shadow_capacity: u32,
         size: Size<DevicePixels>,
         images: &BTreeSet<QuadImageId>,
         glyphs: &BTreeSet<GlyphDrawId>,
@@ -253,10 +255,10 @@ impl LayerCache {
             );
             bytes = bytes.checked_add(u64::from(width.max(1)) * u64::from(height.max(1)) * 4)
                 .context("layer payload overflow")?;
-            Self::validate_draws(&layer.draws, &seen, capacity, images, glyphs)?;
+            Self::validate_draws(&layer.draws, &seen, capacity, shadow_capacity, images, glyphs)?;
             anyhow::ensure!(seen.insert(layer.id), "duplicate or cyclic layer");
         }
-        Self::validate_draws(order, &seen, capacity, images, glyphs)?;
+        Self::validate_draws(order, &seen, capacity, shadow_capacity, images, glyphs)?;
         anyhow::ensure!(
             bytes <= limit_bytes,
             "isolated layers exceed {} MiB budget ({} bytes required; {} byte limit)",
@@ -269,6 +271,7 @@ impl LayerCache {
         draws: &[QuadDraw],
         seen: &BTreeSet<QuadLayerId>,
         capacity: u32,
+        shadow_capacity: u32,
         images: &BTreeSet<QuadImageId>,
         glyphs: &BTreeSet<GlyphDrawId>,
     ) -> Result<()> {
@@ -278,6 +281,8 @@ impl LayerCache {
                     range.start < range.end && range.end <= capacity,
                     "draw outside allocation"
                 ),
+                QuadDraw::Shadows(range) => anyhow::ensure!(range.start < range.end && range.end <= shadow_capacity,
+                    "shadow draw outside allocation"),
                 QuadDraw::Layer(id) => {
                     anyhow::ensure!(seen.contains(id), "layer must precede its consumer")
                 }
@@ -414,9 +419,11 @@ impl LayerCache {
         &mut self,
         renderer: &WgpuHeadlessRenderer,
         binding: &InstanceBinding,
+        shadows: &InstanceBinding,
         encoder: &mut wgpu::CommandEncoder,
         layers: Vec<QuadLayer>,
         writes: &[Range<u32>],
+        shadow_writes: &[Range<u32>],
         size: Size<DevicePixels>,
         cache: bool,
         images: &images::ImageCache,
@@ -459,6 +466,8 @@ impl LayerCache {
                     QuadDraw::Instances(range) => writes
                         .iter()
                         .any(|write| range.start < write.end && write.start < range.end),
+                    QuadDraw::Shadows(range) => shadow_writes.iter().any(|write|
+                        range.start < write.end && write.start < range.end),
                     QuadDraw::Layer(id) => changed.contains(id),
                     QuadDraw::Image(id) => changed_images.contains(id),
                     QuadDraw::Glyphs(id) => changed_glyphs.contains(id),
@@ -489,6 +498,7 @@ impl LayerCache {
                 stats.draws += self.draw(
                     &renderer.core,
                     binding,
+                    shadows,
                     &layer.draws,
                     &mut pass,
                     images,
@@ -515,6 +525,7 @@ impl LayerCache {
         &self,
         core: &WgpuRendererCore,
         binding: &InstanceBinding,
+        shadows: &InstanceBinding,
         draws: &[QuadDraw],
         pass: &mut wgpu::RenderPass<'_>,
         images: &images::ImageCache,
@@ -541,6 +552,12 @@ impl LayerCache {
                     pass.set_bind_group(1, &binding.bind_group, &[]);
                     pass.draw(0..4, binding.first_instance + range.start..binding.first_instance + range.end);
                 },
+                QuadDraw::Shadows(range) => {
+                    pass.set_pipeline(&core.resources.pipelines.shadows);
+                    pass.set_bind_group(0, &target.globals, &[]);
+                    pass.set_bind_group(1, &shadows.bind_group, &[]);
+                    pass.draw(0..4, shadows.first_instance + range.start..shadows.first_instance + range.end);
+                }
                 QuadDraw::Layer(id) => {
                     let layer = self.layers.get(id).context("missing raster layer")?;
                     pass.set_pipeline(&self.pipeline);

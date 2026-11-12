@@ -151,6 +151,20 @@ fn validate_item(item: &PaintItem, scale: f32) -> Result<(), Error> {
     {
         return Err(Error::InvalidFrame);
     }
+    for shadow in item.shadows.iter() {
+        let geometry = item.shadow_geometry(*shadow);
+        if shadow.validate().is_err()
+            || [geometry.bounds, geometry.ink].iter().any(|b| {
+                !b.valid()
+                    || [b.x, b.y, b.width, b.height, b.x + b.width, b.y + b.height]
+                        .iter()
+                        .any(|v| !(*v * scale).is_finite())
+            })
+            || !((shadow.blur_radius * scale).is_finite() && (geometry.radius * scale).is_finite())
+        {
+            return Err(Error::InvalidFrame);
+        }
+    }
     for command in item.commands.iter() {
         let (_, decoration) = command.quad();
         if decoration.validate().is_err()
@@ -228,6 +242,7 @@ fn validate_delta(frame: &FramePacket, indices: &BTreeMap<NodeId, usize>) -> Res
                 value.bounds != item.bounds
                     || value.commands != item.commands
                     || value.fill_color != item.fill_color
+                    || value.shadows != item.shadows
                     || value.image != item.image
                     || !value.same_text(item)
                     || value.content_bounds != item.content_bounds
@@ -297,6 +312,32 @@ mod tests {
         // Cache holds old immutable pages even after the producer drops its copy.
         let mut malformed = frame.clone();
         Arc::make_mut(&mut malformed.items)[3].bounds.x = f32::NAN;
+        assert_eq!(
+            cache.check(&malformed, [100; 2], 1.0, true),
+            Err(Error::InvalidFrame)
+        );
+        assert_eq!(
+            cache
+                .check(&frame, [100; 2], 1.0, true)
+                .unwrap()
+                .validated_items,
+            0
+        );
+        let mut malformed = frame.clone();
+        Arc::make_mut(&mut malformed.updates)[0].shadows = Arc::from([BoxShadow {
+            color: 0x000000ff,
+            blur_radius: 2.0,
+            ..Default::default()
+        }]);
+        assert_eq!(
+            cache.check(&malformed, [100; 2], 1.0, true),
+            Err(Error::InvalidFrame)
+        );
+        let mut malformed = frame.clone();
+        Arc::make_mut(&mut malformed.items)[2].shadows = Arc::from([BoxShadow {
+            blur_radius: f32::NAN,
+            ..Default::default()
+        }]);
         assert_eq!(
             cache.check(&malformed, [100; 2], 1.0, true),
             Err(Error::InvalidFrame)

@@ -1,4 +1,4 @@
-param([string]$Output = 'target/retained-runtime-gpu', [switch]$ValidationOnly, [switch]$LayerBoundsOnly, [switch]$LayerBudgetOnly, [switch]$LayerReuseOnly)
+param([string]$Output = 'target/retained-runtime-gpu', [switch]$ValidationOnly, [switch]$LayerBoundsOnly, [switch]$LayerBudgetOnly, [switch]$LayerReuseOnly, [switch]$ShadowsOnly)
 $ErrorActionPreference = 'Stop'
 $workspace = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
 Push-Location -LiteralPath $workspace
@@ -55,6 +55,9 @@ try {
         'examples/hello/assets/NotoSansSC-Regular.otf',
         'tooling/rendering-perf/Cargo.toml',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained.rs',
+        'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/storage.rs',
+        'vendor/gpui/crates/gpui/src/scene.rs',
+        'tooling/rendering-perf/src/retained_shadows.rs',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/allocation_budget.rs',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/completion.rs',
         'vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/completion/tests.rs',
@@ -109,6 +112,7 @@ try {
         layer_bounds_only = [bool]$LayerBoundsOnly
         layer_budget_only = [bool]$LayerBudgetOnly
         layer_reuse_only = [bool]$LayerReuseOnly
+        shadows_only = [bool]$ShadowsOnly
         scope = 'Retained UI frames, hardware pixel comparisons, upload payload counts, in-flight lifecycle'
     } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $Output 'metadata.json') -Encoding utf8
     $runArgs = @('"' + (Resolve-Path -LiteralPath $Output).Path + '"')
@@ -116,6 +120,7 @@ try {
     if ($LayerBoundsOnly) { $runArgs += '--layer-bounds-only' }
     if ($LayerBudgetOnly) { $runArgs += '--layer-budget-only' }
     if ($LayerReuseOnly) { $runArgs += '--layer-reuse-only' }
+    if ($ShadowsOnly) { $runArgs += '--shadows-only' }
     $stdout = Join-Path $Output 'stdout.log'
     $stderr = Join-Path $Output 'stderr.log'
     $job = Start-Process -FilePath (Join-Path $workspace 'target/release/retained-runtime-gpu.exe') -ArgumentList $runArgs -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr

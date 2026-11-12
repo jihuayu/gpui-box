@@ -1,7 +1,7 @@
 //! Normal GPUI event → retained transaction → persistent layout → paint adapter.
 use gpui::*;
 use gpui_box::retained::{
-    BackendCapabilities, CustomMeasureSnapshot, ImageResource, MeasureSnapshot, QuadDecoration,
+    BackendCapabilities, BoxShadow as RetainedShadow, CustomMeasureSnapshot, ImageResource, MeasureSnapshot, QuadDecoration,
     Rect, Style, Transaction, UiTree, length,
     logical::LogicalUi,
     reactive::{Property, Signal, UpdateSender},
@@ -22,6 +22,7 @@ pub struct RetainedDemo {
     scroll: Signal<[f32; 2]>,
     measure: Signal<Option<MeasureSnapshot>>,
     decoration: Signal<QuadDecoration>,
+    shadows: Signal<std::sync::Arc<[RetainedShadow]>>,
     image: Signal<Option<ImageResource>>,
     paragraph_measure: Signal<Option<MeasureSnapshot>>,
     text: Signal<Option<gpui_box::retained::text::TextPaint>>,
@@ -136,6 +137,8 @@ impl RetainedDemo {
         let decoration = tree.state(root_scope, 5, QuadDecoration::default).unwrap();
         tree.bind(decoration, Property::decoration(tile))
             .expect("bind decoration");
+        let shadows = tree.state(root_scope, 15, || std::sync::Arc::<[RetainedShadow]>::from([])).unwrap();
+        tree.bind(shadows, Property::shadows(tile)).expect("bind retained shadows");
         tree.bind(scroll, Property::scroll(viewport))
             .expect("bind scroll");
         let measure = tree
@@ -438,6 +441,7 @@ impl RetainedDemo {
             scroll,
             measure,
             decoration,
+            shadows,
             image,
             paragraph_measure,
             text,
@@ -689,13 +693,18 @@ impl Render for RetainedDemo {
                 .id("retained-decoration")
                 .debug_selector(|| "retained-decoration".into())
                 .cursor_pointer()
-                .child("Toggle rounded border")
+                .child("Toggle rounded border and shadow")
                 .on_click(cx.listener(|this,_,_,cx| {
                     let decoration = this.decoration;
+                    let shadows = this.shadows;
                     let result = this.tree.borrow_mut().transaction(|tx| {
                         let next = if tx.read(decoration)?.radius == 0.0 {
                             QuadDecoration {radius:12.0,border_width:3.0,border_color:0xeeaa44ff}
                         } else {QuadDecoration::default()};
+                        tx.set(shadows, if next.radius > 0.0 { std::sync::Arc::from([
+                            RetainedShadow {color:0x00000088,offset:[3.0,3.0],blur_radius:2.0,spread_radius:1.0,inset:false},
+                            RetainedShadow {color:0x00000066,offset:[1.0,1.0],blur_radius:0.0,spread_radius:2.0,inset:true},
+                        ]) } else {std::sync::Arc::from([])})?;
                         tx.set(decoration,next)?; Ok(())
                     }).expect("commit rounded border");
                     if result.commit.request_frame {cx.notify();}
@@ -881,13 +890,21 @@ impl Render for RetainedDemo {
                             return;
                         }
                         for item in frame.items.iter() {
-                            let mask = item.clip.map(|clip| ContentMask {
+                            let viewport = Rect {x:0.0,y:0.0,width:f32::from(bounds.size.width),height:f32::from(bounds.size.height)};
+                            let mask = Some(item.clip.map_or(viewport, |clip| clip.intersect(viewport))).map(|clip| ContentMask {
                                 bounds: Bounds {
                                     origin: bounds.origin + point(px(clip.x), px(clip.y)),
                                     size: size(px(clip.width), px(clip.height)),
                                 },
                             });
                             window.with_content_mask(mask, |window| {
+                                let element_bounds = Bounds {origin:bounds.origin+point(px(item.bounds.x),px(item.bounds.y)),size:size(px(item.bounds.width),px(item.bounds.height))};
+                                let radius = item.commands.first().map_or(0.0, |command| command.quad().1.resolved(item.bounds).radius);
+                                let shadows = item.shadows.iter().map(|shadow| gpui::BoxShadow {
+                                    color:rgba(shadow.color).into(),offset:point(px(shadow.offset[0]),px(shadow.offset[1])),
+                                    blur_radius:px(shadow.blur_radius),spread_radius:px(shadow.spread_radius),inset:shadow.inset,
+                                }).collect::<Vec<_>>();
+                                window.paint_drop_shadows(element_bounds,Corners::all(px(radius)),&shadows);
                                 for command in item.commands.iter() {
                                     let (color,decoration) = item.resolved_quad(command);
                                     let decoration = decoration.resolved(item.bounds);
@@ -907,6 +924,7 @@ impl Render for RetainedDemo {
                                             BorderStyle::default(),
                                         ));
                                 }
+                                window.paint_inset_shadows(element_bounds,Corners::all(px(radius)),&shadows);
                                 if let Some(resource) = &item.image {
                                     let r = item.content_bounds;
                                     let image_bounds = Bounds {origin:bounds.origin+point(px(r.x),px(r.y)),size:size(px(r.width),px(r.height))};
@@ -1425,6 +1443,7 @@ mod tests {
             view.tree.borrow().published_frame().unwrap().clone()
         });
         assert_eq!((frame.layout_runs, frame.recorded_chunks), (0, 1));
+        assert_eq!(frame.items.iter().map(|item| item.shadows.len()).sum::<usize>(),2);
         let actual = gpu.borrow_mut().image().unwrap();
         let reference = gpu
             .borrow_mut()
@@ -1432,7 +1451,7 @@ mod tests {
             .unwrap();
         assert!(
             actual.as_raw() == reference.as_raw(),
-            "rounded border click reaches GPU"
+            "rounded border and typed shadow click reach GPU"
         );
         let old_resource = view.read_with(cx, |view, _| {
             view.tree

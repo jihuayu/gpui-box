@@ -1,0 +1,128 @@
+{
+  "scope": "backend typed shadow transport microbenchmark; same shader/draws/root redraw and persistent CPU mirror; one shadow color changes per frame; delta versus full declared instance-range upload, includes validation/submit and per-frame GPU completion; excludes UI/Taffy/paint recording, readback and native presentation; geometric spare slots and unused quad placeholder are excluded from full uploads",
+  "executions": 3,
+  "rounds_per_mode": 9,
+  "timed_frames_per_mode": 180,
+  "cases": [
+    {
+      "count": 1000,
+      "per_execution": [
+        {
+          "run": "run-1",
+          "delta_median_us": 194.9,
+          "full_median_us": 238.9,
+          "delta_p95_us": 409.1,
+          "full_p95_us": 486.3
+        },
+        {
+          "run": "run-2",
+          "delta_median_us": 196.4,
+          "full_median_us": 208.5,
+          "delta_p95_us": 411.7,
+          "full_p95_us": 446.90000000000003
+        },
+        {
+          "run": "run-3",
+          "delta_median_us": 171.2,
+          "full_median_us": 213.9,
+          "delta_p95_us": 496.20000000000005,
+          "full_p95_us": 359.7
+        }
+      ],
+      "delta_shadow_bytes": 112,
+      "delta_completed_median_us": 189.6,
+      "delta_completed_p95_us": 449.79999999999995,
+      "delta_completed_mean_us": 240.15944444444443,
+      "delta_cpu_median_us": 71.8,
+      "delta_completed_round_medians_us": [
+        259.9,
+        176.70000000000002,
+        179.9,
+        194.3,
+        203.7,
+        188.0,
+        173.9,
+        178.0,
+        165.9
+      ],
+      "full_shadow_bytes": 112000,
+      "full_completed_median_us": 221.6,
+      "full_completed_p95_us": 446.90000000000003,
+      "full_completed_mean_us": 255.77,
+      "full_cpu_median_us": 100.0,
+      "full_completed_round_medians_us": [
+        242.1,
+        222.20000000000002,
+        273.0,
+        261.1,
+        199.6,
+        182.5,
+        230.7,
+        200.7,
+        263.4
+      ],
+      "median_speedup": 1.1687763713080168,
+      "median_time_change_percent": -14.440433212996396
+    },
+    {
+      "count": 10000,
+      "per_execution": [
+        {
+          "run": "run-1",
+          "delta_median_us": 420.1,
+          "full_median_us": 714.2,
+          "delta_p95_us": 740.1,
+          "full_p95_us": 852.6
+        },
+        {
+          "run": "run-2",
+          "delta_median_us": 379.7,
+          "full_median_us": 714.6,
+          "delta_p95_us": 594.6999999999999,
+          "full_p95_us": 872.9
+        },
+        {
+          "run": "run-3",
+          "delta_median_us": 398.59999999999997,
+          "full_median_us": 619.7,
+          "delta_p95_us": 635.7,
+          "full_p95_us": 814.8
+        }
+      ],
+      "delta_shadow_bytes": 112,
+      "delta_completed_median_us": 386.90000000000003,
+      "delta_completed_p95_us": 654.7,
+      "delta_completed_mean_us": 435.67611111111114,
+      "delta_cpu_median_us": 97.2,
+      "delta_completed_round_medians_us": [
+        470.6,
+        351.20000000000005,
+        612.6,
+        314.90000000000003,
+        388.2,
+        442.2,
+        347.59999999999997,
+        430.6,
+        428.3
+      ],
+      "full_shadow_bytes": 1120000,
+      "full_completed_median_us": 692.6999999999999,
+      "full_completed_p95_us": 869.9,
+      "full_completed_mean_us": 697.4016666666666,
+      "full_cpu_median_us": 363.8,
+      "full_completed_round_medians_us": [
+        707.4,
+        738.1,
+        729.8,
+        744.3000000000001,
+        720.1,
+        693.9,
+        661.5,
+        611.9,
+        601.4
+      ],
+      "median_speedup": 1.7903851124321526,
+      "median_time_change_percent": -44.14609499061641
+    }
+  ]
+}

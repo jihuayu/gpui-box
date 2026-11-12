@@ -15,9 +15,20 @@ fn push_instance(draws: &mut Vec<QuadDraw>, slot: u32) {
     }
 }
 
+fn push_shadow(draws: &mut Vec<QuadDraw>, slot: u32) {
+    if let Some(QuadDraw::Shadows(range)) = draws.last_mut()
+        && range.end == slot
+    {
+        range.end += 1;
+    } else {
+        draws.push(QuadDraw::Shadows(slot..slot + 1));
+    }
+}
+
 fn plan(
     frame: &FramePacket,
     instances: &BTreeMap<NodeId, Vec<InstanceHandle>>,
+    shadow_instances: &BTreeMap<NodeId, Vec<InstanceHandle>>,
 ) -> Result<(Vec<QuadDraw>, Vec<QuadLayer>), Error> {
     let mut root = vec![];
     let mut stack: Vec<(NodeId, Vec<QuadDraw>)> = vec![];
@@ -58,8 +69,32 @@ fn plan(
             stack.push((*id, vec![]));
         }
         let draws = stack.last_mut().map_or(&mut root, |(_, draws)| draws);
+        for (index, _) in item
+            .shadows
+            .iter()
+            .enumerate()
+            .filter(|(_, shadow)| !shadow.inset)
+        {
+            let handle = shadow_instances
+                .get(&item.node)
+                .and_then(|handles| handles.get(index))
+                .ok_or(Error::InvalidFrame)?;
+            push_shadow(draws, handle.slot);
+        }
         for handle in instances.get(&item.node).ok_or(Error::InvalidFrame)? {
             push_instance(draws, handle.slot);
+        }
+        for (index, _) in item
+            .shadows
+            .iter()
+            .enumerate()
+            .filter(|(_, shadow)| shadow.inset)
+        {
+            let handle = shadow_instances
+                .get(&item.node)
+                .and_then(|handles| handles.get(index))
+                .ok_or(Error::InvalidFrame)?;
+            push_shadow(draws, handle.slot);
         }
         if item.image.is_some() {
             draws.push(QuadDraw::Image(key(item.node)));
@@ -110,7 +145,13 @@ fn same_topology(a: &PaintItem, b: &PaintItem) -> bool {
     let same = a.node == b.node
         && a.commands.len() == b.commands.len()
         && a.image.is_some() == b.image.is_some()
-        && a.properties.effect == b.properties.effect;
+        && a.properties.effect == b.properties.effect
+        && (Arc::ptr_eq(&a.shadows, &b.shadows)
+            || (a.shadows.len() == b.shadows.len()
+                && a.shadows
+                    .iter()
+                    .zip(b.shadows.iter())
+                    .all(|(a, b)| a.inset == b.inset)));
     #[cfg(feature = "retained-text")]
     {
         same && a.text.is_some() == b.text.is_some()
@@ -150,6 +191,7 @@ impl CompositionCache {
         &mut self,
         frame: &FramePacket,
         instances: &BTreeMap<NodeId, Vec<InstanceHandle>>,
+        shadow_instances: &BTreeMap<NodeId, Vec<InstanceHandle>>,
         force: bool,
     ) -> Result<CompositionPlan, Error> {
         let mut stats = CompositionStats::default();
@@ -227,7 +269,7 @@ impl CompositionCache {
         } else {
             stats.rebuilt = true;
             stats.planned_items = frame.items.len();
-            let (root, layers) = plan(frame, instances)?;
+            let (root, layers) = plan(frame, instances, shadow_instances)?;
             let mut cached = vec![];
             for layer in layers {
                 let node = NodeId {
@@ -332,7 +374,9 @@ mod tests {
         let first = tree.frame([100.0; 2]).unwrap();
         let instances = allocations(&first);
         let mut cache = CompositionCache::default();
-        let (_, mut layers, stats) = cache.resolve(&first, &instances, false).unwrap();
+        let (_, mut layers, stats) = cache
+            .resolve(&first, &instances, &BTreeMap::new(), false)
+            .unwrap();
         assert_eq!(stats.bounds_items, first.items.len());
         cache.bound_layers(&mut layers, [150; 2], 1.5);
         assert_eq!(layers.len(), 2);
@@ -343,7 +387,9 @@ mod tests {
         tx.opacity(parent, 0.0);
         tree.commit(tx, BackendCapabilities::default()).unwrap();
         let hidden = tree.frame([100.0; 2]).unwrap();
-        let (_, mut layers, stats) = cache.resolve(&hidden, &instances, false).unwrap();
+        let (_, mut layers, stats) = cache
+            .resolve(&hidden, &instances, &BTreeMap::new(), false)
+            .unwrap();
         assert_eq!(stats.bounds_items, 0);
         cache.bound_layers(&mut layers, [150; 2], 1.5);
         assert!(
@@ -355,12 +401,16 @@ mod tests {
         tx.color(child, 0);
         tree.commit(tx, BackendCapabilities::default()).unwrap();
         let empty = tree.frame([100.0; 2]).unwrap();
-        let (_, mut layers, stats) = cache.resolve(&empty, &instances, false).unwrap();
+        let (_, mut layers, stats) = cache
+            .resolve(&empty, &instances, &BTreeMap::new(), false)
+            .unwrap();
         assert_eq!(stats.bounds_items, empty.items.len());
         cache.bound_layers(&mut layers, [150; 2], 1.5);
         assert!(layers.iter().all(|layer| layer.bounds == Some([0; 4])));
         // Old immutable packets retain their original geometry after publication.
-        let (_, mut layers, _) = cache.resolve(&first, &instances, true).unwrap();
+        let (_, mut layers, _) = cache
+            .resolve(&first, &instances, &BTreeMap::new(), true)
+            .unwrap();
         cache.bound_layers(&mut layers, [20, 30], 1.0);
         assert!(
             layers
@@ -393,11 +443,13 @@ mod tests {
         previous_order: &mut Vec<QuadDraw>,
         force: bool,
     ) -> CompositionStats {
-        let (order, layers, stats) = cache.resolve(frame, instances, force).unwrap();
+        let (order, layers, stats) = cache
+            .resolve(frame, instances, &BTreeMap::new(), force)
+            .unwrap();
         if let Some(order) = order {
             *previous_order = order;
         }
-        let (root, reference) = plan(frame, instances).unwrap();
+        let (root, reference) = plan(frame, instances, &BTreeMap::new()).unwrap();
         assert_eq!(*previous_order, root);
         assert_eq!(layers.len(), reference.len());
         for (a, b) in layers.iter().zip(reference) {

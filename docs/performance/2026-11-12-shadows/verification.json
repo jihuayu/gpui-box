@@ -1,0 +1,116 @@
+{
+  "hardware_scenarios": 285,
+  "pixel_comparisons": 281,
+  "analytical_origin_only_scenarios": 1,
+  "backend_preflight_scenarios": 3,
+  "core_tests": 119,
+  "retained_only_tests": 107,
+  "gallery_font_hardware_click_tests": 12,
+  "clippy": "selected core/gallery/perf targets -D warnings; passed",
+  "desktop_wgpu_build": "passed",
+  "audits": [
+    {
+      "run": "validation",
+      "source_hashes_verified": 154,
+      "process_samples": 11,
+      "samples_with_compilers": 0,
+      "hardware_scenarios": 285,
+      "pixel_comparisons": 281
+    },
+    {
+      "run": "run-1",
+      "source_hashes_verified": 154,
+      "process_samples": 4,
+      "samples_with_compilers": 0,
+      "hardware_scenarios": 61,
+      "pixel_comparisons": 60
+    },
+    {
+      "run": "run-2",
+      "source_hashes_verified": 154,
+      "process_samples": 3,
+      "samples_with_compilers": 0,
+      "hardware_scenarios": 61,
+      "pixel_comparisons": 60
+    },
+    {
+      "run": "run-3",
+      "source_hashes_verified": 154,
+      "process_samples": 3,
+      "samples_with_compilers": 0,
+      "hardware_scenarios": 61,
+      "pixel_comparisons": 60
+    }
+  ],
+  "binary_sha256": "94ffc1939fe49091624edb90c1c2b847a4f077affe91088317ddad577f087dff",
+  "shadow_growth_records": [
+    {
+      "case": "shadows-in-flight-buffer-growth",
+      "pixel_equal": true,
+      "revision": 257,
+      "layout_runs": 1,
+      "recorded_chunks": 64,
+      "leaf_layouts": 64,
+      "measure_calls": 0,
+      "reference": "original full GPUI renderer",
+      "in_flight_at_growth": 2,
+      "completed_at_growth": 0,
+      "prior_serial": 1,
+      "shadow_generation_before": 2,
+      "shadow_generation_after": 3
+    },
+    {
+      "case": "shadows-in-flight-buffer-growth",
+      "pixel_equal": true,
+      "revision": 257,
+      "layout_runs": 1,
+      "recorded_chunks": 64,
+      "leaf_layouts": 64,
+      "measure_calls": 0,
+      "reference": "original full GPUI renderer",
+      "in_flight_at_growth": 2,
+      "completed_at_growth": 0,
+      "prior_serial": 1,
+      "shadow_generation_before": 2,
+      "shadow_generation_after": 3
+    },
+    {
+      "case": "shadows-in-flight-buffer-growth",
+      "pixel_equal": true,
+      "revision": 257,
+      "layout_runs": 1,
+      "recorded_chunks": 64,
+      "leaf_layouts": 64,
+      "measure_calls": 0,
+      "reference": "original full GPUI renderer",
+      "in_flight_at_growth": 2,
+      "completed_at_growth": 0,
+      "prior_serial": 1,
+      "shadow_generation_before": 2,
+      "shadow_generation_after": 3
+    },
+    {
+      "case": "shadows-in-flight-buffer-growth",
+      "pixel_equal": true,
+      "revision": 257,
+      "layout_runs": 1,
+      "recorded_chunks": 64,
+      "leaf_layouts": 64,
+      "measure_calls": 0,
+      "reference": "original full GPUI renderer",
+      "in_flight_at_growth": 2,
+      "completed_at_growth": 0,
+      "prior_serial": 1,
+      "shadow_generation_before": 2,
+      "shadow_generation_after": 3
+    }
+  ],
+  "limitations": [
+    "backend transport microbenchmark, not complete UI/Taffy/publication/native presentation",
+    "same declared instance range, excludes geometric spare slots and unused quad placeholders",
+    "per-frame completed wall time, not GPU timestamps or FPS",
+    "compiler observations every 500ms may miss shorter processes; other host/GPU activity remains possible",
+    "original full GPUI reference shares primitive shaders; independent analytical pixels provide additional oracles",
+    "native DirectX/Metal framebuffers and native surface presentation are unqualified"
+  ]
+}

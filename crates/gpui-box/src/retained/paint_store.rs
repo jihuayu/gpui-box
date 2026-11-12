@@ -215,6 +215,7 @@ impl UiTree {
                 })
                 .clone();
             item.fill_color = node.color;
+            item.shadows = node.shadows.clone();
             item.image = node.image.clone();
             #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
             {
@@ -244,6 +245,7 @@ impl UiTree {
                 || old.clip != item.clip
                 || old.commands != item.commands
                 || old.fill_color != item.fill_color
+                || old.shadows != item.shadows
                 || old.image != item.image
                 || !old.same_text(&item);
             let effects_changed = !properties::same_effects(

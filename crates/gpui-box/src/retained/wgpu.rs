@@ -84,6 +84,59 @@ fn record(item: &PaintItem, command: &DisplayCommand, scale: f32) -> Record {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct ShadowRecord {
+    geometry: ShadowGeometry,
+    blur: f32,
+    color: u32,
+    inset: bool,
+    clip: Option<Rect>,
+}
+impl ShadowRecord {
+    fn new(item: &PaintItem, value: BoxShadow, scale: f32) -> Self {
+        let scaled = |b: Rect| Rect {
+            x: b.x * scale,
+            y: b.y * scale,
+            width: b.width * scale,
+            height: b.height * scale,
+        };
+        let g = item.shadow_geometry(value);
+        Self {
+            geometry: ShadowGeometry {
+                bounds: scaled(g.bounds),
+                element_bounds: scaled(g.element_bounds),
+                ink: scaled(g.ink),
+                radius: g.radius * scale,
+                element_radius: g.element_radius * scale,
+            },
+            blur: value.blur_radius * scale,
+            color: value.color,
+            inset: value.inset,
+            clip: item.clip.map(scaled),
+        }
+    }
+    fn shadow(self) -> gpui::Shadow {
+        let bounds = |b: Rect| Bounds {
+            origin: point(ScaledPixels(b.x), ScaledPixels(b.y)),
+            size: size(ScaledPixels(b.width), ScaledPixels(b.height)),
+        };
+        gpui::Shadow {
+            order: 0,
+            blur_radius: ScaledPixels(self.blur),
+            bounds: bounds(self.geometry.bounds),
+            corner_radii: gpui::Corners::all(ScaledPixels(self.geometry.radius)),
+            content_mask: ContentMask {
+                bounds: bounds(self.clip.unwrap_or(self.geometry.ink)),
+            },
+            color: rgba(self.color).into(),
+            element_bounds: bounds(self.geometry.element_bounds),
+            element_corner_radii: gpui::Corners::all(ScaledPixels(self.geometry.element_radius)),
+            inset: u32::from(self.inset),
+            pad: 0,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum CompositorPolicy {
     #[default]
@@ -166,6 +219,8 @@ pub struct FrameLifecycleStats {
 pub struct WgpuFrameRenderer {
     backend: RetainedQuadRenderer,
     arena: InstanceArena<Record>,
+    shadow_arena: InstanceArena<ShadowRecord>,
+    shadow_instances: BTreeMap<NodeId, Vec<InstanceHandle>>,
     instances: BTreeMap<NodeId, Vec<InstanceHandle>>,
     source: Option<(u64, u64)>,
     latest: Option<(u64, u64)>,
@@ -192,6 +247,8 @@ impl WgpuFrameRenderer {
         Ok(Self {
             backend: RetainedQuadRenderer::new(max_in_flight).map_err(gpu_error)?,
             arena: InstanceArena::default(),
+            shadow_arena: InstanceArena::default(),
+            shadow_instances: BTreeMap::new(),
             instances: BTreeMap::new(),
             source: None,
             latest: None,
@@ -293,6 +350,7 @@ impl WgpuFrameRenderer {
     fn collect(&mut self) -> Result<(), Error> {
         let completed = self.backend.completed_serial().map_err(gpu_error)?;
         self.arena.collect(completed);
+        self.shadow_arena.collect(completed);
         while self
             .leases
             .front()
@@ -349,6 +407,13 @@ impl WgpuFrameRenderer {
         };
         let last_submission = self.backend.last_serial();
         for node in retire {
+            if let Some(handles) = self.shadow_instances.remove(&node) {
+                for handle in handles {
+                    self.shadow_arena
+                        .retire(handle, last_submission)
+                        .map_err(gpu_error)?;
+                }
+            }
             if let Some(handles) = self.instances.remove(&node) {
                 for handle in handles {
                     self.arena
@@ -357,8 +422,9 @@ impl WgpuFrameRenderer {
                 }
             }
         }
-        self.arena
-            .collect(self.backend.completed_serial().map_err(gpu_error)?);
+        let completed = self.backend.completed_serial().map_err(gpu_error)?;
+        self.arena.collect(completed);
+        self.shadow_arena.collect(completed);
         let mut command_count_changed = false;
         let selected: Box<dyn Iterator<Item = &PaintItem> + '_> = if full_resync {
             Box::new(frame.items.iter())
@@ -366,6 +432,28 @@ impl WgpuFrameRenderer {
             Box::new(frame.updates.iter())
         };
         for item in selected {
+            if !item.shadows.is_empty() || self.shadow_instances.contains_key(&item.node) {
+                let handles = self.shadow_instances.entry(item.node).or_default();
+                command_count_changed |= handles.len() != item.shadows.len();
+                while handles.len() > item.shadows.len() {
+                    self.shadow_arena
+                        .retire(handles.pop().unwrap(), last_submission)
+                        .map_err(gpu_error)?;
+                }
+                for (index, shadow) in item.shadows.iter().enumerate() {
+                    let record = ShadowRecord::new(item, *shadow, scale);
+                    if let Some(handle) = handles.get(index) {
+                        self.shadow_arena
+                            .update(*handle, record)
+                            .map_err(gpu_error)?;
+                    } else {
+                        handles.push(self.shadow_arena.allocate(record));
+                    }
+                }
+                if handles.is_empty() {
+                    self.shadow_instances.remove(&item.node);
+                }
+            }
             let handles = self.instances.entry(item.node).or_default();
             if handles.len() != item.commands.len() {
                 command_count_changed = true;
@@ -387,6 +475,7 @@ impl WgpuFrameRenderer {
         let (order, mut layers, composition) = self.composition_cache.resolve(
             frame,
             &self.instances,
+            &self.shadow_instances,
             full_resync || command_count_changed || !self.cache_composition,
         )?;
         if self.tight_layer_bounds {
@@ -410,6 +499,18 @@ impl WgpuFrameRenderer {
                 order,
                 layers,
                 images: image_updates(frame, scale, full_resync || !self.resource_deltas),
+                shadows: gpui_wgpu::ShadowBatch {
+                    capacity: self.shadow_arena.capacity(),
+                    writes: self
+                        .shadow_arena
+                        .writes()
+                        .into_iter()
+                        .map(|write| gpui_wgpu::ShadowWrite {
+                            start: write.start,
+                            values: write.values.into_iter().map(ShadowRecord::shadow).collect(),
+                        })
+                        .collect(),
+                },
                 cache_layers: self.cache_layers,
                 glyphs: glyph_updates(frame, scale, full_resync)?,
                 size: size(
@@ -426,6 +527,7 @@ impl WgpuFrameRenderer {
             })
             .map_err(gpu_error)?;
         self.arena.acknowledge();
+        self.shadow_arena.acknowledge();
         if let Some((tree, _)) = self.latest.filter(|(tree, _)| *tree != frame.tree) {
             self.retired_sources.insert(tree);
         }
@@ -517,8 +619,14 @@ impl WgpuFrameRenderer {
         }
         let mut scene = Scene::default();
         for item in frame.items.iter() {
+            for shadow in item.shadows.iter().filter(|shadow| !shadow.inset) {
+                scene.insert_primitive(ShadowRecord::new(item, *shadow, scale).shadow());
+            }
             for command in item.commands.iter() {
                 scene.insert_primitive(record(item, command, scale).quad());
+            }
+            for shadow in item.shadows.iter().filter(|shadow| shadow.inset) {
+                scene.insert_primitive(ShadowRecord::new(item, *shadow, scale).shadow());
             }
         }
         scene.finish();

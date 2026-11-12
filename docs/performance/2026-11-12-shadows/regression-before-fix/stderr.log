@@ -1,0 +1,6 @@
+
+thread 'main' (15136) panicked at tooling\rendering-perf\src\retained_shadows.rs:357:5:
+assertion `left == right` failed: empty fractional clip must not paint a one-pixel line
+  left: [0, 255, 0, 255]
+ right: [0, 0, 0, 255]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

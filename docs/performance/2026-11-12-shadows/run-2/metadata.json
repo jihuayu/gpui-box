@@ -1,0 +1,629 @@
+{
+  "started_at": "2026-11-12T11:23:43.9436349+08:00",
+  "base_commit": "fd86f7f5132b0ad22314242cade614d1327cf179",
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-pc-windows-msvc\nrelease: 1.98.1\nLLVM version: 22.1.8",
+  "source_hashes": [
+    {
+      "path": "Cargo.toml",
+      "sha256": "77CE67288C7EE33B48B8B6957FB2FCCBE5CD836C1D16B9DF4898263B8DB19CC8"
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "53ACD69DE7D5916C1302A873B3B7C27857E6F3E715BA3774544701DF7102C9BA"
+    },
+    {
+      "path": "crates/gpui-box/Cargo.toml",
+      "sha256": "4F13B6D16070F45087C5EDA52288987053EF1BC561D81C3EE0E4572F7B609564"
+    },
+    {
+      "path": "crates/gpui-box/src/retained.rs",
+      "sha256": "8BB4CF48E08D2E666B90C3AA21F94168ABFD16E202CA183D6DC3B86C10594071"
+    },
+    {
+      "path": "vendor/taffy/Cargo.toml",
+      "sha256": "E9AFA6BC7B121FFDA29D8F25E5DE28F68F1C2124BD1902A4B29ED43675B9F94D"
+    },
+    {
+      "path": "vendor/taffy/UPSTREAM.json",
+      "sha256": "F680E1ED973D48E65F3BA16CE6F7A38B5093CF0AA7B5EAF35009C9492346C263"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/layout_publication.rs",
+      "sha256": "75AE9CC19B4C3C48CB743C51286785649A28BF6D874FD4F01E80D49A5DD2F639"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/layout_publication/tests.rs",
+      "sha256": "19C33B7C33878E58AE4D7B9B2CA7434DCAC5E67DAF4A561D7ADBF7B8A821782B"
+    },
+    {
+      "path": "examples/hello/src/retained_demo.rs",
+      "sha256": "1C99EC8A3C3632EE6471520D3285A4AF07E4346BFEBE113E6F641DC6BAA4A22A"
+    },
+    {
+      "path": "examples/hello/src/retained_demo/delivery_check.rs",
+      "sha256": "528D8141964497ED529DFD236374C5BE152D1A806C5B2F38A2FC4CBD194921C8"
+    },
+    {
+      "path": "examples/desktop/src/main.rs",
+      "sha256": "8202C791C7645CC5DF53A2E8525F8B694CB45962057CEA8DC7770D6842D3EDC4"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/arena.rs",
+      "sha256": "8C658F226E11E12BF755F3A8B92739CC1766A34F5EB54E445C81324FD61247B6"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/wgpu.rs",
+      "sha256": "686D6AE90E846BB6F3275178DDEE8FE00065C0B9BF2086BCBFC68F5127D8FAF8"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/properties.rs",
+      "sha256": "9A5E9B4D8BC4CD9828F85D60D38682EBAD802C5BA20EC0FE79BA6D5DABC8E570"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/properties/store.rs",
+      "sha256": "F30EA4052541B26EE1B97864DA314DB6D7EE8BED9E7B47765FC716A72016363A"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/properties/store/tests.rs",
+      "sha256": "61F4F30EEBF9C03F376DB0481CA9806500E14EDABFF80BD2BFA7863E12CBBF11"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/wgpu/validation.rs",
+      "sha256": "3547735FACC4A023348EEDDAD526E1825F27A7D34A6A4581F70531D474046A7F"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive.rs",
+      "sha256": "2938615EA03D84FF14874A1FBEEEC9F45165A58474B68063D5A5A2FE6930CCF5"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/edit.rs",
+      "sha256": "044BC39FA282777CD4DA20B51C5A78A74C1EF88D63D565725F263E4E9E59F818"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/edit/tests.rs",
+      "sha256": "66BD4D4750F3CA9BA9278727989D6A00F3829C34AB1D71EFBFD4FC00C18DFBD3"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive/edit.rs",
+      "sha256": "E8878F44F5F2A0FBAFD3C03034B41447ADBB019349409742515FA531A4350F7A"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive/edit/tests.rs",
+      "sha256": "6BECFD5B8F9D80B31A7649CD1EF9675EFB2BF4362C49D24254169EB11D7FBE09"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/logical/edit.rs",
+      "sha256": "99C405E2B3451A6C599D5FDD48C0C4E404CC4CE685E84DE07A79BE5D5CBDE29B"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/logical/edit/lifecycle_tests.rs",
+      "sha256": "6AC3341F6366AF5571E880E1CC8CC49A42BC70CB07DCDF1DEF002EF5C233DC4B"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_edit.rs",
+      "sha256": "61CC9B2269D9C0A5A8A790DD12556416198ED9D32B4ECF0260C47C2882F09D47"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_lifecycle.rs",
+      "sha256": "E0881794C31204A317BBF339B677754EFA2E6AD823A5A460E4516C81BAC426BD"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive/computed.rs",
+      "sha256": "CA96EBF61ACF5D52EC84BA7E3AFF3C4EDE8FBD47A84DC96619093ABF3475D576"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive/computed/tests.rs",
+      "sha256": "710D4B2A6BCB19E21F6543712751290DC303FB85FF132A968D06048CEC386CBF"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive/effects.rs",
+      "sha256": "2A2FBB96C657EE62E2C139E17E691EFC1C30A1670F180D629C1269497DF1C66C"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive/effects/tests.rs",
+      "sha256": "7325B25C8741C7A9124C75A1140D3A3D17F6E653C60EE9AD72512D508F666062"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive/delivery.rs",
+      "sha256": "B34E3261AFF014FD3DDE51DE362C79CDF08C3693184C0A8C3AE0674DA5DCFF3F"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/reactive/delivery/tests.rs",
+      "sha256": "D7E9A49787900D35428D61407282689615C0536B54F3F39E856F584A67C170AA"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/logical.rs",
+      "sha256": "41FFE66C87C6A828D80785DCE0BD533C6AE0DDA540A5060D6CF08384CD29B6EE"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/structure.rs",
+      "sha256": "4B52355CDC4B45AF8E3DF800ECFD1FC68561C62F226C3DBBADB37B0752CDF52F"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/structure/tests.rs",
+      "sha256": "B3AD7747E5DD43FD639C1F84B4E960F021E590062F1279052E71C250014FB950"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_structure.rs",
+      "sha256": "257ABE174A6BC4FBFB2E93B1FA2EEB33879EBC7BE40FD1E011B4148AE8EC7EE7"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/measure.rs",
+      "sha256": "0682FBD9A875F56F6D89A95C395C8155672321FECD3D53D7F672D83C80228E1D"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/paint_store.rs",
+      "sha256": "9D5B641B6DE8FF7DA6826973D8473A171891CC0E32A8751866E87D9F0FF6DC64"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/paint_store/hit_index.rs",
+      "sha256": "62468DA888AE6A974C210B321E2A015FC771E8AE5B899C7AF083F3249699D90D"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/extraction.rs",
+      "sha256": "90D0CE8F51525E72E6A2ACB59E6C12A25C4ADD497B8E1B6EBC43D2DAF65916D9"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/extraction_tests.rs",
+      "sha256": "0E5DF9B19A304F2EFB02D171048F475496DE2C9E322E7B353620FE2E1BFC74B2"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/responsive.rs",
+      "sha256": "BD24D2E7E0A7FBC7C01FF99A97BFA126251AB9A00274A6D89FD8956FB3C8E1AB"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/primitive.rs",
+      "sha256": "9978EE087BAA346A4CB501317EA02B448E8C00D0715215BAC9F02AF14B8ECCF4"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/frame_queue.rs",
+      "sha256": "A99C566CE40B19D7049273006A99677E3610A2E96DFAC17D063006BFC08AD1DA"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/image.rs",
+      "sha256": "B6219AF2A6F0D25BA97DF9493EDF256679EA328D36021E6B5EB588EAB90C539E"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/paragraph.rs",
+      "sha256": "D106F13B4DC233E5A53D375CCFF72501BF66F3375FC4F3A356115E7EEF695653"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/text.rs",
+      "sha256": "1180044A51FA259C355C07B8F3A824CA4F09FD41493C05DFC228217AFB4AD6EB"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui/src/text_system.rs",
+      "sha256": "71E61F30A447A50FCE57D4B75608AEC5D5264E13F05FB20B6BF0E835C3CDB2E1"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui/src/text_system/line.rs",
+      "sha256": "AE962FDEC63CA8B107FAE18EE6AA6335CD7C23C8A1573516350C71DCADD63DC8"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui/src/text_system/line_layout.rs",
+      "sha256": "BF5C37F8B3F4523CE1D9B5892D26A22BBA4864F2070C21A99778EF546C439A1D"
+    },
+    {
+      "path": "examples/hello/Cargo.toml",
+      "sha256": "5063944DCB6792976790E554C3438DAEF142896313D4980DAC1553ABA117E972"
+    },
+    {
+      "path": "examples/hello/src/retained_paragraph_tests.rs",
+      "sha256": "BFF4BA71A69B219EE68906880CD0271B9BA0800BED44DBA9E4DFDBAA638530BB"
+    },
+    {
+      "path": "examples/hello/assets/NotoSansSC-Regular.otf",
+      "sha256": "2C76254F6FC379FDDFCE0A7E84FB5385BB135D3E399294F6EEB6680D0365B74B"
+    },
+    {
+      "path": "tooling/rendering-perf/Cargo.toml",
+      "sha256": "B83CBBEC49D79EB8A93971C612C81204458893B4E829A900B6AB6542A21DAD05"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained.rs",
+      "sha256": "ECD47502CE50E8C9DEB2839FE0C4A0F90706789D59BA33B08BA0DEC11FFA2CA0"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/storage.rs",
+      "sha256": "6A38A539145B542E00966F28C274F3EB36EC9E287F34D14806ADCF747D8BD835"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui/src/scene.rs",
+      "sha256": "46B4C775F0D3204A1BCBB1B4C0D90F54AE8AB54C1110985C2F1D82E827D57C0E"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_shadows.rs",
+      "sha256": "15867247354956D6FAAEC076A5D938A7F278C865F95FA7CA0C1C101490C9A8AB"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/allocation_budget.rs",
+      "sha256": "0ABC25D342F24E7DEB917002935E19DF0CFB142A4A613721BA49B0F224FC0B28"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/completion.rs",
+      "sha256": "591168A1F07EAEFA0B7405C849113BCB1C9F8BFF6CFA3BE5B735CA9293943727"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/completion/tests.rs",
+      "sha256": "3BABD2C39AADC75872F3102BA1ED9DFC5BDF4B82EB81EA6D52233FF7CCC08881"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer.rs",
+      "sha256": "B7AA6BABB391FE4D4F58D5AE799E010AB5C9C9AAAE7926A5925AF00FAA48E06D"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/shaders.wgsl",
+      "sha256": "42351A69CF668B63F56008F1D860D9450DD491D59AE9AE2E1A2F7E2C90A17C00"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/cosmic_text_system.rs",
+      "sha256": "D2AA5BA630E17613676715EA8C24CCCE1A27BFA10A2C78BB68F91E1E120B9566"
+    },
+    {
+      "path": "crates/gpui-box/src/retained/wgpu/composition.rs",
+      "sha256": "9B665C7DEB16C083675577A646A136252AFC3867E13FF8275057AA5BB3CEAE89"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/layers.rs",
+      "sha256": "0E327C91EC2EF51BF19450699A390F6AA428AD9ADA868C46287BD6019BD99EBF"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/layers.wgsl",
+      "sha256": "5231707FD02B9A2D9C00287E153F3EC356ABB29ADC38FF3E9C3FDD13A2581193"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/images.rs",
+      "sha256": "BDC16CA285D042F6AEC832E838B70A747C0E83A04A6EAD07CFD5944D7435896B"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/images.wgsl",
+      "sha256": "08A83F30D673B13B6AAB41642D85957FD8C84231898F03A231DC28260A9D2025"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/glyphs.rs",
+      "sha256": "C3F4C7DF548768E3FDED041A71B851703F28C19220AA85BBE693A00E9FC40A69"
+    },
+    {
+      "path": "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/glyphs.wgsl",
+      "sha256": "93F93C8B21E87C425D176D6C13D1B73D5DA968DB902C6FB0FD4F37104B302BE3"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_gpu.rs",
+      "sha256": "B7432830E470EC86D9F26F2FF8867642D53824C526127DBC8C14F2CFE4FDC707"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_bench.rs",
+      "sha256": "C2F231E42C09E771584A5C3AB8CE93C8D7FFF63F930057955C08BE485B5AA80A"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_layer_reuse.rs",
+      "sha256": "320CDD7C093F9DC64D72B91C4FF59BCB283A9F8A857AE5A49BEE3B01675D5169"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_layer_budget.rs",
+      "sha256": "0F1CA17D283C3E7091B21599AC209AC703A5EE5F412EA2D3AE8AFD1CDA40BC6F"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_layer_bounds.rs",
+      "sha256": "48C6174402D313BBF8C4EBF82A4071046383183ACFC0E29718677731459F0164"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_layers.rs",
+      "sha256": "1CAC76B137DBCDE6C8E55FA3673C0297E63AF730F8A11A087415FECE835E95AE"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_reactive.rs",
+      "sha256": "4FB60D401D826E6A5D6DADCD5F29EFB7956F73F01ED59D516442E9816FC79638"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_computed.rs",
+      "sha256": "9D8A000E294F208E6B2D083B6450651B2DB5B3836F53FFCB7F8400BC9F5937CE"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_delivery.rs",
+      "sha256": "9932BC95AE98574A3F21234F84640D41F7680392C5F4A26D5C07CA026705B270"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_logical.rs",
+      "sha256": "7068CCDAECA72FEB46CAA7BD8FA4AD444D7C10FAAE4EF6E26D40C3B6A4994F19"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_measure.rs",
+      "sha256": "4A64C8EC9163AE7078A813177CC4FBF39C3335E94B9B0811B6291B1D9713E910"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_responsive.rs",
+      "sha256": "D75A6AD0F7A8ECE7B969B167A349D6B80245AF31665BC28CBA6743AC0CF2A9D6"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_primitive.rs",
+      "sha256": "3E2131C3A8EDA6DB9A2C367C058D1A268F73587958042776B52555B2EA3A8CDA"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_queue.rs",
+      "sha256": "BA47911EAD99E6C68B9397B0DF43210728497EE3E155C43DBDFFBF08650D1558"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_completion.rs",
+      "sha256": "8FEA05E7069E70EF0147CFEF61EFA26B43D9DE683FC8E3305578BD2BE194B6A3"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_image.rs",
+      "sha256": "8CAFA2B7D840FA7DF3E835A5C95A0C248FBB083520C82D5EDE3BCC0E31216721"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_image_deltas.rs",
+      "sha256": "38182723E0FA24DFCA46756D6BA9BEDA782A586994B30DE4FB81EA0C477A805E"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_composition.rs",
+      "sha256": "25E987B5023B37B0FCBD2491F1E21A63642696DD96431AE1C4C36D8050C6C24A"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_text.rs",
+      "sha256": "55E474B6CA251610CE8209AB81471A867646A36FCD500F3B24E1ED66FD2A12B8"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_glyph_bench.rs",
+      "sha256": "B0E33D3E9BAD4D7989CBA3BAB0FB10490C592E7F52D67E2AA2A5B11C789A0AA1"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_paint_store.rs",
+      "sha256": "8C158614F4CB8F7D61834124AD17A50DA9B6961F2323B57ED0F494E03CDA4C03"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_extraction.rs",
+      "sha256": "CC486CA196ECA1C26D4AEEA8F11ECDDC57C8E54D1B091F90EE9A876C080734E2"
+    },
+    {
+      "path": "tooling/rendering-perf/src/properties.rs",
+      "sha256": "3931FE01F09D00792897CF4C336B90944596E169995793E4279F68C294015019"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_properties.rs",
+      "sha256": "FB5B5A417CA0DDA39ABA845AFC38EE6BA41EDF5B7BEAE13C1B4D2DEE789E871A"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_property_gpu.rs",
+      "sha256": "945D91C567CA1546CC06BFC5CFF696B1EA90D68F293D4E7C6936930E7A216B41"
+    },
+    {
+      "path": "tooling/rendering-perf/src/layout_publication.rs",
+      "sha256": "A0D3699C93E519FC90889C35A8CB3E8B2C10E01FD03B73B2C7D5CE10AAD579A9"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_layout.rs",
+      "sha256": "41E3FE0F96871975F43F6B8CF49AE3524DF7E65A262BA25FF83D2D7843B9F70A"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_layout_gpu.rs",
+      "sha256": "27AD91BBFE336FE37F982160E61B602F466F1152934A4CBD88B74F59E95981EA"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_validation.rs",
+      "sha256": "00C26429F567DBF55FB36B38108CC7C2735D57D5854C20200FE2CB3D008FFDB7"
+    },
+    {
+      "path": "tooling/rendering-perf/src/retained_hit_index.rs",
+      "sha256": "2DEEB485E306862C6E304F0C4A6E9547C3D8164C0350420B5D954B70064F9022"
+    },
+    {
+      "path": "tooling/rendering-perf/run-retained-gpu.ps1",
+      "sha256": "DFB64879B4C8DACBCBC6943F06D57EC3ECE7F7DC9DB8723B9739E45FF943D12F"
+    },
+    {
+      "path": "vendor/taffy/src/compute/block.rs",
+      "sha256": "20785C95E9E3B4A2392CEAAED23B514BDCA502A37174F5C5F7ADEEEAA2D9C016"
+    },
+    {
+      "path": "vendor/taffy/src/compute/common/alignment.rs",
+      "sha256": "8766E3A95BEB7548D4F6C15AE36436E1F925E7E3430A15E96D1F65E82BCB78DE"
+    },
+    {
+      "path": "vendor/taffy/src/compute/common/mod.rs",
+      "sha256": "F61E06FBF53015F14F6C833C56712ABD9D74DEDE675C6CFD55BF90ED2B5F8EF5"
+    },
+    {
+      "path": "vendor/taffy/src/compute/common/scrollable_overflow.rs",
+      "sha256": "8C036CF35F0878206DD92973D219956BDF24BDB890269E19A572CB9CC42A2994"
+    },
+    {
+      "path": "vendor/taffy/src/compute/common/sizing_keyword.rs",
+      "sha256": "6030B55185314F2219AEEA40CB7A8D13FD182E4B916730561A73A6E834A80AE5"
+    },
+    {
+      "path": "vendor/taffy/src/compute/flexbox.rs",
+      "sha256": "C25E643A9A0AE71C78B6781558B5DCDC4A55FA7F01799ACC7EC8B24FF11CB884"
+    },
+    {
+      "path": "vendor/taffy/src/compute/float.rs",
+      "sha256": "08F162BC90C55C1B1BA2930E5ADF6ABC9881611086A75C096853F9CE92141118"
+    },
+    {
+      "path": "vendor/taffy/src/compute/grid/alignment.rs",
+      "sha256": "63D0A0115BFAB9AE7A6473C34FD4122FFE2FE3938281B5F14597CFADB6378C98"
+    },
+    {
+      "path": "vendor/taffy/src/compute/grid/explicit_grid.rs",
+      "sha256": "F42348DCEA5C61C79AE17165CBBBA505DA980E29841C9A26ADB8494D322A4808"
+    },
+    {
+      "path": "vendor/taffy/src/compute/grid/implicit_grid.rs",
+      "sha256": "5534AC03C758CDC52869CD465DB95C4C6637B38AF2E9DB21AA44BB3C3430E49A"
+    },
+    {
+      "path": "vendor/taffy/src/compute/grid/mod.rs",
+      "sha256": "5A6671FD86C039EC9B2AF396DD17C7CE5CAF89A7A50D0E46FFE83A28CC9290CE"
+    },
+    {
+      "path": "vendor/taffy/src/compute/grid/placement.rs",
+      "sha256": "D58B9CC09D1B411CC2C3486FCA9F88ED203767F9942592B73A069889C7D001CA"
+    },
+    {
+      "path": "vendor/taffy/src/compute/grid/track_sizing.rs",
+      "sha256": "A63BE4DA7621D0F9D8EE9196D726C1A30B558F4D1FE94FD54DE3EB34994F1DD8"
+    },
+    {
+      "path": "vendor/taffy/src/compute/grid/types/cell_occupancy.rs",
+      "sha256": "44C6BF4DE309744A8F77B903257CDCDB6E70D06355A8C6A0BDD761EC19128481"
+    },
+    {
+      "path": "vendor/taffy/src/compute/grid/types/coordinates.rs",
+      "sha256": "DE9FC2E86ECF12ED5D2A21D49B070DFC437F40C8411A9A2A90414B952DF2DCB2"
+    },
+    {
+      "path": "vendor/taffy/src/compute/grid/types/grid_item.rs",
+      "sha256": "F09CFB9B24E244333B4B0AD52659DE8B65ADF763814857EF562A6A52C8699A90"
+    },
+    {
+      "path": "vendor/taffy/src/compute/grid/types/grid_track_counts.rs",
+      "sha256": "58D92718927DBEBE30E0F9634AC309002E9B5A774E3E6FB67150F2B8341F036D"
+    },
+    {
+      "path": "vendor/taffy/src/compute/grid/types/grid_track.rs",
+      "sha256": "537833ABE5B6A33F2815D727FE258EC93D0EA3ACA541B8FD19C99310D817BA75"
+    },
+    {
+      "path": "vendor/taffy/src/compute/grid/types/mod.rs",
+      "sha256": "BB4773D2AA496973426940A64E70DFB62716F526CB7A70B3E7E59D7463B10A24"
+    },
+    {
+      "path": "vendor/taffy/src/compute/grid/types/named.rs",
+      "sha256": "C8FEC280AAD83C20D1408E91C0C096B96070A0BC04FD7B24ECBD7EA5E6B5E8F3"
+    },
+    {
+      "path": "vendor/taffy/src/compute/grid/util/mod.rs",
+      "sha256": "3302F73C3F2FD98DB32297A6E9D71A0646269C248D825D1CC92D17ECEC93ADBF"
+    },
+    {
+      "path": "vendor/taffy/src/compute/grid/util/test_helpers.rs",
+      "sha256": "A5069EFD4DDC0254EEB289BA1A135B73510BBA7FA2F29DE4C9AA98D8F04CD66A"
+    },
+    {
+      "path": "vendor/taffy/src/compute/leaf.rs",
+      "sha256": "603E7E5752D4ABD78319F1DF33D05B9355950BA8CD3D5434F1F12C416AAE0810"
+    },
+    {
+      "path": "vendor/taffy/src/compute/mod.rs",
+      "sha256": "2B438BACFFB7E72F0095243BC21F114CABA549A61FD1F3CF769DBFA063C184E4"
+    },
+    {
+      "path": "vendor/taffy/src/compute/oof.rs",
+      "sha256": "FAD3CE3BDFA5730E92D3DBDE763E61049C9C402DB2A01105ED13F5FBB1C45523"
+    },
+    {
+      "path": "vendor/taffy/src/geometry.rs",
+      "sha256": "5340222BB52AC1BE0A5BA79DF3253FDFEE45798FAC17B32012C4EC45B192EB41"
+    },
+    {
+      "path": "vendor/taffy/src/lib.rs",
+      "sha256": "1C33A9D79BCCE2D45CE8C94BA1D5B721F6A943C5855AD0F6D035BE16348ECA4C"
+    },
+    {
+      "path": "vendor/taffy/src/prelude.rs",
+      "sha256": "892BC57C2DCA1FDE7ADE48C33AFFB0F2CC81E27AE91C927CA756B639B56633D2"
+    },
+    {
+      "path": "vendor/taffy/src/style_helpers.rs",
+      "sha256": "4A3BF53B9D4D410469860EA6AFF13F1A84B29542E5B50151DA8BD32D880D763D"
+    },
+    {
+      "path": "vendor/taffy/src/style/alignment.rs",
+      "sha256": "F96681846C9F5C6598E27F0170029D91952839C75BFD75F86FB7E0B321E7C806"
+    },
+    {
+      "path": "vendor/taffy/src/style/available_space.rs",
+      "sha256": "B704BE4853BA3251E904A0CCAFE3612220FC9FBB4F28B8FD8103C319018D8E06"
+    },
+    {
+      "path": "vendor/taffy/src/style/block.rs",
+      "sha256": "9ED4B1B2C3AA7443FEEC78CE106504FA153EB9D1FFA21098DD322537999D950B"
+    },
+    {
+      "path": "vendor/taffy/src/style/compact_length.rs",
+      "sha256": "3D771B000898DC764C5ADCCD0759150216EA79E42A5D4808C530CF67A20397C8"
+    },
+    {
+      "path": "vendor/taffy/src/style/dimension.rs",
+      "sha256": "56E2AC72BA2C322DC9AA8AA08D11671D7B1F2E720A83DE3FA7248E7F9963D436"
+    },
+    {
+      "path": "vendor/taffy/src/style/flex.rs",
+      "sha256": "F85B52EFAEDCCD68E9AB570966CB8C2CF2FF903B5ADAF43799F25910737D0DC4"
+    },
+    {
+      "path": "vendor/taffy/src/style/float.rs",
+      "sha256": "884A69BB999DAE5172FB88805E7A0ED30FC3EF6A6D0B5340FF56045D45A5CB6C"
+    },
+    {
+      "path": "vendor/taffy/src/style/grid.rs",
+      "sha256": "FD006874AFFB95123E9D0DD10050493D8634A4A56EE73B351F8A08C53761804B"
+    },
+    {
+      "path": "vendor/taffy/src/style/mod.rs",
+      "sha256": "95B5C4B7B78E95FAC859FF685DF930769AB8A1FB14C764E9680F9B4B580E0F7A"
+    },
+    {
+      "path": "vendor/taffy/src/tree/cache.rs",
+      "sha256": "7FC1B9016B52B5E1093E00D8075C3D7118B2704F549FDB0838F1842D3D8387CF"
+    },
+    {
+      "path": "vendor/taffy/src/tree/layout.rs",
+      "sha256": "8D9196F87E995096EA464312774C172AF65F024C36A02E3579D6B13B7FA10A15"
+    },
+    {
+      "path": "vendor/taffy/src/tree/mod.rs",
+      "sha256": "F559091FEEB3BB07991C42DD382DA8620FF95DBD129F7D84DC8D92CBD9540543"
+    },
+    {
+      "path": "vendor/taffy/src/tree/node.rs",
+      "sha256": "B027062338F4D2DCEA8C7C4200C7BC0D109C2E33DFA955B25079BB1D7B0537BA"
+    },
+    {
+      "path": "vendor/taffy/src/tree/taffy_tree.rs",
+      "sha256": "34CB3FDDFC06F8FC878FEB5B7E346D00ACB17DE6284C6D937A8F513E92C56F02"
+    },
+    {
+      "path": "vendor/taffy/src/tree/traits.rs",
+      "sha256": "F9F501CCD5EBFB3412C72337BBEC0ADA65AAE7001F0F69ED235B42F68BA9273E"
+    },
+    {
+      "path": "vendor/taffy/src/util/debug.rs",
+      "sha256": "AB44F98E28E041006CD14E645E0B4BC970633C8DA2D493856658EF2F2355D439"
+    },
+    {
+      "path": "vendor/taffy/src/util/front_back_vec_builder.rs",
+      "sha256": "09FA85F4CB31FC70C41BCCFB5E9D424851F853BBB4C519B475F9B84F30CA5297"
+    },
+    {
+      "path": "vendor/taffy/src/util/math.rs",
+      "sha256": "EE37A509AC3EEF3581571A27B167C03FC65C37EE4110CBBD4C89F7CDC149F920"
+    },
+    {
+      "path": "vendor/taffy/src/util/mod.rs",
+      "sha256": "8E572955CB989B377DB453EC929E03652D0B109FA66EA0E490E9FF3B57738CD5"
+    },
+    {
+      "path": "vendor/taffy/src/util/parse.rs",
+      "sha256": "25144731B4D5DE634B223ED3E81D1DD5B4C2B93635A30E0BCCD8FD1B238BB47F"
+    },
+    {
+      "path": "vendor/taffy/src/util/print.rs",
+      "sha256": "0A453D0295A533092CA9A64D0CBAF3DFB1E1C9E803FE3325108F3AC1E0D76154"
+    },
+    {
+      "path": "vendor/taffy/src/util/resolve.rs",
+      "sha256": "E1EA8214C982BE001C9F9BA5006881AAF7882AC5781825D7A185E2F98C5C243E"
+    },
+    {
+      "path": "vendor/taffy/src/util/sys.rs",
+      "sha256": "D83C0EC5038E46D2BC416E9F6759531AF37FC0DD2BD639FFE832504F33BD006A"
+    }
+  ],
+  "validation_only": false,
+  "layer_bounds_only": false,
+  "layer_budget_only": false,
+  "layer_reuse_only": false,
+  "shadows_only": true,
+  "scope": "Retained UI frames, hardware pixel comparisons, upload payload counts, in-flight lifecycle"
+}

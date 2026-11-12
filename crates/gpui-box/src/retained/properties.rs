@@ -170,9 +170,16 @@ impl PaintItem {
     }
     pub fn ink_bounds(&self) -> Option<Rect> {
         let bounds = self.visible_bounds();
-        let quad = (!bounds.is_empty()
+        let mut quad = (!bounds.is_empty()
             && (self.image.is_some() || self.commands.iter().any(|command| self.visible(command))))
         .then_some(bounds);
+        for shadow in self.shadows.iter().filter(|shadow| shadow.color & 255 != 0) {
+            let ink = self.shadow_geometry(*shadow).ink;
+            let ink = self.clip.map_or(ink, |clip| ink.intersect(clip));
+            if !ink.is_empty() {
+                quad = Some(quad.map_or(ink, |old| old.union(ink)));
+            }
+        }
         #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
         if self.text.as_ref().is_some_and(|text| text.color & 255 != 0)
             && let Some(ink) = self.glyphs.as_ref().and_then(|chunk| chunk.ink)
@@ -226,6 +233,7 @@ pub(super) fn damage(
                     && a.clip == b.clip
                     && a.commands == b.commands
                     && a.fill_color == b.fill_color
+                    && a.shadows == b.shadows
                     && a.image == b.image
                     && a.same_text(b)
                     && a.content_bounds == b.content_bounds

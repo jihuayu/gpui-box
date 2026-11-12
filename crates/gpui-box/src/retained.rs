@@ -31,7 +31,7 @@ pub mod text;
 pub use measure::{CustomMeasureSnapshot, ImageIntrinsicSize, LayoutStats, MeasureSnapshot};
 mod primitive;
 mod properties;
-pub use primitive::QuadDecoration;
+pub use primitive::{BoxShadow, QuadDecoration, ShadowGeometry};
 mod edit;
 pub mod reactive;
 pub mod responsive;
@@ -77,6 +77,7 @@ pub struct PaintItem {
     pub commands: Arc<[DisplayCommand]>,
     /// Current solid material, independent of the reusable command recording.
     pub fill_color: u32,
+    pub shadows: Arc<[BoxShadow]>,
     /// Optional decoded image stretched into the content box above the quad.
     pub image: Option<ImageResource>,
     #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
@@ -176,6 +177,7 @@ pub enum Patch {
     Opacity(NodeId, f32),
     Measure(NodeId, Option<MeasureSnapshot>),
     Decoration(NodeId, QuadDecoration),
+    Shadows(NodeId, Arc<[BoxShadow]>),
     Image(NodeId, Option<ImageResource>),
     #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
     Text(NodeId, Option<text::TextPaint>),
@@ -197,6 +199,7 @@ impl Patch {
             | Self::Opacity(id, _)
             | Self::Measure(id, _)
             | Self::Decoration(id, _)
+            | Self::Shadows(id, _)
             | Self::Image(id, _) => *id,
             #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
             Self::Text(_, _) => unreachable!(),
@@ -211,6 +214,9 @@ pub struct Transaction {
 }
 
 impl Transaction {
+    pub fn shadows(&mut self, node: NodeId, shadows: Vec<BoxShadow>) {
+        self.patches.push(Patch::Shadows(node, shadows.into()));
+    }
     pub fn color(&mut self, node: NodeId, rgba: u32) {
         self.patches.push(Patch::Color(node, rgba));
     }
@@ -325,6 +331,7 @@ struct Node {
     opacity: f32,
     measure: Option<MeasureSnapshot>,
     decoration: QuadDecoration,
+    shadows: Arc<[BoxShadow]>,
     image: Option<ImageResource>,
     #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
     text: Option<text::TextPaint>,
@@ -369,6 +376,7 @@ struct Pending {
     opacity: Option<f32>,
     measure: Option<Option<MeasureSnapshot>>,
     decoration: Option<QuadDecoration>,
+    shadows: Option<Arc<[BoxShadow]>>,
     image: Option<Option<ImageResource>>,
     #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
     text: Option<Option<text::TextPaint>>,
@@ -420,6 +428,7 @@ impl UiTree {
                     opacity: 1.0,
                     measure: None,
                     decoration: QuadDecoration::default(),
+                    shadows: Arc::from([]),
                     image: None,
                     #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
                     text: None,
@@ -518,6 +527,7 @@ impl UiTree {
             opacity: 1.0,
             measure: None,
             decoration: QuadDecoration::default(),
+            shadows: Arc::from([]),
             image: None,
             #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
             text: None,
@@ -635,6 +645,12 @@ impl UiTree {
                     decoration.validate()?;
                     entry.decoration = Some(decoration);
                 }
+                Patch::Shadows(_, shadows) => {
+                    for shadow in shadows.iter() {
+                        shadow.validate()?;
+                    }
+                    entry.shadows = Some(shadows);
+                }
                 Patch::Image(_, image) => {
                     entry.image = Some(image);
                 }
@@ -704,7 +720,11 @@ impl UiTree {
             let color_changed = entry.color.is_some_and(|color| color != node.color);
             let decoration_changed = entry
                 .decoration
-                .is_some_and(|value| value != node.decoration);
+                .is_some_and(|value| value != node.decoration)
+                || entry
+                    .shadows
+                    .as_ref()
+                    .is_some_and(|value| *value != node.shadows);
             let property_changed = entry
                 .translation
                 .is_some_and(|value| value != node.translation)
@@ -858,7 +878,12 @@ impl UiTree {
             }
             if decoration_changed {
                 let node = self.node_mut(id);
-                node.decoration = entry.decoration.expect("changed decoration");
+                if let Some(value) = entry.decoration {
+                    node.decoration = value;
+                }
+                if let Some(value) = entry.shadows {
+                    node.shadows = value;
+                }
                 node.chunk = None;
                 result.route(
                     id,

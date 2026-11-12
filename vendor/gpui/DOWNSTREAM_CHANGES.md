@@ -139,3 +139,29 @@ rebased textures and camera/global payload. The distribution hardware checks
 mixed nested/fractional scenes and an independent target-only crop oracle; its
 budget-pressure controls explicitly disable reuse. See the parent repository's
 `docs/RETAINED_LAYER_REUSE.md` for measurements and remaining GPU-property work.
+
+### Persistent rounded-box shadows and typed instance storage
+
+`retained/storage.rs` shares typed CPU mirrors, geometric growth, range uploads,
+validation and explicit completion leases for the pinned Quad (160-byte) and
+Shadow (112-byte) ABIs. `QuadBatch` adds independent shadow capacity/writes;
+composition adds shadow draw ranges, separate dirty-range raster invalidation
+and shadow upload/generation counters. Shadow geometry/color/radius/expanded
+paint bounds and draw/write ranges are preflighted. A backend-only full declared
+instance-prefix upload control leaves logical dirtiness/raster work unchanged;
+it excludes geometric spare slots and unused typed placeholders.
+
+The shared Scene culls/orders shadows using conservative paint ink: a three-blur
+margin for drop shadows, element bounds for inset shadows. This preserves visible
+blur tails and collapsed inset holes without changing public primitive body
+bounds. The shared WGPU shadow fragment shader adds each target's world origin
+for cropped isolation coordinates. Quad/shadow vertices collapse empty-mask
+geometry, preventing one-pixel lines at fractional zero-width/height clips.
+
+The distribution owner supplies immutable rounded-box shadow lists, shared typed
+source sinks, overflow damage, persistent CPU slots and ordinary GPUI drop/inset
+window paint. Hardware tests exercise mixed text/images, phase changes, batch
+writes, malformed retry and buffer growth with an outstanding prior submission.
+See `docs/RETAINED_SHADOWS.md` and its frozen evidence in the parent repository.
+Vulkan output is qualified here; native DirectX/Metal framebuffer verification,
+general-shape primitives and global resource budgets remain pending.

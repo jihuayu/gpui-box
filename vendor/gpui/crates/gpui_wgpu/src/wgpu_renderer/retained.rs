@@ -19,9 +19,15 @@ pub use images::{ImageUpdates, QuadImage, QuadImageId};
 use layers::LayerCache;
 pub use layers::{LayerMemoryStats, QuadDraw, QuadLayer, QuadLayerId};
 
-pub struct QuadWrite {
-    pub start: u32,
-    pub values: Vec<Quad>,
+mod storage;
+pub use storage::InstanceWrite;
+use storage::PersistentStorage;
+pub type QuadWrite = InstanceWrite<Quad>;
+pub type ShadowWrite = InstanceWrite<gpui::Shadow>;
+#[derive(Default)]
+pub struct ShadowBatch {
+    pub capacity: u32,
+    pub writes: Vec<ShadowWrite>,
 }
 pub struct QuadBatch {
     pub capacity: u32,
@@ -30,6 +36,7 @@ pub struct QuadBatch {
     pub layers: Vec<QuadLayer>,
     pub images: ImageUpdates,
     pub glyphs: GlyphUpdates,
+    pub shadows: ShadowBatch,
     pub cache_layers: bool,
     pub size: Size<DevicePixels>,
     pub redraw: QuadRedraw,
@@ -52,6 +59,9 @@ pub struct QuadSubmission {
     pub serial: u64,
     pub completed: u64,
     pub uploaded_bytes: u64,
+    pub shadow_upload_bytes: u64,
+    pub shadow_upload_ranges: usize,
+    pub shadow_buffer_generation: u64,
     pub upload_ranges: usize,
     pub draw_calls: usize,
     pub in_flight: usize,
@@ -90,8 +100,8 @@ struct Flight {
     serial: u64,
     submission: wgpu::SubmissionIndex,
     // Explicit leases keep replaced allocations alive through completion.
-    _buffer: wgpu::Buffer,
-    _binding: wgpu::BindGroup,
+    _quads: storage::StorageLease,
+    _shadows: storage::StorageLease,
     _clear: Option<(wgpu::Buffer, wgpu::BindGroup)>,
     _layers: Vec<layers::LayerLease>,
     _layer_root: Option<layers::TargetLease>,
@@ -101,13 +111,11 @@ struct Flight {
 
 pub struct RetainedQuadRenderer {
     renderer: WgpuHeadlessRenderer,
-    buffer: wgpu::Buffer,
-    binding: InstanceBinding,
-    mirror: Vec<Quad>,
+    quads: PersistentStorage<Quad>,
+    shadows: PersistentStorage<gpui::Shadow>,
     order: Vec<QuadDraw>,
     size: Option<Size<DevicePixels>>,
     serial: u64,
-    generation: u64,
     completed: Arc<AtomicU64>,
     completion_driver: Option<completion::CompletionDriver>,
     flights: VecDeque<Flight>,
@@ -115,6 +123,7 @@ pub struct RetainedQuadRenderer {
     failed: bool,
     clear: Option<(wgpu::Buffer, InstanceBinding)>,
     force_full: bool,
+    full_instance_uploads: bool,
     layers: LayerCache,
     images: images::ImageCache,
     glyphs: glyphs::GlyphCache,
@@ -135,19 +144,18 @@ impl RetainedQuadRenderer {
             !renderer.core.uses_webgl_instance_data,
             "retained storage buffers required"
         );
-        let (buffer, binding) = allocation(&renderer, 1);
+        let quads = PersistentStorage::new(&renderer, "retained_quad_slots");
+        let shadows = PersistentStorage::new(&renderer, "retained_shadow_slots");
         let layers = LayerCache::new(&renderer);
         let images = images::ImageCache::new(&renderer, layers.camera_layout());
         let glyphs = glyphs::GlyphCache::new(&renderer, layers.camera_layout());
         Ok(Self {
             renderer,
-            buffer,
-            binding,
-            mirror: vec![Quad::default()],
+            quads,
+            shadows,
             order: vec![],
             size: None,
             serial: 0,
-            generation: 1,
             completed: Arc::new(AtomicU64::new(0)),
             completion_driver: None,
             flights: VecDeque::new(),
@@ -155,10 +163,16 @@ impl RetainedQuadRenderer {
             failed: false,
             clear: None,
             force_full: true,
+            full_instance_uploads: false,
             layers,
             images,
             glyphs,
         })
+    }
+
+    /// Full declared-instance-range transport control; logical dirtiness and raster work stay unchanged.
+    pub fn set_full_instance_uploads_enabled(&mut self, enabled: bool) {
+        self.full_instance_uploads = enabled;
     }
 
     /// Force texture replacement on origin changes for correctness/performance controls.
@@ -240,29 +254,10 @@ impl RetainedQuadRenderer {
             batch.size.width.0 > 0 && batch.size.height.0 > 0,
             "nonempty render target required"
         );
-        let capacity = (batch.capacity as usize).max(1);
-        let bytes = capacity
-            .checked_mul(std::mem::size_of::<Quad>())
-            .context("quad capacity overflow")? as u64;
-        anyhow::ensure!(
-            bytes
-                <= u64::from(
-                    self.renderer
-                        .context
-                        .device
-                        .limits()
-                        .max_storage_buffer_binding_size
-                ),
-            "quad capacity exceeds storage binding limit"
-        );
-        for write in &batch.writes {
-            anyhow::ensure!(
-                (write.start as usize)
-                    .checked_add(write.values.len())
-                    .is_some_and(|end| end <= capacity),
-                "write outside allocation"
-            );
-        }
+        PersistentStorage::<Quad>::validate(&self.renderer, batch.capacity, &batch.writes)?;
+        PersistentStorage::<gpui::Shadow>::validate(
+            &self.renderer, batch.shadows.capacity, &batch.shadows.writes,
+        )?;
         let order = batch.order.as_ref().unwrap_or(&self.order);
         let image_ids = self.images.validate(
             &batch.images,
@@ -284,6 +279,7 @@ impl RetainedQuadRenderer {
             &batch.layers,
             order,
             batch.capacity,
+            batch.shadows.capacity,
             batch.size,
             &image_ids,
             &glyph_ids,
@@ -343,7 +339,7 @@ impl RetainedQuadRenderer {
             // Set shared globals and target through the same reference path.
             self.renderer.render(&Scene::default(), batch.size)?;
             self.size = Some(batch.size);
-            let (buffer, binding) = allocation(&self.renderer, 1);
+            let (buffer, binding) = storage::allocation::<Quad>(&self.renderer, 1, "retained_clear");
             let bounds = Bounds {
                 origin: gpui::point(ScaledPixels(0.0), ScaledPixels(0.0)),
                 size: gpui::size(
@@ -367,45 +363,12 @@ impl RetainedQuadRenderer {
                 });
             self.clear = Some((buffer, binding));
         }
-        let grown = capacity > self.mirror.len();
-        if grown {
-            let limit = self
-                .renderer
-                .context
-                .device
-                .limits()
-                .max_storage_buffer_binding_size as usize
-                / std::mem::size_of::<Quad>();
-            let allocation_capacity = capacity.next_power_of_two().min(limit);
-            self.mirror.resize(allocation_capacity, Quad::default());
-            (self.buffer, self.binding) = allocation(&self.renderer, allocation_capacity as u64);
-            self.generation = self
-                .generation
-                .checked_add(1)
-                .context("buffer generation exhausted")?;
-        }
-        for write in &batch.writes {
-            let start = write.start as usize;
-            self.mirror[start..start + write.values.len()].copy_from_slice(&write.values);
-        }
-        let mut uploaded_bytes = 0;
-        let mut upload_ranges = 0;
-        let dirty_ranges: Vec<_> = batch
-            .writes
-            .iter()
-            .map(|write| write.start..write.start + write.values.len() as u32)
-            .collect();
-        if grown {
-            uploaded_bytes = self.upload(0, &self.mirror);
-            upload_ranges = 1;
-        } else {
-            for write in &batch.writes {
-                if !write.values.is_empty() {
-                    uploaded_bytes += self.upload(write.start, &write.values);
-                    upload_ranges += 1;
-                }
-            }
-        }
+        let quad_stats = self.quads.apply(
+            &self.renderer, batch.capacity, batch.writes, self.full_instance_uploads,
+        )?;
+        let shadow_stats = self.shadows.apply(
+            &self.renderer, batch.shadows.capacity, batch.shadows.writes, self.full_instance_uploads,
+        )?;
         if let Some(order) = batch.order {
             self.order = order;
         }
@@ -436,10 +399,12 @@ impl RetainedQuadRenderer {
         glyph_stats.validated_glyphs = validated_glyphs;
         let layer_stats = self.layers.render(
             &self.renderer,
-            &self.binding,
+            &self.quads.binding,
+            &self.shadows.binding,
             &mut encoder,
             batch.layers,
-            &dirty_ranges,
+            &quad_stats.dirty,
+            &shadow_stats.dirty,
             batch.size,
             batch.cache_layers,
             &self.images,
@@ -483,7 +448,8 @@ impl RetainedQuadRenderer {
             }
             root_draws = self.layers.draw(
                 core,
-                &self.binding,
+                &self.quads.binding,
+                &self.shadows.binding,
                 &self.order,
                 &mut pass,
                 &self.images,
@@ -502,8 +468,8 @@ impl RetainedQuadRenderer {
         self.flights.push_back(Flight {
             serial,
             submission,
-            _buffer: self.buffer.clone(),
-            _binding: self.binding.bind_group.clone(),
+            _quads: self.quads.lease(),
+            _shadows: self.shadows.lease(),
             _clear: self
                 .clear
                 .as_ref()
@@ -525,8 +491,11 @@ impl RetainedQuadRenderer {
         Ok(QuadSubmission {
             serial,
             completed: self.completed.load(Ordering::Acquire),
-            uploaded_bytes,
-            upload_ranges,
+            uploaded_bytes: quad_stats.bytes,
+            upload_ranges: quad_stats.ranges,
+            shadow_upload_bytes: shadow_stats.bytes,
+            shadow_upload_ranges: shadow_stats.ranges,
+            shadow_buffer_generation: self.shadows.generation,
             draw_calls: layer_stats.draws
                 + if redraw == QuadRedraw::Unchanged {
                     0
@@ -534,7 +503,7 @@ impl RetainedQuadRenderer {
                     root_draws + usize::from(redraw != QuadRedraw::Full)
                 },
             in_flight: self.flights.len(),
-            buffer_generation: self.generation,
+            buffer_generation: self.quads.generation,
             drawn_pixels,
             partial: matches!(redraw, QuadRedraw::Damage { .. }),
             rasterized_layers: layer_stats.rasterized,
@@ -564,17 +533,6 @@ impl RetainedQuadRenderer {
             glyph_rebuilt_instances: glyph_stats.rebuilt_glyphs,
             glyph_validated_instances: glyph_stats.validated_glyphs,
         })
-    }
-
-    fn upload(&self, start: u32, quads: &[Quad]) -> u64 {
-        // SAFETY: Same initialized, padding-free Quad GPU ABI as the full renderer.
-        let bytes = unsafe { WgpuRendererCore::instance_bytes(quads) };
-        self.renderer.context.queue.write_buffer(
-            &self.buffer,
-            u64::from(start) * std::mem::size_of::<Quad>() as u64,
-            bytes,
-        );
-        bytes.len() as u64
     }
 
     /// Wait for submitted work without a texture readback.
@@ -625,27 +583,3 @@ impl Drop for RetainedQuadRenderer {
     }
 }
 
-fn allocation(renderer: &WgpuHeadlessRenderer, capacity: u64) -> (wgpu::Buffer, InstanceBinding) {
-    let device = &renderer.context.device;
-    let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("retained_quad_slots"),
-        size: capacity * std::mem::size_of::<Quad>() as u64,
-        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    });
-    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some("retained_quad_slots_binding"),
-        layout: &renderer.core.resources.bind_group_layouts.instances,
-        entries: &[wgpu::BindGroupEntry {
-            binding: 0,
-            resource: buffer.as_entire_binding(),
-        }],
-    });
-    (
-        buffer,
-        InstanceBinding {
-            bind_group,
-            first_instance: 0,
-        },
-    )
-}

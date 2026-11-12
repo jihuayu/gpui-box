@@ -86,9 +86,15 @@ impl Scene {
 
     pub fn insert_primitive(&mut self, primitive: impl Into<Primitive>) {
         let mut primitive = primitive.into();
-        let clipped_bounds = primitive
-            .bounds()
-            .intersect(&primitive.content_mask().bounds);
+        // Shadow geometry covers its Gaussian tail (or the complete element
+        // for inset shadows), not just the core/hole rectangle. Use that same
+        // conservative region for culling and cross-primitive ordering.
+        let paint_bounds = match &primitive {
+            Primitive::Shadow(shadow) if shadow.inset != 0 => shadow.element_bounds,
+            Primitive::Shadow(shadow) => shadow.bounds.dilate(shadow.blur_radius * 3.0),
+            _ => *primitive.bounds(),
+        };
+        let clipped_bounds = paint_bounds.intersect(&primitive.content_mask().bounds);
 
         if clipped_bounds.is_empty() {
             return;

@@ -1,0 +1,20 @@
+warning: linker stdout: 正在创建库 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\debug\build\ztracing_macro/13e575eecf58c31e\out\ztracing_macro-bf70de06d9794f31.dll.lib 和对象 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\debug\build\ztracing_macro/13e575eecf58c31e\out\ztracing_macro-bf70de06d9794f31.dll.exp
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `ztracing_macro` (lib) generated 1 warning
+warning: linker stdout: 正在创建库 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\debug\build\derive_refineable/98b5d47039683cd5\out\derive_refineable-69a839895460f094.dll.lib 和对象 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\debug\build\derive_refineable/98b5d47039683cd5\out\derive_refineable-69a839895460f094.dll.exp
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `derive_refineable` (lib) generated 1 warning
+warning: linker stdout: 正在创建库 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\debug\build\gpui_macros/dd0bb6bd9fb60cad\out\gpui_macros-b20e169359f90e8c.dll.lib 和对象 D:\RustCache\.cargo_from_c/targets/ggpui-a5968a66\debug\build\gpui_macros/dd0bb6bd9fb60cad\out\gpui_macros-b20e169359f90e8c.dll.exp
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `gpui_macros` (lib) generated 1 warning
+   Compiling gpui_wgpu v0.1.0 (D:\oss\ggpui-worktrees\rendering-performance-research\vendor\gpui\crates\gpui_wgpu)
+   Compiling gpui-box v0.1.0-dev (D:\oss\ggpui-worktrees\rendering-performance-research\crates\gpui-box)
+   Compiling gpui-box-example-hello v0.1.0-dev (D:\oss\ggpui-worktrees\rendering-performance-research\examples\hello)
+   Compiling gpui-box-example-desktop v0.1.0-dev (D:\oss\ggpui-worktrees\rendering-performance-research\examples\desktop)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 18.27s

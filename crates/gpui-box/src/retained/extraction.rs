@@ -141,6 +141,7 @@ impl UiTree {
                 },
                 commands,
                 fill_color: node.color,
+                shadows: node.shadows.clone(),
                 image: node.image.clone(),
                 #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
                 text: node.text.clone(),
