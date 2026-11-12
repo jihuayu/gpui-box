@@ -699,9 +699,12 @@ target sets. The fresh external workspace, SDK and application paths include
 spaces and Chinese characters. Each application receives an application-source
 customization and, when enabled, a native Gradle customization. No-op generation,
 unchanged template provenance and preserved customizations are asserted. A build
-plan must reject the selected host target when disabled. Eight enabled cases
+plan must reject the selected host target when disabled. Eight initially enabled cases
 run the normal `gpui-box build TARGET` entry point and produce a nonempty desktop
-executable or APK containing both ARM64/x86_64 native libraries.
+executable or APK containing both ARM64/x86_64 native libraries. The workbench's
+disabled-target case then previews and adds that target, checks a no-op repeat,
+and builds it as a ninth case. The receipt records platform_added separately
+from the original template target selection.
 
 Only freshly generated mise configurations from this checkout's templates are
 trusted by the harness. The harness requests an isolated Cargo workspace output
@@ -828,8 +831,9 @@ and existing documentation remain preserved by generation/init.
 Generated application tests cover Unicode text, missing/oversized provider
 writes, search/open/save collaboration, case-insensitive/empty results, feature
 registration disposal and released-owner write rejection. Hosted desktop
-qualification executes these tests for both enabled workbench target sets.
-All four templates span twelve generation cases and eight enabled build cases
+qualification executes these tests for both initially enabled workbench target
+sets and the newly enabled platform-add case. All four templates span twelve
+generation cases and nine build cases
 in each native target job. Template receipts retain explicit build/runtime
 boundaries.
 
