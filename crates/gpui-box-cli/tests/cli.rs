@@ -259,14 +259,14 @@ fn generated_reference_matches_markdown_and_help_from_any_directory() {
         let streaming = syntax.starts_with("dev ") || syntax.starts_with("logs ");
         assert_eq!(command["json"], !streaming);
     }
-    assert_eq!(syntaxes.len(), 27);
+    assert_eq!(syntaxes.len(), 29);
     let mut codes = std::collections::BTreeSet::new();
     for error in contract["errors"].as_array().unwrap() {
         let code = error["code"].as_str().unwrap();
         assert!(codes.insert(code));
         assert!(markdown.contains(code));
     }
-    assert_eq!(codes.len(), 22);
+    assert_eq!(codes.len(), 23);
     assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
 }
 

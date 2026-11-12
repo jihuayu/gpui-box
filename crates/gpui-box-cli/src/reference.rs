@@ -27,6 +27,22 @@ pub struct ErrorReference {
 
 const COMMANDS: &[CommandReference] = &[
     CommandReference {
+        syntax: "sdk cache add SDK --cache PATH",
+        summary: "Verify and copy a local SDK into a content-addressed cache",
+        result: "CacheReceipt v1 with created/reused state and exact manifest",
+        effects: "Verify source, acquire OS writer lock, sync exclusive staging and publish a verified directory. Interrupted staging is retained",
+        offline: "Local SDK only. No child tools or network. Cache must be outside source and use unlinked user-owned directories",
+        json: true,
+    },
+    CommandReference {
+        syntax: "sdk cache verify DIGEST --cache PATH",
+        summary: "Verify a cache entry against its manifest and directory identity",
+        result: "CacheReceipt v1 with verified=true and created=false",
+        effects: "Read cache files without creating directories, locks or child processes",
+        offline: "Local content only. Integrity relies on a trusted source/channel",
+        json: true,
+    },
+    CommandReference {
         syntax: "config schema",
         summary: "Export the canonical version-1 project JSON Schema for editors",
         result: "JSON Schema draft 2020-12",
@@ -257,6 +273,10 @@ const NOTES: &[&str] = &[
 ];
 
 const ERRORS: &[ErrorReference] = &[
+    ErrorReference {
+        code: "SDK_CACHE_FAILED",
+        meaning: "SDK cache identity, integrity, path, writer locking or publication failed. Existing entries and interrupted staging are preserved",
+    },
     ErrorReference {
         code: "CONFIG_VALIDATION_FAILED",
         meaning: "Project configuration is unavailable, exceeds 1 MiB or fails project/service validation",

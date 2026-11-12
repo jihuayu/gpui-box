@@ -216,6 +216,39 @@ fn execute(arguments: &[String]) -> Result<Value, CliError> {
             return serde_json::to_value(manifest)
                 .map_err(|error| CliError::new("SDK_EXPORT_FAILED", error.to_string()));
         }
+        [command, namespace, operation, source, option, cache]
+            if command == "sdk"
+                && namespace == "cache"
+                && operation == "add"
+                && option == "--cache" =>
+        {
+            let receipt = sdk::cache_add(&root.join(source), &root.join(cache))
+                .map_err(|error| CliError::new("SDK_CACHE_FAILED", error))?;
+            outputln!(
+                "Verified SDK cache {} · Created {} · {}",
+                receipt.content_sha256,
+                receipt.created,
+                receipt.path.display()
+            );
+            return serde_json::to_value(receipt)
+                .map_err(|error| CliError::new("SDK_CACHE_FAILED", error.to_string()));
+        }
+        [command, namespace, operation, address, option, cache]
+            if command == "sdk"
+                && namespace == "cache"
+                && operation == "verify"
+                && option == "--cache" =>
+        {
+            let receipt = sdk::cache_verify(&root.join(cache), address)
+                .map_err(|error| CliError::new("SDK_CACHE_FAILED", error))?;
+            outputln!(
+                "Verified SDK cache {} · {}",
+                receipt.content_sha256,
+                receipt.path.display()
+            );
+            return serde_json::to_value(receipt)
+                .map_err(|error| CliError::new("SDK_CACHE_FAILED", error.to_string()));
+        }
         [command, operation, path] if command == "sdk" && operation == "verify" => {
             let manifest = sdk::verify(&root.join(path))
                 .map_err(|error| CliError::new("SDK_VERIFICATION_FAILED", error))?;

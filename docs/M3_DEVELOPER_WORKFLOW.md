@@ -124,6 +124,44 @@ and #5 acceptance gates.
   ActivityManager completion in 2624ms. Screenshot inspection and a real tap
   confirm Count0 changes to Count1. Physical-device testing remains deferred.
 
+## Local SDK cache
+
+```sh
+gpui-box sdk cache add "/path/to/SDK" --cache "/path/to/SDK Cache" --json
+gpui-box sdk cache verify DIGEST --cache "/path/to/SDK Cache" --json
+```
+
+The add command verifies a local exported SDK, computes SHA256 over the compact
+canonical typed manifest and publishes a copied SDK under CACHE/DIGEST. The
+receipt reports source/upstream/exporter provenance, the full file manifest,
+content identity, absolute entry path and whether this invocation created it.
+Use that path with new/init --distribution. Both commands run without Git,
+toolchain or network access. Manifest formatting does not change its typed
+content identity. Source file digests, source revision and exporter metadata do.
+
+The cache must be outside its source SDK and use user-owned directories without
+linked ancestors. Add keeps a persistent .writer.lock file with an exclusive OS
+lock. A concurrent writer fails with guidance. Process exit releases the lock,
+and the file remains for later operations. Files are copied with existing SDK
+bounds and expected hashes, synchronized into exclusive staging, fully verified
+and renamed to the final directory. A repeat verifies and reuses the prior entry.
+An edited, incomplete, linked or incorrectly addressed final entry fails with
+its content preserved. Verification reads an existing entry without locks or
+mutation. Cache writers cooperate through the lock. Concurrent hostile directory
+replacement and filesystem power-loss durability require separate guarantees.
+
+Failed staging remains under its reported .staging path. Review that exact path
+before manual cleanup, and rerun add to create fresh staging. Staging is never
+accepted as a cache hit. Entries have no automatic eviction or read-only OS
+attribute. Builds should use external output paths, and later verification
+detects changes or extra files inside the SDK. The existing external-template
+gate adds/reuses/verifies the SDK cache and builds all applications against its
+entry, then rechecks SDK integrity.
+
+The local cache verifies integrity against the supplied manifest. Authenticity
+depends on a trusted SDK source/channel. Remote authenticated fetching, native
+CLI publication, eviction and project installation locks retain their own gates.
+
 ## Configuration v1
 
 gpui-box.json is the canonical application configuration. Version 1 remains the
