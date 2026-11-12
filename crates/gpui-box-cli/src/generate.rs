@@ -269,7 +269,7 @@ impl Drop for GenerationLock {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ChangeAction {
     Create,
@@ -277,7 +277,7 @@ pub enum ChangeAction {
     Unchanged,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FileChange {
     pub path: String,
@@ -286,7 +286,7 @@ pub struct FileChange {
     pub after_sha256: String,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ChangePlan {
     pub schema_version: u32,
@@ -307,6 +307,223 @@ pub struct ApplyReceipt {
     pub files_written: Vec<String>,
     pub files_unchanged: Vec<String>,
     pub recovered_pending_journal: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PlatformAddPlan {
+    pub schema_version: u32,
+    pub target: String,
+    pub already_enabled: bool,
+    pub configuration: FileChange,
+    pub entry_points: Vec<FileChange>,
+    pub generation: ChangePlan,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PlatformAddReceipt {
+    pub schema_version: u32,
+    pub completed: bool,
+    pub target: String,
+    pub already_enabled: bool,
+    pub configuration_written: bool,
+    pub entry_points_created: Vec<String>,
+    pub generation: ApplyReceipt,
+}
+
+struct PreparedPlatform {
+    plan: PlatformAddPlan,
+    config: Vec<u8>,
+    sources: BTreeMap<String, Vec<u8>>,
+    generation: PreparedGeneration,
+}
+
+fn prepare_platform(root: &Path, target: &str) -> Result<PreparedPlatform, String> {
+    if !matches!(target, "desktop" | "android") {
+        return Err("platform add supports desktop and android".into());
+    }
+    use std::io::Read;
+    let mut bytes = Vec::new();
+    fs::File::open(managed_path(root, "gpui-box.json")?)
+        .map_err(|error| format!("Open project configuration: {error}"))?
+        .take(1024 * 1024 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| format!("Read project configuration: {error}"))?;
+    if bytes.len() > 1024 * 1024 {
+        return Err("Project configuration exceeds 1 MiB".into());
+    }
+    let original_config_sha256 = hash(&bytes);
+    let config: AppConfig = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("Invalid gpui-box.json: {error}"))?;
+    config.validate()?;
+    let already_enabled = config.targets.iter().any(|enabled| enabled == target);
+    let mut configuration: serde_json::Value =
+        serde_json::from_slice(&bytes).map_err(|error| error.to_string())?;
+    let config = if already_enabled {
+        bytes
+    } else {
+        configuration["targets"]
+            .as_array_mut()
+            .ok_or("Project targets must be an array")?
+            .push(target.into());
+        serde_json::to_vec_pretty(&configuration).map_err(|error| error.to_string())?
+    };
+    let defaults: &[(&str, &[u8])] = if target == "desktop" {
+        &[(
+            "desktop/src/main.rs",
+            b"fn main() { gpui_box::application().run(box_app::open); }\n",
+        )]
+    } else {
+        &[
+            ("android/src/lib.rs", b"#![cfg(target_os = \"android\")]\ngpui_box::android::android_entrypoint!(box_app::open);\n"),
+            ("android-custom.gradle.kts", b"// Application-owned Android customization point. Preserved during generation.\n"),
+            ("mise.android.toml", include_bytes!("../../../templates/mise.android.toml")),
+        ]
+    };
+    let mut sources = BTreeMap::new();
+    let mut entry_points = Vec::new();
+    for (path, content) in defaults {
+        let destination = managed_path(root, path)?;
+        let mut existed = false;
+        let content = match fs::read(&destination) {
+            Ok(existing) => {
+                existed = true;
+                if !already_enabled {
+                    // Disabled targets from an earlier generation retain owned manifests.
+                    // Existing application sources are preserved when re-enabling them.
+                    let manifest = format!("{target}/Cargo.toml");
+                    let previous: BTreeMap<String, String> = serde_json::from_slice(
+                        &fs::read(managed_path(root, ".gpui-box/generated.json")?)
+                            .map_err(|error| format!("Read generation ownership: {error}"))?,
+                    )
+                    .map_err(|error| format!("Invalid generation ownership: {error}"))?;
+                    if !previous.contains_key(&manifest) {
+                        return Err(format!(
+                            "Platform entry point {path} already exists without prior target ownership. Original preserved"
+                        ));
+                    }
+                }
+                existing
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => content.to_vec(),
+            Err(error) => return Err(format!("Read platform entry point {path}: {error}")),
+        };
+        let change = file_change(root, path, &content)?;
+        if (existed && change.action != ChangeAction::Unchanged)
+            || (!existed && change.action != ChangeAction::Create)
+        {
+            return Err(
+                "Platform entry point changed during preflight. Retry the operation".into(),
+            );
+        }
+        entry_points.push(change);
+        sources.insert((*path).into(), content);
+    }
+    entry_points.sort_by(|left, right| left.path.cmp(&right.path));
+    let generation = prepare_config(root, None, Some(&config))?;
+    let configuration = file_change(root, "gpui-box.json", &config)?;
+    if configuration.before_sha256.as_deref() != Some(&original_config_sha256) {
+        return Err("Project configuration changed during preflight. Retry the operation".into());
+    }
+    let plan = PlatformAddPlan {
+        schema_version: 1,
+        target: target.into(),
+        already_enabled,
+        configuration,
+        entry_points,
+        generation: generation.plan.clone(),
+    };
+    Ok(PreparedPlatform {
+        plan,
+        config,
+        sources,
+        generation,
+    })
+}
+
+pub fn platform_plan(root: &Path, target: &str) -> Result<PlatformAddPlan, String> {
+    let lock = managed_path(root, ".gpui-box/generate.lock")?;
+    if lock.exists() {
+        return Err("Another generator owns this project or left a stale lock".into());
+    }
+    let prepared = prepare_platform(root, target)?;
+    if lock.exists() {
+        return Err("Another generator started during platform preview. Retry the dry run".into());
+    }
+    Ok(prepared.plan)
+}
+
+pub fn platform_add(root: &Path, target: &str) -> Result<PlatformAddReceipt, String> {
+    if !matches!(target, "desktop" | "android") {
+        return Err("platform add supports desktop and android".into());
+    }
+    let _guard = generation_lock(root)?;
+    let prepared = prepare_platform(root, target)?;
+    if file_change(root, "gpui-box.json", &prepared.config)? != prepared.plan.configuration {
+        return Err(
+            "Project configuration changed during platform addition. Retry the operation".into(),
+        );
+    }
+    let configuration_written = prepared.plan.configuration.action != ChangeAction::Unchanged;
+    if configuration_written {
+        write(&managed_path(root, "gpui-box.json")?, &prepared.config)?;
+    }
+    // Configuration is the recovery marker. A retry preserves existing sources
+    // and fills missing defaults before resuming journaled managed generation.
+    let mut created = Vec::new();
+    for change in &prepared.plan.entry_points {
+        check_config(root, &prepared.generation.plan)?;
+        let content = &prepared.sources[&change.path];
+        if file_change(root, &change.path, content)? != *change {
+            return Err("Platform entry point changed concurrently. Original preserved. Review it and retry platform add to complete recovery".into());
+        }
+        if change.action == ChangeAction::Create {
+            publish_source(root, &change.path, content)?;
+            created.push(change.path.clone());
+        }
+    }
+    let generation = apply_prepared(root, &prepared.generation)
+        .map_err(|error| format!("Platform configuration and entry points are present. Run platform add {target} again to complete recovery. {error}"))?;
+    Ok(PlatformAddReceipt {
+        schema_version: 1,
+        completed: true,
+        target: target.into(),
+        already_enabled: prepared.plan.already_enabled,
+        configuration_written,
+        entry_points_created: created,
+        generation,
+    })
+}
+
+fn publish_source(root: &Path, relative: &str, bytes: &[u8]) -> Result<(), String> {
+    use std::io::Write;
+    let destination = managed_path(root, relative)?;
+    let parent = destination.parent().ok_or("Missing entry point parent")?;
+    fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    static NEXT_SOURCE: AtomicU64 = AtomicU64::new(1);
+    let temporary = parent.join(format!(
+        ".gpui-box-platform-{}-{}",
+        std::process::id(),
+        NEXT_SOURCE.fetch_add(1, Ordering::Relaxed)
+    ));
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&temporary)
+        .map_err(|error| format!("Stage platform entry point: {error}"))?;
+    let result = (|| {
+        file.write_all(bytes)?;
+        file.sync_all()?;
+        drop(file);
+        fs::hard_link(&temporary, &destination)
+    })();
+    let cleanup = fs::remove_file(&temporary);
+    result.map_err(|error| format!("Publish {relative}: {error}. Existing content preserved"))?;
+    cleanup.map_err(|error| {
+        format!(
+            "Platform entry point published. Staging cleanup failed at {}: {error}",
+            temporary.display()
+        )
+    })
 }
 
 /// Accept only the bare result ChangePlan, bounded independently of file size.
@@ -412,6 +629,14 @@ fn file_change(root: &Path, path: &str, content: &[u8]) -> Result<FileChange, St
 }
 
 fn prepare(root: &Path, initial: Option<Template>) -> Result<PreparedGeneration, String> {
+    prepare_config(root, initial, None)
+}
+
+fn prepare_config(
+    root: &Path,
+    initial: Option<Template>,
+    configuration: Option<&[u8]>,
+) -> Result<PreparedGeneration, String> {
     let template = match initial {
         Some(template) => template,
         None => {
@@ -442,8 +667,11 @@ fn prepare(root: &Path, initial: Option<Template>) -> Result<PreparedGeneration,
             }
         }
     };
-    let config_bytes = fs::read(managed_path(root, "gpui-box.json")?)
-        .map_err(|error| format!("Read gpui-box.json: {error}"))?;
+    let config_bytes = match configuration {
+        Some(bytes) => bytes.to_vec(),
+        None => fs::read(managed_path(root, "gpui-box.json")?)
+            .map_err(|error| format!("Read gpui-box.json: {error}"))?,
+    };
     let config: AppConfig = serde_json::from_slice(&config_bytes)
         .map_err(|error| format!("Invalid gpui-box.json: {error}"))?;
     config.validate()?;
@@ -747,19 +975,30 @@ fn generate_inner(
     initial: Option<Template>,
     expected: Option<&ChangePlan>,
 ) -> Result<ApplyReceipt, String> {
-    let metadata = managed_path(root, ".gpui-box")?;
-    fs::create_dir_all(metadata).map_err(|e| e.to_string())?;
-    let lock_path = managed_path(root, ".gpui-box/generate.lock")?;
-    let lock = fs::OpenOptions::new().write(true).create_new(true).open(&lock_path)
-        .map_err(|e| format!("Cannot acquire generation lock {}: {e}. Check for another generator before removing a stale lock.", lock_path.display()))?;
-    let _guard = GenerationLock(lock_path);
-    drop(lock);
+    let _guard = generation_lock(root)?;
     let prepared = prepare(root, initial)?;
     if expected.is_some_and(|expected| *expected != prepared.plan) {
         return Err(
             "Saved generation plan is stale or incompatible; run generate --dry-run again".into(),
         );
     }
+    let receipt = apply_prepared(root, &prepared)?;
+    if let Some(template) = initial {
+        initialize_sources(root, template)?;
+    }
+    Ok(receipt)
+}
+
+fn generation_lock(root: &Path) -> Result<GenerationLock, String> {
+    fs::create_dir_all(managed_path(root, ".gpui-box")?).map_err(|error| error.to_string())?;
+    let lock_path = managed_path(root, ".gpui-box/generate.lock")?;
+    let lock = fs::OpenOptions::new().write(true).create_new(true).open(&lock_path)
+        .map_err(|error| format!("Cannot acquire generation lock {}: {error}. Check for another generator before removing a stale lock.", lock_path.display()))?;
+    drop(lock);
+    Ok(GenerationLock(lock_path))
+}
+
+fn apply_prepared(root: &Path, prepared: &PreparedGeneration) -> Result<ApplyReceipt, String> {
     // Recheck even no-op inputs before reporting completion or replacing a journal.
     check_config(root, &prepared.plan)?;
     check_journal(root, prepared.plan.pending_journal_sha256.as_deref())?;
@@ -838,79 +1077,82 @@ fn generate_inner(
             .files_unchanged
             .push(prepared.plan.metadata.path.clone());
     }
-    if let Some(template) = initial {
-        let config = AppConfig::load(root)?;
+    Ok(receipt)
+}
+
+fn initialize_sources(root: &Path, template: Template) -> Result<(), String> {
+    let config = AppConfig::load(root)?;
+    write(
+        &root.join("app/src/lib.rs"),
+        match template {
+            Template::Starter => include_bytes!("../../../templates/app.rs").as_slice(),
+            Template::Adaptive => include_bytes!("../../../templates/adaptive.rs").as_slice(),
+            Template::Component => include_bytes!("../../../templates/component.rs").as_slice(),
+            Template::Workbench => include_bytes!("../../../templates/workbench.rs").as_slice(),
+        },
+    )?;
+    if matches!(template, Template::Workbench) {
+        for (path, bytes) in [
+            (
+                "contracts.rs",
+                include_bytes!("../../../templates/workbench/contracts.rs").as_slice(),
+            ),
+            (
+                "providers.rs",
+                include_bytes!("../../../templates/workbench/providers.rs").as_slice(),
+            ),
+            (
+                "documents.rs",
+                include_bytes!("../../../templates/workbench/documents.rs").as_slice(),
+            ),
+            (
+                "search.rs",
+                include_bytes!("../../../templates/workbench/search.rs").as_slice(),
+            ),
+        ] {
+            write(&root.join("app/src").join(path), bytes)?;
+        }
+    }
+    if config.targets.iter().any(|target| target == "desktop") {
         write(
-            &root.join("app/src/lib.rs"),
-            match template {
-                Template::Starter => include_bytes!("../../../templates/app.rs").as_slice(),
-                Template::Adaptive => include_bytes!("../../../templates/adaptive.rs").as_slice(),
-                Template::Component => include_bytes!("../../../templates/component.rs").as_slice(),
-                Template::Workbench => include_bytes!("../../../templates/workbench.rs").as_slice(),
-            },
+            &root.join("desktop/src/main.rs"),
+            b"fn main() { gpui_box::application().run(box_app::open); }\n",
         )?;
-        if matches!(template, Template::Workbench) {
-            for (path, bytes) in [
-                (
-                    "contracts.rs",
-                    include_bytes!("../../../templates/workbench/contracts.rs").as_slice(),
-                ),
-                (
-                    "providers.rs",
-                    include_bytes!("../../../templates/workbench/providers.rs").as_slice(),
-                ),
-                (
-                    "documents.rs",
-                    include_bytes!("../../../templates/workbench/documents.rs").as_slice(),
-                ),
-                (
-                    "search.rs",
-                    include_bytes!("../../../templates/workbench/search.rs").as_slice(),
-                ),
-            ] {
-                write(&root.join("app/src").join(path), bytes)?;
-            }
-        }
-        if config.targets.iter().any(|target| target == "desktop") {
-            write(
-                &root.join("desktop/src/main.rs"),
-                b"fn main() { gpui_box::application().run(box_app::open); }\n",
-            )?;
-        }
-        if config.targets.iter().any(|target| target == "android") {
-            write(&root.join("android/src/lib.rs"), b"#![cfg(target_os = \"android\")]\ngpui_box::android::android_entrypoint!(box_app::open);\n")?;
-            write(
-                &root.join("android-custom.gradle.kts"),
-                b"// Application-owned Android customization point. Preserved during generation.\n",
-            )?;
-            write(
-                &root.join("mise.android.toml"),
-                include_bytes!("../../../templates/mise.android.toml"),
-            )?;
-        }
-        let mise = if config.targets.iter().any(|target| target == "desktop") {
-            include_bytes!("../../../templates/mise.toml").as_slice()
-        } else {
-            b"[tools]\nrust = \"1.98.1\"\n"
-        };
-        write(&root.join("mise.toml"), mise)?;
+    }
+    if config.targets.iter().any(|target| target == "android") {
+        write(&root.join("android/src/lib.rs"), b"#![cfg(target_os = \"android\")]\ngpui_box::android::android_entrypoint!(box_app::open);\n")?;
         write(
-            &root.join(".gpui-box/template.json"),
-            &serde_json::to_vec_pretty(&serde_json::json!({
-                "schema_version": 1,
-                "template": template.id(),
-                "template_version": 1,
-                "cli_version": gpui_box::VERSION,
-                "upstream_revision": gpui_box::UPSTREAM_REVISION,
-                "targets": config.targets,
-            }))
-            .map_err(|error| error.to_string())?,
+            &root.join("android-custom.gradle.kts"),
+            b"// Application-owned Android customization point. Preserved during generation.\n",
         )?;
         write(
+            &root.join("mise.android.toml"),
+            include_bytes!("../../../templates/mise.android.toml"),
+        )?;
+    }
+    let mise = if config.targets.iter().any(|target| target == "desktop") {
+        include_bytes!("../../../templates/mise.toml").as_slice()
+    } else {
+        b"[tools]\nrust = \"1.98.1\"\n"
+    };
+    write(&root.join("mise.toml"), mise)?;
+    write(
+        &root.join(".gpui-box/template.json"),
+        &serde_json::to_vec_pretty(&serde_json::json!({
+            "schema_version": 1,
+            "template": template.id(),
+            "template_version": 1,
+            "cli_version": gpui_box::VERSION,
+            "upstream_revision": gpui_box::UPSTREAM_REVISION,
+            "targets": config.targets,
+        }))
+        .map_err(|error| error.to_string())?,
+    )?;
+    write(
             &root.join(".gitignore"),
             b"/target/\n/dist/\n/android-host/.gradle/\n/android-host/app/build/\nlocal.properties\n*.jks\n*.keystore\n.env\n.env.*\nkeystore.properties\n",
         )?;
-        write(
+    write(
             &root.join("README.md"),
             format!("Template {} v1. Configured targets are {}. Platform commands below apply when their target is enabled.\n\n{}{}", template.id(), config.targets.join(", "), include_str!("../../../templates/README.md"), match template {
                 Template::Workbench => "\n## Workbench example\n\nThe composition root in app/src/lib.rs wires document and search contributions through narrow contracts and an explicit in-memory fake provider. Search results open the shared document editor. Save changes the fake catalog for this process. Scoped command registrations are revoked with the owning view. Run mise exec -- cargo test -p box-app --lib for provider, collaboration and cleanup checks. Replace providers.rs with an application service and keep feature dependencies pointed at contracts.rs. Native menus, durable storage, arbitrary module generation and dev --module require their separate integrations.\n",
@@ -919,8 +1161,7 @@ fn generate_inner(
                 Template::Component => "\n## Component author preview\n\nEdit the specimen in app/src/lib.rs while retaining shared input/focus/semantic behavior in gpui-box-components. The preview exposes dark/light, high contrast, reduced motion and large-text states, an editable field, checkbox and activation counter. Resize across 720 logical pixels or rotate Android for compact/wide layout. Use Tab/Shift+Tab, Enter/Space and Escape to inspect keyboard behavior. Confirm labels and checked states with the platform accessibility tree, then run an actual screen reader separately. Preview state survives window resizing and Android Activity recreation. Process-death persistence and registry publication require their own integration.\n",
             }).as_bytes(),
         )?;
-    }
-    Ok(receipt)
+    Ok(())
 }
 
 fn check_config(root: &Path, plan: &ChangePlan) -> Result<(), String> {

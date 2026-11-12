@@ -99,7 +99,16 @@ fn platform_names_and_operations_are_unique_and_stable() {
         );
         assert!(!operation.label().is_empty());
     }
-    assert_eq!(PlatformTarget::current(), Some(PlatformTarget::Linux));
+    let expected = match (std::env::consts::ARCH, std::env::consts::OS) {
+        ("wasm32", _) => Some(PlatformTarget::Web),
+        (_, "windows") => Some(PlatformTarget::Windows),
+        (_, "macos") => Some(PlatformTarget::MacOs),
+        (_, "linux") => Some(PlatformTarget::Linux),
+        (_, "android") => Some(PlatformTarget::Android),
+        (_, "ios") => Some(PlatformTarget::Ios),
+        _ => None,
+    };
+    assert_eq!(PlatformTarget::current(), expected);
     assert_eq!(PlatformTarget::Windows.to_string(), "windows");
     assert_eq!(
         JobsOperation::RunBoundedCpuTask.to_string(),

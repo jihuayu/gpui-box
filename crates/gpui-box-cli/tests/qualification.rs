@@ -184,8 +184,8 @@ impl Qualification {
                 if receipt["files_written"] != json!([]) || receipt["completed"] != true {
                     return Err(format!("{label} regeneration was not a completed no-op"));
                 }
-                let enabled = targets.split(',').any(|configured| configured == target);
-                let plan = self.cli(
+                let mut enabled = targets.split(',').any(|configured| configured == target);
+                let mut plan = self.cli(
                     &format!("{label}-plan"),
                     &app,
                     &["build", target, "--dry-run"],
@@ -193,6 +193,49 @@ impl Qualification {
                 )?;
                 if !enabled && plan["code"] != "BUILD_PLAN_FAILED" {
                     return Err(format!("{label} accepted a disabled build target"));
+                }
+                let platform_added = template == "workbench" && !enabled;
+                if platform_added {
+                    let addition = self.cli(
+                        &format!("{label}-platform-preview"),
+                        &app,
+                        &["platform", "add", target, "--dry-run"],
+                        true,
+                    )?;
+                    if addition["already_enabled"] != false
+                        || addition["configuration"]["action"] != "update"
+                    {
+                        return Err(format!(
+                            "{label} platform preview did not enable the target"
+                        ));
+                    }
+                    let added = self.cli(
+                        &format!("{label}-platform-add"),
+                        &app,
+                        &["platform", "add", target],
+                        true,
+                    )?;
+                    let repeated = self.cli(
+                        &format!("{label}-platform-repeat"),
+                        &app,
+                        &["platform", "add", target],
+                        true,
+                    )?;
+                    if added["completed"] != true
+                        || repeated["already_enabled"] != true
+                        || repeated["configuration_written"] != false
+                        || repeated["entry_points_created"] != json!([])
+                        || repeated["generation"]["files_written"] != json!([])
+                    {
+                        return Err(format!("{label} platform addition failed idempotence"));
+                    }
+                    plan = self.cli(
+                        &format!("{label}-added-target-plan"),
+                        &app,
+                        &["build", target, "--dry-run"],
+                        true,
+                    )?;
+                    enabled = true;
                 }
                 let mut artifact_receipt = None;
                 if enabled {
@@ -293,7 +336,7 @@ impl Qualification {
                         "{label} changed application-owned content or provenance"
                     ));
                 }
-                applications.push(json!({"template": provenance, "targets": targets, "build_target": target, "build_completed": enabled, "artifact": artifact_receipt, "path": app}));
+                applications.push(json!({"template": provenance, "targets": targets, "platform_added": platform_added, "build_target": target, "build_completed": enabled, "artifact": artifact_receipt, "path": app}));
             }
         }
         if self.cli(

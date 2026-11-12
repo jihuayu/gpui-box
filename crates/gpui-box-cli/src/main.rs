@@ -67,6 +67,30 @@ fn execute(arguments: &[String]) -> Result<Value, CliError> {
             return serde_json::to_value(inventory)
                 .map_err(|error| CliError::new("PLATFORM_QUERY_FAILED", error.to_string()));
         }
+        [command, operation, target, option]
+            if command == "platform" && operation == "add" && option == "--dry-run" =>
+        {
+            let plan = generate::platform_plan(&root, target)
+                .map_err(|error| CliError::new("PLATFORM_ADDITION_FAILED", error))?;
+            outputln!(
+                "Planned platform {}. Enabled {}. Entry points and managed changes appear in the JSON result.",
+                target,
+                plan.already_enabled
+            );
+            return serde_json::to_value(plan)
+                .map_err(|error| CliError::new("PLATFORM_ADDITION_FAILED", error.to_string()));
+        }
+        [command, operation, target] if command == "platform" && operation == "add" => {
+            let receipt = generate::platform_add(&root, target)
+                .map_err(|error| CliError::new("PLATFORM_ADDITION_FAILED", error))?;
+            outputln!(
+                "Platform {} enabled. Created {} entry points. Existing application sources preserved.",
+                target,
+                receipt.entry_points_created.len()
+            );
+            return serde_json::to_value(receipt)
+                .map_err(|error| CliError::new("PLATFORM_ADDITION_FAILED", error.to_string()));
+        }
         [command] | [command, _]
             if command == "list" || command == "info" && arguments.len() == 2 =>
         {

@@ -36,6 +36,302 @@ fn create(root: &Path) -> PathBuf {
     );
     app
 }
+
+fn create_single_target(root: &Path, target: &str) -> PathBuf {
+    let app = root.join("Platform App 有 空格");
+    let output = cli(
+        root,
+        &[
+            "new",
+            app.to_str().unwrap(),
+            "--distribution",
+            distribution().to_str().unwrap(),
+            "--targets",
+            target,
+            "--template",
+            "workbench",
+        ],
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    app
+}
+
+fn add_platform(app: &Path, target: &str, preview: bool, success: bool) -> serde_json::Value {
+    let mut args = vec!["platform", "add", target, "--json"];
+    if preview {
+        args.push("--dry-run");
+    }
+    let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+        .current_dir(app)
+        .args(args)
+        .env("PATH", "")
+        .output()
+        .unwrap();
+    assert_eq!(
+        output.status.success(),
+        success,
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(response["success"], success);
+    if !success {
+        assert_eq!(response["error"]["code"], "PLATFORM_ADDITION_FAILED");
+    }
+    response
+}
+
+#[test]
+fn platform_add_previews_exact_outputs_and_repeats_without_rewriting_application_sources() {
+    for (existing, added, entry_points) in [
+        (
+            "desktop",
+            "android",
+            vec![
+                "android/src/lib.rs",
+                "android-custom.gradle.kts",
+                "mise.android.toml",
+            ],
+        ),
+        ("android", "desktop", vec!["desktop/src/main.rs"]),
+    ] {
+        let temporary = tempfile::tempdir().unwrap();
+        let app = create_single_target(temporary.path(), existing);
+        fs::write(
+            app.join("app/src/providers.rs"),
+            "// application service customization\n",
+        )
+        .unwrap();
+        let before = snapshot(&app);
+        let preview = add_platform(&app, added, true, true)["result"].clone();
+        assert_eq!(preview, add_platform(&app, added, true, true)["result"]);
+        assert_eq!(before, snapshot(&app));
+        assert_eq!(preview["already_enabled"], false);
+        assert_eq!(preview["configuration"]["action"], "update");
+        let receipt = add_platform(&app, added, false, true)["result"].clone();
+        assert_eq!(receipt["configuration_written"], true);
+        let created = receipt["entry_points_created"].as_array().unwrap();
+        assert_eq!(created.len(), entry_points.len());
+        for path in entry_points {
+            assert!(created.contains(&serde_json::json!(path)));
+            assert!(app.join(path).is_file());
+        }
+        let after = snapshot(&app);
+        for (path, state) in &before {
+            if path.starts_with("app/src")
+                || path.starts_with("assets")
+                || path == Path::new("mise.toml")
+                || path == Path::new(".gpui-box/template.json")
+            {
+                assert_eq!(after.get(path), Some(state), "{}", path.display());
+            }
+        }
+        use sha2::{Digest, Sha256};
+        for change in preview["generation"]["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .chain(std::iter::once(&preview["generation"]["metadata"]))
+            .chain(preview["entry_points"].as_array().unwrap())
+            .chain(std::iter::once(&preview["configuration"]))
+        {
+            let path = change["path"].as_str().unwrap();
+            let digest = format!("{:x}", Sha256::digest(fs::read(app.join(path)).unwrap()));
+            assert_eq!(change["after_sha256"], digest, "{path}");
+        }
+        let repeated = add_platform(&app, added, false, true);
+        assert_eq!(repeated["result"]["already_enabled"], true);
+        assert_eq!(repeated["result"]["configuration_written"], false);
+        assert_eq!(
+            repeated["result"]["entry_points_created"],
+            serde_json::json!([])
+        );
+        assert_eq!(
+            repeated["result"]["generation"]["files_written"],
+            serde_json::json!([])
+        );
+        assert_eq!(after, snapshot(&app));
+    }
+}
+
+#[test]
+fn platform_add_rejects_unowned_entry_points_and_edited_managed_outputs_before_config_changes() {
+    for conflict in [
+        "android/src/lib.rs",
+        "android-custom.gradle.kts",
+        "mise.android.toml",
+        "Cargo.toml",
+    ] {
+        let temporary = tempfile::tempdir().unwrap();
+        let app = create_single_target(temporary.path(), "desktop");
+        fs::create_dir_all(app.join(conflict).parent().unwrap()).unwrap();
+        fs::write(app.join(conflict), "// existing unrelated content\n").unwrap();
+        let before = snapshot(&app);
+        for preview in [true, false] {
+            add_platform(&app, "android", preview, false);
+        }
+        assert_eq!(before, snapshot(&app), "{conflict}");
+    }
+}
+
+#[test]
+fn platform_add_reenables_prior_target_and_preserves_custom_entry_points() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create(temporary.path());
+    let custom = b"// customized Android entry point\n";
+    fs::write(app.join("android/src/lib.rs"), custom).unwrap();
+    let path = app.join("gpui-box.json");
+    let mut config: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    config["targets"] = serde_json::json!(["desktop"]);
+    fs::write(&path, serde_json::to_vec_pretty(&config).unwrap()).unwrap();
+    assert!(cli(&app, &["generate"]).status.success());
+    let previous = fs::metadata(app.join("android/src/lib.rs"))
+        .unwrap()
+        .modified()
+        .unwrap();
+    add_platform(&app, "android", false, true);
+    assert_eq!(fs::read(app.join("android/src/lib.rs")).unwrap(), custom);
+    assert_eq!(
+        fs::metadata(app.join("android/src/lib.rs"))
+            .unwrap()
+            .modified()
+            .unwrap(),
+        previous
+    );
+}
+
+#[test]
+fn platform_add_recovers_after_config_publication_and_partial_source_creation() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create_single_target(temporary.path(), "desktop");
+    let path = app.join("gpui-box.json");
+    let mut config: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    config["targets"] = serde_json::json!(["desktop", "android"]);
+    fs::write(&path, serde_json::to_vec(&config).unwrap()).unwrap();
+    fs::write(
+        app.join("android-custom.gradle.kts"),
+        "// retained customization\n",
+    )
+    .unwrap();
+    let response = add_platform(&app, "android", false, true);
+    assert_eq!(response["result"]["already_enabled"], true);
+    assert_eq!(
+        response["result"]["entry_points_created"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+    assert_eq!(
+        fs::read_to_string(app.join("android-custom.gradle.kts")).unwrap(),
+        "// retained customization\n"
+    );
+    assert!(app.join("android-host/app/build.gradle.kts").is_file());
+    assert!(!app.join(".gpui-box/pending.json").exists());
+}
+
+#[test]
+fn platform_add_failures_validate_targets_config_and_shared_generation_lock() {
+    let temporary = tempfile::tempdir().unwrap();
+    let before = snapshot(temporary.path());
+    for preview in [true, false] {
+        add_platform(temporary.path(), "ios", preview, false);
+    }
+    assert_eq!(before, snapshot(temporary.path()));
+    let app = create_single_target(temporary.path(), "desktop");
+    let lock = app.join(".gpui-box/generate.lock");
+    fs::write(&lock, "another generator").unwrap();
+    let before = snapshot(&app);
+    for preview in [true, false] {
+        add_platform(&app, "android", preview, false);
+    }
+    assert_eq!(before, snapshot(&app));
+    fs::remove_file(lock).unwrap();
+    fs::write(app.join("gpui-box.json"), b"invalid").unwrap();
+    let before = snapshot(&app);
+    for preview in [true, false] {
+        add_platform(&app, "android", preview, false);
+    }
+    assert_eq!(before, snapshot(&app));
+}
+
+#[test]
+fn platform_add_rejects_linked_entry_point_parents_and_preserves_external_content() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create_single_target(temporary.path(), "desktop");
+    let outside = temporary.path().join("Outside source");
+    fs::create_dir(&outside).unwrap();
+    fs::write(outside.join("sentinel.txt"), "External content").unwrap();
+    let before = snapshot(&app);
+    let external_before = snapshot(&outside);
+    let linked = app.join("android");
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&outside, &linked).unwrap();
+    #[cfg(windows)]
+    {
+        let script = "$ErrorActionPreference='Stop'; New-Item -ItemType Junction -Path $env:GPUI_BOX_TEST_LINK -Target $env:GPUI_BOX_TEST_TARGET | Out-Null";
+        assert!(
+            Command::new("powershell.exe")
+                .args(["-NoProfile", "-NonInteractive", "-Command", script])
+                .env("GPUI_BOX_TEST_LINK", &linked)
+                .env("GPUI_BOX_TEST_TARGET", &outside)
+                .status()
+                .unwrap()
+                .success()
+        );
+    }
+    for preview in [true, false] {
+        let response = add_platform(&app, "android", preview, false);
+        assert!(
+            response["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("links")
+        );
+    }
+    assert_eq!(external_before, snapshot(&outside));
+    assert_eq!(
+        fs::read_to_string(outside.join("sentinel.txt")).unwrap(),
+        "External content"
+    );
+    #[cfg(windows)]
+    fs::remove_dir(linked).unwrap();
+    #[cfg(unix)]
+    fs::remove_file(linked).unwrap();
+    assert_eq!(before, snapshot(&app));
+}
+
+#[cfg(windows)]
+#[test]
+fn platform_add_recovers_journal_after_locked_managed_output_failure() {
+    use std::os::windows::fs::OpenOptionsExt;
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create_single_target(temporary.path(), "desktop");
+    let state = fs::read(app.join(".gpui-box/generated.json")).unwrap();
+    let held = fs::OpenOptions::new()
+        .read(true)
+        .share_mode(1)
+        .open(app.join("Cargo.toml"))
+        .unwrap();
+    add_platform(&app, "android", false, false);
+    assert!(app.join("android/src/lib.rs").is_file());
+    assert!(app.join(".gpui-box/pending.json").is_file());
+    assert_eq!(
+        fs::read(app.join(".gpui-box/generated.json")).unwrap(),
+        state
+    );
+    drop(held);
+    let response = add_platform(&app, "android", false, true);
+    assert_eq!(
+        response["result"]["generation"]["recovered_pending_journal"],
+        true
+    );
+    assert!(!app.join(".gpui-box/pending.json").exists());
+}
 #[test]
 fn generation_preserves_user_sources_and_rejects_managed_conflicts() {
     let temporary = tempfile::tempdir().unwrap();

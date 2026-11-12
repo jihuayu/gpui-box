@@ -140,8 +140,11 @@ Linux/Windows select desktop and Android selects Android. The opt-in integration
 test drives the real CLI to export/verify committed HEAD, generates
 starter/adaptive/component/workbench-v1 across three target sets in external spaces/Chinese paths,
 and verifies no-op generation plus retained source/native customizations. Eight
-enabled combinations build through the normal CLI. Disabled targets must fail
-planning. Final SDK verification checks that those builds preserved the source
+initially enabled combinations build through the normal CLI. Disabled targets
+must first fail planning. The workbench case then previews/adds the missing target,
+verifies repeated addition has no writes, and builds it through the same CLI.
+This ninth build qualifies platform addition in both directions across the host
+matrix. Final SDK verification checks that those builds preserved the source
 closure. Desktop executables and both native APK ABIs are inspected, and
 artifact SHA-256 values are recorded. The embedded CLI registry digest must match
 the exported SDK snapshot. A combined workbench/component dependency resolution
