@@ -85,6 +85,188 @@ fn add_platform(app: &Path, target: &str, preview: bool, success: bool) -> serde
     response
 }
 
+fn replay_platform(app: &Path, target: &str, saved: &Path, success: bool) -> serde_json::Value {
+    let output = Command::new(env!("CARGO_BIN_EXE_gpui-box"))
+        .current_dir(app)
+        .args([
+            "platform",
+            "add",
+            target,
+            "--plan",
+            saved.to_str().unwrap(),
+            "--json",
+        ])
+        .env("PATH", "")
+        .output()
+        .unwrap();
+    assert_eq!(
+        output.status.success(),
+        success,
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(response["success"], success);
+    if !success {
+        assert_eq!(response["error"]["code"], "PLATFORM_ADDITION_FAILED");
+    }
+    response
+}
+
+#[test]
+fn saved_platform_plans_replay_both_targets_and_keep_noop_hashes_and_timestamps() {
+    for (existing, added) in [("desktop", "android"), ("android", "desktop")] {
+        let temporary = tempfile::tempdir().unwrap();
+        let app = create_single_target(temporary.path(), existing);
+        let preview = add_platform(&app, added, true, true)["result"].clone();
+        let saved = save_plan(temporary.path(), &preview);
+        // Application-owned feature code is outside the platform plan.
+        fs::write(app.join("app/src/providers.rs"), "// application edit\n").unwrap();
+        let response = replay_platform(&app, added, &saved, true);
+        assert_eq!(response["result"]["completed"], true);
+        assert_eq!(
+            response["result"]["plan_sha256"].as_str().unwrap().len(),
+            64
+        );
+        assert_eq!(
+            fs::read(app.join("app/src/providers.rs")).unwrap(),
+            b"// application edit\n"
+        );
+        let after = snapshot(&app);
+        replay_platform(&app, added, &saved, false);
+        assert_eq!(after, snapshot(&app));
+
+        let noop = add_platform(&app, added, true, true)["result"].clone();
+        let saved = save_plan(temporary.path(), &noop);
+        let first = replay_platform(&app, added, &saved, true)["result"].clone();
+        fs::write(&saved, serde_json::to_vec(&noop).unwrap()).unwrap();
+        let second = replay_platform(&app, added, &saved, true)["result"].clone();
+        assert_eq!(first, second);
+        assert_eq!(first["configuration_written"], false);
+        assert_eq!(first["generation"]["files_written"], serde_json::json!([]));
+        let ordinary = add_platform(&app, added, false, true);
+        assert_eq!(first, ordinary["result"]);
+        assert_eq!(after, snapshot(&app));
+    }
+}
+
+#[test]
+fn saved_platform_plans_reject_changed_preconditions_without_writes() {
+    for changed in [
+        "config", "managed", "missing", "metadata", "journal", "entry", "lock", "target",
+    ] {
+        let temporary = tempfile::tempdir().unwrap();
+        let app = create_single_target(temporary.path(), "desktop");
+        let preview = add_platform(&app, "android", true, true)["result"].clone();
+        let saved = save_plan(temporary.path(), &preview);
+        match changed {
+            "config" | "metadata" => {
+                let relative = if changed == "config" {
+                    "gpui-box.json"
+                } else {
+                    ".gpui-box/generated.json"
+                };
+                let path = app.join(relative);
+                let mut bytes = fs::read(&path).unwrap();
+                bytes.push(b'\n');
+                fs::write(path, bytes).unwrap();
+            }
+            "managed" => fs::write(app.join("Cargo.toml"), "// edited\n").unwrap(),
+            "missing" => fs::remove_file(app.join("Cargo.toml")).unwrap(),
+            "journal" => fs::write(app.join(".gpui-box/pending.json"), b"{}").unwrap(),
+            "entry" => fs::write(app.join("android-custom.gradle.kts"), "// custom\n").unwrap(),
+            "lock" => fs::write(app.join(".gpui-box/generate.lock"), b"owner").unwrap(),
+            "target" => {}
+            _ => unreachable!(),
+        }
+        let before = snapshot(&app);
+        let target = if changed == "target" {
+            "desktop"
+        } else {
+            "android"
+        };
+        replay_platform(&app, target, &saved, false);
+        assert_eq!(before, snapshot(&app), "preserve {changed}");
+    }
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create(temporary.path());
+    let preview = add_platform(&app, "android", true, true)["result"].clone();
+    let saved = save_plan(temporary.path(), &preview);
+    fs::write(app.join("android/src/lib.rs"), "// customized entry\n").unwrap();
+    let before = snapshot(&app);
+    replay_platform(&app, "android", &saved, false);
+    assert_eq!(before, snapshot(&app));
+}
+
+#[test]
+fn saved_platform_plans_are_strict_bounded_and_cannot_supply_output_content() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create_single_target(temporary.path(), "desktop");
+    let original = add_platform(&app, "android", true, true)["result"].clone();
+    for field in [
+        "schema",
+        "target",
+        "path",
+        "hash",
+        "unknown",
+        "nested",
+        "generation",
+    ] {
+        let mut plan = original.clone();
+        match field {
+            "schema" => plan["schema_version"] = 999.into(),
+            "target" => plan["target"] = "desktop".into(),
+            "path" => plan["entry_points"][0]["path"] = "../outside".into(),
+            "hash" => plan["configuration"]["after_sha256"] = "0".repeat(64).into(),
+            "unknown" => plan["extra"] = true.into(),
+            "nested" => plan["entry_points"][0]["content"] = "arbitrary bytes".into(),
+            "generation" => plan["generation"]["extra"] = true.into(),
+            _ => unreachable!(),
+        }
+        let saved = save_plan(temporary.path(), &plan);
+        let before = snapshot(&app);
+        replay_platform(&app, "android", &saved, false);
+        assert_eq!(before, snapshot(&app), "preserve {field}");
+    }
+    let saved = save_plan(temporary.path(), &original);
+    for bytes in [
+        b"{broken".to_vec(),
+        vec![b' '; 1024 * 1024 + 1],
+        serde_json::to_vec(&serde_json::json!({"result": original})).unwrap(),
+    ] {
+        fs::write(&saved, bytes).unwrap();
+        let before = snapshot(&app);
+        replay_platform(&app, "android", &saved, false);
+        assert_eq!(before, snapshot(&app));
+    }
+    // The byte bound is inclusive, including trailing JSON whitespace.
+    let mut bytes = serde_json::to_vec(&original).unwrap();
+    bytes.resize(1024 * 1024, b' ');
+    fs::write(&saved, bytes).unwrap();
+    replay_platform(&app, "android", &saved, true);
+}
+
+#[test]
+fn saved_platform_recovery_binds_pending_journal_bytes() {
+    let temporary = tempfile::tempdir().unwrap();
+    let app = create(temporary.path());
+    let journal = app.join(".gpui-box/pending.json");
+    fs::write(&journal, b"{}").unwrap();
+    let preview = add_platform(&app, "android", true, true)["result"].clone();
+    let saved = save_plan(temporary.path(), &preview);
+    fs::write(&journal, b"{}\n").unwrap();
+    let before = snapshot(&app);
+    replay_platform(&app, "android", &saved, false);
+    assert_eq!(before, snapshot(&app));
+    fs::write(&journal, b"{}").unwrap();
+    let receipt = replay_platform(&app, "android", &saved, true);
+    assert_eq!(
+        receipt["result"]["generation"]["recovered_pending_journal"],
+        true
+    );
+    assert!(!journal.exists());
+}
+
 #[test]
 fn platform_add_previews_exact_outputs_and_repeats_without_rewriting_application_sources() {
     for (existing, added, entry_points) in [
@@ -263,6 +445,8 @@ fn platform_add_failures_validate_targets_config_and_shared_generation_lock() {
 fn platform_add_rejects_linked_entry_point_parents_and_preserves_external_content() {
     let temporary = tempfile::tempdir().unwrap();
     let app = create_single_target(temporary.path(), "desktop");
+    let preview = add_platform(&app, "android", true, true)["result"].clone();
+    let saved = save_plan(temporary.path(), &preview);
     let outside = temporary.path().join("Outside source");
     fs::create_dir(&outside).unwrap();
     fs::write(outside.join("sentinel.txt"), "External content").unwrap();
@@ -293,6 +477,7 @@ fn platform_add_rejects_linked_entry_point_parents_and_preserves_external_conten
                 .contains("links")
         );
     }
+    replay_platform(&app, "android", &saved, false);
     assert_eq!(external_before, snapshot(&outside));
     assert_eq!(
         fs::read_to_string(outside.join("sentinel.txt")).unwrap(),
@@ -312,12 +497,14 @@ fn platform_add_recovers_journal_after_locked_managed_output_failure() {
     let temporary = tempfile::tempdir().unwrap();
     let app = create_single_target(temporary.path(), "desktop");
     let state = fs::read(app.join(".gpui-box/generated.json")).unwrap();
+    let preview = add_platform(&app, "android", true, true)["result"].clone();
+    let saved = save_plan(temporary.path(), &preview);
     let held = fs::OpenOptions::new()
         .read(true)
         .share_mode(1)
         .open(app.join("Cargo.toml"))
         .unwrap();
-    add_platform(&app, "android", false, false);
+    replay_platform(&app, "android", &saved, false);
     assert!(app.join("android/src/lib.rs").is_file());
     assert!(app.join(".gpui-box/pending.json").is_file());
     assert_eq!(
@@ -325,7 +512,12 @@ fn platform_add_recovers_journal_after_locked_managed_output_failure() {
         state
     );
     drop(held);
-    let response = add_platform(&app, "android", false, true);
+    let before = snapshot(&app);
+    replay_platform(&app, "android", &saved, false);
+    assert_eq!(before, snapshot(&app));
+    let recovery = add_platform(&app, "android", true, true)["result"].clone();
+    let saved = save_plan(temporary.path(), &recovery);
+    let response = replay_platform(&app, "android", &saved, true);
     assert_eq!(
         response["result"]["generation"]["recovered_pending_journal"],
         true

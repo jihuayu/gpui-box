@@ -59,9 +59,17 @@ const COMMANDS: &[CommandReference] = &[
         json: true,
     },
     CommandReference {
+        syntax: "platform add desktop|android --plan PATH",
+        summary: "Apply an exact saved platform preview after checking current preconditions",
+        result: "PlatformAddReceipt v1 with deterministic plan SHA256",
+        effects: "Read a strict bounded plan, recompute under the generation lock and reject stale inputs before configuration publication. Recovery uses a fresh preview",
+        offline: "Local project and SDK only. Plan files contain the bare PlatformAddPlan result, bounded to 1 MiB. No toolchain or network probes",
+        json: true,
+    },
+    CommandReference {
         syntax: "platform add desktop|android [--dry-run]",
         summary: "Enable an existing project's target with preserved application entry points",
-        result: "PlatformAddReceipt v1 or read-only PlatformAddPlan v1",
+        result: "PlatformAddReceipt v1 with plan SHA256 or read-only PlatformAddPlan v1",
         effects: "Preview reads only. Apply uses the generation lock, publishes config, exclusively seeds missing source files and resumes managed generation",
         offline: "Local configuration/SDK and hard-link filesystem support required. Build tools are queried by doctor separately",
         json: true,

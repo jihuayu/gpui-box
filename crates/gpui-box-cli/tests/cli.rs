@@ -259,7 +259,7 @@ fn generated_reference_matches_markdown_and_help_from_any_directory() {
         let streaming = syntax.starts_with("dev ") || syntax.starts_with("logs ");
         assert_eq!(command["json"], !streaming);
     }
-    assert_eq!(syntaxes.len(), 29);
+    assert_eq!(syntaxes.len(), 30);
     let mut codes = std::collections::BTreeSet::new();
     for error in contract["errors"].as_array().unwrap() {
         let code = error["code"].as_str().unwrap();
@@ -632,6 +632,16 @@ fn platform_inventory_distinguishes_host_selection_and_unprobed_tools_without_wr
     assert_eq!(std::fs::read(&path).unwrap(), b"invalid");
     for args in [
         vec!["platform", "add", "android", "extra", "--json"],
+        vec!["platform", "add", "android", "--plan", "--json"],
+        vec![
+            "platform",
+            "add",
+            "android",
+            "--dry-run",
+            "--plan",
+            "file",
+            "--json",
+        ],
         vec!["platform", "list", "extra", "--json"],
     ] {
         assert_eq!(
