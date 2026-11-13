@@ -1,0 +1,16 @@
+{
+  "diagnostic_core_tests": 166,
+  "diagnostic_harness_tests": 2,
+  "diagnostic_mixed_gpu_comparisons": 75,
+  "default_mixed_gpu_comparisons": 75,
+  "strict_diagnostic_library_and_harness_clippy": "passed",
+  "default_pipeline_smoke_cases": 4,
+  "default_diagnostics_null": true,
+  "historical_analysis_cases": 16,
+  "formal_cases": 16,
+  "scheduled_ticks": 14400,
+  "source_and_binary_hashes_stable": true,
+  "known_compiler_renderer_conflicts": 0,
+  "full_hardware_suite": "not repeated; diagnostic-only extension",
+  "default_dense_binary_sha256": "27d20b8bf70aa88180e94562687267aa6b17ed59b81415fe25e222aa97b81eff"
+}

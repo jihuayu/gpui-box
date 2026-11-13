@@ -475,6 +475,15 @@ worsen, including a4→13tick longest interval. Reject the candidate and preserv
 the independent ancestry fix. Raw evidence and exact sources are archived;
 no extra representation or application policy remains in the runtime.
 
+The [sparse callback study](performance/2026-11-13-material-sampling/README.md)
+samples one in64material indices with a rotating revision residue. Across16
+reversed sustained cases, sampled primitive preparation and spatial lookup are
+larger than validation/classification/content; clock overhead prevents exact
+whole-frame extrapolation.166core/2harness/75mixed GPU checks pass. Raw p95/p99/
+deadline regressions are retained. Next investigate consumer-owned allocation
+indexing tied to exact submitted topology, with generation checks and full
+recovery; this adds no application-selected algorithm or deadline promise.
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |

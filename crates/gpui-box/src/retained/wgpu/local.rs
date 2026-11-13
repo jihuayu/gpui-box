@@ -103,6 +103,8 @@ impl WgpuFrameRenderer {
         let last_serial = self.backend.last_serial();
         let mut indices = frame.material_updates().iter().copied().peekable();
         let mut prepared: Result<(), Error> = Ok(());
+        #[cfg(feature = "retained-diagnostics")]
+        let mut material_samples = ([std::time::Duration::ZERO; 5], 0);
         while let Some(start) = indices.next() {
             let mut end = start + 1;
             while indices.peek() == Some(&end) { indices.next(); end += 1; }
@@ -111,15 +113,39 @@ impl WgpuFrameRenderer {
             frame.visit_geometry(start..end, |index, item| {
                 if prepared.is_err() { return; }
                 prepared = (|| {
+                    #[cfg(feature = "retained-diagnostics")]
+                    let sample_start = (index % 64 == frame.revision() as usize % 64)
+                        .then(std::time::Instant::now);
                     validation::validate_item(item, scale)?;
+                    #[cfg(feature = "retained-diagnostics")]
+                    let validated = sample_start.map(|_| std::time::Instant::now());
                     let entry = routing::classify(old.material(index), item, true, false);
+                    #[cfg(feature = "retained-diagnostics")]
+                    let classified = sample_start.map(|_| std::time::Instant::now());
                     let property = self.spatial_arena.slot(item.node)?;
+                    #[cfg(feature = "retained-diagnostics")]
+                    let located = sample_start.map(|_| std::time::Instant::now());
                     self.prepare_primitives(item, property, scale, last_serial, entry.quad, entry.shadow)?;
+                    #[cfg(feature = "retained-diagnostics")]
+                    let primitive_done = sample_start.map(|_| std::time::Instant::now());
                     prepared_quads += usize::from(entry.quad);
                     prepared_shadows += usize::from(entry.shadow);
                     let (image, glyph) = routing::classify_content(old.material(index), item, true);
                     if image { image_items.push(item.clone()); }
                     if glyph { glyph_items.push(item.clone()); }
+                    #[cfg(feature = "retained-diagnostics")]
+                    if let Some(start) = sample_start {
+                        let validated = validated.unwrap();
+                        let classified = classified.unwrap();
+                        let located = located.unwrap();
+                        let primitive_done = primitive_done.unwrap();
+                        let end = std::time::Instant::now();
+                        for (total, elapsed) in material_samples.0.iter_mut().zip([
+                            validated - start, classified - validated, located - classified,
+                            primitive_done - located, end - primitive_done,
+                        ]) { *total += elapsed; }
+                        material_samples.1 += 1;
+                    }
                     Ok(())
                 })();
             });
@@ -212,6 +238,8 @@ impl WgpuFrameRenderer {
                 spatial_done - material_done, preparation_done - spatial_done]),
             #[cfg(feature = "retained-diagnostics")]
             local_cleanup_time: Some(std::time::Instant::now() - ack_done),
+            #[cfg(feature = "retained-diagnostics")]
+            material_sample_times: Some(material_samples),
             routing: RoutingStats {
                 cached: true,
                 inspected_items,

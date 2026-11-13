@@ -251,6 +251,11 @@ pub struct FrameSubmission {
     /// Explicit temporary destruction after the five body spans; not GPU work.
     #[cfg(feature = "retained-diagnostics")]
     pub local_cleanup_time: Option<std::time::Duration>,
+    /// One in 64 material indices, rotating by revision: validation, primitive
+    /// classification, spatial lookup, primitive preparation, content selection.
+    /// Sample totals include observer overhead; they are not whole-frame estimates.
+    #[cfg(feature = "retained-diagnostics")]
+    pub material_sample_times: Option<([std::time::Duration; 5], usize)>,
     pub routing: RoutingStats,
     pub full_resync: bool,
     pub gpu: QuadSubmission,
@@ -991,6 +996,8 @@ impl WgpuFrameRenderer {
             local_preparation_times: None,
             #[cfg(feature = "retained-diagnostics")]
             local_cleanup_time: None,
+            #[cfg(feature = "retained-diagnostics")]
+            material_sample_times: None,
             routing,
             full_resync,
             gpu,

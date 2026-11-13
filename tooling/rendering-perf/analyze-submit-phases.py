@@ -11,6 +11,7 @@ pipeline = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(pipeline)
 LOCAL = ("provenance", "preparation", "batch", "backend", "ack")
 PREPARATION = ("material", "spatial", "ink")
+MATERIAL_SAMPLE = ("validation", "classification", "spatial_lookup", "primitive", "content")
 BACKEND = ("primitive_spatial_validation", "content_layer_validation", "admission",
            "target_setup", "storage_upload", "dependency_invalidation", "content_prepare",
            "layer_encoding", "root_encoding", "queue_submit", "retirement_setup", "return")
@@ -43,6 +44,14 @@ def analyze(root, expected_cases):
             preparation = diagnostic.get("preparation_us")
             cleanup = diagnostic.get("cleanup_us")
             detailed = {}
+            sample = diagnostic.get("material_sample_us")
+            if sample is not None:
+                assert len(sample) == len(MATERIAL_SAMPLE) and all(p >= 0 for p in sample)
+                count = diagnostic["material_sample_count"]
+                assert type(count) is int and 0 <= count <= diagnostic["material_item_count"]
+                assert sum(sample) <= preparation[0] + .001
+                assert count > 0 or sum(sample) == 0
+                detailed.update({f"sample_{name}_us": value for name, value in zip(MATERIAL_SAMPLE, sample)})
             if preparation is not None:
                 assert len(preparation) == len(PREPARATION) and all(p >= 0 for p in preparation)
                 assert abs(sum(preparation) - local[1]) <= .001
