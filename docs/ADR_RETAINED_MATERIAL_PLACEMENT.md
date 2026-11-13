@@ -193,3 +193,21 @@ work reduction.120Hz p99 improves in all four pairs, but longest after-work loss
 worsen4→23 and3→8ticks, and round2deadline totals worsen. Retain those failures
 and the open120Hz/native/CPU goal. A faster owner phase cannot promise lower
 completion/display latency, nor justify an application-selectable queue policy.
+
+## Consumer instance handles follow the same allocation lifetime
+
+The [instance index](performance/2026-11-13-local-instance-index/README.md)
+extends private paint-order allocation metadata to Quad/Shadow handles. Complete
+recovery builds two ranges per item into a flat handle vector from installed
+maps. Exact predecessor/topology proves stable allocation; command counts and
+arena identity/generation/retirement remain checked. Resolved handoff clears the
+indices and reset/device replacement recreates the consumer. No caller API or
+scene-selected dispatch is introduced.64-bit logical metadata costs32bytes/item
+plus24bytes/handle, excluding capacity/allocator overhead and retained capacity.
+
+An initial capture fails one strict timing-order assertion by1microsecond and
+is preserved as rejected full-chain evidence. The unchanged complete repeat
+passes strict analysis and improves all eight dense submit medians4.0–18.8%.
+Retain this general work reduction, while preserving two losing120Hz p99 pairs,
+one worse deadline total and a worse maximum. Dense owner remains16.85–18.36ms,
+above8.333ms. Neither this index nor a faster GPU alone closes that budget.

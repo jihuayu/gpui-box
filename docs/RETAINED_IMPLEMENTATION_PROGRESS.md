@@ -493,6 +493,16 @@ Tail/deadline failures are preserved and120Hz qualification remains open.
 Generation checks, exact predecessor authority and complete recovery are intact;
 42additional hardware pixel cases cover reorder/removal/missed-base/reset/handoff.
 
+The [consumer instance index](performance/2026-11-13-local-instance-index/README.md)
+also retains actual Quad/Shadow handles under the same exact topology/allocation
+lifetime, preserving arena generation and retirement validation. Its validated
+reversed repeat improves all eight dense submit medians4.0–18.8%, with32bytes/
+item plus24bytes/handle logical metadata on64-bit. The initial capture's single
+1microsecond timing-order anomaly is preserved and rejected for full-chain
+analysis. Two repeat120Hz p99 pairs and one deadline total worsen; dense owner
+still16.85–18.36ms. This is a general internal reduction, without a new API or
+scene-specific mode. Smooth120Hz and complete native/CPU/RFC acceptance stay open.
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |

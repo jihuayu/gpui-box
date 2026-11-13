@@ -3,6 +3,53 @@
 use super::*;
 
 impl WgpuFrameRenderer {
+    fn rebuild_local_instances(&mut self, frame: &FramePacket) -> Result<(), Error> {
+        self.local_instance_ranges.clear();
+        self.local_instance_handles.clear();
+        for item in frame.items.iter() {
+            let quads = self.instances.get(&item.node).ok_or(Error::InvalidFrame)?;
+            let shadows = self.shadow_instances.get(&item.node).map_or(&[][..], Vec::as_slice);
+            if quads.len() != item.commands.len() || shadows.len() != item.shadows.len() {
+                return Err(Error::InvalidFrame);
+            }
+            let start = self.local_instance_handles.len();
+            self.local_instance_handles.extend_from_slice(quads);
+            let middle = self.local_instance_handles.len();
+            self.local_instance_handles.extend_from_slice(shadows);
+            let end = self.local_instance_handles.len();
+            self.local_instance_ranges.push((start..middle, middle..end));
+        }
+        Ok(())
+    }
+    fn prepare_local_instances(&mut self, index: usize, item: &PaintItem,
+        property: u32, scale: f32, quad: bool, shadow: bool) -> Result<(), Error> {
+        let (quads, shadows) = &self.local_instance_ranges[index];
+        if property == 0 || quads.len() != item.commands.len() || shadows.len() != item.shadows.len() {
+            return Err(Error::InvalidFrame);
+        }
+        if quad {
+            for (handle, command) in self.local_instance_handles[quads.clone()].iter().zip(item.commands.iter()) {
+                let mut value = record(item, command, scale);
+                value.property = property;
+                value.bounds.x = 0.0;
+                value.bounds.y = 0.0;
+                value.clip = None;
+                self.arena.update(*handle, value).map_err(gpu_error)?;
+            }
+        }
+        if shadow && !shadows.is_empty() {
+            let mut local = item.clone();
+            local.bounds.x = 0.0;
+            local.bounds.y = 0.0;
+            local.clip = None;
+            for (handle, shadow) in self.local_instance_handles[shadows.clone()].iter().zip(item.shadows.iter()) {
+                let mut value = ShadowRecord::new(&local, *shadow, scale);
+                value.property = property;
+                self.shadow_arena.update(*handle, value).map_err(gpu_error)?;
+            }
+        }
+        Ok(())
+    }
     pub fn submit_local_for_window(
         &mut self,
         window: &gpui::Window,
@@ -52,6 +99,7 @@ impl WgpuFrameRenderer {
                     && self.surface == surface
                     && self.source == Some((old.tree(), old.revision()))
                     && self.local_spatial_slots.len() == old.len()
+                    && self.local_instance_ranges.len() == old.len()
                     && frame.follows(old)
             })
             .filter(|old| frame.material_updates().iter().all(|&index| {
@@ -88,6 +136,11 @@ impl WgpuFrameRenderer {
                     Err(error) => { self.failed = true; return Err(error); }
                 }
             } else { Vec::new() };
+            if self.shared_spatial && self.shared_content
+                && let Err(error) = self.rebuild_local_instances(&resolved) {
+                self.failed = true;
+                return Err(error);
+            }
             self.local_ink = if self.local_tight_layer_bounds && tight && !resolved.properties.effects.is_empty() {
                 let (ink,count)=local_ink::LocalInk::rebuild(frame);
                 if let Some(result)=&mut result {result.composition.bounds_items+=count;}
@@ -111,7 +164,6 @@ impl WgpuFrameRenderer {
         let mut glyph_items = vec![];
         let mut prepared_quads = 0;
         let mut prepared_shadows = 0;
-        let last_serial = self.backend.last_serial();
         let mut indices = frame.material_updates().iter().copied().peekable();
         let mut prepared: Result<(), Error> = Ok(());
         #[cfg(feature = "retained-diagnostics")]
@@ -136,7 +188,7 @@ impl WgpuFrameRenderer {
                     let property = self.local_spatial_slots[index];
                     #[cfg(feature = "retained-diagnostics")]
                     let located = sample_start.map(|_| std::time::Instant::now());
-                    self.prepare_primitives(item, property, scale, last_serial, entry.quad, entry.shadow)?;
+                    self.prepare_local_instances(index, item, property, scale, entry.quad, entry.shadow)?;
                     #[cfg(feature = "retained-diagnostics")]
                     let primitive_done = sample_start.map(|_| std::time::Instant::now());
                     prepared_quads += usize::from(entry.quad);

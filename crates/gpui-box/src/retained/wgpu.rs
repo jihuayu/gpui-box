@@ -306,6 +306,8 @@ pub struct WgpuFrameRenderer {
     local_snapshot: Option<local::LocalFrame>,
     // Spatial slots in the exact local snapshot's immutable paint order.
     local_spatial_slots: Vec<u32>,
+    local_instance_ranges: Vec<(std::ops::Range<usize>, std::ops::Range<usize>)>,
+    local_instance_handles: Vec<InstanceHandle>,
     local_ink: Option<local_ink::LocalInk>,
     max_in_flight: usize,
     failed: bool,
@@ -354,6 +356,8 @@ impl WgpuFrameRenderer {
             local_leases: VecDeque::new(),
             local_snapshot: None,
             local_spatial_slots: Vec::new(),
+            local_instance_ranges: Vec::new(),
+            local_instance_handles: Vec::new(),
             local_ink: None,
             max_in_flight,
             failed: false,
@@ -724,6 +728,8 @@ impl WgpuFrameRenderer {
         }
         self.local_snapshot = None;
         self.local_spatial_slots.clear();
+        self.local_instance_ranges.clear();
+        self.local_instance_handles.clear();
         self.local_ink = None;
         if self.failed {
             return Err(Error::Gpu("reset after failed frame submission".into()));
