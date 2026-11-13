@@ -519,7 +519,6 @@ impl UiTree {
         let mut placements = old.0.placements.clone();
         let mut template = old.0.template.clone();
         let mut material_changed = vec![];
-        let mut patches = vec![];
         let mut recorded = 0;
         // Sort only lightweight topology indices. Moving wide PaintItems in a
         // second sort adds bandwidth and scatters page/resource access, while
@@ -528,25 +527,25 @@ impl UiTree {
             .filter_map(|id| old.0.topology.indices.get(id).copied())
             .collect::<Vec<_>>();
         material_indices.sort_unstable();
-        for index in material_indices {
-            let id = old.0.template.items[index].node;
-            let mut item = old.0.template.items[index].clone();
+        if !material_indices.is_empty() {
+            let (items, changed) = old.0.template.items.patch_refresh(&material_indices, |_, previous| {
+            let id = previous.node;
+            let mut item = previous.clone();
             self.refresh_material(id, &mut item, &mut recorded)?;
-            if item.commands != old.0.template.items[index].commands
-                || item.fill_color != old.0.template.items[index].fill_color
-                || item.shadows != old.0.template.items[index].shadows
-                || item.image != old.0.template.items[index].image
-                || !item.same_text(&old.0.template.items[index])
-            {
-                patches.push((index, item));
-                material_changed.push(index);
+            let changed = item.commands != previous.commands
+                || item.fill_color != previous.fill_color
+                || item.shadows != previous.shadows
+                || item.image != previous.image
+                || !item.same_text(previous);
+            Ok(changed.then_some(item))
+            })?;
+            material_changed = changed;
+            if !material_changed.is_empty() {
+                template.items = Arc::new(items);
+                // Template geometry is a private baseline. The resolved cache is
+                // empty below; public compatibility output resolves current facts.
+                template.updates = PaintUpdates::indexed(template.items.clone(), vec![]);
             }
-        }
-        if !patches.is_empty() {
-            template.items = Arc::new(template.items.patch_owned(patches, &mut FrameBuildStats::default()));
-            // Template geometry is a private baseline. The resolved cache is
-            // empty below; public compatibility output resolves current facts.
-            template.updates = PaintUpdates::indexed(template.items.clone(), vec![]);
         }
         let mut changed = vec![];
         for &id in self.local_dirty.iter() {

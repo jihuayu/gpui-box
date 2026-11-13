@@ -211,3 +211,20 @@ passes strict analysis and improves all eight dense submit medians4.0–18.8%.
 Retain this general work reduction, while preserving two losing120Hz p99 pairs,
 one worse deadline total and a worse maximum. Dense owner remains16.85–18.36ms,
 above8.333ms. Neither this index nor a faster GPU alone closes that budget.
+
+## Publish material payloads one immutable page at a time
+
+The [page refresh study](performance/2026-11-13-page-refresh/README.md) replaces
+the local publisher's complete transient PaintItem patch array with ordered
+per-page refresh/comparison. At most64material payloads wait for page installation;
+the new root remains private until every page succeeds. Dirty journals clear
+only after complete publication; old snapshots, partial-page COW and final-value
+equality remain intact. No semantic transaction splitting or worker lifetime
+is added. Index/directory metadata and complete new output remain proportional
+to actual changed content; allocator/OS latency is not bounded.
+
+All eight reversed sustained publication medians improve37.3–51.6%, and all
+completion p99 pairs improve. Retain the general producer working-set reduction,
+which is independent of GPU/software consumer selection.120Hz p95/max/longest
+results remain mixed; one loss total worsens45→60 and longest2→6ticks. Dense
+owner still15.01–15.78ms, so native/CPU/modern desktop120Hz acceptance stays open.

@@ -503,6 +503,14 @@ analysis. Two repeat120Hz p99 pairs and one deadline total worsen; dense owner
 still16.85–18.36ms. This is a general internal reduction, without a new API or
 scene-specific mode. Smooth120Hz and complete native/CPU/RFC acceptance stay open.
 
+The [page refresh follow-up](performance/2026-11-13-page-refresh/README.md)
+refreshes local material in immutable page order with at most64transient payloads,
+removing the full wide patch array while retaining complete publication and old
+snapshot ownership. Eight reversed publication medians improve37.3–51.6%, and
+all completion p99 pairs improve. Mixed120Hz p95/max and a worse loss/streak
+45→60 /2→6remain; dense owner still15.01–15.78ms. This general producer change
+does not add an API policy or close native/CPU/modern desktop acceptance.
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |
