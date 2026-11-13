@@ -15,6 +15,107 @@ pub(super) fn run(
         dense_then_sparse(indexed, results)?;
         dense_permuted_overlap(indexed, results)?;
     }
+    dense_layer_dependencies(results)?;
+    Ok(())
+}
+
+fn dense_layer_dependencies(results: &mut Vec<serde_json::Value>) -> Result<(), Box<dyn Error>> {
+    let mut frames = vec![];
+    for indexed in [true, false] {
+        let mut gpu = gpui_wgpu::RetainedQuadRenderer::new(3)?;
+        gpu.set_indexed_spatial_enabled(indexed);
+        let mut nodes = vec![
+            SpatialNode {
+                links: [0, 1, 0, 0],
+                ..Default::default()
+            };
+            132
+        ];
+        nodes[0] = anchor(0.0);
+        nodes[131] = anchor(0.0);
+        let quad = gpui::Quad {
+            order: 2,
+            bounds: gpui::Bounds {
+                origin: gpui::point(gpui::ScaledPixels(8.0), gpui::ScaledPixels(8.0)),
+                size: gpui::size(gpui::ScaledPixels(16.0), gpui::ScaledPixels(16.0)),
+            },
+            content_mask: gpui::ContentMask {
+                bounds: gpui::Bounds {
+                    origin: gpui::point(gpui::ScaledPixels(0.0), gpui::ScaledPixels(0.0)),
+                    size: gpui::size(gpui::ScaledPixels(64.0), gpui::ScaledPixels(64.0)),
+                },
+            },
+            background: gpui::rgba(0xff0000ff).into(),
+            ..Default::default()
+        };
+        let mut images = vec![];
+        for step in 0..5 {
+            let mut input = batch(132, vec![], vec![], vec![]);
+            input.order = Some(vec![QuadDraw::Layer([91, 1, 0])]);
+            input.layers = vec![QuadLayer {
+                id: [91, 1, 0],
+                opacity: 0.5,
+                bounds: None,
+                draws: std::sync::Arc::from([QuadDraw::Instances(0..1)]),
+            }];
+            match step {
+                0 => {
+                    input.spatial.writes.push(InstanceWrite {
+                        start: 0,
+                        values: nodes.clone(),
+                    });
+                    input.writes.push(InstanceWrite {
+                        start: 0,
+                        values: vec![quad],
+                    });
+                }
+                1 => input.spatial.writes.push(InstanceWrite {
+                    start: 0,
+                    values: vec![anchor(4.0)],
+                }),
+                2 => {
+                    // Dense overlapping transport, last writer moves the only
+                    // referenced node to another anchor in the same submission.
+                    nodes[1].links[0] = 131;
+                    input.spatial.writes = (0..80)
+                        .map(|_| InstanceWrite {
+                            start: 1,
+                            values: vec![nodes[1]],
+                        })
+                        .collect();
+                }
+                3 => input.spatial.writes.push(InstanceWrite {
+                    start: 0,
+                    values: vec![anchor(9.0)],
+                }),
+                _ => input.spatial.writes.push(InstanceWrite {
+                    start: 131,
+                    values: vec![anchor(6.0)],
+                }),
+            }
+            let submitted = gpu.submit(input)?;
+            assert_eq!(submitted.rasterized_layers, usize::from(step != 3));
+            assert_eq!(submitted.reused_layers, usize::from(step == 3));
+            if indexed && step == 1 {
+                assert!(submitted.spatial_work.dense_fallback);
+                assert_eq!(submitted.spatial_work.quad_affected_instances, 1);
+            }
+            if indexed && step == 3 {
+                assert!(submitted.spatial_work.dense_fallback);
+                assert_eq!(submitted.spatial_work.quad_affected_instances, 0);
+            }
+            images.push(gpu.image()?);
+        }
+        assert_ne!(images[0].as_raw(), images[1].as_raw());
+        assert_eq!(images[0].as_raw(), images[2].as_raw());
+        assert_eq!(images[2].as_raw(), images[3].as_raw());
+        assert_ne!(images[3].as_raw(), images[4].as_raw());
+        frames.push(images);
+    }
+    for (a, b) in frames[0].iter().zip(&frames[1]) {
+        assert_eq!(a.as_raw(), b.as_raw());
+    }
+    results.push(serde_json::json!({"case":"dense-layer-final-topology-dependencies","pixel_equal":true,"dense_ancestor_invalidates":true,"overlap_reparent_invalidates":true,"unrelated_old_ancestor_reuses":true,"new_ancestor_invalidates":true,"indexed_full_control_frames":5}));
     Ok(())
 }
 

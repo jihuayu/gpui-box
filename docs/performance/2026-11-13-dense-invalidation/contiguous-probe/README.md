@@ -1,0 +1,1 @@
+Contiguous dense reference dispatch probe. Both dense/effects submit medians regress 23.0/30.3%; completed medians regress 16.7/27.4%. No runtime rollout is justified. Preserve source ZIP, alternating binary identities, all raw samples and 2,015 hardware scenarios / 1,923 pixel comparisons. Runtime restored to 634c8ba; new hardware regressions retained.

@@ -49,9 +49,123 @@ pub(super) fn run(
         }
     }
     backend_checks(results)?;
+    dense_content_dependencies(results)?;
     retained_overflow(false, results)?;
     retained_overflow(true, results)?;
     negative_rounding(output, results)?;
+    Ok(())
+}
+
+fn dense_content_dependencies(results: &mut Vec<serde_json::Value>) -> Result<(), Box<dyn Error>> {
+    let mut controls = vec![];
+    for indexed in [true, false] {
+        let mut gpu = gpui_wgpu::RetainedQuadRenderer::new(3)?;
+        gpu.set_indexed_spatial_enabled(indexed);
+        let mut nodes = vec![
+            SpatialNode {
+                links: [0, 1, 0, 0],
+                ..Default::default()
+            };
+            132
+        ];
+        nodes[0] = anchor(8.0);
+        nodes[131] = anchor(8.0);
+        let rgba: Arc<[u8]> = vec![255, 0, 0, 255].into();
+        let geometry = GlyphGeometry::new(vec![RetainedGlyph {
+            resource: 9902,
+            size: [1, 1],
+            mask: vec![255].into(),
+            origin: [0.0; 2],
+            offset: [0; 2],
+        }])?;
+        let draws: Arc<[QuadDraw]> =
+            Arc::from([QuadDraw::Image([77, 1, 0]), QuadDraw::Glyphs([77, 2, 0])]);
+        let mut frames = vec![];
+        for step in 0..5 {
+            let mut input = batch(
+                SpatialBatch {
+                    enabled: true,
+                    capacity: 132,
+                    scale: 1.0,
+                    writes: vec![],
+                },
+                Default::default(),
+                Default::default(),
+                draws.clone(),
+            );
+            match step {
+                0 => {
+                    input.spatial.writes.push(InstanceWrite {
+                        start: 0,
+                        values: nodes.clone(),
+                    });
+                    input.images.images.push(QuadImage {
+                        id: [77, 1, 0],
+                        resource: 9901,
+                        size: [1, 1],
+                        rgba: rgba.clone(),
+                        bounds: [0.0, 0.0, 8.0, 8.0],
+                        clip: [0.0, 0.0, 64.0, 64.0],
+                        spatial: Some(SpatialContent {
+                            property: 2,
+                            border: [0.0; 2],
+                            padding: [0.0; 2],
+                        }),
+                    });
+                    input.glyphs.batches.push(GlyphBatch {
+                        id: [77, 2, 0],
+                        clip: [0.0, 0.0, 64.0, 64.0],
+                        color: 0xffffffff,
+                        origin: [0.0; 2],
+                        scale: 1.0,
+                        geometry: geometry.clone(),
+                        spatial: Some(SpatialContent {
+                            property: 2,
+                            border: [20.0, 0.0],
+                            padding: [0.0; 2],
+                        }),
+                    });
+                }
+                1 => input.spatial.writes.push(InstanceWrite {
+                    start: 0,
+                    values: vec![anchor(12.0)],
+                }),
+                2 => {
+                    nodes[1].links[0] = 131;
+                    input.spatial.writes = (0..80)
+                        .map(|_| InstanceWrite {
+                            start: 1,
+                            values: vec![nodes[1]],
+                        })
+                        .collect();
+                }
+                3 => input.spatial.writes.push(InstanceWrite {
+                    start: 0,
+                    values: vec![anchor(17.0)],
+                }),
+                _ => input.spatial.writes.push(InstanceWrite {
+                    start: 131,
+                    values: vec![anchor(14.0)],
+                }),
+            }
+            let submitted = gpu.submit(input)?;
+            assert_eq!(submitted.rasterized_layers, usize::from(step != 3));
+            assert_eq!(submitted.reused_layers, usize::from(step == 3));
+            if indexed && (step == 1 || step == 3) {
+                assert!(submitted.spatial_work.dense_fallback);
+            }
+            frames.push(gpu.image()?);
+        }
+        assert_ne!(frames[0].as_raw(), frames[1].as_raw());
+        assert_eq!(frames[0].as_raw(), frames[2].as_raw());
+        assert_eq!(frames[2].as_raw(), frames[3].as_raw());
+        assert_ne!(frames[3].as_raw(), frames[4].as_raw());
+        controls.push(frames);
+    }
+    for (a, b) in controls[0].iter().zip(&controls[1]) {
+        assert_eq!(a.as_raw(), b.as_raw());
+    }
+    results.push(serde_json::json!({"case":"dense-shared-content-final-topology-dependencies","pixel_equal":true,"image_and_glyph":true,"retained_descriptors":true,"dense_ancestor_invalidates":true,"overlap_reparent_invalidates":true,"old_ancestor_reuses":true,"new_ancestor_invalidates":true,"indexed_full_control_frames":5}));
     Ok(())
 }
 

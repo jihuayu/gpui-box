@@ -310,6 +310,17 @@ Placement-independent effects now have a proposed content/placement/raster-envir
 contract, including fractional sampling/clip/resource-epoch limits; implementation,
 visible modern desktop qualification and actual CPU rendering remain open.
 
+The [dense invalidation study](performance/2026-11-13-dense-invalidation/README.md)
+rejects three generic dependency-closure candidates after exact alternating
+measurements: unconditional gather/sort regresses ancestor submission 15.7–35.1%;
+selective gather/sort has no stable dense/effects benefit; contiguous selection
+regresses dense/effects submission 23.0/30.3%. Full raw captures and changed-source
+ZIPs remain archived. Runtime restores `634c8ba`, preserving the original dense
+ancestry invalidation control and prior sustained baseline. Added isolated Quad
+and image/glyph dependency regression cases remain. These results do not close
+owner work budgets, effects raster reuse, modern desktop visible 120 Hz or CPU
+rendering acceptance. The overall goal stays active.
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |

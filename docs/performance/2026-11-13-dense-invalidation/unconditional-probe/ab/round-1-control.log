@@ -1,0 +1,4 @@
+effects=false batch=false: {"samples":120,"p50_us":1051.4,"p95_us":1452.0,"p99_us":1586.5,"max_us":1831.2} / {"samples":120,"p50_us":16040.9,"p95_us":21303.0,"p99_us":22879.4,"max_us":23234.8}
+effects=false batch=true: {"samples":120,"p50_us":13693.300000000001,"p95_us":15187.6,"p99_us":18514.800000000003,"max_us":20107.4} / {"samples":120,"p50_us":31160.4,"p95_us":37267.3,"p99_us":39027.3,"max_us":39678.0}
+effects=true batch=false: {"samples":120,"p50_us":2507.8,"p95_us":6690.4,"p99_us":12095.099999999999,"max_us":12719.4} / {"samples":120,"p50_us":17256.5,"p95_us":22100.7,"p99_us":24810.6,"max_us":24897.4}
+effects=true batch=true: {"samples":120,"p50_us":16576.8,"p95_us":22546.7,"p99_us":24183.7,"max_us":25900.1} / {"samples":120,"p50_us":34957.799999999996,"p95_us":42055.0,"p99_us":45017.3,"max_us":46948.6}

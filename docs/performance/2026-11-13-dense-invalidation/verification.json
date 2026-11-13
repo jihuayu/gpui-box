@@ -1,0 +1,26 @@
+{
+  "passed": true,
+  "runtime_restored_to": "634c8ba",
+  "runtime_sources_match_head": true,
+  "core_tests": 154,
+  "example_tests": 11,
+  "example_hardware_test_ignored": 1,
+  "clippy": "dense-runtime-perf and retained-runtime-gpu -D warnings passed",
+  "hardware": {
+    "passed": true,
+    "scenarios": 2015,
+    "pixel_comparisons": 1923,
+    "validation_sha256": "13228a9cdd886ed7175075fd4ea95de0f89bde688f9039d046434486d2ee1327",
+    "binary_sha256": "b86c35d43d8e7fbbc491cb8e850c1431db45b523575c90fabfffe80e23a8a824",
+    "adapter": {
+      "name": "NVIDIA GeForce GTX 1650 Ti",
+      "backend": "Vulkan",
+      "driver": "571.96"
+    },
+    "local_artifacts": "target/dense-invalidation-restored-regression"
+  },
+  "dense_binary_sha256": "13ec23c0102756406e8a9bf8eeff43869fc31c65c2d8a93ed9f516542e89db13",
+  "control_dense_binary_sha256": "7989c4346051bed9811234779da313b9d7ff630b2837974075a160d5642290ce",
+  "fresh_native_or_cadence_run": false,
+  "goal_complete": false
+}

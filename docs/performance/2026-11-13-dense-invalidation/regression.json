@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "scenarios": 2015,
+  "pixel_comparisons": 1923,
+  "validation_sha256": "13228a9cdd886ed7175075fd4ea95de0f89bde688f9039d046434486d2ee1327",
+  "binary_sha256": "b86c35d43d8e7fbbc491cb8e850c1431db45b523575c90fabfffe80e23a8a824",
+  "adapter": {
+    "name": "NVIDIA GeForce GTX 1650 Ti",
+    "backend": "Vulkan",
+    "driver": "571.96"
+  },
+  "local_artifacts": "target/dense-invalidation-restored-regression"
+}

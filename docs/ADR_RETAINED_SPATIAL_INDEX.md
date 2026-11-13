@@ -87,6 +87,34 @@ slots and coalesce adjacent dirty ranges for existing raster invalidation.
 Geometry writes retain their own dirty ranges. Image/glyph paths, GPU ABI,
 draw order, actual uploads, layer/completion leases and shaders are unchanged.
 
+### Rejected dense invalidation probes
+
+The [dense invalidation study](performance/2026-11-13-dense-invalidation/README.md)
+measured three attempts to reuse full-prefix validation for raster dependencies:
+
+1. Unconditional final-topology closure plus inverse-user gather/sort regresses
+   ancestor submit medians 15.7–35.1%. Sustained dense/effects 120 Hz p99 remains
+   31.60–31.77 ms, with 1,199 consecutive unsatisfied target ticks.
+2. Restricting closure to dense submitted transport retains original ancestor
+   processing but produces no stable dense/effects gain: both submit medians
+   regress 0.8% and completed medians regress 0.4/1.6%.
+3. Contiguous dense reference selection avoids user sorting but dense/effects
+   submit medians regress 23.0/30.3%, completed medians 16.7/27.4%.
+
+Preserve exact changed-source ZIPs, all alternating raw samples and losing tails.
+The runtime is restored to `634c8ba`: projected depth validation remains, dense
+raster invalidation still uses actual per-user ancestry. Sparse indexed processing
+is unchanged. New backend correctness regressions stay: isolated Quad and retained
+image/glyph five-frame comparisons exercise dense ancestor invalidation, overlapping
+reparent, old unrelated ancestor reuse and new ancestor invalidation, against the
+original unindexed control. No public API, shader or fidelity policy changes.
+
+The probes demonstrate that computing a generic affected frontier is not free;
+shallow trees and contiguous raw ranges can favor direct ancestry tests. These
+measurements do not prove the original method is optimal for deep/fragmented
+scenes or modern desktops. Further policy complexity needs a concrete workload
+benefit, and no caller-selected dirty-authority or unchecked route follows.
+
 `set_indexed_spatial_enabled(false)` keeps the original full validation and
 per-instance ancestry walk as an A/B control. The default is true. The normal
 FramePacket wrapper forces resync when switching and preserves the option on

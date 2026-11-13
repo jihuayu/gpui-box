@@ -271,6 +271,26 @@ Prioritize the following API-relevant work before tuning GPU queue depth:
    frame, and explicitly associate interaction geometry with that scene. The
    GPU offscreen measurements do not qualify CPU responsiveness.
 
+### Dense invalidation probes: avoid permanent API from a losing optimization
+
+The [dependency-closure follow-up](performance/2026-11-13-dense-invalidation/README.md)
+tries to reuse validated final-topology membership for raster invalidation.
+The unconditional inverse-user gather/sort probe regresses ancestor submit
+medians 15.7–35.1%. Restricting it to dense submitted transport still yields no
+stable dense/effects gain (both submit medians lose 0.8%). Both exact source ZIPs,
+raw captures, binary identities and the unconditional sustained deadline failures
+are preserved. The contiguous reference-selection candidate also regresses dense/effects
+submit medians 23.0/30.3%; restore the `634c8ba` runtime and retain the added
+hardware regressions.
+These results are evidence against exposing application-selected dirty dispatch
+strategies or assuming a single frontier policy is optimal for all animation.
+
+Keep ancestor transforms as a semantic sharing opportunity and independently
+changing children as real content changes. Backend policy may select between
+validated equivalent algorithms, but must retain atomic failure/retry, complete
+snapshot recovery and exact clip/isolation/resource behavior. No unchecked batch
+API or automatic decoration simplification is justified by these probes.
+
 ## Remaining acceptance
 
 - Local-first indexed damage/hit performance and general incremental updates;
