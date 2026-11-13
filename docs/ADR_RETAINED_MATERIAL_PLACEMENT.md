@@ -160,3 +160,19 @@ requires explicit ownership, retained-byte, completion, shutdown and failure
 contracts; these measurements do not justify doing so. Prefer reducing repeated
 material work before adding such lifecycle complexity. The API continues to
 describe immutable facts, exact predecessors and complete frames.
+
+## Rejected borrowed material geometry view
+
+The [borrowed material probe](performance/2026-11-13-borrowed-material/README.md)
+avoids transient material Arc clones and accepts an internal geometry view in
+validation and instance builders.167core/75mixed GPU checks pass; reversed16case
+captures improve6submit medians and regress2 (−8.6% to+11.8%). All four120Hz
+completion-loss comparisons worsen; one longest interval grows4→13ticks.
+Restore the original representation because this does not establish enough
+benefit to retain another abstraction. No application strategy is introduced.
+
+Keep the independent a4df7c6 correctness fix discovered by fresh-extraction
+range tests: geometry traversal must retain actual open ancestors even when a
+range starts inside a subtree then crosses to an ancestor's sibling. Both
+comparison binaries contain that fix. Profiling should discriminate preparation
+subcosts before the next algorithmic change; fewer clones alone are not proof.

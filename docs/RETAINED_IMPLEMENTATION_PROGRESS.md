@@ -467,6 +467,14 @@ regression compares every possible range start against fresh extraction across
 deep motion/clip/opacity and siblings. This is an independent correctness fix;
 future performance comparisons use the corrected baseline.
 
+The [borrowed material experiment](performance/2026-11-13-borrowed-material/README.md)
+then removes transient shared-payload cloning through an internal geometry view.
+167candidate core tests/75mixed GPU checks pass, but16reversed sustained cases
+show6submit median gains/2regressions and all four120Hz completion-loss totals
+worsen, including a4→13tick longest interval. Reject the candidate and preserve
+the independent ancestry fix. Raw evidence and exact sources are archived;
+no extra representation or application policy remains in the runtime.
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |

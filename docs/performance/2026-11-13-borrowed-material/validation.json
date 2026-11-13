@@ -1,0 +1,18 @@
+{
+  "candidate_core_tests": 167,
+  "candidate_mixed_gpu_comparisons": 75,
+  "candidate_strict_library_clippy": "passed",
+  "formal_cases": 16,
+  "scheduled_ticks": 14400,
+  "decision": "reject; unstable submit gains and no stable deadline/tail gain",
+  "runtime_restored_to": "a4df7c6",
+  "candidate_full_hardware_suite": "not run",
+  "separate_ancestry_fix_core_tests": 166,
+  "separate_ancestry_fix_mixed_gpu_comparisons": 75,
+  "restored_hardware_cases": 2018,
+  "restored_pixel_comparisons": 1926,
+  "restored_runtime_exactly_matches": "a4df7c6",
+  "restored_default_dense_binary_sha256": "84d0b9e57d82e816af764e1385c229eecc6d892115b38841c2babacd9027e169",
+  "capture_source_and_binary_hashes_stable": true,
+  "known_compiler_renderer_conflicts": 0
+}
