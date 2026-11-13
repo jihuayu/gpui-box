@@ -1,0 +1,14 @@
+{
+  "candidate_core_tests": 167,
+  "strict_library_clippy": "passed",
+  "mixed_gpu_comparisons": 117,
+  "formal_cases": 16,
+  "scheduled_ticks": 14400,
+  "strict_pipeline_analysis": "passed",
+  "source_and_binary_hashes_stable": true,
+  "known_sampled_compiler_renderer_conflicts": 0,
+  "decision": "rejected: commit medians six wins/two losses; all four120Hz p95 comparisons regress; second round120Hz losses both regress",
+  "runtime_restore": "c0a8485",
+  "full_candidate_hardware_suite": "not run for rejected candidate",
+  "remaining": "120Hz tails, native present/input, modern desktop and native CPU/full RFC acceptance"
+}

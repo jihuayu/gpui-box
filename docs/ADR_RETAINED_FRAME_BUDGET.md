@@ -318,6 +318,15 @@ scheduling. Native visible display/input and CPU fallback acceptance stay open.
 
 ## Remaining acceptance
 
+The [preflight capacity probe](performance/2026-11-13-preflight-reserve/README.md)
+counts sorted node groups to reserve the final wide change list. Reversed pairs
+improve six dense commit medians and regress two; total owner improves four and
+regresses four. All four120Hz p95 comparisons worsen, with both round2loss totals
+worse. Restore the original runtime: fewer growth copies do not establish lower
+latency, especially with an added scan and unnecessary capacity on equal groups.
+Attribute settlement/fanout/preflight/application/cleanup before the next change;
+the atomic complete transaction contract remains unchanged.
+
 - Local-first indexed damage/hit performance and general incremental updates;
   affine/complex clip support. The experimental snapshot's correctness path
   currently uses full damage and linear hit traversal.

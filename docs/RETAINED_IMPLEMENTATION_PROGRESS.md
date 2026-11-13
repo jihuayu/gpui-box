@@ -511,6 +511,12 @@ all completion p99 pairs improve. Mixed120Hz p95/max and a worse loss/streak
 45→60 /2→6remain; dense owner still15.01–15.78ms. This general producer change
 does not add an API policy or close native/CPU/modern desktop acceptance.
 
+The [preflight reservation probe](performance/2026-11-13-preflight-reserve/README.md)
+is rejected: exact node-group capacity improves six commit medians and regresses
+two, while all four120Hz p95 comparisons and both round2loss totals worsen.
+The runtime is restored byte-for-byte and release binaries rebuilt.167core and
+117mixed GPU checks pass for the candidate; no new transaction/API policy is kept.
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |
