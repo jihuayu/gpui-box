@@ -1,0 +1,14 @@
+{
+  "candidate_core_tests": 168,
+  "strict_library_clippy": "passed",
+  "mixed_gpu_comparisons": 117,
+  "formal_cases": 16,
+  "scheduled_ticks": 14400,
+  "strict_pipeline_analysis": "passed",
+  "source_and_binary_hashes_stable": true,
+  "known_sampled_compiler_renderer_conflicts": 0,
+  "decision": "rejected: 120Hz after-work longest unsatisfied intervals grow to15/16ticks and loss totals regress; median commit reduction is insufficient for stall target",
+  "runtime_restore": "903b936",
+  "full_candidate_hardware_suite": "not run for rejected candidate",
+  "remaining": "120Hz tails, native present/input, modern desktop and native CPU/full RFC acceptance"
+}

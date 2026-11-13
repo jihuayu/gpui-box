@@ -328,6 +328,12 @@ complete atomic validation, writer order and independent resource lifetimes.
 Three diagnostic120Hz p99 pairs worsen; timing/layout/serialization overhead
 is explicitly retained. No speedup or transaction-splitting policy is implied.
 
+The [binding-slot probe](performance/2026-11-13-binding-slots/README.md) reuses
+private closure slots while preserving ordered identities and stale-ID checks.
+It lowers all eight commit medians, but 120Hz after-work longest unsatisfied
+intervals grow to15/16ticks and loss totals worsen. Restore the hash-table path;
+median sink lookup reduction is not a stall-safe API result.
+
 The [preflight capacity probe](performance/2026-11-13-preflight-reserve/README.md)
 counts sorted node groups to reserve the final wide change list. Reversed pairs
 improve six dense commit medians and regress two; total owner improves four and

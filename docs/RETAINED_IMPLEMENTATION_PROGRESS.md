@@ -525,6 +525,11 @@ is0.024–0.028ms in this shared-source fixture. Diagnostic observer regressions
 remain documented; default clocks/fields compile out. This is attribution, not
 a renderer speedup or closure of native/CPU/modern desktop acceptance.
 
+The [binding-slot probe](performance/2026-11-13-binding-slots/README.md) is
+rejected despite lower commit medians: 120Hz after-work longest unsatisfied
+intervals grow to15/16ticks and loss totals worsen. The runtime is restored to
+the original checked binding table; no source/sink API policy is added.
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |
