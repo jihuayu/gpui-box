@@ -245,6 +245,12 @@ pub struct FrameSubmission {
     /// None on the resolved recovery route. Diagnostic builds only.
     #[cfg(feature = "retained-diagnostics")]
     pub local_phase_times: Option<[std::time::Duration; 5]>,
+    /// Nested preparation spans: material visitor, spatial application, ink bounds.
+    #[cfg(feature = "retained-diagnostics")]
+    pub local_preparation_times: Option<[std::time::Duration; 3]>,
+    /// Explicit temporary destruction after the five body spans; not GPU work.
+    #[cfg(feature = "retained-diagnostics")]
+    pub local_cleanup_time: Option<std::time::Duration>,
     pub routing: RoutingStats,
     pub full_resync: bool,
     pub gpu: QuadSubmission,
@@ -981,6 +987,10 @@ impl WgpuFrameRenderer {
         Ok(Some(FrameSubmission {
             #[cfg(feature = "retained-diagnostics")]
             local_phase_times: None,
+            #[cfg(feature = "retained-diagnostics")]
+            local_preparation_times: None,
+            #[cfg(feature = "retained-diagnostics")]
+            local_cleanup_time: None,
             routing,
             full_resync,
             gpu,

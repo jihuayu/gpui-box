@@ -127,9 +127,13 @@ impl WgpuFrameRenderer {
         prepared?;
         let selected_images = image_items.iter().collect::<Vec<_>>();
         let selected_glyphs = glyph_items.iter().collect::<Vec<_>>();
+        #[cfg(feature = "retained-diagnostics")]
+        let material_done = std::time::Instant::now();
         for item in &updates {
             self.spatial_arena.update_local(item)?;
         }
+        #[cfg(feature = "retained-diagnostics")]
+        let spatial_done = std::time::Instant::now();
         let mut layers=self.composition_cache.local_spatial_layers();
         let mut bounds_items=0;
         let mut bounds_translated_nodes=0;
@@ -181,17 +185,39 @@ impl WgpuFrameRenderer {
         self.local_leases.push_back((gpu.serial, frame.clone()));
         self.collect()?;
         self.failed = false;
+        let prepared_spatial_items = updates.len();
+        let inspected_items = prepared_spatial_items + frame.material_updates().len();
+        #[cfg(feature = "retained-diagnostics")]
+        let ack_done = std::time::Instant::now();
+        #[cfg(feature = "retained-diagnostics")]
+        {
+            // Isolate cleanup without moving ownership off-thread or changing
+            // normal-build destruction. The old snapshot may own retired pages.
+            drop(selected_images);
+            drop(selected_glyphs);
+            drop(image_items);
+            drop(glyph_items);
+            drop(resources);
+            drop(updates);
+            drop(indices);
+            drop(previous);
+        }
         Ok(Some(FrameSubmission {
             #[cfg(feature = "retained-diagnostics")]
             local_phase_times: Some([provenance_done - started, preparation_done - provenance_done,
                 batch_done - preparation_done, backend_done - batch_done,
-                std::time::Instant::now() - backend_done]),
+                ack_done - backend_done]),
+            #[cfg(feature = "retained-diagnostics")]
+            local_preparation_times: Some([material_done - provenance_done,
+                spatial_done - material_done, preparation_done - spatial_done]),
+            #[cfg(feature = "retained-diagnostics")]
+            local_cleanup_time: Some(std::time::Instant::now() - ack_done),
             routing: RoutingStats {
                 cached: true,
-                inspected_items: updates.len() + frame.material_updates().len(),
+                inspected_items,
                 prepared_quad_items: prepared_quads,
                 prepared_shadow_items: prepared_shadows,
-                prepared_spatial_items: updates.len(),
+                prepared_spatial_items,
                 ..Default::default()
             },
             full_resync: false,

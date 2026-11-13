@@ -10,6 +10,7 @@ spec = importlib.util.spec_from_file_location("pipeline_analysis", Path(__file__
 pipeline = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(pipeline)
 LOCAL = ("provenance", "preparation", "batch", "backend", "ack")
+PREPARATION = ("material", "spatial", "ink")
 BACKEND = ("primitive_spatial_validation", "content_layer_validation", "admission",
            "target_setup", "storage_upload", "dependency_invalidation", "content_prepare",
            "layer_encoding", "root_encoding", "queue_submit", "retirement_setup", "return")
@@ -39,8 +40,20 @@ def analyze(root, expected_cases):
             assert sum(local) <= row["submit_and_admission_us"] + .001
             outer = row["submit_and_admission_us"] - (0 if case["before_work"] else row["admission_wait_us"])
             assert sum(local) <= outer + .001
+            preparation = diagnostic.get("preparation_us")
+            cleanup = diagnostic.get("cleanup_us")
+            detailed = {}
+            if preparation is not None:
+                assert len(preparation) == len(PREPARATION) and all(p >= 0 for p in preparation)
+                assert abs(sum(preparation) - local[1]) <= .001
+                detailed.update({f"preparation_{name}_us": value for name, value in zip(PREPARATION, preparation)})
+            if cleanup is not None:
+                assert cleanup >= 0 and sum(local) + cleanup <= outer + .001
+                detailed.update({"explicit_cleanup_us": cleanup,
+                    "unattributed_after_cleanup_us": max(0, outer - sum(local) - cleanup)})
             values = {**{f"local_{name}_us": value for name, value in zip(LOCAL, local)},
                       **{f"backend_{name}_us": value for name, value in zip(BACKEND, backend)},
+                      **detailed,
                       "local_total_us": sum(local), "backend_total_us": sum(backend),
                       "outside_backend_us": sum(local) - local[3],
                       "outer_submit_excluding_admission_us": outer,

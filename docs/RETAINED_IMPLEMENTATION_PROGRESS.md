@@ -450,6 +450,15 @@ runtime maps restored exactly. Raw tail/deadline losses, source hashes and the
 candidate are archived. Bulk preparation/cleanup attribution is the next step;
 no new rendering policy or application API is introduced.
 
+The [preparation/cleanup study](performance/2026-11-13-preparation-phases/README.md)
+adds bulk diagnostic-only subspans. Dense120Hz material preparation is4.49–4.90ms;
+spatial application and layer records are each about0.002ms in this workload,
+which leaves tight bounds disabled. Explicit temporary destruction as a group
+accounts for0.92–1.04ms, leaving about0.002ms unattributed; no individual object
+or allocator cause is established.16reversed cases preserve tail regressions
+and all pixel/lease/base assertions. No runtime speedup or off-thread destruction
+policy is claimed. Material profiling and native/CPU acceptance remain open.
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |

@@ -145,3 +145,18 @@ comparisons pass, but all eight reversed sustained dense submit medians regress
 2.4–14.0%;120Hz longest intervals also regress in round2. Restore the original
 maps. Lookup complexity alone does not establish lower latency. No custom
 hasher, application switch or workload-specific dispatch follows from this.
+
+## Follow-up: include destruction in owner budgets
+
+The [bulk preparation study](performance/2026-11-13-preparation-phases/README.md)
+attributes dense120Hz4.49–4.90ms to the material visitor/validation/instance path,
+and0.92–1.04ms to explicit temporary destruction as a group. Spatial application
+and layer records are small here; tight bounds are disabled in this workload.
+The study does not distinguish per-object destruction, pure CPU execution or
+allocator cause. Diagnostic-only drop timing leaves normal cleanup unchanged.
+
+Owner budget accounting must include destruction. Moving it to another worker
+requires explicit ownership, retained-byte, completion, shutdown and failure
+contracts; these measurements do not justify doing so. Prefer reducing repeated
+material work before adding such lifecycle complexity. The API continues to
+describe immutable facts, exact predecessors and complete frames.

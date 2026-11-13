@@ -268,6 +268,8 @@ fn case(
         #[cfg(feature = "retained-diagnostics")]
         let diagnostics = submission.as_ref().map_or(Value::Null, |s| json!({
             "local_us":s.local_phase_times.map(|phases| phases.map(|p| p.as_secs_f64()*1e6)),
+            "preparation_us":s.local_preparation_times.map(|phases| phases.map(|p| p.as_secs_f64()*1e6)),
+            "cleanup_us":s.local_cleanup_time.map(|p| p.as_secs_f64()*1e6),
             "backend_us":s.gpu.phase_times.map(|p| p.as_secs_f64()*1e6),
             "quad_bytes":s.gpu.uploaded_bytes,"quad_ranges":s.gpu.upload_ranges,
             "spatial_bytes":s.gpu.spatial_upload_bytes,
