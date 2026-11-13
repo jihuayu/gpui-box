@@ -517,6 +517,14 @@ two, while all four120Hz p95 comparisons and both round2loss totals worsen.
 The runtime is restored byte-for-byte and release binaries rebuilt.167core and
 117mixed GPU checks pass for the candidate; no new transaction/API policy is kept.
 
+The [transaction attribution study](performance/2026-11-13-transaction-phases/README.md)
+adds compile-time-only source/sink/tree/publication and nested property timings.
+Strict reversed sustained analysis identifies sink collection1.87–2.15ms,
+preflight1.45–1.82ms and application1.07–1.28ms at dense120Hz; source settlement
+is0.024–0.028ms in this shared-source fixture. Diagnostic observer regressions
+remain documented; default clocks/fields compile out. This is attribution, not
+a renderer speedup or closure of native/CPU/modern desktop acceptance.
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |

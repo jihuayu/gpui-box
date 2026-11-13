@@ -1,0 +1,17 @@
+{
+  "default_core_tests": 167,
+  "diagnostic_core_tests": 167,
+  "default_and_diagnostic_library_harness_clippy": "passed",
+  "diagnostic_mixed_gpu_comparisons": 117,
+  "default_mixed_gpu_comparisons": 117,
+  "full_hardware_suite": "not repeated for compile-time-only timing change; previous c0a8485 full2060/1968 remains historical",
+  "formal_cases": 16,
+  "scheduled_ticks": 14400,
+  "pipeline_transaction_submit_analyzers": "passed",
+  "source_and_binary_hashes_stable": true,
+  "known_sampled_compiler_renderer_conflicts": 0,
+  "postcapture_changed_hashed_sources": [],
+  "default_release_binaries_rebuilt": true,
+  "retained": "compile-time diagnostic transaction/property wall spans, no runtime speedup claim",
+  "remaining": "120Hz tails, native present/input, modern desktop and native CPU/full RFC acceptance"
+}

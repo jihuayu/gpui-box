@@ -378,6 +378,8 @@ impl ReactiveUi {
         self.stats.effect_runs += effects.len() as u64;
         self.stats.effect_cleanups += effect_cleanups as u64;
         ReactiveCommit {
+            #[cfg(feature = "retained-diagnostics")]
+            transaction_phase_times: None,
             value,
             commit,
             changed_sources,

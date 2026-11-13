@@ -147,6 +147,9 @@ pub struct BackendCapabilities {
 
 #[derive(Clone, Debug, Default)]
 pub struct Commit {
+    /// Diagnostic preflight and application wall times; not CPU cycle counts.
+    #[cfg(feature = "retained-diagnostics")]
+    pub property_phase_times: Option<[std::time::Duration; 2]>,
     pub revision: u64,
     pub changed_nodes: usize,
     pub request_frame: bool,
@@ -601,15 +604,27 @@ impl UiTree {
         transaction: Transaction,
         capabilities: BackendCapabilities,
     ) -> Result<Commit, Error> {
+        #[cfg(feature = "retained-diagnostics")]
+        let started = std::time::Instant::now();
         let changed = Self::prepare_properties(transaction, |id| self.node(id))?;
+        #[cfg(feature = "retained-diagnostics")]
+        let prepared = std::time::Instant::now();
         if changed.is_empty() {
             return Ok(Commit {
+                #[cfg(feature = "retained-diagnostics")]
+                property_phase_times: Some([prepared - started, std::time::Duration::ZERO]),
                 revision: self.revision,
                 ..Default::default()
             });
         }
         self.advance()?;
-        Ok(self.apply_properties(changed, capabilities))
+        let result = self.apply_properties(changed, capabilities);
+        #[cfg(feature = "retained-diagnostics")]
+        let result = Commit {
+            property_phase_times: Some([prepared - started, prepared.elapsed()]),
+            ..result
+        };
+        Ok(result)
     }
     fn issue_node_generation(&mut self) -> Result<u64, Error> {
         let generation = self.next_generation;
@@ -800,6 +815,8 @@ impl UiTree {
         capabilities: BackendCapabilities,
     ) -> Commit {
         let mut result = Commit {
+            #[cfg(feature = "retained-diagnostics")]
+            property_phase_times: None,
             revision: self.revision,
             changed_nodes: changed.len(),
             request_frame: true,

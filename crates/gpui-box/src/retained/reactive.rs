@@ -255,6 +255,10 @@ pub struct ReactiveStats {
 }
 
 pub struct ReactiveCommit<R> {
+    /// Source settlement, sink collection, tree commit and publication/effects.
+    /// Only the ordinary transaction entry populates these diagnostic spans.
+    #[cfg(feature = "retained-diagnostics")]
+    pub transaction_phase_times: Option<[std::time::Duration; 4]>,
     pub value: R,
     pub commit: Commit,
     pub changed_sources: usize,
@@ -559,10 +563,25 @@ impl ReactiveUi {
         &mut self,
         update: impl FnOnce(&mut ReactiveTransaction<'_>) -> Result<R, Error>,
     ) -> Result<ReactiveCommit<R>, Error> {
+        #[cfg(feature = "retained-diagnostics")]
+        let started = std::time::Instant::now();
         let (value, prepared) = self.prepare_update(update)?;
+        #[cfg(feature = "retained-diagnostics")]
+        let settled = std::time::Instant::now();
         let (properties, sink_writes, effects) = self.collect_sinks(&prepared, |_| true);
+        #[cfg(feature = "retained-diagnostics")]
+        let collected = std::time::Instant::now();
         let commit = self.tree.commit(properties, self.capabilities)?;
-        Ok(self.publish_update(value, prepared, commit, sink_writes, effects))
+        #[cfg(feature = "retained-diagnostics")]
+        let applied = std::time::Instant::now();
+        let result = self.publish_update(value, prepared, commit, sink_writes, effects);
+        #[cfg(feature = "retained-diagnostics")]
+        let result = ReactiveCommit {
+            transaction_phase_times: Some([settled - started, collected - settled,
+                applied - collected, applied.elapsed()]),
+            ..result
+        };
+        Ok(result)
     }
 }
 

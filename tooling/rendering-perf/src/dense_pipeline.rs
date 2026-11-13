@@ -16,6 +16,7 @@ struct PendingFrame {
     burst_epoch: u64,
     burst_epochs_crossed: u64,
     diagnostics: Value,
+    transaction_diagnostics: Value,
 }
 struct Observations {
     pending: VecDeque<PendingFrame>,
@@ -41,6 +42,7 @@ impl Observations {
             let finished = receipt.observed_at.max(f.submitted);
             self.rows.push(json!({
                 "tick":f.sample.tick,"serial":f.serial,"covering_serial":receipt.serial,"diagnostics":f.diagnostics,
+                "transaction_diagnostics":f.transaction_diagnostics,
                 "burst_epoch":f.burst_epoch,"burst_epochs_crossed":f.burst_epochs_crossed,
                 "source_us":f.sample.scheduled.duration_since(self.origin).as_secs_f64()*1e6,
                 "producer_delay_us":f.sample.generated.duration_since(f.sample.scheduled).as_secs_f64()*1e6,
@@ -254,6 +256,16 @@ fn case(
         let applied = ui.apply_updates(&mut receiver)?;
         assert_eq!(applied.applied, 1);
         let committed = Instant::now();
+        #[cfg(feature = "retained-diagnostics")]
+        let transaction_diagnostics = applied.commit.as_ref().map_or(Value::Null, |c| json!({
+            "reactive_us":c.transaction_phase_times.map(|p| p.map(|v| v.as_secs_f64()*1e6)),
+            "property_us":c.commit.property_phase_times.map(|p| p.map(|v| v.as_secs_f64()*1e6)),
+            "sink_writes":c.sink_writes,"changed_nodes":c.commit.changed_nodes,
+            "changed_sources":c.changed_sources,"computed_evaluations":c.computed_evaluations,
+            "effect_runs":c.effect_runs
+        }));
+        #[cfg(not(feature = "retained-diagnostics"))]
+        let transaction_diagnostics = Value::Null;
         let sample = *ui.read(signal)?;
         let superseded = sample.tick as usize - next;
         let frame = ui.local_frame([800.0, 600.0])?;
@@ -300,6 +312,7 @@ fn case(
             burst_epoch,
             burst_epochs_crossed: burst_epoch - last_burst,
             diagnostics,
+            transaction_diagnostics,
         });
         last_burst = burst_epoch;
         maximum_pending = maximum_pending.max(observations.pending.len());

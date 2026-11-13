@@ -318,6 +318,16 @@ scheduling. Native visible display/input and CPU fallback acceptance stay open.
 
 ## Remaining acceptance
 
+The [transaction attribution study](performance/2026-11-13-transaction-phases/README.md)
+adds compile-time-only source settlement/sink/tree/publication spans and nested
+property preflight/application spans. Dense120Hz sink medians1.87–2.15ms,
+preflight1.45–1.82ms and application1.07–1.28ms dominate settlement0.024–0.028ms.
+This shared-source/10k-sink fixture is not a general graph benchmark. Inspect
+sink construction/dispatch and staged property representation next, retaining
+complete atomic validation, writer order and independent resource lifetimes.
+Three diagnostic120Hz p99 pairs worsen; timing/layout/serialization overhead
+is explicitly retained. No speedup or transaction-splitting policy is implied.
+
 The [preflight capacity probe](performance/2026-11-13-preflight-reserve/README.md)
 counts sorted node groups to reserve the final wide change list. Reversed pairs
 improve six dense commit medians and regress two; total owner improves four and
