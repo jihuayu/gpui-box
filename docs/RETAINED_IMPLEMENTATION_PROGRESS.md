@@ -393,6 +393,15 @@ and longest unsatisfied intervals7/11 ->3/4. First60Hz longest interval regresse
 2 ->3.164core,11example,72mixed GPU and2,015hardware /1,923pixel cases pass.
 See [full evidence](performance/2026-11-13-material-placement/README.md).
 
+The [material streaming follow-up](performance/2026-11-13-material-stream/README.md)
+removes the full resolved changed-item temporary array. Material is validated,
+classified and prepared in its visitor lifetime; only resource changes retain
+owned items for batching. Late validation failure submits nothing, preserves old
+pixels and requires reset.164core,75mixed GPU and2,018hardware /1,926pixel cases
+pass.120Hz submit medians improve, but first60Hz regresses and first120Hz longest
+unsatisfied interval worsens9 ->14. This reduces transient work without a stable
+stall-elimination claim. The full goal stays active.
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |

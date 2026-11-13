@@ -1,0 +1,1181 @@
+{
+  "scope": "same-row sums of owner commit/publication/submission; residual is synchronous finish and scheduling, not GPU time; no native display or physical input; skipped ticks remain separate",
+  "cases": [
+    {
+      "run": "run-1-original",
+      "nodes": 10000,
+      "batch": false,
+      "effects": true,
+      "target_hz": 60,
+      "budget_us": 16666.666,
+      "expected_ticks": 600,
+      "consumed_ticks": 599,
+      "superseded_ticks": 1,
+      "deadline_misses": 21,
+      "owner_work": {
+        "samples": 599,
+        "p50_us": 1207.7,
+        "p95_us": 1968.8,
+        "p99_us": 23293.9,
+        "max_us": 31957.2
+      },
+      "source_to_submit": {
+        "samples": 599,
+        "p50_us": 1572.9330000000002,
+        "p95_us": 7814.133,
+        "p99_us": 24215.5,
+        "max_us": 33231.3
+      },
+      "post_submit_finish_residual": {
+        "samples": 599,
+        "p50_us": 859.4000000000001,
+        "p95_us": 3927.7000000000003,
+        "p99_us": 7585.100000000001,
+        "max_us": 14716.6
+      },
+      "owner_work_over_budget": 19,
+      "already_late_before_finish": 20,
+      "worst_completion_samples": [
+        {
+          "tick": 450,
+          "source_to_gpu_complete_us": 38899.9,
+          "source_to_owner_us": 1274.1,
+          "commit_us": 6978.3,
+          "publication_queue_us": 8533.8,
+          "submit_us": 16445.100000000002,
+          "owner_work_us": 31957.2,
+          "post_submit_finish_residual_us": 5668.5999999999985,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 330,
+          "source_to_gpu_complete_us": 31435.100000000002,
+          "source_to_owner_us": 806.3000000000001,
+          "commit_us": 5507.1,
+          "publication_queue_us": 8043.3,
+          "submit_us": 16831.3,
+          "owner_work_us": 30381.7,
+          "post_submit_finish_residual_us": 247.10000000000218,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 570,
+          "source_to_gpu_complete_us": 30838.2,
+          "source_to_owner_us": 394.2,
+          "commit_us": 7545.8,
+          "publication_queue_us": 9398.1,
+          "submit_us": 13324.6,
+          "owner_work_us": 30268.5,
+          "post_submit_finish_residual_us": 175.5,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 90,
+          "source_to_gpu_complete_us": 27859.399999999998,
+          "source_to_owner_us": 140.0,
+          "commit_us": 4687.6,
+          "publication_queue_us": 8309.199999999999,
+          "submit_us": 14548.9,
+          "owner_work_us": 27545.699999999997,
+          "post_submit_finish_residual_us": 173.70000000000073,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 150,
+          "source_to_gpu_complete_us": 26273.600000000002,
+          "source_to_owner_us": 92.6,
+          "commit_us": 4938.7,
+          "publication_queue_us": 7813.4,
+          "submit_us": 13243.1,
+          "owner_work_us": 25995.2,
+          "post_submit_finish_residual_us": 185.8000000000029,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 180,
+          "source_to_gpu_complete_us": 25626.1,
+          "source_to_owner_us": 205.1,
+          "commit_us": 4159.0,
+          "publication_queue_us": 6626.2,
+          "submit_us": 10830.2,
+          "owner_work_us": 21615.4,
+          "post_submit_finish_residual_us": 3805.5999999999985,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 270,
+          "source_to_gpu_complete_us": 24343.3,
+          "source_to_owner_us": 921.5999999999999,
+          "commit_us": 5483.2,
+          "publication_queue_us": 6326.6,
+          "submit_us": 11484.1,
+          "owner_work_us": 23293.9,
+          "post_submit_finish_residual_us": 127.79999999999927,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 510,
+          "source_to_gpu_complete_us": 23723.3,
+          "source_to_owner_us": 548.6999999999999,
+          "commit_us": 4064.4,
+          "publication_queue_us": 7152.5,
+          "submit_us": 11849.800000000001,
+          "owner_work_us": 23066.7,
+          "post_submit_finish_residual_us": 107.89999999999782,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 210,
+          "source_to_gpu_complete_us": 23591.399999999998,
+          "source_to_owner_us": 782.2,
+          "commit_us": 4497.0,
+          "publication_queue_us": 6674.700000000001,
+          "submit_us": 11521.3,
+          "owner_work_us": 22693.0,
+          "post_submit_finish_residual_us": 116.19999999999709,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 480,
+          "source_to_gpu_complete_us": 23556.5,
+          "source_to_owner_us": 288.70000000000005,
+          "commit_us": 6139.0,
+          "publication_queue_us": 7004.599999999999,
+          "submit_us": 10014.1,
+          "owner_work_us": 23157.7,
+          "post_submit_finish_residual_us": 110.09999999999854,
+          "superseded_ticks": 0
+        }
+      ]
+    },
+    {
+      "run": "run-1-original",
+      "nodes": 10000,
+      "batch": false,
+      "effects": true,
+      "target_hz": 120,
+      "budget_us": 8333.333,
+      "expected_ticks": 1200,
+      "consumed_ticks": 1127,
+      "superseded_ticks": 73,
+      "deadline_misses": 90,
+      "owner_work": {
+        "samples": 1127,
+        "p50_us": 1626.7,
+        "p95_us": 3931.7,
+        "p99_us": 24756.8,
+        "max_us": 52399.4
+      },
+      "source_to_submit": {
+        "samples": 1127,
+        "p50_us": 2081.867,
+        "p95_us": 7779.3330000000005,
+        "p99_us": 24910.0,
+        "max_us": 56023.367000000006
+      },
+      "post_submit_finish_residual": {
+        "samples": 1127,
+        "p50_us": 1032.6000000000001,
+        "p95_us": 3672.7000000000003,
+        "p99_us": 7306.4,
+        "max_us": 25873.5
+      },
+      "owner_work_over_budget": 22,
+      "already_late_before_finish": 49,
+      "worst_completion_samples": [
+        {
+          "tick": 601,
+          "source_to_gpu_complete_us": 56220.867,
+          "source_to_owner_us": 4920.967,
+          "commit_us": 11046.1,
+          "publication_queue_us": 15779.000000000002,
+          "submit_us": 24277.300000000003,
+          "owner_work_us": 51102.40000000001,
+          "post_submit_finish_residual_us": 197.49999999999272,
+          "superseded_ticks": 1
+        },
+        {
+          "tick": 1080,
+          "source_to_gpu_complete_us": 56136.8,
+          "source_to_owner_us": 4203.799999999999,
+          "commit_us": 15024.7,
+          "publication_queue_us": 14563.1,
+          "submit_us": 22098.4,
+          "owner_work_us": 51686.200000000004,
+          "post_submit_finish_residual_us": 246.8000000000029,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 780,
+          "source_to_gpu_complete_us": 55108.200000000004,
+          "source_to_owner_us": 2274.5,
+          "commit_us": 8707.9,
+          "publication_queue_us": 16631.0,
+          "submit_us": 27060.5,
+          "owner_work_us": 52399.4,
+          "post_submit_finish_residual_us": 434.3000000000029,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 840,
+          "source_to_gpu_complete_us": 49970.2,
+          "source_to_owner_us": 741.5,
+          "commit_us": 10150.9,
+          "publication_queue_us": 15699.500000000002,
+          "submit_us": 23161.2,
+          "owner_work_us": 49011.600000000006,
+          "post_submit_finish_residual_us": 217.09999999999127,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 720,
+          "source_to_gpu_complete_us": 47226.8,
+          "source_to_owner_us": 809.5,
+          "commit_us": 11782.6,
+          "publication_queue_us": 12212.5,
+          "submit_us": 22182.7,
+          "owner_work_us": 46177.8,
+          "post_submit_finish_residual_us": 239.5,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 960,
+          "source_to_gpu_complete_us": 44613.9,
+          "source_to_owner_us": 726.6,
+          "commit_us": 8512.6,
+          "publication_queue_us": 12574.699999999999,
+          "submit_us": 22593.8,
+          "owner_work_us": 43681.1,
+          "post_submit_finish_residual_us": 206.20000000000437,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 900,
+          "source_to_gpu_complete_us": 41759.299999999996,
+          "source_to_owner_us": 363.2,
+          "commit_us": 10597.6,
+          "publication_queue_us": 11659.5,
+          "submit_us": 18910.1,
+          "owner_work_us": 41167.2,
+          "post_submit_finish_residual_us": 228.90000000000146,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 660,
+          "source_to_gpu_complete_us": 41659.799999999996,
+          "source_to_owner_us": 517.5,
+          "commit_us": 8529.6,
+          "publication_queue_us": 10109.3,
+          "submit_us": 22312.0,
+          "owner_work_us": 40950.9,
+          "post_submit_finish_residual_us": 191.39999999999418,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 802,
+          "source_to_gpu_complete_us": 36357.367,
+          "source_to_owner_us": 7977.967000000001,
+          "commit_us": 34.7,
+          "publication_queue_us": 18.3,
+          "submit_us": 2452.9,
+          "owner_work_us": 2505.9,
+          "post_submit_finish_residual_us": 25873.5,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 1020,
+          "source_to_gpu_complete_us": 36206.799999999996,
+          "source_to_owner_us": 350.8,
+          "commit_us": 7152.7,
+          "publication_queue_us": 10139.5,
+          "submit_us": 18228.399999999998,
+          "owner_work_us": 35520.6,
+          "post_submit_finish_residual_us": 335.3999999999942,
+          "superseded_ticks": 0
+        }
+      ]
+    },
+    {
+      "run": "run-1-streamed",
+      "nodes": 10000,
+      "batch": false,
+      "effects": true,
+      "target_hz": 60,
+      "budget_us": 16666.666,
+      "expected_ticks": 600,
+      "consumed_ticks": 598,
+      "superseded_ticks": 2,
+      "deadline_misses": 24,
+      "owner_work": {
+        "samples": 598,
+        "p50_us": 1334.4,
+        "p95_us": 2698.5,
+        "p99_us": 26630.6,
+        "max_us": 40826.0
+      },
+      "source_to_submit": {
+        "samples": 598,
+        "p50_us": 1744.4,
+        "p95_us": 10685.832999999999,
+        "p99_us": 27085.0,
+        "max_us": 41463.2
+      },
+      "post_submit_finish_residual": {
+        "samples": 598,
+        "p50_us": 1659.3000000000002,
+        "p95_us": 6627.700000000001,
+        "p99_us": 9805.7,
+        "max_us": 19780.2
+      },
+      "owner_work_over_budget": 19,
+      "already_late_before_finish": 20,
+      "worst_completion_samples": [
+        {
+          "tick": 210,
+          "source_to_gpu_complete_us": 41854.4,
+          "source_to_owner_us": 637.1999999999999,
+          "commit_us": 9051.3,
+          "publication_queue_us": 11960.800000000001,
+          "submit_us": 19813.899999999998,
+          "owner_work_us": 40826.0,
+          "post_submit_finish_residual_us": 391.20000000000437,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 30,
+          "source_to_gpu_complete_us": 34706.1,
+          "source_to_owner_us": 279.6,
+          "commit_us": 7677.1,
+          "publication_queue_us": 13875.800000000001,
+          "submit_us": 11849.1,
+          "owner_work_us": 33402.0,
+          "post_submit_finish_residual_us": 1024.5,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 390,
+          "source_to_gpu_complete_us": 32664.5,
+          "source_to_owner_us": 398.8,
+          "commit_us": 6007.700000000001,
+          "publication_queue_us": 9933.199999999999,
+          "submit_us": 14743.8,
+          "owner_work_us": 30684.699999999997,
+          "post_submit_finish_residual_us": 1581.0000000000036,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 480,
+          "source_to_gpu_complete_us": 29768.9,
+          "source_to_owner_us": 413.0,
+          "commit_us": 5227.3,
+          "publication_queue_us": 7198.3,
+          "submit_us": 11232.4,
+          "owner_work_us": 23658.0,
+          "post_submit_finish_residual_us": 5697.9000000000015,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 150,
+          "source_to_gpu_complete_us": 29182.9,
+          "source_to_owner_us": 442.40000000000003,
+          "commit_us": 5659.1,
+          "publication_queue_us": 8218.0,
+          "submit_us": 14672.9,
+          "owner_work_us": 28550.0,
+          "post_submit_finish_residual_us": 190.5,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 420,
+          "source_to_gpu_complete_us": 29073.7,
+          "source_to_owner_us": 454.4,
+          "commit_us": 5098.799999999999,
+          "publication_queue_us": 9205.7,
+          "submit_us": 12326.1,
+          "owner_work_us": 26630.6,
+          "post_submit_finish_residual_us": 1988.7000000000007,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 180,
+          "source_to_gpu_complete_us": 28020.9,
+          "source_to_owner_us": 254.5,
+          "commit_us": 5180.4,
+          "publication_queue_us": 7728.5,
+          "submit_us": 14136.900000000001,
+          "owner_work_us": 27045.800000000003,
+          "post_submit_finish_residual_us": 720.5999999999985,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 360,
+          "source_to_gpu_complete_us": 26716.7,
+          "source_to_owner_us": 536.2,
+          "commit_us": 4821.8,
+          "publication_queue_us": 7882.3,
+          "submit_us": 10136.199999999999,
+          "owner_work_us": 22840.3,
+          "post_submit_finish_residual_us": 3340.2000000000007,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 330,
+          "source_to_gpu_complete_us": 26600.4,
+          "source_to_owner_us": 262.8,
+          "commit_us": 5315.3,
+          "publication_queue_us": 7067.7,
+          "submit_us": 12840.6,
+          "owner_work_us": 25223.6,
+          "post_submit_finish_residual_us": 1114.0000000000036,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 300,
+          "source_to_gpu_complete_us": 26096.3,
+          "source_to_owner_us": 360.59999999999997,
+          "commit_us": 5235.2,
+          "publication_queue_us": 6928.0,
+          "submit_us": 10920.6,
+          "owner_work_us": 23083.8,
+          "post_submit_finish_residual_us": 2651.9000000000015,
+          "superseded_ticks": 0
+        }
+      ]
+    },
+    {
+      "run": "run-1-streamed",
+      "nodes": 10000,
+      "batch": false,
+      "effects": true,
+      "target_hz": 120,
+      "budget_us": 8333.333,
+      "expected_ticks": 1200,
+      "consumed_ticks": 1174,
+      "superseded_ticks": 26,
+      "deadline_misses": 34,
+      "owner_work": {
+        "samples": 1174,
+        "p50_us": 1171.9,
+        "p95_us": 1867.6000000000001,
+        "p99_us": 19810.8,
+        "max_us": 24027.2
+      },
+      "source_to_submit": {
+        "samples": 1174,
+        "p50_us": 1557.867,
+        "p95_us": 2641.9,
+        "p99_us": 20192.8,
+        "max_us": 26294.100000000002
+      },
+      "post_submit_finish_residual": {
+        "samples": 1174,
+        "p50_us": 812.9000000000001,
+        "p95_us": 3057.9,
+        "p99_us": 6765.000000000001,
+        "max_us": 16294.5
+      },
+      "owner_work_over_budget": 20,
+      "already_late_before_finish": 21,
+      "worst_completion_samples": [
+        {
+          "tick": 900,
+          "source_to_gpu_complete_us": 42364.1,
+          "source_to_owner_us": 2266.9,
+          "commit_us": 5675.5,
+          "publication_queue_us": 8405.7,
+          "submit_us": 9946.0,
+          "owner_work_us": 24027.2,
+          "post_submit_finish_residual_us": 16069.999999999996,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 906,
+          "source_to_gpu_complete_us": 28734.2,
+          "source_to_owner_us": 3236.0,
+          "commit_us": 31.5,
+          "publication_queue_us": 15.6,
+          "submit_us": 9156.6,
+          "owner_work_us": 9203.7,
+          "post_submit_finish_residual_us": 16294.5,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 420,
+          "source_to_gpu_complete_us": 25659.899999999998,
+          "source_to_owner_us": 741.0999999999999,
+          "commit_us": 4174.599999999999,
+          "publication_queue_us": 6653.6,
+          "submit_us": 8982.6,
+          "owner_work_us": 19810.8,
+          "post_submit_finish_residual_us": 5108.0,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 360,
+          "source_to_gpu_complete_us": 23771.899999999998,
+          "source_to_owner_us": 806.1999999999999,
+          "commit_us": 4351.0,
+          "publication_queue_us": 6686.3,
+          "submit_us": 10461.9,
+          "owner_work_us": 21499.2,
+          "post_submit_finish_residual_us": 1466.4999999999964,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 840,
+          "source_to_gpu_complete_us": 23212.5,
+          "source_to_owner_us": 343.4,
+          "commit_us": 4933.200000000001,
+          "publication_queue_us": 6420.8,
+          "submit_us": 10367.1,
+          "owner_work_us": 21721.100000000002,
+          "post_submit_finish_residual_us": 1147.9999999999964,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 60,
+          "source_to_gpu_complete_us": 22743.3,
+          "source_to_owner_us": 350.8,
+          "commit_us": 5749.599999999999,
+          "publication_queue_us": 6485.7,
+          "submit_us": 9443.099999999999,
+          "owner_work_us": 21678.399999999998,
+          "post_submit_finish_residual_us": 714.1000000000022,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 660,
+          "source_to_gpu_complete_us": 22514.0,
+          "source_to_owner_us": 421.09999999999997,
+          "commit_us": 5686.6,
+          "publication_queue_us": 7372.3,
+          "submit_us": 8688.7,
+          "owner_work_us": 21747.600000000002,
+          "post_submit_finish_residual_us": 345.2999999999993,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 480,
+          "source_to_gpu_complete_us": 22490.0,
+          "source_to_owner_us": 596.5,
+          "commit_us": 4541.5,
+          "publication_queue_us": 6607.400000000001,
+          "submit_us": 10618.1,
+          "owner_work_us": 21767.0,
+          "post_submit_finish_residual_us": 126.5,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 120,
+          "source_to_gpu_complete_us": 21849.8,
+          "source_to_owner_us": 176.60000000000002,
+          "commit_us": 5448.8,
+          "publication_queue_us": 5925.5,
+          "submit_us": 10200.1,
+          "owner_work_us": 21574.4,
+          "post_submit_finish_residual_us": 98.79999999999927,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 960,
+          "source_to_gpu_complete_us": 21742.600000000002,
+          "source_to_owner_us": 444.2,
+          "commit_us": 4768.299999999999,
+          "publication_queue_us": 6678.599999999999,
+          "submit_us": 9727.599999999999,
+          "owner_work_us": 21174.499999999996,
+          "post_submit_finish_residual_us": 123.9000000000051,
+          "superseded_ticks": 0
+        }
+      ]
+    },
+    {
+      "run": "run-2-original",
+      "nodes": 10000,
+      "batch": false,
+      "effects": true,
+      "target_hz": 60,
+      "budget_us": 16666.666,
+      "expected_ticks": 600,
+      "consumed_ticks": 597,
+      "superseded_ticks": 3,
+      "deadline_misses": 21,
+      "owner_work": {
+        "samples": 597,
+        "p50_us": 1262.1,
+        "p95_us": 2808.8999999999996,
+        "p99_us": 27212.0,
+        "max_us": 39633.6
+      },
+      "source_to_submit": {
+        "samples": 597,
+        "p50_us": 1672.233,
+        "p95_us": 6837.467,
+        "p99_us": 27675.5,
+        "max_us": 39774.1
+      },
+      "post_submit_finish_residual": {
+        "samples": 597,
+        "p50_us": 1354.4,
+        "p95_us": 5192.0,
+        "p99_us": 8146.999999999999,
+        "max_us": 15121.3
+      },
+      "owner_work_over_budget": 19,
+      "already_late_before_finish": 20,
+      "worst_completion_samples": [
+        {
+          "tick": 390,
+          "source_to_gpu_complete_us": 39990.8,
+          "source_to_owner_us": 140.5,
+          "commit_us": 7067.3,
+          "publication_queue_us": 11214.099999999999,
+          "submit_us": 21352.2,
+          "owner_work_us": 39633.6,
+          "post_submit_finish_residual_us": 216.70000000000437,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 480,
+          "source_to_gpu_complete_us": 39463.5,
+          "source_to_owner_us": 258.9,
+          "commit_us": 6472.8,
+          "publication_queue_us": 12453.9,
+          "submit_us": 20132.8,
+          "owner_work_us": 39059.5,
+          "post_submit_finish_residual_us": 145.09999999999854,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 540,
+          "source_to_gpu_complete_us": 35690.5,
+          "source_to_owner_us": 566.6999999999999,
+          "commit_us": 7757.1,
+          "publication_queue_us": 10509.1,
+          "submit_us": 16652.5,
+          "owner_work_us": 34918.7,
+          "post_submit_finish_residual_us": 205.10000000000582,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 360,
+          "source_to_gpu_complete_us": 32433.6,
+          "source_to_owner_us": 478.59999999999997,
+          "commit_us": 6409.1,
+          "publication_queue_us": 9364.5,
+          "submit_us": 16023.599999999999,
+          "owner_work_us": 31797.199999999997,
+          "post_submit_finish_residual_us": 157.8000000000029,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 450,
+          "source_to_gpu_complete_us": 28525.100000000002,
+          "source_to_owner_us": 233.9,
+          "commit_us": 5622.3,
+          "publication_queue_us": 9428.8,
+          "submit_us": 13074.8,
+          "owner_work_us": 28125.899999999998,
+          "post_submit_finish_residual_us": 165.3000000000029,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 570,
+          "source_to_gpu_complete_us": 28189.5,
+          "source_to_owner_us": 463.5,
+          "commit_us": 4432.700000000001,
+          "publication_queue_us": 7682.5,
+          "submit_us": 15096.800000000001,
+          "owner_work_us": 27212.0,
+          "post_submit_finish_residual_us": 514.0,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 240,
+          "source_to_gpu_complete_us": 27384.5,
+          "source_to_owner_us": 521.1,
+          "commit_us": 5020.2,
+          "publication_queue_us": 7001.8,
+          "submit_us": 12301.5,
+          "owner_work_us": 24323.5,
+          "post_submit_finish_residual_us": 2539.9000000000015,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 510,
+          "source_to_gpu_complete_us": 25281.8,
+          "source_to_owner_us": 552.6,
+          "commit_us": 4846.4,
+          "publication_queue_us": 6364.0,
+          "submit_us": 13394.7,
+          "owner_work_us": 24605.1,
+          "post_submit_finish_residual_us": 124.10000000000218,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 300,
+          "source_to_gpu_complete_us": 25062.3,
+          "source_to_owner_us": 473.90000000000003,
+          "commit_us": 4519.6,
+          "publication_queue_us": 7615.8,
+          "submit_us": 12021.300000000001,
+          "owner_work_us": 24156.7,
+          "post_submit_finish_residual_us": 431.6999999999971,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 420,
+          "source_to_gpu_complete_us": 24161.100000000002,
+          "source_to_owner_us": 208.2,
+          "commit_us": 5084.2,
+          "publication_queue_us": 5869.7,
+          "submit_us": 12108.6,
+          "owner_work_us": 23062.5,
+          "post_submit_finish_residual_us": 890.4000000000015,
+          "superseded_ticks": 0
+        }
+      ]
+    },
+    {
+      "run": "run-2-original",
+      "nodes": 10000,
+      "batch": false,
+      "effects": true,
+      "target_hz": 120,
+      "budget_us": 8333.333,
+      "expected_ticks": 1200,
+      "consumed_ticks": 1158,
+      "superseded_ticks": 42,
+      "deadline_misses": 48,
+      "owner_work": {
+        "samples": 1158,
+        "p50_us": 1374.4,
+        "p95_us": 2406.6000000000004,
+        "p99_us": 25700.9,
+        "max_us": 42254.899999999994
+      },
+      "source_to_submit": {
+        "samples": 1158,
+        "p50_us": 1782.933,
+        "p95_us": 3608.9669999999996,
+        "p99_us": 25827.300000000003,
+        "max_us": 42620.99999999999
+      },
+      "post_submit_finish_residual": {
+        "samples": 1158,
+        "p50_us": 1514.7000000000003,
+        "p95_us": 4062.1000000000004,
+        "p99_us": 7932.9,
+        "max_us": 13386.3
+      },
+      "owner_work_over_budget": 19,
+      "already_late_before_finish": 24,
+      "worst_completion_samples": [
+        {
+          "tick": 960,
+          "source_to_gpu_complete_us": 42814.5,
+          "source_to_owner_us": 1057.7,
+          "commit_us": 8208.5,
+          "publication_queue_us": 11700.0,
+          "submit_us": 21641.0,
+          "owner_work_us": 41549.5,
+          "post_submit_finish_residual_us": 207.3000000000029,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 1080,
+          "source_to_gpu_complete_us": 42811.2,
+          "source_to_owner_us": 366.1,
+          "commit_us": 9538.0,
+          "publication_queue_us": 13725.599999999999,
+          "submit_us": 18991.3,
+          "owner_work_us": 42254.899999999994,
+          "post_submit_finish_residual_us": 190.20000000000437,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 1020,
+          "source_to_gpu_complete_us": 42178.2,
+          "source_to_owner_us": 717.7,
+          "commit_us": 9943.6,
+          "publication_queue_us": 11229.8,
+          "submit_us": 20062.7,
+          "owner_work_us": 41236.1,
+          "post_submit_finish_residual_us": 224.40000000000146,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 1140,
+          "source_to_gpu_complete_us": 37019.200000000004,
+          "source_to_owner_us": 273.0,
+          "commit_us": 8733.8,
+          "publication_queue_us": 11195.6,
+          "submit_us": 14333.800000000001,
+          "owner_work_us": 34263.2,
+          "post_submit_finish_residual_us": 2483.0000000000073,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 180,
+          "source_to_gpu_complete_us": 32491.199999999997,
+          "source_to_owner_us": 494.8,
+          "commit_us": 6280.400000000001,
+          "publication_queue_us": 8634.2,
+          "submit_us": 16674.600000000002,
+          "owner_work_us": 31589.200000000004,
+          "post_submit_finish_residual_us": 407.19999999999345,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 120,
+          "source_to_gpu_complete_us": 31388.699999999997,
+          "source_to_owner_us": 284.1,
+          "commit_us": 4980.9,
+          "publication_queue_us": 7891.7,
+          "submit_us": 18031.6,
+          "owner_work_us": 30904.199999999997,
+          "post_submit_finish_residual_us": 200.40000000000146,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 840,
+          "source_to_gpu_complete_us": 31206.7,
+          "source_to_owner_us": 306.3,
+          "commit_us": 6997.8,
+          "publication_queue_us": 8982.1,
+          "submit_us": 14735.099999999999,
+          "owner_work_us": 30715.0,
+          "post_submit_finish_residual_us": 185.40000000000146,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 780,
+          "source_to_gpu_complete_us": 29110.3,
+          "source_to_owner_us": 1563.3999999999999,
+          "commit_us": 5910.8,
+          "publication_queue_us": 6252.299999999999,
+          "submit_us": 13853.199999999999,
+          "owner_work_us": 26016.3,
+          "post_submit_finish_residual_us": 1530.5999999999985,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 900,
+          "source_to_gpu_complete_us": 28267.8,
+          "source_to_owner_us": 195.89999999999998,
+          "commit_us": 7360.5,
+          "publication_queue_us": 9044.5,
+          "submit_us": 11405.4,
+          "owner_work_us": 27810.4,
+          "post_submit_finish_residual_us": 261.49999999999636,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 240,
+          "source_to_gpu_complete_us": 27574.8,
+          "source_to_owner_us": 254.1,
+          "commit_us": 5124.2,
+          "publication_queue_us": 7162.400000000001,
+          "submit_us": 14833.1,
+          "owner_work_us": 27119.7,
+          "post_submit_finish_residual_us": 201.0,
+          "superseded_ticks": 0
+        }
+      ]
+    },
+    {
+      "run": "run-2-streamed",
+      "nodes": 10000,
+      "batch": false,
+      "effects": true,
+      "target_hz": 60,
+      "budget_us": 16666.666,
+      "expected_ticks": 600,
+      "consumed_ticks": 600,
+      "superseded_ticks": 0,
+      "deadline_misses": 20,
+      "owner_work": {
+        "samples": 600,
+        "p50_us": 1244.0,
+        "p95_us": 1979.1000000000001,
+        "p99_us": 23548.1,
+        "max_us": 30972.8
+      },
+      "source_to_submit": {
+        "samples": 600,
+        "p50_us": 1624.0,
+        "p95_us": 6541.967,
+        "p99_us": 23871.6,
+        "max_us": 31153.899999999998
+      },
+      "post_submit_finish_residual": {
+        "samples": 600,
+        "p50_us": 825.9000000000001,
+        "p95_us": 2945.600000000001,
+        "p99_us": 6117.4,
+        "max_us": 9211.199999999999
+      },
+      "owner_work_over_budget": 19,
+      "already_late_before_finish": 20,
+      "worst_completion_samples": [
+        {
+          "tick": 390,
+          "source_to_gpu_complete_us": 32423.5,
+          "source_to_owner_us": 181.10000000000002,
+          "commit_us": 7910.7,
+          "publication_queue_us": 8865.8,
+          "submit_us": 14196.300000000001,
+          "owner_work_us": 30972.8,
+          "post_submit_finish_residual_us": 1269.6000000000022,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 480,
+          "source_to_gpu_complete_us": 27485.699999999997,
+          "source_to_owner_us": 1052.3,
+          "commit_us": 6018.8,
+          "publication_queue_us": 9617.0,
+          "submit_us": 10674.9,
+          "owner_work_us": 26310.7,
+          "post_submit_finish_residual_us": 122.69999999999709,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 150,
+          "source_to_gpu_complete_us": 27296.600000000002,
+          "source_to_owner_us": 559.8,
+          "commit_us": 6173.4,
+          "publication_queue_us": 6232.299999999999,
+          "submit_us": 10545.6,
+          "owner_work_us": 22951.3,
+          "post_submit_finish_residual_us": 3785.5000000000036,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 210,
+          "source_to_gpu_complete_us": 27131.5,
+          "source_to_owner_us": 579.1,
+          "commit_us": 5506.3,
+          "publication_queue_us": 6943.8,
+          "submit_us": 11655.8,
+          "owner_work_us": 24105.9,
+          "post_submit_finish_residual_us": 2446.5,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 330,
+          "source_to_gpu_complete_us": 26563.199999999997,
+          "source_to_owner_us": 576.8000000000001,
+          "commit_us": 6570.900000000001,
+          "publication_queue_us": 7933.900000000001,
+          "submit_us": 9341.5,
+          "owner_work_us": 23846.300000000003,
+          "post_submit_finish_residual_us": 2140.099999999995,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 240,
+          "source_to_gpu_complete_us": 25127.0,
+          "source_to_owner_us": 127.79999999999998,
+          "commit_us": 5383.0,
+          "publication_queue_us": 7958.5,
+          "submit_us": 11496.4,
+          "owner_work_us": 24837.9,
+          "post_submit_finish_residual_us": 161.29999999999927,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 540,
+          "source_to_gpu_complete_us": 24544.0,
+          "source_to_owner_us": 564.2,
+          "commit_us": 6174.4,
+          "publication_queue_us": 6948.9,
+          "submit_us": 10424.8,
+          "owner_work_us": 23548.1,
+          "post_submit_finish_residual_us": 431.7000000000007,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 270,
+          "source_to_gpu_complete_us": 24180.5,
+          "source_to_owner_us": 583.3000000000001,
+          "commit_us": 5771.9,
+          "publication_queue_us": 8008.2,
+          "submit_us": 9348.800000000001,
+          "owner_work_us": 23128.9,
+          "post_submit_finish_residual_us": 468.2999999999993,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 420,
+          "source_to_gpu_complete_us": 24048.199999999997,
+          "source_to_owner_us": 273.9,
+          "commit_us": 5434.0,
+          "publication_queue_us": 7828.9,
+          "submit_us": 10334.8,
+          "owner_work_us": 23597.699999999997,
+          "post_submit_finish_residual_us": 176.59999999999854,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 360,
+          "source_to_gpu_complete_us": 23809.7,
+          "source_to_owner_us": 246.10000000000002,
+          "commit_us": 5329.3,
+          "publication_queue_us": 6941.3,
+          "submit_us": 10037.0,
+          "owner_work_us": 22307.6,
+          "post_submit_finish_residual_us": 1256.0000000000036,
+          "superseded_ticks": 0
+        }
+      ]
+    },
+    {
+      "run": "run-2-streamed",
+      "nodes": 10000,
+      "batch": false,
+      "effects": true,
+      "target_hz": 120,
+      "budget_us": 8333.333,
+      "expected_ticks": 1200,
+      "consumed_ticks": 1175,
+      "superseded_ticks": 25,
+      "deadline_misses": 39,
+      "owner_work": {
+        "samples": 1175,
+        "p50_us": 1133.0,
+        "p95_us": 1756.3,
+        "p99_us": 20092.5,
+        "max_us": 23924.7
+      },
+      "source_to_submit": {
+        "samples": 1175,
+        "p50_us": 1524.9,
+        "p95_us": 2461.367,
+        "p99_us": 20307.0,
+        "max_us": 24230.600000000002
+      },
+      "post_submit_finish_residual": {
+        "samples": 1175,
+        "p50_us": 676.3000000000002,
+        "p95_us": 4594.1,
+        "p99_us": 7545.799999999999,
+        "max_us": 13959.0
+      },
+      "owner_work_over_budget": 19,
+      "already_late_before_finish": 22,
+      "worst_completion_samples": [
+        {
+          "tick": 60,
+          "source_to_gpu_complete_us": 32692.3,
+          "source_to_owner_us": 724.7,
+          "commit_us": 7191.099999999999,
+          "publication_queue_us": 6510.8,
+          "submit_us": 9477.8,
+          "owner_work_us": 23179.699999999997,
+          "post_submit_finish_residual_us": 8787.900000000001,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 1020,
+          "source_to_gpu_complete_us": 25428.6,
+          "source_to_owner_us": 305.90000000000003,
+          "commit_us": 6545.3,
+          "publication_queue_us": 6971.1,
+          "submit_us": 10408.300000000001,
+          "owner_work_us": 23924.7,
+          "post_submit_finish_residual_us": 1197.9999999999964,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 360,
+          "source_to_gpu_complete_us": 24300.0,
+          "source_to_owner_us": 327.7,
+          "commit_us": 5323.3,
+          "publication_queue_us": 7149.0,
+          "submit_us": 11345.199999999999,
+          "owner_work_us": 23817.5,
+          "post_submit_finish_residual_us": 154.79999999999927,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 960,
+          "source_to_gpu_complete_us": 24142.8,
+          "source_to_owner_us": 157.60000000000002,
+          "commit_us": 4878.099999999999,
+          "publication_queue_us": 7790.1,
+          "submit_us": 10412.3,
+          "owner_work_us": 23080.5,
+          "post_submit_finish_residual_us": 904.7000000000007,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 900,
+          "source_to_gpu_complete_us": 23744.3,
+          "source_to_owner_us": 77.5,
+          "commit_us": 5486.0,
+          "publication_queue_us": 7129.0,
+          "submit_us": 10059.6,
+          "owner_work_us": 22674.6,
+          "post_submit_finish_residual_us": 992.2000000000007,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 420,
+          "source_to_gpu_complete_us": 21584.4,
+          "source_to_owner_us": 290.0,
+          "commit_us": 4986.0,
+          "publication_queue_us": 6928.799999999999,
+          "submit_us": 9194.6,
+          "owner_work_us": 21109.4,
+          "post_submit_finish_residual_us": 185.0,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 480,
+          "source_to_gpu_complete_us": 21408.5,
+          "source_to_owner_us": 191.8,
+          "commit_us": 4839.7,
+          "publication_queue_us": 7045.799999999999,
+          "submit_us": 8541.4,
+          "owner_work_us": 20426.899999999998,
+          "post_submit_finish_residual_us": 789.8000000000029,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 540,
+          "source_to_gpu_complete_us": 21381.399999999998,
+          "source_to_owner_us": 161.5,
+          "commit_us": 5214.5,
+          "publication_queue_us": 7087.0,
+          "submit_us": 8508.099999999999,
+          "owner_work_us": 20809.6,
+          "post_submit_finish_residual_us": 410.2999999999993,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 600,
+          "source_to_gpu_complete_us": 21203.8,
+          "source_to_owner_us": 535.5,
+          "commit_us": 5315.8,
+          "publication_queue_us": 6755.4,
+          "submit_us": 8428.2,
+          "owner_work_us": 20499.4,
+          "post_submit_finish_residual_us": 168.89999999999782,
+          "superseded_ticks": 0
+        },
+        {
+          "tick": 1080,
+          "source_to_gpu_complete_us": 21069.3,
+          "source_to_owner_us": 317.5,
+          "commit_us": 5936.4,
+          "publication_queue_us": 6324.0,
+          "submit_us": 8357.5,
+          "owner_work_us": 20617.9,
+          "post_submit_finish_residual_us": 133.89999999999782,
+          "superseded_ticks": 0
+        }
+      ]
+    }
+  ]
+}

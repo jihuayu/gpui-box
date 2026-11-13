@@ -165,6 +165,33 @@ pub(super) fn run(
                     assert!(gpu.submit(&explicit, surface, scale)?.is_none());
                 }
             }
+            if shared {
+                // A late material validation failure must not submit earlier
+                // prepared records from the same batch. Reset is mandatory.
+                // The explicit resolved subscriber above changed the baseline;
+                // establish an exact local predecessor before testing this path.
+                let baseline = tree.local_frame([160.0, 120.0])?;
+                gpu.submit_local(&baseline, [(160.0 * scale) as u32, (120.0 * scale) as u32], scale)?;
+                let before_failure = gpu.image()?;
+                let wrong_scale = raster.prepare(text_resource.paragraph().clone(), scale * 2.0)?;
+                let mut tx = Transaction::default();
+                tx.color(child, 0xff1100ff);
+                tx.text(text, Some(gpui_box::retained::text::TextPaint { resource: wrong_scale, color: 0xffffffff }));
+                tree.commit(tx, BackendCapabilities::default())?;
+                let invalid = tree.local_frame([160.0, 120.0])?;
+                assert!(matches!(gpu.submit_local(&invalid, [(160.0 * scale) as u32, (120.0 * scale) as u32], scale), Err(gpui_box::retained::Error::InvalidFrame)));
+                assert_eq!(gpu.image()?.as_raw(), before_failure.as_raw());
+                assert!(gpu.submit_local(&invalid, [(160.0 * scale) as u32, (120.0 * scale) as u32], scale).is_err());
+                let mut tx = Transaction::default();
+                tx.text(text, Some(gpui_box::retained::text::TextPaint { resource: text_resource.clone(), color: 0x88ffccaa }));
+                tree.commit(tx, BackendCapabilities::default())?;
+                let recovered = tree.local_frame([160.0, 120.0])?;
+                gpu.reset()?;
+                let surface = [(160.0 * scale) as u32, (120.0 * scale) as u32];
+                assert!(gpu.submit_local(&recovered, surface, scale)?.unwrap().full_resync);
+                assert_eq!(gpu.image()?.as_raw(), gpu.reference_image(&recovered.resolve(), surface, scale)?.as_raw());
+                results.push(serde_json::json!({"case":format!("local-material-failure-reset-{scale}"),"pixel_equal":true,"partial_submit":false}));
+            }
             assert!(
                 gpu.submit_local(
                     &saved[0],

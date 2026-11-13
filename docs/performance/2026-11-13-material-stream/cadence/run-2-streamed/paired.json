@@ -1,0 +1,6 @@
+{
+  "cases": [],
+  "scope": "owner transaction/publication/submission/GPU completion; same runtime/shaders, complete reextraction control; local layers default full viewport; --local-tight-layers enables experimental index; resolved layers tight unless --full-viewport-layers; native presentation excluded",
+  "quick": false,
+  "local_snapshot": true
+}

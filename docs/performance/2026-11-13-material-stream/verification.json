@@ -1,0 +1,13 @@
+{
+  "core_tests": 164,
+  "strict_core_and_harness_clippy": true,
+  "mixed_final_hardware": 75,
+  "full_hardware": 2018,
+  "full_pixel_comparisons": 1926,
+  "post_capture_changes": {
+    "tooling/rendering-perf/src/retained_local.rs": "test-only: explicitly establish local predecessor before injected validation failure; final 75 mixed cases pass"
+  },
+  "native_present_measured": false,
+  "modern_desktop_qualified": false,
+  "goal_complete": false
+}

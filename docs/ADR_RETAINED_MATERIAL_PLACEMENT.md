@@ -96,3 +96,17 @@ and visible presentation need measurement. The API direction is independent
 owned facts and validated transitions, not public algorithm choices. CPU fallback
 still prioritizes owner responsiveness and complete output with matching hit
 geometry; native integration/fidelity is a separate open stage.
+
+## Follow-up: avoid retaining transient resolved material
+
+Material geometry is now validated/classified/prepared directly in its visitor
+lifetime. Only changed image/glyph inputs remain owned for resource batching;
+ordinary material updates no longer allocate/clone a full changed-item array.
+A late failure poisons the consumer before GPU submit; reset is mandatory and
+previous complete pixels stay unchanged. Exact-predecessor wrong-scale glyph
+failure/reset controls exercise that boundary at three scales.
+
+Reversed120Hz pairs reduce submit medians13.88/12.61ms ->9.32/8.54ms, but first
+60Hz regresses and first120Hz longest unsatisfied interval worsens9 ->14 despite
+better p99/max. Retain the general working-set reduction without claiming stable
+stall improvement. See [evidence](performance/2026-11-13-material-stream/README.md).

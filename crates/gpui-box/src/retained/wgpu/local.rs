@@ -90,34 +90,39 @@ impl WgpuFrameRenderer {
         let resources = frame.resource_frame();
         validation::validate_header(&resources, surface, scale)?;
         let old = previous.as_ref().unwrap();
-        let mut material_items = Vec::with_capacity(frame.material_updates().len());
+        // Consume geometry while its stack-owned item is live. Only resource
+        // changes need to retain owned items for the resource batch builders.
+        let mut image_items = vec![];
+        let mut glyph_items = vec![];
+        let mut prepared_quads = 0;
+        let mut prepared_shadows = 0;
+        let last_serial = self.backend.last_serial();
         let mut indices = frame.material_updates().iter().copied().peekable();
-        let mut error = None;
+        let mut prepared: Result<(), Error> = Ok(());
         while let Some(start) = indices.next() {
             let mut end = start + 1;
             while indices.peek() == Some(&end) { indices.next(); end += 1; }
             // Adjacent changed records share one open ancestry traversal;
             // sparse gaps do not force resolving unaffected descendants.
             frame.visit_geometry(start..end, |index, item| {
-                if let Err(e) = validation::validate_item(item, scale) { error = Some(e); }
-                material_items.push((index, item.clone()));
+                if prepared.is_err() { return; }
+                prepared = (|| {
+                    validation::validate_item(item, scale)?;
+                    let entry = routing::classify(old.material(index), item, true, false);
+                    let property = self.spatial_arena.slot(item.node)?;
+                    self.prepare_primitives(item, property, scale, last_serial, entry.quad, entry.shadow)?;
+                    prepared_quads += usize::from(entry.quad);
+                    prepared_shadows += usize::from(entry.shadow);
+                    let (image, glyph) = routing::classify_content(old.material(index), item, true);
+                    if image { image_items.push(item.clone()); }
+                    if glyph { glyph_items.push(item.clone()); }
+                    Ok(())
+                })();
             });
         }
-        if let Some(error) = error { return Err(error); }
-        let mut selected_images = vec![];
-        let mut selected_glyphs = vec![];
-        let mut prepared_quads = 0;
-        let mut prepared_shadows = 0;
-        for (index, item) in &material_items {
-            let entry = routing::classify(old.material(*index), item, true, false);
-            let property = self.spatial_arena.slot(item.node)?;
-            self.prepare_primitives(item, property, scale, self.backend.last_serial(), entry.quad, entry.shadow)?;
-            prepared_quads += usize::from(entry.quad);
-            prepared_shadows += usize::from(entry.shadow);
-            let (image, glyph) = routing::classify_content(old.material(*index), item, true);
-            if image { selected_images.push(item); }
-            if glyph { selected_glyphs.push(item); }
-        }
+        prepared?;
+        let selected_images = image_items.iter().collect::<Vec<_>>();
+        let selected_glyphs = glyph_items.iter().collect::<Vec<_>>();
         for item in &updates {
             self.spatial_arena.update_local(item)?;
         }
@@ -171,7 +176,7 @@ impl WgpuFrameRenderer {
         Ok(Some(FrameSubmission {
             routing: RoutingStats {
                 cached: true,
-                inspected_items: updates.len() + material_items.len(),
+                inspected_items: updates.len() + frame.material_updates().len(),
                 prepared_quad_items: prepared_quads,
                 prepared_shadow_items: prepared_shadows,
                 prepared_spatial_items: updates.len(),
@@ -180,7 +185,7 @@ impl WgpuFrameRenderer {
             full_resync: false,
             gpu,
             validation: ValidationStats {
-                validated_items: material_items.len(),
+                validated_items: frame.material_updates().len(),
                 ..Default::default()
             },
             composition: CompositionStats {bounds_items,bounds_translated_nodes,..Default::default()},
