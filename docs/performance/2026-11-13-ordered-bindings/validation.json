@@ -1,0 +1,14 @@
+{
+  "candidate_core_tests": 167,
+  "strict_library_clippy": "passed",
+  "mixed_gpu_comparisons": 117,
+  "formal_cases": 16,
+  "scheduled_ticks": 14400,
+  "strict_pipeline_analysis": "rejected: one receipt/owner observation inversion in valid-source capture; all raw metrics retained",
+  "source_and_binary_hashes_stable": true,
+  "known_sampled_compiler_renderer_conflicts": 0,
+  "decision": "rejected: ordered Vec binding membership regresses commit/owner tails; 120Hz after-work longest streaks reach10/8/14/8 ticks, losses and p99 worsen",
+  "runtime_restore": "5be96a6",
+  "full_candidate_hardware_suite": "not run for rejected candidate",
+  "remaining": "120Hz tails, native present/input, modern desktop and native CPU/full RFC acceptance"
+}

@@ -525,6 +525,11 @@ is0.024–0.028ms in this shared-source fixture. Diagnostic observer regressions
 remain documented; default clocks/fields compile out. This is attribution, not
 a renderer speedup or closure of native/CPU/modern desktop acceptance.
 
+The [ordered-binding probe](performance/2026-11-13-ordered-bindings/README.md)
+is rejected: commit medians regress six of eight pairs, and all120Hz p99/loss
+totals worsen with after-work streaks up to14ticks. The original tree-backed
+source membership is restored; no source/sink API policy is added.
+
 The [binding-slot probe](performance/2026-11-13-binding-slots/README.md) is
 rejected despite lower commit medians: 120Hz after-work longest unsatisfied
 intervals grow to15/16ticks and loss totals worsen. The runtime is restored to

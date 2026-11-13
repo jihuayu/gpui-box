@@ -334,6 +334,12 @@ It lowers all eight commit medians, but 120Hz after-work longest unsatisfied
 intervals grow to15/16ticks and loss totals worsen. Restore the hash-table path;
 median sink lookup reduction is not a stall-safe API result.
 
+The [ordered-binding probe](performance/2026-11-13-ordered-bindings/README.md)
+replaces source binding trees with sorted vectors. Commit medians regress six of
+eight pairs; all120Hz p99/loss totals worsen and after-work streaks reach10/8/14/8
+ticks. Restore the tree-backed membership; contiguous iteration alone is not a
+safe tail-latency improvement.
+
 The [preflight capacity probe](performance/2026-11-13-preflight-reserve/README.md)
 counts sorted node groups to reserve the final wide change list. Reversed pairs
 improve six dense commit medians and regress two; total owner improves four and
