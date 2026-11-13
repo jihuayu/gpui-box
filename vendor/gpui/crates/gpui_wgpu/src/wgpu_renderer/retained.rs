@@ -8,6 +8,19 @@ use std::{
     time::Duration,
 };
 pub type RetainedImage = image::RgbaImage;
+#[cfg(feature = "retained-diagnostics")]
+mod diagnostic_timing {
+    pub(super) struct Clock(std::time::Instant);
+    impl Default for Clock {
+        fn default() -> Self { Self(std::time::Instant::now()) }
+    }
+    impl Clock {
+        pub(super) fn lap(&mut self) -> std::time::Duration {
+            let now = std::time::Instant::now();
+            now.duration_since(std::mem::replace(&mut self.0, now))
+        }
+    }
+}
 mod allocation_budget;
 #[cfg(target_os = "windows")]
 mod native_surface;
@@ -67,6 +80,13 @@ pub enum QuadRedraw {
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct QuadSubmission {
+    /// Diagnostic owner wall-clock spans; never GPU execution timestamps.
+    /// Order: primitive/spatial validation, content/layer validation + poll,
+    /// admission, target setup, reference/storage upload, dependency invalidation,
+    /// content preparation, layer encoding, root encoding, queue submit,
+    /// retirement setup, return assembly. Implicit final drops are excluded.
+    #[cfg(feature = "retained-diagnostics")]
+    pub phase_times: [Duration; 12],
     pub spatial_work: SpatialWorkStats,
     pub serial: u64,
     pub completed: u64,
@@ -317,6 +337,8 @@ impl RetainedQuadRenderer {
     }
 
     pub fn submit(&mut self, batch: QuadBatch) -> Result<QuadSubmission> {
+        #[cfg(feature = "retained-diagnostics")]
+        let mut clock = diagnostic_timing::Clock::default();
         anyhow::ensure!(!self.failed, "recreate renderer after failed submission");
         anyhow::ensure!(
             batch.size.width.0 > 0 && batch.size.height.0 > 0,
@@ -358,6 +380,8 @@ impl RetainedQuadRenderer {
             }
         }
         let order = batch.order.as_ref().unwrap_or(&self.order);
+        #[cfg(feature = "retained-diagnostics")]
+        let primitive_spatial_validation = clock.lap();
         let image_ids = self.images.validate(
             &batch.images,
             self.renderer
@@ -410,6 +434,8 @@ impl RetainedQuadRenderer {
             );
         }
         self.completed_serial()?;
+        #[cfg(feature = "retained-diagnostics")]
+        let content_layer_validation = clock.lap();
         if self.flights.len() >= self.max_in_flight {
             let oldest = self
                 .flights
@@ -438,6 +464,8 @@ impl RetainedQuadRenderer {
             layer_budget_waits += 1;
         }
         self.failed = true;
+        #[cfg(feature = "retained-diagnostics")]
+        let admission = clock.lap();
         if size_changed {
             // Set shared globals and target through the same reference path.
             self.renderer.render(&Scene::default(), batch.size)?;
@@ -467,6 +495,8 @@ impl RetainedQuadRenderer {
             self.clear = Some((buffer, binding));
         }
         let spatial_all = self.spatial.parameters_change(&batch.spatial);
+        #[cfg(feature = "retained-diagnostics")]
+        let target_setup = clock.lap();
         let affected_properties = spatial_plan.as_ref().map(|p| p.affected.as_slice()).unwrap_or(&[]);
         if let Some((quads, shadows)) = reference_plans {
             self.quad_references.commit(quads);
@@ -482,6 +512,8 @@ impl RetainedQuadRenderer {
         let mut shadow_stats = self.shadows.apply(
             &self.renderer, batch.shadows.capacity, batch.shadows.writes, self.full_instance_uploads,
         )?;
+        #[cfg(feature = "retained-diagnostics")]
+        let storage_upload = clock.lap();
         if self.spatial.enabled && (!spatial_stats.dirty.is_empty() || spatial_all) {
             if self.indexed_spatial && !spatial_work.dense_fallback {
                 spatial_work.quad_affected_instances = self.quad_references.affected(affected_properties, &mut quad_stats.dirty);
@@ -506,6 +538,8 @@ impl RetainedQuadRenderer {
             self.order = order;
         }
         let core = &self.renderer.core;
+        #[cfg(feature = "retained-diagnostics")]
+        let dependency_invalidation = clock.lap();
         let view = &self
             .renderer
             .render_target
@@ -532,6 +566,8 @@ impl RetainedQuadRenderer {
         glyph_stats.validated_glyphs = validated_glyphs;
         image_stats.changed.extend(image_spatial);
         glyph_stats.changed.extend(glyph_spatial);
+        #[cfg(feature = "retained-diagnostics")]
+        let content_prepare = clock.lap();
         let layer_stats = self.layers.render(
             &self.renderer,
             &self.quads.binding,
@@ -550,6 +586,8 @@ impl RetainedQuadRenderer {
             &self.glyphs,
             &glyph_stats.changed,
         )?;
+        #[cfg(feature = "retained-diagnostics")]
+        let layer_encoding = clock.lap();
         let mut root_draws = 0;
         if redraw != QuadRedraw::Unchanged {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -596,7 +634,11 @@ impl RetainedQuadRenderer {
                 None,
             )?;
         }
+        #[cfg(feature = "retained-diagnostics")]
+        let root_encoding = clock.lap();
         let submission = core.resources.queue.submit([encoder.finish()]);
+        #[cfg(feature = "retained-diagnostics")]
+        let encoding_and_queue = clock.lap();
         let completed = self.completed.clone();
         core.resources.queue.on_submitted_work_done(move || {
             completed.fetch_max(serial, Ordering::Release);
@@ -623,12 +665,18 @@ impl RetainedQuadRenderer {
         self.renderer.check_gpu_errors()?;
         self.failed = false;
         self.force_full = false;
+        #[cfg(feature = "retained-diagnostics")]
+        let retirement_setup = clock.lap();
         let drawn_pixels = match redraw {
             QuadRedraw::Full => batch.size.width.0 as u64 * batch.size.height.0 as u64,
             QuadRedraw::Damage { width, height, .. } => u64::from(width) * u64::from(height),
             QuadRedraw::Unchanged => 0,
         };
         Ok(QuadSubmission {
+            #[cfg(feature = "retained-diagnostics")]
+            phase_times: [primitive_spatial_validation, content_layer_validation, admission,
+                target_setup, storage_upload, dependency_invalidation, content_prepare,
+                layer_encoding, root_encoding, encoding_and_queue, retirement_setup, clock.lap()],
             spatial_work,
             serial,
             completed: self.completed.load(Ordering::Acquire),

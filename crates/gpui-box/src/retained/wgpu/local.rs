@@ -22,6 +22,8 @@ impl WgpuFrameRenderer {
         surface: [u32; 2],
         scale: f32,
     ) -> Result<Option<FrameSubmission>, Error> {
+        #[cfg(feature = "retained-diagnostics")]
+        let started = std::time::Instant::now();
         if self.failed {
             return Err(Error::Gpu("reset after failed frame submission".into()));
         }
@@ -87,6 +89,8 @@ impl WgpuFrameRenderer {
         // material/placement changes. Changed material is validated here;
         // projected spatial and primitive records still use GPU preflight.
         self.failed = true;
+        #[cfg(feature = "retained-diagnostics")]
+        let provenance_done = std::time::Instant::now();
         let resources = frame.resource_frame();
         validation::validate_header(&resources, surface, scale)?;
         let old = previous.as_ref().unwrap();
@@ -136,9 +140,9 @@ impl WgpuFrameRenderer {
             bounds_translated_nodes=stats.1;
             self.composition_cache.bound_local_layers(&mut layers,frame,ink,surface,scale);
         }
-        let gpu = self
-            .backend
-            .submit(QuadBatch {
+        #[cfg(feature = "retained-diagnostics")]
+        let preparation_done = std::time::Instant::now();
+        let batch = QuadBatch {
                 capacity: self.arena.capacity(),
                 writes: self.arena.writes().into_iter().map(|write| QuadWrite {
                     start: write.start, values: write.values.into_iter().map(Record::quad).collect(),
@@ -160,8 +164,12 @@ impl WgpuFrameRenderer {
                     DevicePixels(surface[1] as i32),
                 ),
                 redraw: QuadRedraw::Full,
-            })
-            .map_err(gpu_error)?;
+            };
+        #[cfg(feature = "retained-diagnostics")]
+        let batch_done = std::time::Instant::now();
+        let gpu = self.backend.submit(batch).map_err(gpu_error)?;
+        #[cfg(feature = "retained-diagnostics")]
+        let backend_done = std::time::Instant::now();
         self.spatial_arena.acknowledge();
         self.arena.acknowledge();
         self.shadow_arena.acknowledge();
@@ -174,6 +182,10 @@ impl WgpuFrameRenderer {
         self.collect()?;
         self.failed = false;
         Ok(Some(FrameSubmission {
+            #[cfg(feature = "retained-diagnostics")]
+            local_phase_times: Some([provenance_done - started, preparation_done - provenance_done,
+                batch_done - preparation_done, backend_done - batch_done,
+                std::time::Instant::now() - backend_done]),
             routing: RoutingStats {
                 cached: true,
                 inspected_items: updates.len() + frame.material_updates().len(),

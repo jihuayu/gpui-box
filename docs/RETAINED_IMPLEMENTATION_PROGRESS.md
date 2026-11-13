@@ -432,6 +432,17 @@ rejected; runtime sources are restored tob956e30 with exact candidate and raw
 evidence preserved. Generic baseline/label harness controls remain. Next priority
 is internal submission phase attribution before choosing a new algorithm.
 
+The [submission phase study](performance/2026-11-13-submit-phases/README.md)
+adds compile-time-only owner timing and same-row nesting/residual checks.16
+reversed60/120Hz cases attribute dense120Hz preparation4.41–4.60ms, batch
+construction0.58–0.67ms, backend2.75–2.93ms and queue submit0.40–0.42ms;
+post-body outer residual0.91–1.00ms remains unattributed. Timing perturbation and
+regressions are preserved; these are diagnostic spans, not GPU execution or
+speedup evidence.165core/2harness tests,75mixed and2,018hardware /1,926pixel
+comparisons pass. Default builds compile out the phase fields/clock reads.
+Next focus is repeated preparation and explicit temporary destruction, while
+native display/input, CPU integration and full acceptance remain open.
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |

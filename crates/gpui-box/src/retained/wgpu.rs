@@ -241,6 +241,10 @@ fn gpu_error(error: impl std::fmt::Display) -> Error {
 }
 
 pub struct FrameSubmission {
+    /// Local consumer owner spans: provenance, preparation, batch, backend, ack.
+    /// None on the resolved recovery route. Diagnostic builds only.
+    #[cfg(feature = "retained-diagnostics")]
+    pub local_phase_times: Option<[std::time::Duration; 5]>,
     pub routing: RoutingStats,
     pub full_resync: bool,
     pub gpu: QuadSubmission,
@@ -975,6 +979,8 @@ impl WgpuFrameRenderer {
         self.collect()?;
         self.failed = false;
         Ok(Some(FrameSubmission {
+            #[cfg(feature = "retained-diagnostics")]
+            local_phase_times: None,
             routing,
             full_resync,
             gpu,

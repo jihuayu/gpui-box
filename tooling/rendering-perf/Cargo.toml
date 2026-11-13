@@ -15,6 +15,7 @@ gpui-scene = ["dep:gpui"]
 gpu-backend = ["gpui-scene", "dep:gpui_wgpu"]
 gpu-prototype = ["gpu-backend", "gpui_wgpu/quad-patch-prototype", "dep:serde_json"]
 retained-gpu = ["dep:gpui-box", "gpui-box/retained-wgpu", "dep:serde_json", "retained-text"]
+retained-diagnostics = ["retained-gpu", "gpui-box/retained-diagnostics"]
 retained-runtime = ["dep:gpui-box", "gpui-box/retained", "dep:serde_json"]
 retained-text = ["retained-runtime", "gpui-box/retained-text", "gpu-backend"]
 

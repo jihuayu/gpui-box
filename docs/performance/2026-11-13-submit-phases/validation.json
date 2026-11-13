@@ -1,0 +1,20 @@
+{
+  "diagnostic_core_tests": 165,
+  "diagnostic_harness_tests": 2,
+  "diagnostic_mixed_gpu_comparisons": 75,
+  "diagnostic_hardware_cases": 2018,
+  "diagnostic_pixel_comparisons": 1926,
+  "strict_clippy_diagnostic_and_default": "passed",
+  "default_mixed_gpu_comparisons": 75,
+  "default_pipeline_smoke_cases": 4,
+  "default_rows_have_null_diagnostics": true,
+  "capture_hashes_stable": true,
+  "conflict_observations": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "post_capture_rust_change": "diagnostic field documentation only",
+  "default_binary_sha256": "c0db69dc23b4e5e38441edf178a1ec97a2365a626c08a83cdb9efcce2a02738a"
+}

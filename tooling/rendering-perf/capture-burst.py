@@ -70,7 +70,8 @@ def main():
     sources = sorted(Path("crates/gpui-box/src").rglob("*.rs"))
     sources += sorted(Path("vendor/gpui/crates/gpui_wgpu/src").rglob("*.rs"))
     sources += sorted(Path("tooling/rendering-perf/src").rglob("*.rs"))
-    sources += [Path(__file__), Path("Cargo.lock")]
+    sources += [Path(__file__), Path("Cargo.lock"), Path("crates/gpui-box/Cargo.toml"),
+                Path("vendor/gpui/crates/gpui_wgpu/Cargo.toml"), Path("tooling/rendering-perf/Cargo.toml")]
     material_pair = options.material_pair
     stream_pair = options.stream_pair
     pipeline = options.pipeline_pair

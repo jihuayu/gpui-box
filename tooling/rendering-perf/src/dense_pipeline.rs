@@ -15,6 +15,7 @@ struct PendingFrame {
     gpu_submitted: bool,
     burst_epoch: u64,
     burst_epochs_crossed: u64,
+    diagnostics: Value,
 }
 struct Observations {
     pending: VecDeque<PendingFrame>,
@@ -39,7 +40,7 @@ impl Observations {
             // work completes at owner submission/check, never before arrival.
             let finished = receipt.observed_at.max(f.submitted);
             self.rows.push(json!({
-                "tick":f.sample.tick,"serial":f.serial,"covering_serial":receipt.serial,
+                "tick":f.sample.tick,"serial":f.serial,"covering_serial":receipt.serial,"diagnostics":f.diagnostics,
                 "burst_epoch":f.burst_epoch,"burst_epochs_crossed":f.burst_epochs_crossed,
                 "source_us":f.sample.scheduled.duration_since(self.origin).as_secs_f64()*1e6,
                 "producer_delay_us":f.sample.generated.duration_since(f.sample.scheduled).as_secs_f64()*1e6,
@@ -264,6 +265,17 @@ fn case(
         }
         let submission = gpu.submit_local(&frame, surface, scale)?;
         let submitted = Instant::now();
+        #[cfg(feature = "retained-diagnostics")]
+        let diagnostics = submission.as_ref().map_or(Value::Null, |s| json!({
+            "local_us":s.local_phase_times.map(|phases| phases.map(|p| p.as_secs_f64()*1e6)),
+            "backend_us":s.gpu.phase_times.map(|p| p.as_secs_f64()*1e6),
+            "quad_bytes":s.gpu.uploaded_bytes,"quad_ranges":s.gpu.upload_ranges,
+            "spatial_bytes":s.gpu.spatial_upload_bytes,
+            "quad_references":s.gpu.spatial_work.quad_references,
+            "rasterized_layers":s.gpu.rasterized_layers,"reused_layers":s.gpu.reused_layers
+        }));
+        #[cfg(not(feature = "retained-diagnostics"))]
+        let diagnostics = Value::Null;
         if let Some(s) = &submission {
             maximum_gpu = maximum_gpu.max(s.gpu.in_flight);
             resource_waits += s.gpu.layer_budget_waits;
@@ -282,6 +294,7 @@ fn case(
             gpu_submitted: submission.is_some(),
             burst_epoch,
             burst_epochs_crossed: burst_epoch - last_burst,
+            diagnostics,
         });
         last_burst = burst_epoch;
         maximum_pending = maximum_pending.max(observations.pending.len());
