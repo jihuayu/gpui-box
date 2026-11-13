@@ -459,6 +459,14 @@ or allocator cause is established.16reversed cases preserve tail regressions
 and all pixel/lease/base assertions. No runtime speedup or off-thread destruction
 policy is claimed. Material profiling and native/CPU acceptance remain open.
 
+Material-path investigation exposed a geometry-range correctness defect: a visit
+starting inside a deep subtree reused its starting parent's context after
+crossing to a shallower sibling. The visitor now retains all open ancestors and
+pops to each actual parent, preserving transform/clip/effect inheritance. A
+regression compares every possible range start against fresh extraction across
+deep motion/clip/opacity and siblings. This is an independent correctness fix;
+future performance comparisons use the corrected baseline.
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |

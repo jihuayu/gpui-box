@@ -162,13 +162,17 @@ impl LocalFrame {
         while let Some(i) = cursor { ancestry.push(i); cursor = self.0.topology.parents[i]; }
         let mut context = None;
         let mut ignored = IgnoreProperties;
-        for i in ancestry.into_iter().rev() { context = Some(self.resolve_at(i, context, &mut ignored).1); }
         // Keep only the open ancestry, rather than allocating an N-item resolved
         // packet or contexts for unrelated prefixes on a sparse subtree update.
         let mut stack: Vec<(usize,Context)> = vec![];
+        for i in ancestry.into_iter().rev() {
+            let next = self.resolve_at(i, context, &mut ignored).1;
+            stack.push((i,next));
+            context = Some(next);
+        }
         for i in range.clone() {
             while stack.last().is_some_and(|(parent,_)| Some(*parent) != self.0.topology.parents[i]) {stack.pop();}
-            let parent = stack.last().map(|(_,c)|*c).or(context);
+            let parent = stack.last().map(|(_,c)|*c);
             let (item,next) = self.resolve_at(i,parent,&mut ignored);
             visit(i,&item);
             stack.push((i,next));

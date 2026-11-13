@@ -52,6 +52,28 @@ fn equivalent(a: &FramePacket, b: &FramePacket) {
     assert_eq!(a.properties, b.properties);
 }
 
+#[cfg(feature = "retained-wgpu")]
+#[test]
+fn geometry_ranges_reopen_actual_ancestors_after_leaving_start_subtree() {
+    let (mut tree, nodes) = fixture();
+    tree.local_frame([300.0, 200.0]).unwrap();
+    let mut tx = Transaction::default();
+    tx.translation(nodes[2], [12.375, -3.125]);
+    tx.translation(nodes[30], [2.125, 0.375]);
+    tx.clip(nodes[30], Some(Rect { x: 1.0, y: 2.0, width: 28.0, height: 18.0 }));
+    tx.opacity(nodes[30], 0.5);
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    let local = tree.local_frame([300.0, 200.0]).unwrap();
+    let fresh = tree.frame([300.0, 200.0]).unwrap();
+    // Start deep in one branch, then cross to a shallower sibling. Every
+    // possible range start also exercises root and single-leaf boundaries.
+    for start in 0..local.len() {
+        local.visit_geometry(start..local.len(), |i, item| {
+            assert_eq!(format!("{item:?}"), format!("{:?}", fresh.items[i]), "start={start} index={i}");
+        });
+    }
+}
+
 #[test]
 fn local_snapshots_resolve_exactly_after_properties_material_layout_and_structure() {
     let (mut tree, nodes) = fixture();
