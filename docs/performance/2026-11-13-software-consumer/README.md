@@ -36,3 +36,5 @@ python tooling/rendering-perf/analyze-software.py target/software-cadence
 See [software API decision](../../ADR_RETAINED_SOFTWARE_CONSUMER.md). Frozen source hashes and exact executables are in `manifest.json`; raw samples include losing cases. Current host is Ryzen 4800H / GTX 1650 Ti. Native CPU integration, input/visible presentation, pressure/cancellation tails, fractional fidelity and modern desktop GPU effects/120 qualification remain open.
 
 Final checks: 159 locked core tests, strict Clippy for both harnesses, and the existing full hardware suite (2,015 scenarios / 1,923 pixel comparisons) pass. See `verification.json`.
+
+Raw cadence JSON is stored losslessly as `run-*/cadence.json.gz`; the analyzer reads compressed or plain captures.
