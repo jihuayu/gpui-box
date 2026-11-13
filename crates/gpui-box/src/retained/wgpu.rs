@@ -289,6 +289,7 @@ pub struct WgpuFrameRenderer {
     leases: VecDeque<(u64, FramePacket)>,
     local_leases: VecDeque<(u64, local::LocalFrame)>,
     local_snapshot: Option<local::LocalFrame>,
+    local_ink: Option<local_ink::LocalInk>,
     max_in_flight: usize,
     failed: bool,
     device_epoch: u64,
@@ -299,6 +300,7 @@ pub struct WgpuFrameRenderer {
     cache_composition: bool,
     cache_layers: bool,
     tight_layer_bounds: bool,
+    local_tight_layer_bounds: bool,
     window_image: Option<(u64, Arc<gpui::RenderImage>)>,
     validation_cache: validation::ValidationCache,
     cache_validation: bool,
@@ -333,6 +335,7 @@ impl WgpuFrameRenderer {
             leases: VecDeque::new(),
             local_leases: VecDeque::new(),
             local_snapshot: None,
+            local_ink: None,
             max_in_flight,
             failed: false,
             device_epoch: 0,
@@ -343,6 +346,7 @@ impl WgpuFrameRenderer {
             cache_composition: true,
             cache_layers: true,
             tight_layer_bounds: true,
+            local_tight_layer_bounds: false,
             window_image: None,
             validation_cache: validation::ValidationCache::default(),
             cache_validation: true,
@@ -454,6 +458,16 @@ impl WgpuFrameRenderer {
         if self.tight_layer_bounds != enabled {
             self.tight_layer_bounds = enabled;
             self.source = None;
+        }
+    }
+    /// Experimental subtree ink index for local snapshots. Default off: dense
+    /// ancestor motion can spend more CPU proving bounds than raster work saved.
+    pub fn set_local_tight_layer_bounds_enabled(&mut self, enabled: bool) {
+        if self.local_tight_layer_bounds != enabled {
+            self.local_tight_layer_bounds=enabled;
+            self.local_snapshot=None;
+            self.local_ink=None;
+            self.source=None;
         }
     }
 
@@ -684,6 +698,7 @@ impl WgpuFrameRenderer {
             self.routing_snapshot = None;
         }
         self.local_snapshot = None;
+        self.local_ink = None;
         if self.failed {
             return Err(Error::Gpu("reset after failed frame submission".into()));
         }
@@ -1110,6 +1125,7 @@ impl WgpuFrameRenderer {
         replacement.cache_layers = self.cache_layers;
         replacement.backend.set_layer_translation_reuse_enabled(self.backend.layer_translation_reuse_enabled());
         replacement.tight_layer_bounds = self.tight_layer_bounds;
+        replacement.local_tight_layer_bounds = self.local_tight_layer_bounds;
         replacement
             .backend
             .set_layer_texture_reuse_enabled(self.backend.layer_texture_reuse_enabled());

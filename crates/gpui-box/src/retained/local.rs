@@ -106,6 +106,44 @@ impl properties::PropertyOutput for IgnoreProperties {
 }
 
 impl LocalFrame {
+    #[cfg(feature = "retained-wgpu")]
+    pub(in crate::retained) fn subtree(&self, node: NodeId) -> Option<std::ops::Range<usize>> {
+        let i = *self.0.topology.indices.get(&node)?;
+        Some(i..self.0.topology.ends[i])
+    }
+    #[cfg(feature = "retained-wgpu")]
+    pub(in crate::retained) fn changed_subtrees(&self) -> Vec<std::ops::Range<usize>> {
+        let mut indices = self.0.changed.clone();
+        indices.sort_unstable();
+        let mut ranges: Vec<std::ops::Range<usize>> = vec![];
+        for i in indices {
+            if ranges.last().is_some_and(|range| range.end > i) { continue; }
+            ranges.push(i..self.0.topology.ends[i]);
+        }
+        ranges
+    }
+    #[cfg(feature = "retained-wgpu")]
+    pub(in crate::retained) fn visit_geometry(
+        &self, range: std::ops::Range<usize>, mut visit: impl FnMut(usize, &PaintItem),
+    ) {
+        if range.is_empty() { return; }
+        let mut ancestry = vec![];
+        let mut cursor = self.0.topology.parents[range.start];
+        while let Some(i) = cursor { ancestry.push(i); cursor = self.0.topology.parents[i]; }
+        let mut context = None;
+        let mut ignored = IgnoreProperties;
+        for i in ancestry.into_iter().rev() { context = Some(self.resolve_at(i, context, &mut ignored).1); }
+        // Keep only the open ancestry, rather than allocating an N-item resolved
+        // packet or contexts for unrelated prefixes on a sparse subtree update.
+        let mut stack: Vec<(usize,Context)> = vec![];
+        for i in range.clone() {
+            while stack.last().is_some_and(|(parent,_)| Some(*parent) != self.0.topology.parents[i]) {stack.pop();}
+            let parent = stack.last().map(|(_,c)|*c).or(context);
+            let (item,next) = self.resolve_at(i,parent,&mut ignored);
+            visit(i,&item);
+            stack.push((i,next));
+        }
+    }
     fn from_frame(frame: FramePacket) -> Self {
         let mut indices = HashMap::with_capacity(frame.items.len());
         let mut parents = Vec::with_capacity(frame.items.len());

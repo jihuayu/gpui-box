@@ -88,6 +88,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         )?,
     )?;
     let mut results = vec![];
+    if std::env::args().any(|arg| arg == "--local-layer-translation-only") {
+        retained_layer_translation::run_local(&output, &mut results)?;
+        fs::write(output.join("validation.json"), serde_json::to_vec_pretty(&results)?)?;
+        return Ok(());
+    }
     if std::env::args().any(|arg| arg == "--layer-translation-only") {
         retained_layer_translation::run(&output, &mut results)?;
         fs::write(output.join("validation.json"), serde_json::to_vec_pretty(&results)?)?;

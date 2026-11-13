@@ -1,0 +1,25 @@
+{
+  "core_tests": 160,
+  "clippy_passed": true,
+  "mixed_local_pixel_cases": 72,
+  "targeted_pixel_cases_per_process": 28,
+  "full_hardware_scenarios": 2015,
+  "full_pixel_comparisons": 1923,
+  "full_validation_sha256": "13228a9cdd886ed7175075fd4ea95de0f89bde688f9039d046434486d2ee1327",
+  "binary_sha256": "495696eab1cded4eb6f05ddd195614bb732e3dcb30f40ff6c2d4335cfec75ddc",
+  "native_present_measured": false,
+  "goal_complete": false,
+  "final_gated": {
+    "core_tests": 160,
+    "clippy": "GPU and dense harness -D warnings passed",
+    "targeted_pixel_cases": 28,
+    "mixed_local_pixel_cases": 72,
+    "full_hardware_scenarios": 2015,
+    "full_pixel_comparisons": 1923,
+    "full_validation_sha256": "1503027b896ef10e6d9be1752705fc553e4df8e95cf1cacfb95e00304e749db8",
+    "targeted_validation_sha256": "aca107c90af9f6df75265f8eb99bf33d423cfe2e89a1b627eef4eb7dcab2067e",
+    "mixed_validation_sha256": "f4e17fbeb24db69b3022f415f424b093c4c0f754aed86e635f2a33858c6c27c2",
+    "gpu_binary_sha256": "4dad04ebf901129e8c649b3fc322a2bdc569a773365a1450b9f016646f52f912",
+    "default_local_tight_enabled": false
+  }
+}

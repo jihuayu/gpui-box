@@ -342,6 +342,18 @@ fallback, broader local-space content epochs, dense independent updates and
 modern desktop visible qualification remain open. See the complete
 [evidence and scope](performance/2026-11-13-layer-translation/README.md).
 
+The [local layer bounds integration](ADR_RETAINED_LOCAL_LAYER_BOUNDS.md) enables
+current tight ink and integer raster reuse on the private local snapshot route,
+with complete recovery, mixed-resource/fractional/deep-anchor pixels and exact hit
+geometry. It is independently default-off: exploratory alternating 10,000-node
+ancestor/effects submit medians regress 174.8/266.5%, and dense-independent/effects
+regress 76.5/63.4%. Targeted local-overdraw 120 Hz p99 improves to 8.01/10.66 ms,
+but still misses 10/36 deadlines of 1,200 and 60 Hz optimized maxima can worsen.
+The normal local route retains full-viewport layers. Persistent local-content ink
+and separate placement/clip proof remain required; smaller textures alone do not
+solve dense owner costs. Full [losing and winning evidence](performance/2026-11-13-local-layer-bounds/README.md)
+is preserved, and the overall goal stays active.
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |

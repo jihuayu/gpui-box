@@ -68,11 +68,15 @@ would expand compatibility risk before measurement. The experimental local
 route allows direct comparison and complete fallback with the existing path.
 
 Local snapshots currently use full damage, linear exact hit traversal and
-full-viewport isolated effect layers. The latter avoids stale resolved layer
-bounds during ancestor motion but can increase raster cost and texture memory.
+full-viewport isolated effect layers by default. An experimental
+[consumer ink index](ADR_RETAINED_LOCAL_LAYER_BOUNDS.md) now supplies current tight
+bounds behind a separate default-off switch. Dense ancestor/independent updates
+regress when it resolves descendant ink; it is not enabled automatically. The
+full-viewport path avoids stale bounds but can increase raster cost and memory.
 The paired benchmark records this difference: it is a comparison of complete
-routes, not an isolated publication-only experiment. Tight local-space layer
-bounds and placement-independent raster cache keys remain necessary.
+routes, not an isolated publication-only experiment. Persistent local-space layer bounds and general placement-independent raster
+cache keys remain necessary; the opt-in indexed-world-ink probe is an integration
+step with preserved negative performance evidence.
 
 Independent updates still require one validated source/sink update and local
 placement record per changed node. Immutable pages, temporary vectors, GPU

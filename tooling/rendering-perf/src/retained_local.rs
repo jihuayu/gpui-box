@@ -65,6 +65,7 @@ pub(super) fn run(
             }
             let mut gpu = WgpuFrameRenderer::new(3)?;
             gpu.set_shared_spatial_enabled(shared);
+            gpu.set_local_tight_layer_bounds_enabled(std::env::args().any(|v|v=="--local-tight-layers"));
             let mut saved = vec![];
             for round in 0..14 {
                 let mut tx = Transaction::default();
@@ -135,6 +136,7 @@ pub(super) fn run(
             let old = saved[0].resolve();
             drop(tree);
             let mut independent = WgpuFrameRenderer::new(1)?;
+            independent.set_local_tight_layer_bounds_enabled(std::env::args().any(|v|v=="--local-tight-layers"));
             independent.submit_local(
                 &saved[0],
                 [(160.0 * scale) as u32, (120.0 * scale) as u32],

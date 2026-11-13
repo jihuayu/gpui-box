@@ -176,6 +176,16 @@ impl CompositionCache {
                 .collect()
         })
     }
+    pub(super) fn bound_local_layers(
+        &self, layers: &mut [QuadLayer], frame: &local::LocalFrame,
+        ink: &local_ink::LocalInk, surface:[u32;2], scale:f32,
+    ) {
+        for layer in layers {
+            let node=NodeId {tree:layer.id[0],slot:layer.id[1] as usize,generation:layer.id[2]};
+            layer.bounds=Some(frame.subtree(node).and_then(|range|ink.query(range))
+                .map_or([0;4],|ink| physical_bounds(ink,surface,scale)));
+        }
+    }
     pub(super) fn bound_layers(&self, layers: &mut [QuadLayer], surface: [u32; 2], scale: f32) {
         for layer in layers {
             let node = NodeId {
@@ -344,6 +354,14 @@ impl CompositionCache {
         self.bounds = bounds;
         Ok((order, layers, stats))
     }
+}
+
+fn physical_bounds(ink:Rect,surface:[u32;2],scale:f32)->[u32;4] {
+    let x=(ink.x*scale-1.0).floor().clamp(0.0,surface[0] as f32) as u32;
+    let y=(ink.y*scale-1.0).floor().clamp(0.0,surface[1] as f32) as u32;
+    let right=((ink.x+ink.width)*scale+1.0).ceil().clamp(0.0,surface[0] as f32) as u32;
+    let bottom=((ink.y+ink.height)*scale+1.0).ceil().clamp(0.0,surface[1] as f32) as u32;
+    if right<=x || bottom<=y {[0;4]}else{[x,y,right-x,bottom-y]}
 }
 
 #[cfg(test)]

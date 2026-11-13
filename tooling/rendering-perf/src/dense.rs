@@ -194,6 +194,8 @@ fn cadence(
     let mut receiver = ui.open_updates(1)?;
     let sender = ui.update_sender(&receiver, signal)?;
     let mut gpu = WgpuFrameRenderer::new(2)?;
+    gpu.set_tight_layer_bounds_enabled(!std::env::args().any(|v|v=="--full-viewport-layers"));
+    gpu.set_local_tight_layer_bounds_enabled(std::env::args().any(|v|v=="--local-tight-layers"));
     let adapter = format!("{:?}", gpu.adapter_info());
     submit_output(&mut gpu, &output_frame(&mut ui, local)?)?;
     gpu.finish()?;
@@ -359,6 +361,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                     tree.set_frame_build_policy(FrameBuildPolicy::SelectiveReextract);
                 }
                 let mut gpu = WgpuFrameRenderer::new(3)?;
+                gpu.set_tight_layer_bounds_enabled(!std::env::args().any(|v|v=="--full-viewport-layers"));
+                gpu.set_local_tight_layer_bounds_enabled(std::env::args().any(|v|v=="--local-tight-layers"));
                 let frame = tree.frame([800.0, 600.0])?;
                 gpu.submit(&frame, [800, 600], 1.0)?;
                 gpu.finish()?;
@@ -405,7 +409,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 "local_changed":local_frame.as_ref().map(|f|f.stats().changed_nodes),
                                 "quad_bytes":submit.gpu.uploaded_bytes,"spatial_bytes":submit.gpu.spatial_upload_bytes,
                                 "draws":submit.gpu.draw_calls,"layers_rasterized":submit.gpu.rasterized_layers,
-                                "layers_reused":submit.gpu.reused_layers});
+                                "layers_reused":submit.gpu.reused_layers,"bounds_items":submit.composition.bounds_items});
                         }
                     }
                     let frame = tree.frame([800.0, 600.0])?;
@@ -441,7 +445,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::fs::write(
         output.join("paired.json"),
         serde_json::to_vec_pretty(&json!({"cases":cases,
-        "scope":"owner transaction/publication/submission/GPU completion; same runtime/shaders, complete reextraction control; local mode uses full-viewport isolated layers while resolved control uses tight bounds; native presentation excluded",
+        "scope":"owner transaction/publication/submission/GPU completion; same runtime/shaders, complete reextraction control; local layers default full viewport; --local-tight-layers enables experimental index; resolved layers tight unless --full-viewport-layers; native presentation excluded",
         "quick":quick,"local_snapshot":local}))?,
     )?;
     let mut sustained = vec![];
@@ -473,7 +477,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::fs::write(
         output.join("cadence.json"),
         serde_json::to_vec_pretty(&json!({
-        "scope":"absolute-clock OS worker -> bounded UpdateSender -> owner executor wake -> computed/typed binding/transaction -> local or resolved frame queue -> GPU submit/completion; local mode uses full-viewport isolated layers; no native present or physical input; source and owner skips reported; sleep scheduler delay included",
+        "scope":"absolute-clock OS worker -> bounded UpdateSender -> owner executor wake -> computed/typed binding/transaction -> local or resolved frame queue -> GPU submit/completion; local layers default full viewport; experimental --local-tight-layers and resolved full-viewport control available; no native present or physical input; source and owner skips reported; sleep scheduler delay included",
         "quick":quick,"local_snapshot":local,"max_in_flight":2,"synchronous_completion_per_frame":true,"cases":sustained}))?,
     )?;
     Ok(())

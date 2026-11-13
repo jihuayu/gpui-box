@@ -61,19 +61,21 @@ impl WgpuFrameRenderer {
             {
                 return Err(Error::InvalidFrame);
             }
-            // Until local-space layer ink is indexed, use the existing full
-            // viewport layer control. Clipping/opacity remain exact; this can
-            // cost more raster work than tight resolved bounds.
-            let tight = self.tight_layer_bounds;
-            self.tight_layer_bounds = false;
             // Local and resolved routes may alternate at the same revision.
-            // Full local layer bounds need fresh setup rather than an equal
+            // Local layer bounds need fresh setup rather than an equal
             // resolved-packet shortcut.
             self.source = None;
             self.routing_snapshot = None;
+            let tight=self.tight_layer_bounds;
+            self.tight_layer_bounds &= self.local_tight_layer_bounds;
             let result = self.submit(&resolved, surface, scale);
-            self.tight_layer_bounds = tight;
-            let result = result?;
+            self.tight_layer_bounds=tight;
+            let mut result = result?;
+            self.local_ink = if self.local_tight_layer_bounds && tight && !resolved.properties.effects.is_empty() {
+                let (ink,count)=local_ink::LocalInk::rebuild(frame);
+                if let Some(result)=&mut result {result.composition.bounds_items+=count;}
+                Some(ink)
+            } else {None};
             self.local_snapshot = Some(frame.clone());
             return Ok(result);
         };
@@ -83,13 +85,20 @@ impl WgpuFrameRenderer {
         for item in &updates {
             self.spatial_arena.update_local(item)?;
         }
+        let mut layers=self.composition_cache.local_spatial_layers();
+        let mut bounds_items=0;
+        if self.local_tight_layer_bounds && self.tight_layer_bounds && !layers.is_empty() {
+            let ink=self.local_ink.as_mut().ok_or(Error::InvalidFrame)?;
+            bounds_items=ink.update(frame);
+            self.composition_cache.bound_local_layers(&mut layers,frame,ink,surface,scale);
+        }
         let gpu = self
             .backend
             .submit(QuadBatch {
                 capacity: self.arena.capacity(),
                 writes: vec![],
                 order: None,
-                layers: self.composition_cache.local_spatial_layers(),
+                layers,
                 images: ImageUpdates::default(),
                 glyphs: gpui_wgpu::GlyphUpdates::default(),
                 shadows: gpui_wgpu::ShadowBatch {
@@ -124,7 +133,7 @@ impl WgpuFrameRenderer {
             full_resync: false,
             gpu,
             validation: ValidationStats::default(),
-            composition: CompositionStats::default(),
+            composition: CompositionStats {bounds_items,..Default::default()},
         }))
     }
 }

@@ -202,7 +202,7 @@ pub(super) fn run(
         output.join("translation-benchmark.json"),
         serde_json::to_vec_pretty(&captures)?,
     )?;
-    cadence(output)?;
+    cadence(output, false)?;
     Ok(())
 }
 
@@ -297,7 +297,121 @@ fn boundaries(
     Ok(())
 }
 
-fn cadence(output: &std::path::Path) -> Result<(), Box<dyn Error>> {
+pub(super) fn run_local(
+    output: &std::path::Path,
+    results: &mut Vec<serde_json::Value>,
+) -> Result<(), Box<dyn Error>> {
+    for tight in [false, true] {
+        let mut tree = UiTree::new(absolute(0.0, 0.0, 320.0, 220.0), 0x171d28ff)?;
+        let group = tree.append(tree.root(), absolute(48.0, 48.0, 100.0, 70.0), 0x8844cc80)?;
+        let child = tree.append(group, absolute(8.0, 8.0, 40.0, 30.0), 0xff880080)?;
+        let mut tx = Transaction::default();
+        tx.opacity(group, 0.6);
+        tx.decoration(
+            child,
+            QuadDecoration {
+                radius: 6.0,
+                border_width: 2.0,
+                border_color: 0xffffffff,
+            },
+        );
+        tree.commit(tx, BackendCapabilities::default())?;
+        let mut renderer = WgpuFrameRenderer::new(3)?;
+        renderer.set_tight_layer_bounds_enabled(tight);
+        renderer.set_local_tight_layer_bounds_enabled(tight);
+        renderer.set_layer_translation_reuse_enabled(true);
+        let mut saved = vec![];
+        for step in 0..12 {
+            let mut tx = Transaction::default();
+            tx.translation(
+                group,
+                match step {
+                    0 => [0.0; 2],
+                    1 => [8.0, 8.0],
+                    2 => [-8.0, -8.0],
+                    3 => [0.5, 0.0],
+                    _ => [step as f32 * 2.0, 0.0],
+                },
+            );
+            if step == 5 {
+                tx.clip(
+                    group,
+                    Some(Rect {
+                        x: 2.0,
+                        y: 3.0,
+                        width: 50.0,
+                        height: 40.0,
+                    }),
+                );
+            }
+            if step == 6 {
+                tx.scroll(group, [4.0, 2.0]);
+            }
+            if step == 7 {
+                tx.opacity(group, 0.4);
+            }
+            if step == 8 {
+                tx.color(child, 0x00ff0080);
+            }
+            tree.commit(tx, BackendCapabilities::default())?;
+            let local = tree.local_frame([320.0, 220.0])?;
+            let stats = renderer.submit_local(&local, [320, 220], 1.0)?.unwrap();
+            if tight && matches!(step, 1 | 2) {
+                assert_eq!(stats.gpu.rasterized_layers, 0);
+                assert_eq!(stats.gpu.reused_layers, 1);
+                assert_eq!(stats.composition.bounds_items, 2);
+            }
+            if !tight && matches!(step, 1 | 2) {
+                assert_eq!(stats.gpu.rasterized_layers, 1);
+            }
+            let resolved = local.resolve();
+            compare(
+                &mut renderer,
+                &resolved,
+                [320, 220],
+                1.0,
+                &format!("local-layer-translation-{tight}-{step}"),
+                output,
+                results,
+            )?;
+            assert_eq!(local.hit_test(60.0, 60.0), resolved.hit_test(60.0, 60.0));
+            saved.push(local);
+        }
+        renderer.reset()?;
+        renderer.submit_local(saved.last().unwrap(), [320, 220], 1.0)?;
+        compare(
+            &mut renderer,
+            &saved.last().unwrap().resolve(),
+            [320, 220],
+            1.0,
+            &format!("local-layer-reset-{tight}"),
+            output,
+            results,
+        )?;
+        // Missing predecessor must rebuild index and recover all content.
+        for i in 0..2 {
+            let mut tx = Transaction::default();
+            tx.translation(child, [i as f32 * 8.0, 0.0]);
+            tree.commit(tx, BackendCapabilities::default())?;
+            let local = tree.local_frame([320.0, 220.0])?;
+            if i == 1 {
+                renderer.submit_local(&local, [320, 220], 1.0)?;
+                compare(
+                    &mut renderer,
+                    &local.resolve(),
+                    [320, 220],
+                    1.0,
+                    &format!("local-layer-skipped-{tight}"),
+                    output,
+                    results,
+                )?;
+            }
+        }
+    }
+    cadence(output, true)
+}
+
+fn cadence(output: &std::path::Path, local: bool) -> Result<(), Box<dyn Error>> {
     use std::{
         sync::{Arc, Mutex},
         time::Duration,
@@ -318,8 +432,13 @@ fn cadence(output: &std::path::Path) -> Result<(), Box<dyn Error>> {
             tx.opacity(group, 0.6);
             tree.commit(tx, BackendCapabilities::default())?;
             let mut renderer = WgpuFrameRenderer::new(3)?;
+            renderer.set_local_tight_layer_bounds_enabled(local);
             renderer.set_layer_translation_reuse_enabled(enabled);
-            renderer.submit(&tree.frame([1000.0, 760.0])?, [1000, 760], 1.0)?;
+            if local {
+                renderer.submit_local(&tree.local_frame([1000.0, 760.0])?, [1000, 760], 1.0)?;
+            } else {
+                renderer.submit(&tree.frame([1000.0, 760.0])?, [1000, 760], 1.0)?;
+            }
             renderer.finish()?;
             let origin = Instant::now() + Duration::from_millis(20);
             let ticks = hz as u64 * 10;
@@ -361,8 +480,11 @@ fn cadence(output: &std::path::Path) -> Result<(), Box<dyn Error>> {
                 let mut tx = Transaction::default();
                 tx.translation(group, [if tick % 2 == 0 { 8.0 } else { 0.0 }, 0.0]);
                 tree.commit(tx, BackendCapabilities::default())?;
-                let frame = tree.frame([1000.0, 760.0])?;
-                let stats = renderer.submit(&frame, [1000, 760], 1.0)?;
+                let stats = if local {
+                    renderer.submit_local(&tree.local_frame([1000.0, 760.0])?, [1000, 760], 1.0)?
+                } else {
+                    renderer.submit(&tree.frame([1000.0, 760.0])?, [1000, 760], 1.0)?
+                };
                 let submitted = Instant::now();
                 renderer.finish()?;
                 let completed = Instant::now();
@@ -372,7 +494,7 @@ fn cadence(output: &std::path::Path) -> Result<(), Box<dyn Error>> {
                 }
                 samples.push(serde_json::json!({"tick":tick,"source_to_owner_us":entered.saturating_duration_since(at).as_secs_f64()*1e6,
                 "owner_submit_us":submitted.duration_since(entered).as_secs_f64()*1e6,"completion_us":completed.saturating_duration_since(at).as_secs_f64()*1e6,
-                "deadline_met":met,"rasterized_layers":stats.as_ref().map_or(0,|s|s.gpu.rasterized_layers),"reused_layers":stats.as_ref().map_or(0,|s|s.gpu.reused_layers)}));
+                "deadline_met":met,"bounds_items":stats.as_ref().map_or(0,|s|s.composition.bounds_items),"rasterized_layers":stats.as_ref().map_or(0,|s|s.gpu.rasterized_layers),"reused_layers":stats.as_ref().map_or(0,|s|s.gpu.reused_layers)}));
             }
             worker.join().map_err(|_| "source worker panic")?;
             let coalesced = pending.lock().unwrap().1;
@@ -392,7 +514,7 @@ fn cadence(output: &std::path::Path) -> Result<(), Box<dyn Error>> {
                 ontime.len(),
                 ticks
             );
-            captures.push(serde_json::json!({"hz":hz,"enabled":enabled,"duration_s":10,"source_ticks":ticks,"coalesced":coalesced,"deadline_met":ontime.len(),"longest_unsatisfied_burst":longest,"samples":samples}));
+            captures.push(serde_json::json!({"hz":hz,"enabled":enabled,"local_snapshot":local,"duration_s":10,"source_ticks":ticks,"coalesced":coalesced,"deadline_met":ontime.len(),"longest_unsatisfied_burst":longest,"samples":samples}));
         }
     }
     fs::write(

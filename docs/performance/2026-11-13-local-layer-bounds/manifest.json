@@ -1,0 +1,24 @@
+{
+  "base_commit": "9218794b1e7871c3c5676af95e05aebfe455a077",
+  "captured_at": "2026-11-13T09:43:36.632495+08:00",
+  "final_sources": {
+    "crates/gpui-box/src/retained.rs": "f073d8ca1f3fb68c7f8645664de60d55901b73b3f9bee46bee48f9a8477c51f4",
+    "crates/gpui-box/src/retained/local.rs": "d425b73a39992685729a79a618e9a1325cfb711faac684544355a8dac8bf7ad9",
+    "crates/gpui-box/src/retained/local_ink.rs": "46c0e5eace3316b9779950f5ea64f8550542801e79539d023a972ebfae66d410",
+    "crates/gpui-box/src/retained/wgpu.rs": "663b38d0bba96c7c59200f6ad9edfc672b72ce2416e9e65462bb3f2341bb1389",
+    "crates/gpui-box/src/retained/wgpu/local.rs": "2dd26543da4ead59d5afbcf38fe5469b06b01faa46bc3cec89cc566271da69f2",
+    "crates/gpui-box/src/retained/wgpu/composition.rs": "db786b85c0d68111053103ecdcefaeea10dae323559b72f2d37d56de5cdd04bd",
+    "tooling/rendering-perf/src/retained_layer_translation.rs": "0ff12ff086a0b7f90f1440aef8026fee6f590ae8cdb6f42fbbb76da26e4a5a2a",
+    "tooling/rendering-perf/src/retained_local.rs": "63c51c51454361346deb0cc0671ff8ce9a853393550cb81e87acf4ab46f9785b",
+    "tooling/rendering-perf/src/retained_gpu.rs": "1eae397d154a84a6cfc8b8395b840fd1759cf62d0d9b0d85ac374614de9db0b8",
+    "tooling/rendering-perf/src/dense.rs": "40581afa896932e60373ac5da049517d3addc0f55009a7d6dd4db7a7daf0eea3"
+  },
+  "final_gpu_binary_sha256": "4dad04ebf901129e8c649b3fc322a2bdc569a773365a1450b9f016646f52f912",
+  "final_dense_binary_sha256": "6402035ff5b3aef7a13ef30d01c8a0c9dd0d0b6ac53daf7003edbc476f4ec58f",
+  "gate_default_enabled": false,
+  "initial_dense_capture_identity": "dense-ab/metadata.json and source-manifest.json",
+  "initial_gpu_identity": "verification.json binary_sha256",
+  "cadence_seconds": 10,
+  "scope": "local snapshot to synchronous GPU completion; excludes native input/present",
+  "goal_complete": false
+}

@@ -1,0 +1,282 @@
+[
+  {
+    "case": "local-layer-translation-false-0",
+    "pixel_equal": true,
+    "revision": 4,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-false-1",
+    "pixel_equal": true,
+    "revision": 5,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-false-2",
+    "pixel_equal": true,
+    "revision": 6,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-false-3",
+    "pixel_equal": true,
+    "revision": 7,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-false-4",
+    "pixel_equal": true,
+    "revision": 8,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-false-5",
+    "pixel_equal": true,
+    "revision": 9,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-false-6",
+    "pixel_equal": true,
+    "revision": 10,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-false-7",
+    "pixel_equal": true,
+    "revision": 11,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-false-8",
+    "pixel_equal": true,
+    "revision": 12,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-false-9",
+    "pixel_equal": true,
+    "revision": 13,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-false-10",
+    "pixel_equal": true,
+    "revision": 14,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-false-11",
+    "pixel_equal": true,
+    "revision": 15,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-reset-false",
+    "pixel_equal": true,
+    "revision": 15,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-skipped-false",
+    "pixel_equal": true,
+    "revision": 16,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-true-0",
+    "pixel_equal": true,
+    "revision": 4,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-true-1",
+    "pixel_equal": true,
+    "revision": 5,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-true-2",
+    "pixel_equal": true,
+    "revision": 6,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-true-3",
+    "pixel_equal": true,
+    "revision": 7,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-true-4",
+    "pixel_equal": true,
+    "revision": 8,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-true-5",
+    "pixel_equal": true,
+    "revision": 9,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-true-6",
+    "pixel_equal": true,
+    "revision": 10,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-true-7",
+    "pixel_equal": true,
+    "revision": 11,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-true-8",
+    "pixel_equal": true,
+    "revision": 12,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-true-9",
+    "pixel_equal": true,
+    "revision": 13,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-true-10",
+    "pixel_equal": true,
+    "revision": 14,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-translation-true-11",
+    "pixel_equal": true,
+    "revision": 15,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-reset-true",
+    "pixel_equal": true,
+    "revision": 15,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  },
+  {
+    "case": "local-layer-skipped-true",
+    "pixel_equal": true,
+    "revision": 16,
+    "layout_runs": 0,
+    "recorded_chunks": 0,
+    "leaf_layouts": 0,
+    "measure_calls": 0,
+    "reference": "fresh full retained renderer; no reused cache"
+  }
+]

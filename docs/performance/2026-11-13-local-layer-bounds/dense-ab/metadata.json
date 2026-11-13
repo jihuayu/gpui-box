@@ -1,0 +1,11 @@
+{
+  "runs": 2,
+  "sources_stable": true,
+  "no_sampled_conflicts": null,
+  "conflict_note": "sequential commands with compiler completed before first capture; no periodic process monitor for this study",
+  "control": "same executable --full-viewport-layers",
+  "optimized": "same executable tight local index (before default-off gate)",
+  "binary_sha256": "86cf5780b4d98048f35c80a162fd331c68534317aed72da1938917e75d1a45a5",
+  "base_commit": "9218794b1e7871c3c5676af95e05aebfe455a077",
+  "evidence_limit": "No periodic process conflict sampler was used; source hashes were stable and commands were sequential. Comparison is exploratory, not conflict-qualified by run-local-ab.ps1."
+}

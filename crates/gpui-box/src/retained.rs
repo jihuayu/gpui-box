@@ -16,6 +16,8 @@ pub mod arena;
 pub mod frame_queue;
 mod image;
 pub mod local;
+#[cfg(feature = "retained-wgpu")]
+mod local_ink;
 pub mod logical;
 pub mod pacing;
 pub mod software;
