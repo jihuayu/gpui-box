@@ -1,0 +1,14 @@
+{
+  "base_commit": "6eae4b5f54b195b3215533ff1bedaa2db6307b8d",
+  "dense_binary_sha256": "636e30902c7d543f951000d96bf4abc51acd472011b2b5300cfb879b3c6e7bdd",
+  "gpu_binary_sha256": "42de7d819316f8c0dbf6721f29b62e1423566a07f3a2d75074d68f64b9f0700f",
+  "sources_stable": true,
+  "periodic_process_conflict_sampler": false,
+  "control": "same binary --no-ink-translation; tight local enabled in both",
+  "integer_fixture": "800x600 root; 680x480 parent at60,60; group42px spacing; integer +/-2 ancestor/independent motion; 10000 leaves",
+  "goal_complete": false,
+  "cadence_binary_sha256": "e237d765bae8b53dd55bc7d7fd7c6cd2e71cf20003ee0c164f0a399031bcb7dc",
+  "cadence_source_manifest_sha256": "1f51d6f11faca2def1d21f77f2b016029f94bb02b0b04084df35b6d238dbb54a",
+  "cadence_scope": "2x10s per process at60/120Hz; 10000 integer ancestor/effects; source->reactive sink->local snapshot->GPU completion; no native input/display",
+  "earlier_failed_capture": "Initial integer paired fixture started at an equal zero value and hit benchmark Option::unwrap before measurement; fixed to +/-2; no failed capture reported as performance data"
+}

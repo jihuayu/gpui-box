@@ -87,9 +87,12 @@ impl WgpuFrameRenderer {
         }
         let mut layers=self.composition_cache.local_spatial_layers();
         let mut bounds_items=0;
+        let mut bounds_translated_nodes=0;
         if self.local_tight_layer_bounds && self.tight_layer_bounds && !layers.is_empty() {
             let ink=self.local_ink.as_mut().ok_or(Error::InvalidFrame)?;
-            bounds_items=ink.update(frame);
+            let stats=ink.update_motion(frame,previous.as_ref().unwrap(),self.local_ink_translation);
+            bounds_items=stats.0;
+            bounds_translated_nodes=stats.1;
             self.composition_cache.bound_local_layers(&mut layers,frame,ink,surface,scale);
         }
         let gpu = self
@@ -133,7 +136,7 @@ impl WgpuFrameRenderer {
             full_resync: false,
             gpu,
             validation: ValidationStats::default(),
-            composition: CompositionStats {bounds_items,..Default::default()},
+            composition: CompositionStats {bounds_items,bounds_translated_nodes,..Default::default()},
         }))
     }
 }

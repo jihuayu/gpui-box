@@ -354,6 +354,18 @@ and separate placement/clip proof remain required; smaller textures alone do not
 solve dense owner costs. Full [losing and winning evidence](performance/2026-11-13-local-layer-bounds/README.md)
 is preserved, and the overall goal stays active.
 
+The [private lazy ink proof](ADR_RETAINED_INK_TRANSLATION.md) removes descendant
+ink resolution for a qualified integer whole-subtree translation, using immutable
+predecessor provenance, conservative uncut geometry, clip containment and lazy
+segment offsets. The outer tight-local feature remains default off. Alternating
+10,000-leaf integer ancestor/effects submit medians improve 56.1/69.8% and
+completed medians improve 60.7/51.5%; dense-independent submit still loses
+4.2/7.7%, with a 9.2% losing completed median. Sustained 120 Hz source losses
+fall from 64/334 to 27/30, but first optimized p99/max worsen to 14.86/30.70 ms.
+Full raw [evidence](performance/2026-11-13-ink-motion/README.md), fallback controls
+and failures are retained. This reduces routine bounds work without closing
+fractional/resource generality, burst stalls, visible 120 Hz or full acceptance.
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |

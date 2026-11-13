@@ -62,10 +62,11 @@ fn absolute(x: f32, y: f32, w: f32, h: f32) -> Style {
 }
 fn fixture(count: usize, effects: bool) -> Result<(UiTree, NodeId, Vec<NodeId>), Box<dyn Error>> {
     let mut tree = UiTree::new(absolute(0.0, 0.0, 800.0, 600.0), 0x171d28ff)?;
-    let parent = tree.append(tree.root(), absolute(0.0, 0.0, 800.0, 600.0), 0)?;
+    let integer=std::env::args().any(|v|v=="--integer-motion");
+    let parent = tree.append(tree.root(), if integer {absolute(60.0,60.0,680.0,480.0)}else{absolute(0.0,0.0,800.0,600.0)}, 0)?;
     let mut nodes = vec![];
     for group in 0..10 {
-        let host = tree.append(parent, absolute(0.0, group as f32 * 60.0, 800.0, 60.0), 0)?;
+        let host = tree.append(parent, if integer {absolute(0.0,group as f32*42.0,680.0,40.0)}else{absolute(0.0, group as f32 * 60.0, 800.0, 60.0)}, 0)?;
         let mut tx = Transaction::default();
         if effects {
             tx.opacity(host, 0.85);
@@ -88,7 +89,7 @@ fn fixture(count: usize, effects: bool) -> Result<(UiTree, NodeId, Vec<NodeId>),
         for i in 0..count / 10 {
             nodes.push(tree.append(
                 host,
-                absolute((i % 100) as f32 * 8.0, (i / 100) as f32 * 6.0, 4.0, 3.0),
+                absolute((i % 100) as f32 * if integer {6.0}else{8.0}, (i / 100) as f32 * if integer {3.0}else{6.0}, 4.0, 3.0),
                 0x4488ccff,
             )?);
         }
@@ -103,7 +104,9 @@ fn update(
     batch: bool,
 ) -> Result<(), gpui_box::retained::Error> {
     let mut tx = Transaction::default();
-    let shift = if step.is_multiple_of(2) {
+    let shift = if std::env::args().any(|v|v=="--integer-motion") {
+        if step.is_multiple_of(2) {[2.0,2.0]}else{[-2.0,-2.0]}
+    } else if step.is_multiple_of(2) {
         [1.25, 2.5]
     } else {
         [3.25, 4.5]
@@ -185,8 +188,10 @@ fn cadence(
     });
     let placement = ui.computed(&[signal.dependency()], move |inputs| {
         let sample = inputs.read(signal)?;
-        let step = (sample.tick % 31) as f32 * 0.125;
-        Ok([1.25 + step, 2.5 + step])
+        if std::env::args().any(|v|v=="--integer-motion") {
+            let value=if sample.tick%2==0 {2.0}else{-2.0};Ok([value,value])
+        } else {let step = (sample.tick % 31) as f32 * 0.125;
+        Ok([1.25 + step, 2.5 + step])}
     })?;
     for node in if batch { nodes } else { vec![parent] } {
         ui.bind(placement, Property::translation(node))?;
@@ -196,6 +201,7 @@ fn cadence(
     let mut gpu = WgpuFrameRenderer::new(2)?;
     gpu.set_tight_layer_bounds_enabled(!std::env::args().any(|v|v=="--full-viewport-layers"));
     gpu.set_local_tight_layer_bounds_enabled(std::env::args().any(|v|v=="--local-tight-layers"));
+    gpu.set_local_ink_translation_enabled(!std::env::args().any(|v|v=="--no-ink-translation"));
     let adapter = format!("{:?}", gpu.adapter_info());
     submit_output(&mut gpu, &output_frame(&mut ui, local)?)?;
     gpu.finish()?;
@@ -363,6 +369,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let mut gpu = WgpuFrameRenderer::new(3)?;
                 gpu.set_tight_layer_bounds_enabled(!std::env::args().any(|v|v=="--full-viewport-layers"));
                 gpu.set_local_tight_layer_bounds_enabled(std::env::args().any(|v|v=="--local-tight-layers"));
+                gpu.set_local_ink_translation_enabled(!std::env::args().any(|v|v=="--no-ink-translation"));
                 let frame = tree.frame([800.0, 600.0])?;
                 gpu.submit(&frame, [800, 600], 1.0)?;
                 gpu.finish()?;
@@ -409,7 +416,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 "local_changed":local_frame.as_ref().map(|f|f.stats().changed_nodes),
                                 "quad_bytes":submit.gpu.uploaded_bytes,"spatial_bytes":submit.gpu.spatial_upload_bytes,
                                 "draws":submit.gpu.draw_calls,"layers_rasterized":submit.gpu.rasterized_layers,
-                                "layers_reused":submit.gpu.reused_layers,"bounds_items":submit.composition.bounds_items});
+                                "layers_reused":submit.gpu.reused_layers,"bounds_items":submit.composition.bounds_items,"bounds_translated_nodes":submit.composition.bounds_translated_nodes});
                         }
                     }
                     let frame = tree.frame([800.0, 600.0])?;
@@ -451,10 +458,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut sustained = vec![];
     for (nodes, batch) in if paired_only {
         vec![]
+    } else if std::env::args().any(|v|v=="--ink-cadence-only") {
+        vec![(10000,false)]
     } else {
         vec![(1000, false), (10000, false), (10000, true)]
     } {
-        for effects in [false, true] {
+        for effects in if std::env::args().any(|v|v=="--ink-cadence-only") {vec![true]}else{vec![false,true]} {
             for hz in [60, 120] {
                 let result = cadence(
                     nodes,

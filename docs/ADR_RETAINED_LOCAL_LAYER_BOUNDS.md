@@ -81,3 +81,12 @@ nonlinear clips/transforms, indexed hit/damage, CPU fallback integration, dense
 owner construction, native presentation and modern desktop hardware acceptance
 open. See [evidence](performance/2026-11-13-local-layer-bounds/README.md) and
 [translation reuse](ADR_RETAINED_LAYER_TRANSLATION.md).
+
+## Follow-up: bounded private integer translation proof
+
+The [lazy ink follow-up](ADR_RETAINED_INK_TRANSLATION.md) now skips descendant
+resolution when exact immutable provenance and uncut integer/clip containment
+prove whole-subtree motion. Arbitrary fractional or resource content still uses
+the original scan, and the outer tight index remains default off. This is a
+measured implementation subset of the proposed local-content direction, not
+completion of the general contract or a stable deadline guarantee.

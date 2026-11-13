@@ -301,6 +301,7 @@ pub struct WgpuFrameRenderer {
     cache_layers: bool,
     tight_layer_bounds: bool,
     local_tight_layer_bounds: bool,
+    local_ink_translation: bool,
     window_image: Option<(u64, Arc<gpui::RenderImage>)>,
     validation_cache: validation::ValidationCache,
     cache_validation: bool,
@@ -347,6 +348,7 @@ impl WgpuFrameRenderer {
             cache_layers: true,
             tight_layer_bounds: true,
             local_tight_layer_bounds: false,
+            local_ink_translation: true,
             window_image: None,
             validation_cache: validation::ValidationCache::default(),
             cache_validation: true,
@@ -469,6 +471,11 @@ impl WgpuFrameRenderer {
             self.local_ink=None;
             self.source=None;
         }
+    }
+    /// Original per-item ink recomputation remains a measured control. This
+    /// affects only the separately enabled experimental tight-local index.
+    pub fn set_local_ink_translation_enabled(&mut self, enabled: bool) {
+        self.local_ink_translation=enabled;
     }
 
     /// Keep same-extent layer textures across origin changes (default true).
@@ -1126,6 +1133,7 @@ impl WgpuFrameRenderer {
         replacement.backend.set_layer_translation_reuse_enabled(self.backend.layer_translation_reuse_enabled());
         replacement.tight_layer_bounds = self.tight_layer_bounds;
         replacement.local_tight_layer_bounds = self.local_tight_layer_bounds;
+        replacement.local_ink_translation = self.local_ink_translation;
         replacement
             .backend
             .set_layer_texture_reuse_enabled(self.backend.layer_texture_reuse_enabled());

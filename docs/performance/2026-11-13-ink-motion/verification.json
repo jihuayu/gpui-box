@@ -1,0 +1,10 @@
+{
+  "core_tests": 161,
+  "clippy_passed": true,
+  "full_hardware_scenarios": 2015,
+  "full_pixel_comparisons": 1923,
+  "full_validation_sha256": "13228a9cdd886ed7175075fd4ea95de0f89bde688f9039d046434486d2ee1327",
+  "targeted_local_pixel_cases": 28,
+  "mixed_local_pixel_cases": 72,
+  "goal_complete": false
+}

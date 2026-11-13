@@ -106,6 +106,32 @@ impl properties::PropertyOutput for IgnoreProperties {
 }
 
 impl LocalFrame {
+    /// Private predecessor provenance plus a single root-only translation. No
+    /// descendant edit may be hidden behind an aggregate placement change.
+    #[cfg(feature = "retained-wgpu")]
+    pub(in crate::retained) fn ink_translation(
+        &self, old: &Self, range: std::ops::Range<usize>,
+    ) -> Option<([f32;2], Option<Rect>)> {
+        if !self.follows(old) || self.0.changed.len()>64 {return None;}
+        if self.0.changed.iter().filter(|i| range.contains(i)).count()!=1
+            || !self.0.changed.contains(&range.start) {return None;}
+        let mut next=self.placement(range.start);
+        let before=old.placement(range.start);
+        let translation=next.spatial.translation;
+        next.spatial.translation=before.spatial.translation;
+        if next!=before || translation.iter().chain(&before.spatial.translation)
+            .any(|v|!v.is_finite() || v.fract()!=0.0 || v.abs()>65536.0) {return None;}
+        let node=self.0.template.items[range.start].node;
+        let a=old.resolve_geometry(node)?;
+        let b=self.resolve_geometry(node)?;
+        let delta=[b.bounds.x-a.bounds.x,b.bounds.y-a.bounds.y];
+        if delta.iter().any(|v|!v.is_finite() || v.fract()!=0.0) {return None;}
+        let inherited=match self.0.topology.parents[range.start] {
+            Some(parent)=>self.resolve_geometry(self.0.template.items[parent].node)?.clip,
+            None=>b.spatial.root_clip,
+        };
+        Some((delta,inherited))
+    }
     #[cfg(feature = "retained-wgpu")]
     pub(in crate::retained) fn subtree(&self, node: NodeId) -> Option<std::ops::Range<usize>> {
         let i = *self.0.topology.indices.get(&node)?;

@@ -122,6 +122,7 @@ pub struct CompositionStats {
     pub planned_items: usize,
     pub layer_records: usize,
     pub bounds_items: usize,
+    pub bounds_translated_nodes: usize,
 }
 
 struct CachedLayer {

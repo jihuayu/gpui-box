@@ -319,6 +319,7 @@ pub(super) fn run_local(
         let mut renderer = WgpuFrameRenderer::new(3)?;
         renderer.set_tight_layer_bounds_enabled(tight);
         renderer.set_local_tight_layer_bounds_enabled(tight);
+        renderer.set_local_ink_translation_enabled(!std::env::args().any(|v|v=="--no-ink-translation"));
         renderer.set_layer_translation_reuse_enabled(true);
         let mut saved = vec![];
         for step in 0..12 {
@@ -359,7 +360,8 @@ pub(super) fn run_local(
             if tight && matches!(step, 1 | 2) {
                 assert_eq!(stats.gpu.rasterized_layers, 0);
                 assert_eq!(stats.gpu.reused_layers, 1);
-                assert_eq!(stats.composition.bounds_items, 2);
+                assert_eq!(stats.composition.bounds_items, 0);
+                assert_eq!(stats.composition.bounds_translated_nodes, 2);
             }
             if !tight && matches!(step, 1 | 2) {
                 assert_eq!(stats.gpu.rasterized_layers, 1);
@@ -433,6 +435,7 @@ fn cadence(output: &std::path::Path, local: bool) -> Result<(), Box<dyn Error>> 
             tree.commit(tx, BackendCapabilities::default())?;
             let mut renderer = WgpuFrameRenderer::new(3)?;
             renderer.set_local_tight_layer_bounds_enabled(local);
+            renderer.set_local_ink_translation_enabled(!std::env::args().any(|v|v=="--no-ink-translation"));
             renderer.set_layer_translation_reuse_enabled(enabled);
             if local {
                 renderer.submit_local(&tree.local_frame([1000.0, 760.0])?, [1000, 760], 1.0)?;
@@ -494,7 +497,7 @@ fn cadence(output: &std::path::Path, local: bool) -> Result<(), Box<dyn Error>> 
                 }
                 samples.push(serde_json::json!({"tick":tick,"source_to_owner_us":entered.saturating_duration_since(at).as_secs_f64()*1e6,
                 "owner_submit_us":submitted.duration_since(entered).as_secs_f64()*1e6,"completion_us":completed.saturating_duration_since(at).as_secs_f64()*1e6,
-                "deadline_met":met,"bounds_items":stats.as_ref().map_or(0,|s|s.composition.bounds_items),"rasterized_layers":stats.as_ref().map_or(0,|s|s.gpu.rasterized_layers),"reused_layers":stats.as_ref().map_or(0,|s|s.gpu.reused_layers)}));
+                "deadline_met":met,"bounds_items":stats.as_ref().map_or(0,|s|s.composition.bounds_items),"bounds_translated_nodes":stats.as_ref().map_or(0,|s|s.composition.bounds_translated_nodes),"rasterized_layers":stats.as_ref().map_or(0,|s|s.gpu.rasterized_layers),"reused_layers":stats.as_ref().map_or(0,|s|s.gpu.reused_layers)}));
             }
             worker.join().map_err(|_| "source worker panic")?;
             let coalesced = pending.lock().unwrap().1;
