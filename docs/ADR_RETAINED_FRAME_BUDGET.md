@@ -1,9 +1,10 @@
 # ADR: Desktop frame deadlines and responsive software rendering
 
 Status: active implementation; scheduling and publication optimizations exist.
-An experimental local-first snapshot now feeds the normal GPU gallery. The CPU
-renderer, native sustained presentation and complete local hit/damage/cache
-design remain open. This decision does not close the RFC acceptance goal.
+An experimental local-first snapshot now feeds the normal GPU gallery. An actual
+cooperative CPU raster prototype exists; its native integration, native sustained
+presentation and complete local hit/damage/cache design remain open. This
+decision does not close the RFC acceptance goal.
 
 ## Requirements
 
@@ -25,7 +26,7 @@ flowchart LR
     Sample --> State
     State --> Scene[Local paint and property snapshot]
     Scene --> GPU[Desktop GPU consumer]
-    Scene --> CPU[Software consumer: pending]
+    Scene --> CPU[Experimental cooperative software consumer]
     GPU --> Complete[GPU completion receipt]
     GPU --> Native[Native scene and Present attempt]
     Native --> Display[Compositor/display confirmation: pending]
@@ -62,8 +63,8 @@ flowchart LR
    `SelectiveReextract` as a same-runtime baseline. Hash lookup tables do not
    define paint order; explicit preorder and ordered property maps still do.
 5. Separate requested rendering preference from actual backend capabilities.
-   Experimental `RenderPreference`/`SoftwareEffects` describe intent only;
-   they are not a capability claim and no software renderer consumes them yet.
+   Experimental `RenderPreference` describes intent only; `SoftwareJob` consumes
+   `SoftwareEffects` but no native host automatically activates CPU fallback.
    Software may omit decorative box shadows only with explicit application
    permission. It must not approximate semantic group opacity, clipping, text
    content or event geometry. A real CPU raster path and fidelity/performance
@@ -132,15 +133,16 @@ decorative simplification and unsupported operations before frame work starts.
 It must not call GPU readback or a WGPU software adapter a CPU renderer. Merely
 declaring `SoftwareResponsive` does not activate a renderer or enforce a budget.
 
-A future resumable software job should own its immutable input and resource
-epoch, yield at bounded work boundaries, and expose cancellation/completion.
+The experimental resumable software job owns immutable input, yields at work-unit
+boundaries and exposes cancellation/completion. General resource epochs are open.
 Only a complete internally consistent output may replace the previously shown
 frame. Discarding superseded visual jobs must not discard state transactions,
 cleanup or resource releases. Input/hit geometry must identify the shown scene;
 invisible partially rasterized state must not silently become the event target.
 One oversized primitive or allocation must have an explicit outcome instead of
-an unbounded owner-thread loop. These contracts need an actual CPU consumer,
-cooperative execution and fidelity/latency tests before stabilizing public APIs.
+an unbounded owner-thread loop. These contracts now have a CPU prototype and
+synthetic fidelity/cadence evidence; native responsiveness and broader fidelity
+remain required before API stability.
 
 Preconstruction admission must happen before source fanout/snapshot building
 for replaceable animation work, while lossless owner events still settle in

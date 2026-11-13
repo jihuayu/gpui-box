@@ -117,6 +117,31 @@ fn local_snapshots_resolve_exactly_after_properties_material_layout_and_structur
 }
 
 #[test]
+fn full_publication_reuses_owning_geometry_but_sparse_successor_resolves_new_placement() {
+    let (mut tree, nodes) = fixture();
+    let original = tree.local_frame([300.0, 200.0]).unwrap();
+    let full = original.resolved_frame();
+    assert!(Arc::ptr_eq(&full.items, &original.0.template.items));
+    assert!(Arc::ptr_eq(&full.properties, &original.0.template.properties));
+    let mut tx = Transaction::default();
+    tx.translation(nodes[1], [4.0, 2.0]);
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    let moved = tree.local_frame([300.0, 200.0]).unwrap();
+    assert!(!moved.stats().full_publication);
+    assert!(moved.0.resolved.get().is_none());
+    equivalent(&moved.resolve(), &tree.frame([300.0, 200.0]).unwrap());
+    let mut tx = Transaction::default();
+    tx.color(nodes[8], 0xaabbccff);
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    let material = tree.local_frame([300.0, 200.0]).unwrap();
+    assert!(material.stats().full_publication);
+    assert!(Arc::ptr_eq(&material.resolved_frame().items, &material.0.template.items));
+    // Full material recovery includes outstanding ancestor motion exactly.
+    equivalent(&material.resolve(), &tree.frame([300.0, 200.0]).unwrap());
+    equivalent(&original.resolve(), full);
+}
+
+#[test]
 fn consecutive_local_updates_are_sparse_and_deep_anchors_follow_ancestor_motion() {
     let (mut tree, nodes) = fixture();
     let first = tree.local_frame([300.0, 200.0]).unwrap();

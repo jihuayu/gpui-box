@@ -88,6 +88,90 @@ mod tests {
         }
     }
     #[test]
+    fn mixed_nested_motion_matches_full_across_long_lazy_history_and_empty_clips() {
+        let style = |x, y, w, h| Style {
+            position: taffy::Position::Absolute,
+            inset: taffy::Rect {
+                left: length(x),
+                top: length(y),
+                right: taffy::LengthPercentageAuto::auto(),
+                bottom: taffy::LengthPercentageAuto::auto(),
+            },
+            size: taffy::Size {
+                width: length(w),
+                height: length(h),
+            },
+            ..Default::default()
+        };
+        let mut tree = UiTree::new(style(0.0, 0.0, 512.0, 512.0), 0).unwrap();
+        // Fractional external ancestry cancels before the eligible subtree.
+        let outer = tree
+            .append(tree.root(), style(0.5, 0.5, 400.0, 400.0), 0)
+            .unwrap();
+        let group = tree
+            .append(outer, style(39.5, 39.5, 240.0, 240.0), 0)
+            .unwrap();
+        let mut nodes = vec![group];
+        for n in 0..12 {
+            let parent = if n % 3 == 0 {
+                group
+            } else {
+                *nodes.last().unwrap()
+            };
+            nodes.push(
+                tree.append(parent, style(4.0, 3.0, 32.0, 24.0), 0x4488ccff)
+                    .unwrap(),
+            );
+        }
+        let mut old = tree.local_frame([512.0, 512.0]).unwrap();
+        let (mut index, _) = LocalInk::rebuild(&old);
+        let mut random = 0x4e554c4cu32;
+        let mut shifted = 0;
+        let mut visited = 0;
+        for step in 0..512 {
+            random = random.wrapping_mul(1664525).wrapping_add(1013904223);
+            let node = nodes[(random as usize >> 8) % nodes.len()];
+            let mut tx = Transaction::default();
+            let d = ((random >> 16) % 17) as f32 - 8.0;
+            tx.translation(node, [d, -d]);
+            match step % 16 {
+                0 => tx.clip(
+                    node,
+                    Some(Rect {
+                        x: 0.0,
+                        y: 0.0,
+                        width: 0.0,
+                        height: 10.0,
+                    }),
+                ),
+                1 => tx.clip(
+                    node,
+                    Some(Rect {
+                        x: -2.0,
+                        y: 1.0,
+                        width: 17.0,
+                        height: 13.0,
+                    }),
+                ),
+                2 => tx.clip(node, None),
+                3 => tx.scroll(node, [2.0, 1.0]),
+                4 => tx.scroll(node, [0.0, 0.0]),
+                5 => tx.translation(node, [d + 0.25, -d]),
+                // Two nested/disjoint dirty roots must never hide a child edit.
+                6 => tx.translation(group, [d, d]),
+                _ => {}
+            }
+            tree.commit(tx, BackendCapabilities::default()).unwrap();
+            let frame = tree.local_frame([512.0, 512.0]).unwrap();
+            let stats = index.update_motion(&frame, &old, true);
+            visited += stats.0;
+            shifted += stats.1;
+            check(&index, &frame);
+            old = frame;
+        }
+        assert!(shifted > 0 && visited > 0);
+    }
+    #[test]
     fn subtree_index_matches_resolve_after_overlapping_updates_and_preserves_old_snapshot() {
         let style = |x, y| Style {
             position: taffy::Position::Absolute,
@@ -193,7 +277,7 @@ impl LocalInk {
                 .all(int)
         };
         let spatial = &item.spatial;
-        let mut exact = spatial
+        let exact = spatial
             .layout_origin
             .iter()
             .chain(&spatial.translation)
@@ -212,9 +296,7 @@ impl LocalInk {
                     .all(int)
             });
         #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
-        {
-            exact &= item.text.is_none() && item.glyphs.is_none();
-        }
+        let exact = exact && item.text.is_none() && item.glyphs.is_none();
         (ink, raw, exact)
     }
     fn set_leaf(&mut self, i: usize, item: &PaintItem) {

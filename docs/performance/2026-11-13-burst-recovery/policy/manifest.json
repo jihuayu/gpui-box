@@ -1,0 +1,93 @@
+{
+  "base_commit": "cfa8c7a8648f2750c5f8d326182082663120a714",
+  "binary_sha256": "6ff25c3e7f8a07a942a892a7d22e3bd21e6e2c49e25d50279e10f0188758f359",
+  "source_hashes_stable": true,
+  "process_sample_interval_s": 0.25,
+  "runs": [
+    {
+      "round": 1,
+      "mode": "default",
+      "args": [
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\release\\dense-runtime-perf.exe",
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\burst-cadence-20261113\\run-1-default",
+        "--local",
+        "--integer-motion",
+        "--burst-cadence-only"
+      ],
+      "exit_code": 0,
+      "conflicts": []
+    },
+    {
+      "round": 1,
+      "mode": "tight-lazy",
+      "args": [
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\release\\dense-runtime-perf.exe",
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\burst-cadence-20261113\\run-1-tight-lazy",
+        "--local",
+        "--integer-motion",
+        "--burst-cadence-only",
+        "--local-tight-layers"
+      ],
+      "exit_code": 0,
+      "conflicts": []
+    },
+    {
+      "round": 1,
+      "mode": "tight-lazy-raster",
+      "args": [
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\release\\dense-runtime-perf.exe",
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\burst-cadence-20261113\\run-1-tight-lazy-raster",
+        "--local",
+        "--integer-motion",
+        "--burst-cadence-only",
+        "--local-tight-layers",
+        "--layer-translation-reuse"
+      ],
+      "exit_code": 0,
+      "conflicts": []
+    },
+    {
+      "round": 2,
+      "mode": "tight-lazy-raster",
+      "args": [
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\release\\dense-runtime-perf.exe",
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\burst-cadence-20261113\\run-2-tight-lazy-raster",
+        "--local",
+        "--integer-motion",
+        "--burst-cadence-only",
+        "--local-tight-layers",
+        "--layer-translation-reuse"
+      ],
+      "exit_code": 0,
+      "conflicts": []
+    },
+    {
+      "round": 2,
+      "mode": "tight-lazy",
+      "args": [
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\release\\dense-runtime-perf.exe",
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\burst-cadence-20261113\\run-2-tight-lazy",
+        "--local",
+        "--integer-motion",
+        "--burst-cadence-only",
+        "--local-tight-layers"
+      ],
+      "exit_code": 0,
+      "conflicts": []
+    },
+    {
+      "round": 2,
+      "mode": "default",
+      "args": [
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\release\\dense-runtime-perf.exe",
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\burst-cadence-20261113\\run-2-default",
+        "--local",
+        "--integer-motion",
+        "--burst-cadence-only"
+      ],
+      "exit_code": 0,
+      "conflicts": []
+    }
+  ],
+  "scope": "source/owner/GPU synchronous completion; process sampler observes known compiler/renderer conflicts only; no native present/input, power/thermal/driver isolation or modern desktop qualification"
+}

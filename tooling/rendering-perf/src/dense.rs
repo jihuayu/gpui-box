@@ -13,6 +13,7 @@ use std::{
     task::{Context, Poll, Wake, Waker},
     time::{Duration, Instant},
 };
+mod dense_burst;
 mod dense_pipeline;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -62,11 +63,27 @@ fn absolute(x: f32, y: f32, w: f32, h: f32) -> Style {
 }
 fn fixture(count: usize, effects: bool) -> Result<(UiTree, NodeId, Vec<NodeId>), Box<dyn Error>> {
     let mut tree = UiTree::new(absolute(0.0, 0.0, 800.0, 600.0), 0x171d28ff)?;
-    let integer=std::env::args().any(|v|v=="--integer-motion");
-    let parent = tree.append(tree.root(), if integer {absolute(60.0,60.0,680.0,480.0)}else{absolute(0.0,0.0,800.0,600.0)}, 0)?;
+    let integer = std::env::args().any(|v| v == "--integer-motion");
+    let parent = tree.append(
+        tree.root(),
+        if integer {
+            absolute(60.0, 60.0, 680.0, 480.0)
+        } else {
+            absolute(0.0, 0.0, 800.0, 600.0)
+        },
+        0,
+    )?;
     let mut nodes = vec![];
     for group in 0..10 {
-        let host = tree.append(parent, if integer {absolute(0.0,group as f32*42.0,680.0,40.0)}else{absolute(0.0, group as f32 * 60.0, 800.0, 60.0)}, 0)?;
+        let host = tree.append(
+            parent,
+            if integer {
+                absolute(0.0, group as f32 * 42.0, 680.0, 40.0)
+            } else {
+                absolute(0.0, group as f32 * 60.0, 800.0, 60.0)
+            },
+            0,
+        )?;
         let mut tx = Transaction::default();
         if effects {
             tx.opacity(host, 0.85);
@@ -89,7 +106,12 @@ fn fixture(count: usize, effects: bool) -> Result<(UiTree, NodeId, Vec<NodeId>),
         for i in 0..count / 10 {
             nodes.push(tree.append(
                 host,
-                absolute((i % 100) as f32 * if integer {6.0}else{8.0}, (i / 100) as f32 * if integer {3.0}else{6.0}, 4.0, 3.0),
+                absolute(
+                    (i % 100) as f32 * if integer { 6.0 } else { 8.0 },
+                    (i / 100) as f32 * if integer { 3.0 } else { 6.0 },
+                    4.0,
+                    3.0,
+                ),
                 0x4488ccff,
             )?);
         }
@@ -104,8 +126,12 @@ fn update(
     batch: bool,
 ) -> Result<(), gpui_box::retained::Error> {
     let mut tx = Transaction::default();
-    let shift = if std::env::args().any(|v|v=="--integer-motion") {
-        if step.is_multiple_of(2) {[2.0,2.0]}else{[-2.0,-2.0]}
+    let shift = if std::env::args().any(|v| v == "--integer-motion") {
+        if step.is_multiple_of(2) {
+            [2.0, 2.0]
+        } else {
+            [-2.0, -2.0]
+        }
     } else if step.is_multiple_of(2) {
         [1.25, 2.5]
     } else {
@@ -188,20 +214,45 @@ fn cadence(
     });
     let placement = ui.computed(&[signal.dependency()], move |inputs| {
         let sample = inputs.read(signal)?;
-        if std::env::args().any(|v|v=="--integer-motion") {
-            let value=if sample.tick%2==0 {2.0}else{-2.0};Ok([value,value])
-        } else {let step = (sample.tick % 31) as f32 * 0.125;
-        Ok([1.25 + step, 2.5 + step])}
+        if std::env::args().any(|v| v == "--integer-motion") {
+            let value = if sample.tick % 2 == 0 { 2.0 } else { -2.0 };
+            Ok([value, value])
+        } else {
+            let step = (sample.tick % 31) as f32 * 0.125;
+            Ok([1.25 + step, 2.5 + step])
+        }
     })?;
-    for node in if batch { nodes } else { vec![parent] } {
-        ui.bind(placement, Property::translation(node))?;
+    for node in if batch {
+        nodes.as_slice()
+    } else {
+        std::slice::from_ref(&parent)
+    } {
+        ui.bind(placement, Property::translation(*node))?;
+    }
+    let burst = std::env::args().any(|v| v == "--burst-cadence-only");
+    if burst {
+        // Epoch is persistent state, not a transient trigger. Coalescing a
+        // source tick must not erase a dense change. Equality suppresses dense
+        // fanout on all ordinary animation ticks.
+        let color = ui.computed(&[signal.dependency()], move |inputs| {
+            Ok(dense_burst::color(dense_burst::epoch(
+                inputs.read(signal)?.tick,
+                hz,
+            )))
+        })?;
+        for node in &nodes {
+            ui.bind(color, Property::color(*node))?;
+        }
     }
     let mut receiver = ui.open_updates(1)?;
     let sender = ui.update_sender(&receiver, signal)?;
     let mut gpu = WgpuFrameRenderer::new(2)?;
-    gpu.set_tight_layer_bounds_enabled(!std::env::args().any(|v|v=="--full-viewport-layers"));
-    gpu.set_local_tight_layer_bounds_enabled(std::env::args().any(|v|v=="--local-tight-layers"));
-    gpu.set_local_ink_translation_enabled(!std::env::args().any(|v|v=="--no-ink-translation"));
+    gpu.set_layer_translation_reuse_enabled(
+        std::env::args().any(|v| v == "--layer-translation-reuse"),
+    );
+    gpu.set_tight_layer_bounds_enabled(!std::env::args().any(|v| v == "--full-viewport-layers"));
+    gpu.set_local_tight_layer_bounds_enabled(std::env::args().any(|v| v == "--local-tight-layers"));
+    gpu.set_local_ink_translation_enabled(!std::env::args().any(|v| v == "--no-ink-translation"));
     let adapter = format!("{:?}", gpu.adapter_info());
     submit_output(&mut gpu, &output_frame(&mut ui, local)?)?;
     gpu.finish()?;
@@ -246,6 +297,7 @@ fn cadence(
     let mut missed = 0;
     let mut consecutive = 0;
     let mut longest = 0;
+    let mut previous_burst_epoch = 0;
     while next < slots {
         assert!(wait_ready(receiver.ready())?);
         let entered = Instant::now();
@@ -254,6 +306,14 @@ fn cadence(
         assert_eq!(applied.applied, 1);
         let sample = *ui.read(signal)?;
         let chosen = sample.tick as usize;
+        let burst_epoch = if burst {
+            dense_burst::epoch(sample.tick, hz)
+        } else {
+            0
+        };
+        let burst_applied = burst_epoch != previous_burst_epoch;
+        let burst_epochs_crossed = burst_epoch - previous_burst_epoch;
+        previous_burst_epoch = burst_epoch;
         let superseded = chosen - next;
         skipped += superseded;
         consecutive += superseded;
@@ -289,7 +349,8 @@ fn cadence(
             consecutive = 0;
         }
         rows.push(
-            json!({"tick":chosen,"source_us":(intended-start).as_secs_f64()*1e6,
+            json!({"tick":chosen,"burst_epoch":burst_epoch,"burst_applied":burst_applied,"burst_epochs_crossed":burst_epochs_crossed,
+            "source_us":(intended-start).as_secs_f64()*1e6,
             "producer_delay_us":(sample.generated-intended).as_secs_f64()*1e6,
             "source_to_owner_us":entered.saturating_duration_since(intended).as_secs_f64()*1e6,
             "ingress_to_gpu_complete_us":(finished-sample.generated).as_secs_f64()*1e6,
@@ -297,7 +358,11 @@ fn cadence(
             "publication_queue_us":(published-committed).as_secs_f64()*1e6,
             "submit_us":(submitted-published).as_secs_f64()*1e6,
             "source_to_gpu_complete_us":(finished-intended).as_secs_f64()*1e6,
-            "deadline_missed":late,"gpu_submitted":submission.is_some(),"superseded_ticks":superseded}),
+            "deadline_missed":late,"gpu_submitted":submission.is_some(),"superseded_ticks":superseded,
+            "bounds_items":submission.as_ref().map_or(0,|s|s.composition.bounds_items),
+            "bounds_translated_nodes":submission.as_ref().map_or(0,|s|s.composition.bounds_translated_nodes),
+            "layers_rasterized":submission.as_ref().map_or(0,|s|s.gpu.rasterized_layers),
+            "layers_reused":submission.as_ref().map_or(0,|s|s.gpu.reused_layers)}),
         );
         next = chosen + 1;
     }
@@ -325,7 +390,7 @@ fn cadence(
     })
     .collect();
     Ok(
-        json!({"nodes":count,"effects":effects,"batch":batch,"local_snapshot":local,"target_hz":hz,"duration_seconds":seconds,
+        json!({"nodes":count,"effects":effects,"batch":batch,"burst":burst,"local_snapshot":local,"target_hz":hz,"duration_seconds":seconds,
         "adapter":adapter,"expected_ticks":slots,"consumed_ticks":rows.len(),"superseded_ticks":skipped,
         "gpu_submissions":rows.iter().filter(|r| r["gpu_submitted"]==true).count(),
         "producer_superseded_ticks":producer_skipped,
@@ -354,7 +419,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
     let count = 10000;
     let mut cases = vec![];
-    for effects in if cadence_only {
+    let burst_only = std::env::args().any(|v| v == "--burst-cadence-only");
+    for effects in if cadence_only || burst_only {
         vec![]
     } else {
         vec![false, true]
@@ -367,9 +433,15 @@ fn main() -> Result<(), Box<dyn Error>> {
                     tree.set_frame_build_policy(FrameBuildPolicy::SelectiveReextract);
                 }
                 let mut gpu = WgpuFrameRenderer::new(3)?;
-                gpu.set_tight_layer_bounds_enabled(!std::env::args().any(|v|v=="--full-viewport-layers"));
-                gpu.set_local_tight_layer_bounds_enabled(std::env::args().any(|v|v=="--local-tight-layers"));
-                gpu.set_local_ink_translation_enabled(!std::env::args().any(|v|v=="--no-ink-translation"));
+                gpu.set_tight_layer_bounds_enabled(
+                    !std::env::args().any(|v| v == "--full-viewport-layers"),
+                );
+                gpu.set_local_tight_layer_bounds_enabled(
+                    std::env::args().any(|v| v == "--local-tight-layers"),
+                );
+                gpu.set_local_ink_translation_enabled(
+                    !std::env::args().any(|v| v == "--no-ink-translation"),
+                );
                 let frame = tree.frame([800.0, 600.0])?;
                 gpu.submit(&frame, [800, 600], 1.0)?;
                 gpu.finish()?;
@@ -458,12 +530,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut sustained = vec![];
     for (nodes, batch) in if paired_only {
         vec![]
-    } else if std::env::args().any(|v|v=="--ink-cadence-only") {
-        vec![(10000,false)]
+    } else if burst_only || std::env::args().any(|v| v == "--ink-cadence-only") {
+        vec![(10000, false)]
     } else {
         vec![(1000, false), (10000, false), (10000, true)]
     } {
-        for effects in if std::env::args().any(|v|v=="--ink-cadence-only") {vec![true]}else{vec![false,true]} {
+        for effects in if burst_only || std::env::args().any(|v| v == "--ink-cadence-only") {
+            vec![true]
+        } else {
+            vec![false, true]
+        } {
             for hz in [60, 120] {
                 let result = cadence(
                     nodes,

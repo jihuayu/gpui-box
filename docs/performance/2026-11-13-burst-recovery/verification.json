@@ -1,0 +1,11 @@
+{
+  "core_tests": 163,
+  "burst_clock_tests": 1,
+  "mixed_gpu": 72,
+  "hardware_scenarios": 2015,
+  "pixel_comparisons": 1923,
+  "strict_core_and_harness_clippy": true,
+  "native_present_measured": false,
+  "modern_desktop_qualified": false,
+  "goal_complete": false
+}

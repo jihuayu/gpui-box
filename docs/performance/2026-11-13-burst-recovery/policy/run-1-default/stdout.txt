@@ -1,0 +1,2 @@
+cadence nodes=10000 effects=true batch=false hz=60: {"samples":580,"p50_us":3313.033,"p95_us":9352.867,"p99_us":43714.1,"max_us":51506.4}, skipped=20, misses=20
+cadence nodes=10000 effects=true batch=false hz=120: {"samples":1139,"p50_us":3207.833,"p95_us":7411.633,"p99_us":38600.700000000004,"max_us":43845.0}, skipped=61, misses=44

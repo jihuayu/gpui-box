@@ -366,6 +366,18 @@ Full raw [evidence](performance/2026-11-13-ink-motion/README.md), fallback contr
 and failures are retained. This reduces routine bounds work without closing
 fractional/resource generality, burst stalls, visible 120 Hz or full acceptance.
 
+The [burst recovery follow-up](ADR_RETAINED_BURST_RECOVERY.md) adds sustained
+60/120 Hz ancestor/effects animation with persistent 10,000-leaf color changes
+every half second. Full local publication now shares the already resolved owner
+snapshot for recovery, avoiding duplicate geometry/property reconstruction.
+Alternating binaries reduce dense submission medians 18–26%, but 120 Hz p99 stays
+34.29–37.47 ms and the first pair loses more deadlines (134 vs105). Full normalized
+raster comparison also loses in the burst study. Material changes still reset
+local topology/transition continuity; separating owned material/placement/topology
+is the next API priority. Modern desktop visible120fps and smooth native CPU
+fallback remain open. Raw winning/losing runs, hashes and process observations:
+[evidence](performance/2026-11-13-burst-recovery/README.md).
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |

@@ -192,6 +192,26 @@ impl LocalFrame {
             stack.push(i);
         }
         let placements = Placements::new(indices.len());
+        // The full owner publisher already resolved this exact immutable scene.
+        // Keep that authority for recovery instead of resolving every item and
+        // reconstructing property maps again at the first consumer submission.
+        // Placement-only descendants still start with an empty cache below.
+        let resolved = std::sync::OnceLock::new();
+        let mut complete = frame.clone();
+        complete.layout_runs = 0;
+        complete.recorded_chunks = 0;
+        complete.layout_stats = LayoutStats::default();
+        complete.build_stats = FrameBuildStats {
+            extracted_nodes: frame.items.len(),
+            full_rebuild: true,
+            ..Default::default()
+        };
+        complete.base_revision = None;
+        complete.updates = PaintUpdates::indexed(complete.items.clone(), (0..frame.items.len()).collect());
+        complete.damage = Damage { full: true, bounds: None };
+        complete.order = None;
+        complete.removed = Arc::from([]);
+        resolved.set(complete).expect("new full snapshot cache");
         Self(Arc::new(Snapshot {
             revision: frame.revision,
             template: frame,
@@ -205,7 +225,7 @@ impl LocalFrame {
             base: Weak::new(),
             changed: vec![],
             full_publication: true,
-            resolved: std::sync::OnceLock::new(),
+            resolved,
         }))
     }
     pub fn tree(&self) -> u64 {

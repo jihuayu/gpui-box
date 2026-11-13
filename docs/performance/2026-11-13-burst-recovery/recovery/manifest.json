@@ -1,0 +1,65 @@
+{
+  "base_commit": "cfa8c7a8648f2750c5f8d326182082663120a714",
+  "binary_sha256": {
+    "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\release\\dense-runtime-perf.exe": "74e779577227c5e974bb608a5619e4633d40b02a7a097fb4d2838c9bdc182b5d",
+    "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\burst-baseline\\dense-runtime-perf.exe": "6ff25c3e7f8a07a942a892a7d22e3bd21e6e2c49e25d50279e10f0188758f359"
+  },
+  "binary_hashes_stable": true,
+  "source_hashes_stable": true,
+  "process_sample_interval_s": 0.25,
+  "runs": [
+    {
+      "round": 1,
+      "mode": "original",
+      "args": [
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\burst-baseline\\dense-runtime-perf.exe",
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\burst-recovery-20261113\\run-1-original",
+        "--local",
+        "--integer-motion",
+        "--burst-cadence-only"
+      ],
+      "exit_code": 0,
+      "conflicts": []
+    },
+    {
+      "round": 1,
+      "mode": "full-cache",
+      "args": [
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\release\\dense-runtime-perf.exe",
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\burst-recovery-20261113\\run-1-full-cache",
+        "--local",
+        "--integer-motion",
+        "--burst-cadence-only"
+      ],
+      "exit_code": 0,
+      "conflicts": []
+    },
+    {
+      "round": 2,
+      "mode": "full-cache",
+      "args": [
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\release\\dense-runtime-perf.exe",
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\burst-recovery-20261113\\run-2-full-cache",
+        "--local",
+        "--integer-motion",
+        "--burst-cadence-only"
+      ],
+      "exit_code": 0,
+      "conflicts": []
+    },
+    {
+      "round": 2,
+      "mode": "original",
+      "args": [
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\burst-baseline\\dense-runtime-perf.exe",
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\burst-recovery-20261113\\run-2-original",
+        "--local",
+        "--integer-motion",
+        "--burst-cadence-only"
+      ],
+      "exit_code": 0,
+      "conflicts": []
+    }
+  ],
+  "scope": "source/owner/GPU synchronous completion; process sampler observes known compiler/renderer conflicts only; no native present/input, power/thermal/driver isolation or modern desktop qualification"
+}
