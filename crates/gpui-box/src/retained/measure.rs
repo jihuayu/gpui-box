@@ -88,7 +88,7 @@ impl MeasureSnapshot {
         }
     }
 
-    fn baseline(&self) -> Option<f32> {
+    pub(super) fn baseline(&self) -> Option<f32> {
         match self {
             Self::Fixed(value) => value.baseline,
             Self::Image(_) => None,

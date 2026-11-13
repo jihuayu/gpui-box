@@ -219,12 +219,7 @@ impl UiTree {
             }
         }
         for (parent, children) in &changed {
-            let layouts: Vec<_> = children
-                .iter()
-                .map(|id| self.node(*id).unwrap().layout)
-                .collect();
-            self.layout
-                .set_children(self.node(*parent).unwrap().layout, &layouts)
+            self.set_taffy_children_in_order(*parent, children)
                 .expect("validated Taffy topology");
         }
         let mut result = Commit {

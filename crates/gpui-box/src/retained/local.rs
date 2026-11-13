@@ -113,27 +113,45 @@ impl LocalFrame {
     /// descendant edit may be hidden behind an aggregate placement change.
     #[cfg(feature = "retained-wgpu")]
     pub(in crate::retained) fn ink_translation(
-        &self, old: &Self, range: std::ops::Range<usize>,
-    ) -> Option<([f32;2], Option<Rect>)> {
-        if !self.follows(old) || !self.0.material_changed.is_empty() || self.0.changed.len()>64 {return None;}
-        if self.0.changed.iter().filter(|i| range.contains(i)).count()!=1
-            || !self.0.changed.contains(&range.start) {return None;}
-        let mut next=self.placement(range.start);
-        let before=old.placement(range.start);
-        let translation=next.spatial.translation;
-        next.spatial.translation=before.spatial.translation;
-        if next!=before || translation.iter().chain(&before.spatial.translation)
-            .any(|v|!v.is_finite() || v.fract()!=0.0 || v.abs()>65536.0) {return None;}
-        let node=self.0.template.items[range.start].node;
-        let a=old.resolve_geometry(node)?;
-        let b=self.resolve_geometry(node)?;
-        let delta=[b.bounds.x-a.bounds.x,b.bounds.y-a.bounds.y];
-        if delta.iter().any(|v|!v.is_finite() || v.fract()!=0.0) {return None;}
-        let inherited=match self.0.topology.parents[range.start] {
-            Some(parent)=>self.resolve_geometry(self.0.template.items[parent].node)?.clip,
-            None=>b.spatial.root_clip,
+        &self,
+        old: &Self,
+        range: std::ops::Range<usize>,
+    ) -> Option<([f32; 2], Option<Rect>)> {
+        if !self.follows(old) || !self.0.material_changed.is_empty() || self.0.changed.len() > 64 {
+            return None;
+        }
+        if self.0.changed.iter().filter(|i| range.contains(i)).count() != 1
+            || !self.0.changed.contains(&range.start)
+        {
+            return None;
+        }
+        let mut next = self.placement(range.start);
+        let before = old.placement(range.start);
+        let translation = next.spatial.translation;
+        next.spatial.translation = before.spatial.translation;
+        if next != before
+            || translation
+                .iter()
+                .chain(&before.spatial.translation)
+                .any(|v| !v.is_finite() || v.fract() != 0.0 || v.abs() > 65536.0)
+        {
+            return None;
+        }
+        let node = self.0.template.items[range.start].node;
+        let a = old.resolve_geometry(node)?;
+        let b = self.resolve_geometry(node)?;
+        let delta = [b.bounds.x - a.bounds.x, b.bounds.y - a.bounds.y];
+        if delta.iter().any(|v| !v.is_finite() || v.fract() != 0.0) {
+            return None;
+        }
+        let inherited = match self.0.topology.parents[range.start] {
+            Some(parent) => {
+                self.resolve_geometry(self.0.template.items[parent].node)?
+                    .clip
+            }
+            None => b.spatial.root_clip,
         };
-        Some((delta,inherited))
+        Some((delta, inherited))
     }
     #[cfg(feature = "retained-wgpu")]
     pub(in crate::retained) fn subtree(&self, node: NodeId) -> Option<std::ops::Range<usize>> {
@@ -147,35 +165,49 @@ impl LocalFrame {
         indices.sort_unstable();
         let mut ranges: Vec<std::ops::Range<usize>> = vec![];
         for i in indices {
-            if ranges.last().is_some_and(|range| range.end > i) { continue; }
+            if ranges.last().is_some_and(|range| range.end > i) {
+                continue;
+            }
             ranges.push(i..self.0.topology.ends[i]);
         }
         ranges
     }
     #[cfg(feature = "retained-wgpu")]
     pub(in crate::retained) fn visit_geometry(
-        &self, range: std::ops::Range<usize>, mut visit: impl FnMut(usize, &PaintItem),
+        &self,
+        range: std::ops::Range<usize>,
+        mut visit: impl FnMut(usize, &PaintItem),
     ) {
-        if range.is_empty() { return; }
+        if range.is_empty() {
+            return;
+        }
         let mut ancestry = vec![];
         let mut cursor = self.0.topology.parents[range.start];
-        while let Some(i) = cursor { ancestry.push(i); cursor = self.0.topology.parents[i]; }
+        while let Some(i) = cursor {
+            ancestry.push(i);
+            cursor = self.0.topology.parents[i];
+        }
         let mut context = None;
         let mut ignored = IgnoreProperties;
         // Keep only the open ancestry, rather than allocating an N-item resolved
         // packet or contexts for unrelated prefixes on a sparse subtree update.
-        let mut stack: Vec<(usize,Context)> = vec![];
+        let mut stack: Vec<(usize, Context)> = vec![];
         for i in ancestry.into_iter().rev() {
             let next = self.resolve_at(i, context, &mut ignored).1;
-            stack.push((i,next));
+            stack.push((i, next));
             context = Some(next);
         }
         for i in range.clone() {
-            while stack.last().is_some_and(|(parent,_)| Some(*parent) != self.0.topology.parents[i]) {stack.pop();}
-            let parent = stack.last().map(|(_,c)|*c);
-            let (item,next) = self.resolve_at(i,parent,&mut ignored);
-            visit(i,&item);
-            stack.push((i,next));
+            while stack
+                .last()
+                .is_some_and(|(parent, _)| Some(*parent) != self.0.topology.parents[i])
+            {
+                stack.pop();
+            }
+            let parent = stack.last().map(|(_, c)| *c);
+            let (item, next) = self.resolve_at(i, parent, &mut ignored);
+            visit(i, &item);
+            stack.push((i, next));
         }
     }
     fn from_frame(frame: FramePacket) -> Self {
@@ -215,8 +247,12 @@ impl LocalFrame {
             ..Default::default()
         };
         complete.base_revision = None;
-        complete.updates = PaintUpdates::indexed(complete.items.clone(), (0..frame.items.len()).collect());
-        complete.damage = Damage { full: true, bounds: None };
+        complete.updates =
+            PaintUpdates::indexed(complete.items.clone(), (0..frame.items.len()).collect());
+        complete.damage = Damage {
+            full: true,
+            bounds: None,
+        };
         complete.order = None;
         complete.removed = Arc::from([]);
         resolved.set(complete).expect("new full snapshot cache");
@@ -500,10 +536,9 @@ impl UiTree {
                     && !self.full_extract_required
                     && self.geometry_dirty.is_empty()
                     && self.viewport == Some(viewport)
-                    && self
-                        .frame
-                        .as_ref()
-                        .is_some_and(|frame| old.0.owner_items.ptr_eq(&Arc::downgrade(&frame.items)))
+                    && self.frame.as_ref().is_some_and(|frame| {
+                        old.0.owner_items.ptr_eq(&Arc::downgrade(&frame.items))
+                    })
             })
             .cloned();
         let Some(old) = reusable else {
@@ -523,22 +558,28 @@ impl UiTree {
         // Sort only lightweight topology indices. Moving wide PaintItems in a
         // second sort adds bandwidth and scatters page/resource access, while
         // the dirty journal's NodeId order need not match final paint order.
-        let mut material_indices = self.local_material_dirty.iter()
+        let mut material_indices = self
+            .local_material_dirty
+            .iter()
             .filter_map(|id| old.0.topology.indices.get(id).copied())
             .collect::<Vec<_>>();
         material_indices.sort_unstable();
         if !material_indices.is_empty() {
-            let (items, changed) = old.0.template.items.patch_refresh(&material_indices, |_, previous| {
-            let id = previous.node;
-            let mut item = previous.clone();
-            self.refresh_material(id, &mut item, &mut recorded)?;
-            let changed = item.commands != previous.commands
-                || item.fill_color != previous.fill_color
-                || item.shadows != previous.shadows
-                || item.image != previous.image
-                || !item.same_text(previous);
-            Ok(changed.then_some(item))
-            })?;
+            let (items, changed) =
+                old.0
+                    .template
+                    .items
+                    .patch_refresh(&material_indices, |_, previous| {
+                        let id = previous.node;
+                        let mut item = previous.clone();
+                        self.refresh_material(id, &mut item, &mut recorded)?;
+                        let changed = item.commands != previous.commands
+                            || item.fill_color != previous.fill_color
+                            || item.shadows != previous.shadows
+                            || item.image != previous.image
+                            || !item.same_text(previous);
+                        Ok(changed.then_some(item))
+                    })?;
             material_changed = changed;
             if !material_changed.is_empty() {
                 template.items = Arc::new(items);

@@ -161,7 +161,12 @@ fn radius(item: &PaintItem) -> f32 {
         .first()
         .map_or(0.0, |c| c.quad().1.resolved(item.bounds).radius)
 }
-pub(super) fn classify<'a>(old: &PaintItem, item: &'a PaintItem, shared: bool, anchor: bool) -> Entry<'a> {
+pub(super) fn classify<'a>(
+    old: &PaintItem,
+    item: &'a PaintItem,
+    shared: bool,
+    anchor: bool,
+) -> Entry<'a> {
     let same_size =
         old.bounds.width == item.bounds.width && old.bounds.height == item.bounds.height;
     let same_world = old.bounds == item.bounds && old.clip == item.clip;

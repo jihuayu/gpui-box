@@ -8,7 +8,10 @@ impl WgpuFrameRenderer {
         self.local_instance_handles.clear();
         for item in frame.items.iter() {
             let quads = self.instances.get(&item.node).ok_or(Error::InvalidFrame)?;
-            let shadows = self.shadow_instances.get(&item.node).map_or(&[][..], Vec::as_slice);
+            let shadows = self
+                .shadow_instances
+                .get(&item.node)
+                .map_or(&[][..], Vec::as_slice);
             if quads.len() != item.commands.len() || shadows.len() != item.shadows.len() {
                 return Err(Error::InvalidFrame);
             }
@@ -17,18 +20,32 @@ impl WgpuFrameRenderer {
             let middle = self.local_instance_handles.len();
             self.local_instance_handles.extend_from_slice(shadows);
             let end = self.local_instance_handles.len();
-            self.local_instance_ranges.push((start..middle, middle..end));
+            self.local_instance_ranges
+                .push((start..middle, middle..end));
         }
         Ok(())
     }
-    fn prepare_local_instances(&mut self, index: usize, item: &PaintItem,
-        property: u32, scale: f32, quad: bool, shadow: bool) -> Result<(), Error> {
+    fn prepare_local_instances(
+        &mut self,
+        index: usize,
+        item: &PaintItem,
+        property: u32,
+        scale: f32,
+        quad: bool,
+        shadow: bool,
+    ) -> Result<(), Error> {
         let (quads, shadows) = &self.local_instance_ranges[index];
-        if property == 0 || quads.len() != item.commands.len() || shadows.len() != item.shadows.len() {
+        if property == 0
+            || quads.len() != item.commands.len()
+            || shadows.len() != item.shadows.len()
+        {
             return Err(Error::InvalidFrame);
         }
         if quad {
-            for (handle, command) in self.local_instance_handles[quads.clone()].iter().zip(item.commands.iter()) {
+            for (handle, command) in self.local_instance_handles[quads.clone()]
+                .iter()
+                .zip(item.commands.iter())
+            {
                 let mut value = record(item, command, scale);
                 value.property = property;
                 value.bounds.x = 0.0;
@@ -42,10 +59,15 @@ impl WgpuFrameRenderer {
             local.bounds.x = 0.0;
             local.bounds.y = 0.0;
             local.clip = None;
-            for (handle, shadow) in self.local_instance_handles[shadows.clone()].iter().zip(item.shadows.iter()) {
+            for (handle, shadow) in self.local_instance_handles[shadows.clone()]
+                .iter()
+                .zip(item.shadows.iter())
+            {
                 let mut value = ShadowRecord::new(&local, *shadow, scale);
                 value.property = property;
-                self.shadow_arena.update(*handle, value).map_err(gpu_error)?;
+                self.shadow_arena
+                    .update(*handle, value)
+                    .map_err(gpu_error)?;
             }
         }
         Ok(())
@@ -102,9 +124,11 @@ impl WgpuFrameRenderer {
                     && self.local_instance_ranges.len() == old.len()
                     && frame.follows(old)
             })
-            .filter(|old| frame.material_updates().iter().all(|&index| {
-                composition::same_topology(old.material(index), frame.material(index))
-            }))
+            .filter(|old| {
+                frame.material_updates().iter().all(|&index| {
+                    composition::same_topology(old.material(index), frame.material(index))
+                })
+            })
             .and_then(|old| frame.spatial_updates(old));
         let Some(updates) = updates else {
             let resolved = frame.resolve();
@@ -121,31 +145,49 @@ impl WgpuFrameRenderer {
             // resolved-packet shortcut.
             self.source = None;
             self.routing_snapshot = None;
-            let tight=self.tight_layer_bounds;
+            let tight = self.tight_layer_bounds;
             self.tight_layer_bounds &= self.local_tight_layer_bounds;
             let result = self.submit(&resolved, surface, scale);
-            self.tight_layer_bounds=tight;
+            self.tight_layer_bounds = tight;
             let mut result = result?;
             // Rebuild only after the complete consumer path has installed its
             // actual allocations. Missing bases, order changes and reset cannot
             // reuse an index from another submitted topology/device epoch.
             self.local_spatial_slots = if self.shared_spatial && self.shared_content {
-                match resolved.items.iter().map(|item| self.spatial_arena.slot(item.node))
-                    .collect::<Result<Vec<_>, _>>() {
+                match resolved
+                    .items
+                    .iter()
+                    .map(|item| self.spatial_arena.slot(item.node))
+                    .collect::<Result<Vec<_>, _>>()
+                {
                     Ok(slots) => slots,
-                    Err(error) => { self.failed = true; return Err(error); }
+                    Err(error) => {
+                        self.failed = true;
+                        return Err(error);
+                    }
                 }
-            } else { Vec::new() };
-            if self.shared_spatial && self.shared_content
-                && let Err(error) = self.rebuild_local_instances(&resolved) {
+            } else {
+                Vec::new()
+            };
+            if self.shared_spatial
+                && self.shared_content
+                && let Err(error) = self.rebuild_local_instances(&resolved)
+            {
                 self.failed = true;
                 return Err(error);
             }
-            self.local_ink = if self.local_tight_layer_bounds && tight && !resolved.properties.effects.is_empty() {
-                let (ink,count)=local_ink::LocalInk::rebuild(frame);
-                if let Some(result)=&mut result {result.composition.bounds_items+=count;}
+            self.local_ink = if self.local_tight_layer_bounds
+                && tight
+                && !resolved.properties.effects.is_empty()
+            {
+                let (ink, count) = local_ink::LocalInk::rebuild(frame);
+                if let Some(result) = &mut result {
+                    result.composition.bounds_items += count;
+                }
                 Some(ink)
-            } else {None};
+            } else {
+                None
+            };
             self.local_snapshot = Some(frame.clone());
             return Ok(result);
         };
@@ -170,11 +212,16 @@ impl WgpuFrameRenderer {
         let mut material_samples = ([std::time::Duration::ZERO; 5], 0);
         while let Some(start) = indices.next() {
             let mut end = start + 1;
-            while indices.peek() == Some(&end) { indices.next(); end += 1; }
+            while indices.peek() == Some(&end) {
+                indices.next();
+                end += 1;
+            }
             // Adjacent changed records share one open ancestry traversal;
             // sparse gaps do not force resolving unaffected descendants.
             frame.visit_geometry(start..end, |index, item| {
-                if prepared.is_err() { return; }
+                if prepared.is_err() {
+                    return;
+                }
                 prepared = (|| {
                     #[cfg(feature = "retained-diagnostics")]
                     let sample_start = (index % 64 == frame.revision() as usize % 64)
@@ -188,14 +235,25 @@ impl WgpuFrameRenderer {
                     let property = self.local_spatial_slots[index];
                     #[cfg(feature = "retained-diagnostics")]
                     let located = sample_start.map(|_| std::time::Instant::now());
-                    self.prepare_local_instances(index, item, property, scale, entry.quad, entry.shadow)?;
+                    self.prepare_local_instances(
+                        index,
+                        item,
+                        property,
+                        scale,
+                        entry.quad,
+                        entry.shadow,
+                    )?;
                     #[cfg(feature = "retained-diagnostics")]
                     let primitive_done = sample_start.map(|_| std::time::Instant::now());
                     prepared_quads += usize::from(entry.quad);
                     prepared_shadows += usize::from(entry.shadow);
                     let (image, glyph) = routing::classify_content(old.material(index), item, true);
-                    if image { image_items.push(item.clone()); }
-                    if glyph { glyph_items.push(item.clone()); }
+                    if image {
+                        image_items.push(item.clone());
+                    }
+                    if glyph {
+                        glyph_items.push(item.clone());
+                    }
                     #[cfg(feature = "retained-diagnostics")]
                     if let Some(start) = sample_start {
                         let validated = validated.unwrap();
@@ -204,9 +262,14 @@ impl WgpuFrameRenderer {
                         let primitive_done = primitive_done.unwrap();
                         let end = std::time::Instant::now();
                         for (total, elapsed) in material_samples.0.iter_mut().zip([
-                            validated - start, classified - validated, located - classified,
-                            primitive_done - located, end - primitive_done,
-                        ]) { *total += elapsed; }
+                            validated - start,
+                            classified - validated,
+                            located - classified,
+                            primitive_done - located,
+                            end - primitive_done,
+                        ]) {
+                            *total += elapsed;
+                        }
                         material_samples.1 += 1;
                     }
                     Ok(())
@@ -223,41 +286,70 @@ impl WgpuFrameRenderer {
         }
         #[cfg(feature = "retained-diagnostics")]
         let spatial_done = std::time::Instant::now();
-        let mut layers=self.composition_cache.local_spatial_layers();
-        let mut bounds_items=0;
-        let mut bounds_translated_nodes=0;
+        let mut layers = self.composition_cache.local_spatial_layers();
+        let mut bounds_items = 0;
+        let mut bounds_translated_nodes = 0;
         if self.local_tight_layer_bounds && self.tight_layer_bounds && !layers.is_empty() {
-            let ink=self.local_ink.as_mut().ok_or(Error::InvalidFrame)?;
-            let stats=ink.update_motion(frame,previous.as_ref().unwrap(),self.local_ink_translation);
-            bounds_items=stats.0;
-            bounds_translated_nodes=stats.1;
-            self.composition_cache.bound_local_layers(&mut layers,frame,ink,surface,scale);
+            let ink = self.local_ink.as_mut().ok_or(Error::InvalidFrame)?;
+            let stats = ink.update_motion(
+                frame,
+                previous.as_ref().unwrap(),
+                self.local_ink_translation,
+            );
+            bounds_items = stats.0;
+            bounds_translated_nodes = stats.1;
+            self.composition_cache
+                .bound_local_layers(&mut layers, frame, ink, surface, scale);
         }
         #[cfg(feature = "retained-diagnostics")]
         let preparation_done = std::time::Instant::now();
         let batch = QuadBatch {
-                capacity: self.arena.capacity(),
-                writes: self.arena.writes().into_iter().map(|write| QuadWrite {
-                    start: write.start, values: write.values.into_iter().map(Record::quad).collect(),
-                }).collect(),
-                order: None,
-                layers,
-                images: image_updates(&resources, scale, false, Some(&self.spatial_arena), Some(&selected_images))?,
-                glyphs: glyph_updates(&resources, scale, false, Some(&self.spatial_arena), Some(&selected_glyphs))?,
-                shadows: gpui_wgpu::ShadowBatch {
-                    capacity: self.shadow_arena.capacity(),
-                    writes: self.shadow_arena.writes().into_iter().map(|write| gpui_wgpu::ShadowWrite {
-                        start: write.start, values: write.values.into_iter().map(ShadowRecord::shadow).collect(),
-                    }).collect(),
-                },
-                spatial: self.spatial_arena.batch(true, scale),
-                cache_layers: self.cache_layers,
-                size: size(
-                    DevicePixels(surface[0] as i32),
-                    DevicePixels(surface[1] as i32),
-                ),
-                redraw: QuadRedraw::Full,
-            };
+            capacity: self.arena.capacity(),
+            writes: self
+                .arena
+                .writes()
+                .into_iter()
+                .map(|write| QuadWrite {
+                    start: write.start,
+                    values: write.values.into_iter().map(Record::quad).collect(),
+                })
+                .collect(),
+            order: None,
+            layers,
+            images: image_updates(
+                &resources,
+                scale,
+                false,
+                Some(&self.spatial_arena),
+                Some(&selected_images),
+            )?,
+            glyphs: glyph_updates(
+                &resources,
+                scale,
+                false,
+                Some(&self.spatial_arena),
+                Some(&selected_glyphs),
+            )?,
+            shadows: gpui_wgpu::ShadowBatch {
+                capacity: self.shadow_arena.capacity(),
+                writes: self
+                    .shadow_arena
+                    .writes()
+                    .into_iter()
+                    .map(|write| gpui_wgpu::ShadowWrite {
+                        start: write.start,
+                        values: write.values.into_iter().map(ShadowRecord::shadow).collect(),
+                    })
+                    .collect(),
+            },
+            spatial: self.spatial_arena.batch(true, scale),
+            cache_layers: self.cache_layers,
+            size: size(
+                DevicePixels(surface[0] as i32),
+                DevicePixels(surface[1] as i32),
+            ),
+            redraw: QuadRedraw::Full,
+        };
         #[cfg(feature = "retained-diagnostics")]
         let batch_done = std::time::Instant::now();
         let gpu = self.backend.submit(batch).map_err(gpu_error)?;
@@ -293,12 +385,19 @@ impl WgpuFrameRenderer {
         }
         Ok(Some(FrameSubmission {
             #[cfg(feature = "retained-diagnostics")]
-            local_phase_times: Some([provenance_done - started, preparation_done - provenance_done,
-                batch_done - preparation_done, backend_done - batch_done,
-                ack_done - backend_done]),
+            local_phase_times: Some([
+                provenance_done - started,
+                preparation_done - provenance_done,
+                batch_done - preparation_done,
+                backend_done - batch_done,
+                ack_done - backend_done,
+            ]),
             #[cfg(feature = "retained-diagnostics")]
-            local_preparation_times: Some([material_done - provenance_done,
-                spatial_done - material_done, preparation_done - spatial_done]),
+            local_preparation_times: Some([
+                material_done - provenance_done,
+                spatial_done - material_done,
+                preparation_done - spatial_done,
+            ]),
             #[cfg(feature = "retained-diagnostics")]
             local_cleanup_time: Some(std::time::Instant::now() - ack_done),
             #[cfg(feature = "retained-diagnostics")]
@@ -317,7 +416,11 @@ impl WgpuFrameRenderer {
                 validated_items: frame.material_updates().len(),
                 ..Default::default()
             },
-            composition: CompositionStats {bounds_items,bounds_translated_nodes,..Default::default()},
+            composition: CompositionStats {
+                bounds_items,
+                bounds_translated_nodes,
+                ..Default::default()
+            },
         }))
     }
 }

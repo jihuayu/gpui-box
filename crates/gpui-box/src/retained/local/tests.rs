@@ -60,7 +60,15 @@ fn geometry_ranges_reopen_actual_ancestors_after_leaving_start_subtree() {
     let mut tx = Transaction::default();
     tx.translation(nodes[2], [12.375, -3.125]);
     tx.translation(nodes[30], [2.125, 0.375]);
-    tx.clip(nodes[30], Some(Rect { x: 1.0, y: 2.0, width: 28.0, height: 18.0 }));
+    tx.clip(
+        nodes[30],
+        Some(Rect {
+            x: 1.0,
+            y: 2.0,
+            width: 28.0,
+            height: 18.0,
+        }),
+    );
     tx.opacity(nodes[30], 0.5);
     tree.commit(tx, BackendCapabilities::default()).unwrap();
     let local = tree.local_frame([300.0, 200.0]).unwrap();
@@ -69,7 +77,11 @@ fn geometry_ranges_reopen_actual_ancestors_after_leaving_start_subtree() {
     // possible range start also exercises root and single-leaf boundaries.
     for start in 0..local.len() {
         local.visit_geometry(start..local.len(), |i, item| {
-            assert_eq!(format!("{item:?}"), format!("{:?}", fresh.items[i]), "start={start} index={i}");
+            assert_eq!(
+                format!("{item:?}"),
+                format!("{:?}", fresh.items[i]),
+                "start={start} index={i}"
+            );
         });
     }
 }
@@ -144,7 +156,10 @@ fn full_publication_reuses_owning_geometry_but_sparse_successor_resolves_new_pla
     let original = tree.local_frame([300.0, 200.0]).unwrap();
     let full = original.resolved_frame();
     assert!(Arc::ptr_eq(&full.items, &original.0.template.items));
-    assert!(Arc::ptr_eq(&full.properties, &original.0.template.properties));
+    assert!(Arc::ptr_eq(
+        &full.properties,
+        &original.0.template.properties
+    ));
     let mut tx = Transaction::default();
     tx.translation(nodes[1], [4.0, 2.0]);
     tree.commit(tx, BackendCapabilities::default()).unwrap();
@@ -159,7 +174,10 @@ fn full_publication_reuses_owning_geometry_but_sparse_successor_resolves_new_pla
     // The explicit resolved subscriber above advances the owner baseline;
     // the next local subscriber conservatively starts a complete snapshot.
     assert!(material.stats().full_publication);
-    assert!(Arc::ptr_eq(&material.resolved_frame().items, &material.0.template.items));
+    assert!(Arc::ptr_eq(
+        &material.resolved_frame().items,
+        &material.0.template.items
+    ));
     equivalent(&material.resolve(), &tree.frame([300.0, 200.0]).unwrap());
     equivalent(&original.resolve(), full);
 }
@@ -176,7 +194,13 @@ fn independent_material_and_placement_lifetimes_preserve_resolved_subscriber_and
         for (i, &node) in nodes.iter().enumerate() {
             if i % 3 == round % 3 {
                 tx.color(node, 0x203040ff + (round as u32) * 0x01000000);
-                tx.decoration(node, QuadDecoration { radius: round as f32, ..Default::default() });
+                tx.decoration(
+                    node,
+                    QuadDecoration {
+                        radius: round as f32,
+                        ..Default::default()
+                    },
+                );
             }
         }
         tree.commit(tx, BackendCapabilities::default()).unwrap();
@@ -188,7 +212,10 @@ fn independent_material_and_placement_lifetimes_preserve_resolved_subscriber_and
         assert!(tree.local_material_dirty.is_empty());
         assert!(!tree.paint_dirty.is_empty());
         for item in frame.resolve().items.iter() {
-            assert_eq!(format!("{:?}", frame.resolve_geometry(item.node).unwrap()), format!("{item:?}"));
+            assert_eq!(
+                format!("{:?}", frame.resolve_geometry(item.node).unwrap()),
+                format!("{item:?}")
+            );
         }
         latest = frame;
     }
@@ -211,7 +238,12 @@ fn independent_material_and_placement_lifetimes_preserve_resolved_subscriber_and
 #[test]
 fn material_journal_follows_reordered_paint_indices_and_keeps_old_snapshots() {
     let mut tree = UiTree::new(Style::default(), 0x102030ff).unwrap();
-    let nodes: Vec<_> = (0..150).map(|_| tree.append(tree.root(), Style::default(), 0x4488ccff).unwrap()).collect();
+    let nodes: Vec<_> = (0..150)
+        .map(|_| {
+            tree.append(tree.root(), Style::default(), 0x4488ccff)
+                .unwrap()
+        })
+        .collect();
     let mut order = nodes.clone();
     order.reverse();
     let mut structure = StructureTransaction::default();

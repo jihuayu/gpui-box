@@ -64,6 +64,8 @@ impl TreeEdit<'_> {
             Node {
                 layout: self.tree.node(self.tree.root)?.layout, // replaced only at publication
                 published_layout: taffy::Layout::new(),
+                published_baseline: None,
+                layout_order: 0,
                 parent: Some(parent),
                 children: vec![],
                 style,
@@ -83,6 +85,20 @@ impl TreeEdit<'_> {
         );
         self.created.insert(id);
         self.node_mut(parent)?.children.push(id);
+        Ok(id)
+    }
+
+    /// Appends a node using the public layout contract. The order value stays
+    /// in the framework adapter; Taffy receives only the lowered style.
+    pub fn append_layout(
+        &mut self,
+        parent: NodeId,
+        style: LayoutStyle,
+        color: u32,
+    ) -> Result<NodeId, Error> {
+        let order = style.order;
+        let id = self.append(parent, style.to_taffy()?, color)?;
+        self.node_mut(id)?.layout_order = order;
         Ok(id)
     }
     /// Replace complete child lists. Parent links are resolved from the final
@@ -261,7 +277,7 @@ impl TreeEdit<'_> {
         for (id, children) in restore {
             self.node_mut(id)?.children = children;
         }
-        for (id, entry, _, _, _, _, _, _, _, _) in &changes {
+        for (id, entry, _, _, _, _, _, _, _, _, _) in &changes {
             if let Some(measure) = &entry.measure {
                 self.node_mut(*id)?.measure = measure.clone();
             }

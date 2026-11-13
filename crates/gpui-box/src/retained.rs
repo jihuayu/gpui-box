@@ -15,10 +15,20 @@ pub use taffy::style_helpers::{length, percent};
 pub mod arena;
 pub mod frame_queue;
 mod image;
+pub mod layout;
 pub mod local;
 #[cfg(feature = "retained-wgpu")]
 mod local_ink;
 pub mod logical;
+pub use layout::{
+    AlignContent as LayoutAlignContent, AlignItems as LayoutAlignItems,
+    AlignSelf as LayoutAlignSelf, AvailableSpace as LayoutAvailableSpace,
+    BoxSizing as LayoutBoxSizing, Dimension as LayoutDimension, Edges as LayoutEdges,
+    FlexDirection as LayoutFlexDirection, FlexWrap as LayoutFlexWrap,
+    JustifyContent as LayoutJustifyContent, LayoutConstraints, LayoutDirection, LayoutDisplay,
+    LayoutPosition, LayoutResult, LayoutSize, LayoutStyle, Length as LayoutLength,
+    Overflow as LayoutOverflow,
+};
 pub mod pacing;
 pub mod software;
 pub use image::ImageResource;
@@ -185,6 +195,7 @@ impl Commit {
 pub enum Patch {
     Color(NodeId, u32),
     Style(NodeId, Box<Style>),
+    LayoutStyle(NodeId, Box<layout::LayoutStyle>),
     Translation(NodeId, [f32; 2]),
     Reorder(NodeId, Vec<NodeId>),
     Clip(NodeId, Option<Rect>),
@@ -207,6 +218,7 @@ impl Patch {
         match self {
             Self::Color(id, _)
             | Self::Style(id, _)
+            | Self::LayoutStyle(id, _)
             | Self::Translation(id, _)
             | Self::Reorder(id, _)
             | Self::Clip(id, _)
@@ -237,6 +249,9 @@ impl Transaction {
     }
     pub fn style(&mut self, node: NodeId, style: Style) {
         self.patches.push(Patch::Style(node, Box::new(style)));
+    }
+    pub fn layout_style(&mut self, node: NodeId, style: layout::LayoutStyle) {
+        self.patches.push(Patch::LayoutStyle(node, Box::new(style)));
     }
     pub fn translation(&mut self, node: NodeId, translation: [f32; 2]) {
         self.patches.push(Patch::Translation(node, translation));
@@ -335,6 +350,8 @@ impl From<taffy::TaffyError> for Error {
 struct Node {
     layout: taffy::NodeId,
     published_layout: taffy::Layout,
+    published_baseline: Option<f32>,
+    layout_order: i32,
     children: Vec<NodeId>,
     parent: Option<NodeId>,
     style: Style,
@@ -387,6 +404,7 @@ pub struct UiTree {
 struct Pending {
     color: Option<u32>,
     style: Option<Box<Style>>,
+    layout_order: Option<i32>,
     translation: Option<[f32; 2]>,
     children: Option<Vec<NodeId>>,
     clip: Option<Option<Rect>>,
@@ -412,9 +430,17 @@ type PropertyChange = (
     bool,
     bool,
     bool,
+    bool,
 );
 
 impl UiTree {
+    /// Creates a tree from the engine-independent layout contract.
+    pub fn new_layout(style: LayoutStyle, rgba: u32) -> Result<Self, Error> {
+        let order = style.order;
+        let mut tree = Self::new(style.to_taffy()?, rgba)?;
+        tree.node_mut(tree.root).layout_order = order;
+        Ok(tree)
+    }
     pub fn new(style: Style, rgba: u32) -> Result<Self, Error> {
         static NEXT: AtomicU64 = AtomicU64::new(1);
         let identity = NEXT
@@ -435,6 +461,8 @@ impl UiTree {
                 node: Some(Node {
                     layout: id,
                     published_layout: taffy::Layout::new(),
+                    published_baseline: None,
+                    layout_order: 0,
                     children: vec![],
                     parent: None,
                     style,
@@ -495,6 +523,40 @@ impl UiTree {
         Ok(&self.node(id)?.style)
     }
 
+    /// Returns the last published parent-local layout result for a node.
+    ///
+    /// Layout is published by `frame`/`frame_with_constraints`; querying before
+    /// the first frame would otherwise expose the zero-value Taffy placeholder.
+    pub fn layout_result(&self, id: NodeId) -> Result<LayoutResult, Error> {
+        if self.frame.is_none() && self.local_frame.is_none() {
+            return Err(Error::InvalidFrame);
+        }
+        let node = self.node(id)?;
+        Ok(LayoutResult::from_taffy_and_baseline(
+            &node.published_layout,
+            node.published_baseline,
+        ))
+    }
+
+    /// Measures the root under framework-owned intrinsic/definite constraints
+    /// without publishing a render frame.
+    pub fn measure_with_constraints(
+        &mut self,
+        constraints: LayoutConstraints,
+    ) -> Result<LayoutResult, Error> {
+        self.measure_root_with_constraints(constraints)
+    }
+
+    /// Measures any live subtree under framework-owned constraints without
+    /// publishing a frame. The returned location is local to the queried node.
+    pub fn measure_node_with_constraints(
+        &mut self,
+        id: NodeId,
+        constraints: LayoutConstraints,
+    ) -> Result<LayoutResult, Error> {
+        self.measure_node_with_constraints_impl(id, constraints)
+    }
+
     fn node(&self, id: NodeId) -> Result<&Node, Error> {
         if id.tree != self.identity {
             return Err(Error::InvalidNode);
@@ -545,6 +607,8 @@ impl UiTree {
         self.slots[slot].node = Some(Node {
             layout,
             published_layout: taffy::Layout::new(),
+            published_baseline: None,
+            layout_order: 0,
             children: vec![],
             parent: Some(parent),
             style,
@@ -562,11 +626,36 @@ impl UiTree {
             text: None,
         });
         self.node_mut(parent).children.push(id);
+        let logical_children = self.node(parent)?.children.clone();
+        let ordered = self.ordered_children_for(parent, &logical_children)?;
+        let layouts = ordered
+            .iter()
+            .map(|child| self.node(*child).expect("appended child").layout)
+            .collect::<Vec<_>>();
+        self.layout
+            .set_children(parent_layout, &layouts)
+            .expect("prepared Taffy children");
         self.layout_nodes.insert(layout, id);
         self.revision = next;
         self.dirty = true;
         self.layout_dirty = true;
         self.full_extract_required = true;
+        Ok(id)
+    }
+
+    /// Appends a node using the framework layout contract. The conversion is
+    /// validated before the tree or Taffy state is touched.
+    pub fn append_layout(
+        &mut self,
+        parent: NodeId,
+        style: LayoutStyle,
+        rgba: u32,
+    ) -> Result<NodeId, Error> {
+        let order = style.order;
+        let id = self.append(parent, style.to_taffy()?, rgba)?;
+        self.node_mut(id).layout_order = order;
+        self.set_taffy_children_in_order(parent, &self.node(parent)?.children.clone())
+            .expect("prepared ordered Taffy children");
         Ok(id)
     }
 
@@ -631,6 +720,38 @@ impl UiTree {
         self.next_generation = generation.checked_add(1).ok_or(Error::RevisionExhausted)?;
         Ok(generation)
     }
+
+    /// Returns the visual/layout sibling order while preserving the logical
+    /// child list and stable insertion order for equal `order` values.
+    fn ordered_children_for(
+        &self,
+        _parent: NodeId,
+        children: &[NodeId],
+    ) -> Result<Vec<NodeId>, Error> {
+        let mut ordered = children.to_vec();
+        ordered.sort_by_key(|id| {
+            let node = self.node(*id).expect("validated child");
+            // The sort is stable, so the original logical index remains the
+            // tie breaker without storing another per-child sequence number.
+            node.layout_order
+        });
+        Ok(ordered)
+    }
+
+    fn set_taffy_children_in_order(
+        &mut self,
+        parent: NodeId,
+        children: &[NodeId],
+    ) -> Result<(), Error> {
+        let ordered = self.ordered_children_for(parent, children)?;
+        let layouts = ordered
+            .iter()
+            .map(|child| self.node(*child).expect("validated child").layout)
+            .collect::<Vec<_>>();
+        let parent_layout = self.node(parent)?.layout;
+        self.layout.set_children(parent_layout, &layouts)?;
+        Ok(())
+    }
     fn prepare_properties<'a>(
         mut transaction: Transaction,
         node_for: impl Fn(NodeId) -> Result<&'a Node, Error>,
@@ -650,7 +771,13 @@ impl UiTree {
             loop {
                 match patch {
                     Patch::Color(_, color) => entry.color = Some(color),
-                    Patch::Style(_, style) => entry.style = Some(style),
+                    Patch::Style(_, style) => {
+                        entry.style = Some(style);
+                    }
+                    Patch::LayoutStyle(_, style) => {
+                        entry.layout_order = Some(style.order);
+                        entry.style = Some(Box::new(style.to_taffy()?));
+                    }
                     Patch::Translation(_, translation) => {
                         if translation.iter().any(|v| !v.is_finite()) {
                             return Err(Error::InvalidTranslation);
@@ -762,6 +889,9 @@ impl UiTree {
                 .style
                 .as_ref()
                 .is_some_and(|style| **style != node.style);
+            let order_changed = entry
+                .layout_order
+                .is_some_and(|order| order != node.layout_order);
             let color_changed = entry.color.is_some_and(|color| color != node.color);
             let decoration_changed = entry
                 .decoration
@@ -785,6 +915,7 @@ impl UiTree {
                 .as_ref()
                 .is_some_and(|value| *value != node.measure);
             if style_changed
+                || order_changed
                 || color_changed
                 || property_changed
                 || structure_changed
@@ -797,6 +928,7 @@ impl UiTree {
                     id,
                     entry,
                     style_changed,
+                    order_changed,
                     color_changed,
                     property_changed,
                     structure_changed,
@@ -827,6 +959,7 @@ impl UiTree {
             id,
             entry,
             style_changed,
+            order_changed,
             color_changed,
             property_changed,
             structure_changed,
@@ -836,6 +969,9 @@ impl UiTree {
             text_changed,
         ) in changed
         {
+            if order_changed {
+                self.node_mut(id).layout_order = entry.layout_order.expect("changed order");
+            }
             if color_changed || decoration_changed || image_changed || text_changed {
                 self.paint_dirty.insert(id);
                 if self.local_frame.is_some() {
@@ -852,12 +988,7 @@ impl UiTree {
             }
             if structure_changed {
                 let children = entry.children.expect("changed children");
-                let layouts = children
-                    .iter()
-                    .map(|child| self.node(*child).expect("prepared child").layout)
-                    .collect::<Vec<_>>();
-                self.layout
-                    .set_children(self.node(id).expect("prepared node").layout, &layouts)
+                self.set_taffy_children_in_order(id, &children)
                     .expect("prepared Taffy children");
                 self.node_mut(id).children = children;
                 self.layout_dirty = true;
@@ -867,6 +998,16 @@ impl UiTree {
                     UpdatePath::ReconcileStructure,
                     RouteReason::ChildOrderChanged,
                 );
+            }
+            if order_changed && !structure_changed {
+                if let Some(parent) = self.node(id).expect("prepared node").parent {
+                    let children = self.node(parent).expect("prepared parent").children.clone();
+                    self.set_taffy_children_in_order(parent, &children)
+                        .expect("prepared ordered Taffy children");
+                }
+                self.layout_dirty = true;
+                self.full_extract_required = true;
+                result.route(id, UpdatePath::Relayout, RouteReason::ChildOrderChanged);
             }
             if style_changed || measure_changed {
                 let node = self.node(id).expect("prepared node");
@@ -971,9 +1112,21 @@ impl UiTree {
     }
 
     pub fn frame(&mut self, viewport: [f32; 2]) -> Result<FramePacket, Error> {
-        if viewport.iter().any(|n| !n.is_finite() || *n < 0.0) {
-            return Err(Error::InvalidViewport);
-        }
+        self.frame_with_constraints(LayoutConstraints::viewport(viewport[0], viewport[1]))
+    }
+
+    /// Produces a renderable frame from the framework-owned sizing contract.
+    /// A paint frame requires definite dimensions for its clip and present
+    /// surface; intrinsic constraints belong to the measure-only APIs.
+    pub fn frame_with_constraints(
+        &mut self,
+        constraints: LayoutConstraints,
+    ) -> Result<FramePacket, Error> {
+        constraints.validate()?;
+        let viewport = [
+            constraints.width.resolve_definite()?,
+            constraints.height.resolve_definite()?,
+        ];
         let viewport_changed = self.viewport != Some(viewport);
         if viewport_changed {
             self.advance()?;
@@ -1236,6 +1389,139 @@ mod tests {
             &after.items[2].commands
         ));
         assert_eq!(after.items[2].commands[0], DisplayCommand::Fill(0x0000ffff));
+    }
+
+    #[test]
+    fn layout_order_changes_visual_order_but_keeps_logical_children_stable() {
+        let mut tree = UiTree::new_layout(
+            LayoutStyle::row().size(layout::Dimension::Px(100.0), layout::Dimension::Px(20.0)),
+            0xff0000ff,
+        )
+        .unwrap();
+        let first = tree
+            .append_layout(
+                tree.root(),
+                LayoutStyle::row()
+                    .size(layout::Dimension::Px(20.0), layout::Dimension::Px(20.0))
+                    .order(10),
+                0x0000ffff,
+            )
+            .unwrap();
+        let second = tree
+            .append_layout(
+                tree.root(),
+                LayoutStyle::row()
+                    .size(layout::Dimension::Px(20.0), layout::Dimension::Px(20.0))
+                    .order(-10),
+                0x00ff00ff,
+            )
+            .unwrap();
+        let logical = tree.node(tree.root()).unwrap().children.clone();
+        assert_eq!(logical, vec![first, second]);
+        let frame = tree.frame([100.0, 20.0]).unwrap();
+        assert_eq!(frame.items[1].node, second);
+        assert_eq!(frame.items[2].node, first);
+        assert_eq!(frame.items[1].bounds.x, 0.0);
+        assert_eq!(frame.items[2].bounds.x, 20.0);
+        assert_eq!(frame.hit_test(5.0, 5.0), Some(second));
+        assert_eq!(frame.hit_test(25.0, 5.0), Some(first));
+    }
+
+    #[test]
+    fn equal_layout_order_is_stable_and_failed_order_patch_is_atomic() {
+        let mut tree = UiTree::new_layout(
+            LayoutStyle::row().size(layout::Dimension::Px(100.0), layout::Dimension::Px(20.0)),
+            0xff0000ff,
+        )
+        .unwrap();
+        let first = tree
+            .append_layout(
+                tree.root(),
+                LayoutStyle::row()
+                    .size(layout::Dimension::Px(20.0), layout::Dimension::Px(20.0))
+                    .order(3),
+                0x0000ffff,
+            )
+            .unwrap();
+        let second = tree
+            .append_layout(
+                tree.root(),
+                LayoutStyle::row()
+                    .size(layout::Dimension::Px(20.0), layout::Dimension::Px(20.0))
+                    .order(3),
+                0x00ff00ff,
+            )
+            .unwrap();
+        let before = tree.frame([100.0, 20.0]).unwrap();
+        assert_eq!(before.items[1].node, first);
+        assert_eq!(before.items[2].node, second);
+        let mut invalid = Transaction::default();
+        invalid.layout_style(
+            first,
+            LayoutStyle::row()
+                .size(layout::Dimension::Px(20.0), layout::Dimension::Px(20.0))
+                .order(-3),
+        );
+        invalid.layout_style(
+            second,
+            LayoutStyle::row()
+                .size(layout::Dimension::Px(20.0), layout::Dimension::Px(20.0))
+                .order(-3)
+                .flex_grow(-1.0),
+        );
+        assert_eq!(
+            tree.commit(invalid, BackendCapabilities::default())
+                .unwrap_err(),
+            Error::InvalidStyle
+        );
+        let after = tree.frame([100.0, 20.0]).unwrap();
+        assert_eq!(after.revision, before.revision);
+        assert_eq!(after.items[1].node, first);
+        assert_eq!(after.items[2].node, second);
+    }
+
+    #[test]
+    fn changing_order_relayouts_and_legacy_style_does_not_reset_it() {
+        let mut tree = UiTree::new_layout(
+            LayoutStyle::row().size(layout::Dimension::Px(100.0), layout::Dimension::Px(20.0)),
+            0xff0000ff,
+        )
+        .unwrap();
+        let first = tree
+            .append_layout(
+                tree.root(),
+                LayoutStyle::row()
+                    .size(layout::Dimension::Px(20.0), layout::Dimension::Px(20.0))
+                    .order(1),
+                0x0000ffff,
+            )
+            .unwrap();
+        let second = tree
+            .append_layout(
+                tree.root(),
+                LayoutStyle::row()
+                    .size(layout::Dimension::Px(20.0), layout::Dimension::Px(20.0))
+                    .order(0),
+                0x00ff00ff,
+            )
+            .unwrap();
+        tree.frame([100.0, 20.0]).unwrap();
+        let mut legacy = Transaction::default();
+        legacy.style(first, tree.style(first).unwrap().clone());
+        tree.commit(legacy, BackendCapabilities::default()).unwrap();
+        let after_legacy = tree.frame([100.0, 20.0]).unwrap();
+        assert_eq!(after_legacy.items[1].node, second);
+        let mut change = Transaction::default();
+        let mut style = LayoutStyle::row()
+            .size(layout::Dimension::Px(20.0), layout::Dimension::Px(20.0))
+            .order(-1);
+        style.flex_grow = 0.0;
+        change.layout_style(first, style);
+        let commit = tree.commit(change, BackendCapabilities::default()).unwrap();
+        assert_eq!(commit.routes, vec![(first, UpdatePath::Relayout)]);
+        let after = tree.frame([100.0, 20.0]).unwrap();
+        assert_eq!(after.items[1].node, first);
+        assert_eq!(after.items[2].node, second);
     }
 
     #[test]

@@ -160,7 +160,11 @@ pub(super) fn validate(frame: &FramePacket, surface: [u32; 2], scale: f32) -> Re
         .map(|_| ())
 }
 
-pub(super) fn validate_header(frame: &FramePacket, surface: [u32; 2], scale: f32) -> Result<(), Error> {
+pub(super) fn validate_header(
+    frame: &FramePacket,
+    surface: [u32; 2],
+    scale: f32,
+) -> Result<(), Error> {
     if !scale.is_finite()
         || scale <= 0.0
         || surface

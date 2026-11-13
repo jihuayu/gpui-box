@@ -13,7 +13,7 @@ pub struct LayoutEnvironment {
     pub device_scale: f32,
     pub application_zoom: f32,
     pub text_scale: f32,
-    pub direction: taffy::Direction,
+    pub direction: LayoutDirection,
     pub touch: Option<bool>,
     pub pointer: Option<bool>,
     pub reduced_motion: Option<bool>,
@@ -26,7 +26,7 @@ impl LayoutEnvironment {
             device_scale: 1.0,
             application_zoom: 1.0,
             text_scale: 1.0,
-            direction: taffy::Direction::Ltr,
+            direction: LayoutDirection::Ltr,
             touch: None,
             pointer: None,
             reduced_motion: None,
@@ -175,6 +175,227 @@ pub struct BreakpointStyles {
     thresholds: Vec<f32>,
     styles: Vec<FlexStyle>,
 }
+
+/// Engine-independent breakpoint rules. Unlike `BreakpointStyles`, this type
+/// does not expose a Taffy `Style` in either its inputs or outputs.
+#[derive(Clone, Debug)]
+pub struct LayoutBreakpointStyles {
+    thresholds: Vec<f32>,
+    styles: Vec<LayoutStyle>,
+}
+
+impl LayoutBreakpointStyles {
+    pub fn new(base: LayoutStyle, wider: Vec<(f32, LayoutStyle)>) -> Result<Self, Error> {
+        base.validate()?;
+        let mut thresholds = Vec::with_capacity(wider.len());
+        let mut styles = vec![base];
+        for (threshold, style) in wider {
+            if !threshold.is_finite()
+                || threshold < 0.0
+                || thresholds.last().is_some_and(|last| *last >= threshold)
+            {
+                return Err(Error::InvalidBreakpoint);
+            }
+            style.validate()?;
+            thresholds.push(threshold);
+            styles.push(style);
+        }
+        Ok(Self { thresholds, styles })
+    }
+
+    pub fn select(&self, width: f32, direction: LayoutDirection) -> LayoutStyle {
+        let mut style = self.styles[self
+            .thresholds
+            .partition_point(|threshold| *threshold <= width)]
+        .clone();
+        style.direction = direction;
+        style
+    }
+}
+
+struct LayoutBinding {
+    source: Signal<LayoutStyle>,
+    target: NodeId,
+    styles: LayoutBreakpointStyles,
+    query: LayoutQuery,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LayoutQuery {
+    ViewportInline,
+    ContainerInline(NodeId),
+}
+
+/// Viewport-responsive bindings using only framework-owned layout types.
+/// Container queries stay on the bounded legacy adapter until their public
+/// query-container contract is moved to the same engine-independent layer.
+#[derive(Default)]
+pub struct LayoutResponsiveBindings {
+    bindings: Vec<LayoutBinding>,
+}
+
+impl LayoutResponsiveBindings {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn len(&self) -> usize {
+        self.bindings.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.bindings.is_empty()
+    }
+
+    pub fn bind(
+        &mut self,
+        ui: &mut LogicalUi,
+        source: Signal<LayoutStyle>,
+        target: NodeId,
+        styles: LayoutBreakpointStyles,
+    ) -> Result<(), Error> {
+        if self
+            .bindings
+            .iter()
+            .any(|binding| binding.source == source || binding.target == target)
+        {
+            return Err(Error::BindingConflict);
+        }
+        ui.read(source)?.validate()?;
+        ui.bind(source, Property::layout_style(target))?;
+        self.bindings.push(LayoutBinding {
+            source,
+            target,
+            styles,
+            query: LayoutQuery::ViewportInline,
+        });
+        Ok(())
+    }
+
+    /// Binds a style rule to the resolved inline size of a fixed query
+    /// container. The container must be outside the target subtree so the
+    /// bounded two-pass algorithm cannot feed a descendant's size back into
+    /// its own ancestor.
+    pub fn bind_container(
+        &mut self,
+        ui: &mut LogicalUi,
+        source: Signal<LayoutStyle>,
+        target: NodeId,
+        container: NodeId,
+        styles: LayoutBreakpointStyles,
+    ) -> Result<(), Error> {
+        if self
+            .bindings
+            .iter()
+            .any(|binding| binding.source == source || binding.target == target)
+        {
+            return Err(Error::BindingConflict);
+        }
+        ui.read(source)?.validate()?;
+        let tree = ui.reactive().tree();
+        if target == container || Self::is_ancestor(tree, target, container)? {
+            return Err(Error::UnsafeContainerQuery);
+        }
+        ui.bind(source, Property::layout_style(target))?;
+        self.bindings.push(LayoutBinding {
+            source,
+            target,
+            styles,
+            query: LayoutQuery::ContainerInline(container),
+        });
+        Ok(())
+    }
+
+    pub fn frame(
+        &mut self,
+        ui: &mut LogicalUi,
+        environment: &LayoutEnvironment,
+    ) -> Result<ResponsiveFrame, Error> {
+        environment.validate()?;
+        self.bindings.retain(|binding| {
+            ui.read(binding.source).is_ok() && ui.reactive().tree().node(binding.target).is_ok()
+        });
+        let values = self
+            .bindings
+            .iter()
+            .filter(|binding| matches!(binding.query, LayoutQuery::ViewportInline))
+            .map(|binding| {
+                (
+                    binding.source,
+                    binding
+                        .styles
+                        .select(environment.layout_viewport[0], environment.direction),
+                )
+            })
+            .collect::<Vec<_>>();
+        let changed_styles = Self::apply(ui, values)?;
+        let mut frame = ui.frame(environment.layout_viewport)?;
+        let container_values = self
+            .bindings
+            .iter()
+            .filter_map(|binding| {
+                let LayoutQuery::ContainerInline(container) = binding.query else {
+                    return None;
+                };
+                let result = ui.layout_result(container).ok()?;
+                let width = (result.size[0]
+                    - result.padding[0]
+                    - result.padding[1]
+                    - result.border[0]
+                    - result.border[1])
+                    .max(0.0);
+                Some((
+                    binding.source,
+                    binding.styles.select(width, environment.direction),
+                ))
+            })
+            .collect::<Vec<_>>();
+        let changed_container_styles = Self::apply(ui, container_values)?;
+        if changed_container_styles > 0 {
+            frame = ui.frame(environment.layout_viewport)?;
+        }
+        Ok(ResponsiveFrame {
+            layout_runs: frame.layout_runs,
+            layout_stats: frame.layout_stats,
+            frame,
+            rules_examined: self.bindings.len(),
+            changed_styles: changed_styles + changed_container_styles,
+        })
+    }
+
+    fn is_ancestor(tree: &UiTree, ancestor: NodeId, descendant: NodeId) -> Result<bool, Error> {
+        let mut current = Some(descendant);
+        while let Some(id) = current {
+            if id == ancestor {
+                return Ok(true);
+            }
+            current = tree.node(id)?.parent;
+        }
+        Ok(false)
+    }
+
+    fn apply(
+        ui: &mut LogicalUi,
+        values: Vec<(Signal<LayoutStyle>, LayoutStyle)>,
+    ) -> Result<usize, Error> {
+        let changes = values
+            .into_iter()
+            .filter(|(source, value)| ui.read(*source).is_ok_and(|current| current != value))
+            .collect::<Vec<_>>();
+        if changes.is_empty() {
+            return Ok(0);
+        }
+        Ok(ui
+            .transaction(|tx| {
+                for (source, value) in changes {
+                    tx.set(source, value)?;
+                }
+                Ok(())
+            })?
+            .changed_sources)
+    }
+}
+
 impl BreakpointStyles {
     pub fn new(base: FlexStyle, wider: Vec<(f32, FlexStyle)>) -> Result<Self, Error> {
         let mut thresholds = vec![];
@@ -191,13 +412,16 @@ impl BreakpointStyles {
         }
         Ok(Self { thresholds, styles })
     }
-    fn select(&self, width: f32, direction: taffy::Direction) -> Style {
+    fn select(&self, width: f32, direction: LayoutDirection) -> Style {
         let mut style = self.styles[self
             .thresholds
             .partition_point(|threshold| *threshold <= width)]
         .0
         .clone();
-        style.direction = direction;
+        style.direction = match direction {
+            LayoutDirection::Ltr => taffy::Direction::Ltr,
+            LayoutDirection::Rtl => taffy::Direction::Rtl,
+        };
         style
     }
 }
@@ -692,7 +916,7 @@ mod tests {
         environment.text_scale = 1.5;
         let scale_only = responsive.frame(&mut ui, &environment).unwrap();
         assert_eq!((scale_only.changed_styles, scale_only.layout_runs), (0, 0));
-        environment.direction = taffy::Direction::Rtl;
+        environment.direction = LayoutDirection::Rtl;
         let rtl = responsive.frame(&mut ui, &environment).unwrap();
         assert_eq!(rtl.changed_styles, 1);
         assert!(bounds(&rtl.frame, a).x > bounds(&rtl.frame, b).x);
@@ -892,6 +1116,92 @@ mod tests {
             BreakpointStyles::new(FlexStyle::row(), vec![(f32::NAN, FlexStyle::column())]),
             Err(Error::InvalidBreakpoint)
         ));
+    }
+
+    #[test]
+    fn engine_independent_responsive_bindings_switch_flex_direction_at_viewport_threshold() {
+        let mut ui = LogicalUi::new_layout(
+            LayoutStyle::row().size(LayoutDimension::px(100.0), LayoutDimension::px(20.0)),
+            0,
+            BackendCapabilities::default(),
+        )
+        .unwrap();
+        let scope = ui.root_scope();
+        let node = ui
+            .append_render_layout(
+                scope,
+                ui.root_render(),
+                LayoutStyle::default().size(LayoutDimension::px(20.0), LayoutDimension::px(20.0)),
+                1,
+            )
+            .unwrap();
+        let source = ui.state(scope, 0, LayoutStyle::default).unwrap();
+        let rules =
+            LayoutBreakpointStyles::new(LayoutStyle::column(), vec![(100.0, LayoutStyle::row())])
+                .unwrap();
+        let mut responsive = LayoutResponsiveBindings::new();
+        responsive.bind(&mut ui, source, node, rules).unwrap();
+        let narrow = responsive
+            .frame(&mut ui, &LayoutEnvironment::new([99.0, 20.0]))
+            .unwrap();
+        assert_eq!(narrow.changed_styles, 1);
+        assert_eq!(
+            ui.read(source).unwrap().flex_direction,
+            LayoutFlexDirection::Column
+        );
+        let wide = responsive
+            .frame(&mut ui, &LayoutEnvironment::new([100.0, 20.0]))
+            .unwrap();
+        assert_eq!(wide.changed_styles, 1);
+        assert_eq!(
+            ui.read(source).unwrap().flex_direction,
+            LayoutFlexDirection::Row
+        );
+    }
+
+    #[test]
+    fn engine_independent_container_binding_uses_resolved_content_width() {
+        let mut ui = LogicalUi::new_layout(
+            LayoutStyle::row().size(LayoutDimension::px(200.0), LayoutDimension::px(40.0)),
+            0,
+            BackendCapabilities::default(),
+        )
+        .unwrap();
+        let scope = ui.root_scope();
+        let container = ui
+            .append_render_layout(
+                scope,
+                ui.root_render(),
+                LayoutStyle::row()
+                    .size(LayoutDimension::px(80.0), LayoutDimension::px(40.0))
+                    .padding(LayoutEdges::all(LayoutLength::px(10.0))),
+                0,
+            )
+            .unwrap();
+        let target = ui
+            .append_render_layout(
+                scope,
+                container,
+                LayoutStyle::column().size(LayoutDimension::px(20.0), LayoutDimension::px(20.0)),
+                1,
+            )
+            .unwrap();
+        let source = ui.state(scope, 0, LayoutStyle::default).unwrap();
+        let rules =
+            LayoutBreakpointStyles::new(LayoutStyle::column(), vec![(61.0, LayoutStyle::row())])
+                .unwrap();
+        let mut responsive = LayoutResponsiveBindings::new();
+        responsive
+            .bind_container(&mut ui, source, target, container, rules)
+            .unwrap();
+        let frame = responsive
+            .frame(&mut ui, &LayoutEnvironment::new([200.0, 40.0]))
+            .unwrap();
+        assert_eq!(frame.changed_styles, 1);
+        assert_eq!(
+            ui.read(source).unwrap().flex_direction,
+            LayoutFlexDirection::Column
+        );
     }
 
     #[test]

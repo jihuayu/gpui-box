@@ -130,24 +130,36 @@ impl PaintItems {
                 }
             }
             remaining = &remaining[count..];
-            if updates.is_empty() { continue; }
+            if updates.is_empty() {
+                continue;
+            }
             dirty_pages.push(page);
             if updates.len() == self.pages[page].len() {
                 result.pages[page] = Arc::new(updates.into_iter().map(|(_, item)| item).collect());
             } else {
                 let values = Arc::make_mut(&mut result.pages[page]);
-                for (index, item) in updates { values[index % PAGE_ITEMS] = item; }
+                for (index, item) in updates {
+                    values[index % PAGE_ITEMS] = item;
+                }
             }
         }
         if !dirty_pages.is_empty() {
             result.hit_index = OnceLock::new();
             if let Some(index) = self.hit_index.get() {
-                let _ = result.hit_index.set(hit_index::HitNode::patch(index, &result.pages, &dirty_pages));
+                let _ = result.hit_index.set(hit_index::HitNode::patch(
+                    index,
+                    &result.pages,
+                    &dirty_pages,
+                ));
             }
         }
         Ok((result, changed))
     }
-    pub(in crate::retained) fn patch_owned(&self, updates: Vec<(usize, PaintItem)>, stats: &mut FrameBuildStats) -> Self {
+    pub(in crate::retained) fn patch_owned(
+        &self,
+        updates: Vec<(usize, PaintItem)>,
+        stats: &mut FrameBuildStats,
+    ) -> Self {
         debug_assert!(updates.windows(2).all(|p| p[0].0 < p[1].0));
         let mut result = self.clone();
         result.hit_index = OnceLock::new();
@@ -406,23 +418,38 @@ impl UiTree {
 
     // Material depends on content size, not resolved world position. Shared by
     // both publication representations; placement and topology stay separate.
-    pub(super) fn refresh_material(&mut self, id: NodeId, item: &mut PaintItem, recorded: &mut u64) -> Result<(), Error> {
+    pub(super) fn refresh_material(
+        &mut self,
+        id: NodeId,
+        item: &mut PaintItem,
+        recorded: &mut u64,
+    ) -> Result<(), Error> {
         let node = self.node_mut(id);
-        item.commands = node.chunk.get_or_insert_with(|| {
-            *recorded += 1;
-            Arc::from([if node.decoration == QuadDecoration::default() {
-                DisplayCommand::Fill(node.color)
-            } else {
-                DisplayCommand::DecoratedFill { color: node.color, decoration: node.decoration }
-            }])
-        }).clone();
+        item.commands = node
+            .chunk
+            .get_or_insert_with(|| {
+                *recorded += 1;
+                Arc::from([if node.decoration == QuadDecoration::default() {
+                    DisplayCommand::Fill(node.color)
+                } else {
+                    DisplayCommand::DecoratedFill {
+                        color: node.color,
+                        decoration: node.decoration,
+                    }
+                }])
+            })
+            .clone();
         item.fill_color = node.color;
         item.shadows = node.shadows.clone();
         item.image = node.image.clone();
         #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
         {
             item.text = node.text.clone();
-            item.glyphs = node.text.as_ref().map(|text| text.resource.chunk(item.content_bounds.width)).transpose()?;
+            item.glyphs = node
+                .text
+                .as_ref()
+                .map(|text| text.resource.chunk(item.content_bounds.width))
+                .transpose()?;
         }
         Ok(())
     }
@@ -472,27 +499,41 @@ mod tests {
         let frame = tree.frame([1000.0; 2]).unwrap();
         frame.hit_test(5.0, 5.0);
         let indices = (1..140).collect::<Vec<_>>();
-        let updates = indices.iter().filter(|&&i| i % 3 != 0).map(|&i| {
-            let mut item = frame.items[i].clone();
-            item.fill_color = 0x5588aaff;
-            (i, item)
-        }).collect::<Vec<_>>();
-        let expected = frame.items.patch_owned(updates.clone(), &mut FrameBuildStats::default());
-        let (actual, changed) = frame.items.patch_refresh(&indices, |i, previous| {
-            Ok((i % 3 != 0).then(|| {
-                let mut item = previous.clone();
+        let updates = indices
+            .iter()
+            .filter(|&&i| i % 3 != 0)
+            .map(|&i| {
+                let mut item = frame.items[i].clone();
                 item.fill_color = 0x5588aaff;
-                item
-            }))
-        }).unwrap();
+                (i, item)
+            })
+            .collect::<Vec<_>>();
+        let expected = frame
+            .items
+            .patch_owned(updates.clone(), &mut FrameBuildStats::default());
+        let (actual, changed) = frame
+            .items
+            .patch_refresh(&indices, |i, previous| {
+                Ok((i % 3 != 0).then(|| {
+                    let mut item = previous.clone();
+                    item.fill_color = 0x5588aaff;
+                    item
+                }))
+            })
+            .unwrap();
         assert_eq!(changed, updates.iter().map(|(i, _)| *i).collect::<Vec<_>>());
         for (a, b) in actual.iter().zip(expected.iter()) {
-            assert_eq!((a.node, a.bounds, a.fill_color), (b.node, b.bounds, b.fill_color));
+            assert_eq!(
+                (a.node, a.bounds, a.fill_color),
+                (b.node, b.bounds, b.fill_color)
+            );
         }
         assert_eq!(actual.shared_pages(&frame.items), 1);
         assert!(actual.hit_index.get().is_some());
         let failed = frame.items.patch_refresh(&indices, |i, previous| {
-            if i == 130 { return Err(Error::InvalidFrame); }
+            if i == 130 {
+                return Err(Error::InvalidFrame);
+            }
             let mut item = previous.clone();
             item.fill_color = 0;
             Ok(Some(item))
@@ -500,7 +541,10 @@ mod tests {
         assert!(matches!(failed, Err(Error::InvalidFrame)));
         assert_eq!(frame.items[64].fill_color, 0xff0000ff);
         assert!(frame.items.hit_index.get().is_some());
-        let (equal, changed) = frame.items.patch_refresh(&indices, |_, _| Ok(None)).unwrap();
+        let (equal, changed) = frame
+            .items
+            .patch_refresh(&indices, |_, _| Ok(None))
+            .unwrap();
         assert!(changed.is_empty());
         assert_eq!(equal.shared_pages(&frame.items), frame.items.page_count());
     }

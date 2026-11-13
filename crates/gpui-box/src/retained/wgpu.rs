@@ -488,16 +488,16 @@ impl WgpuFrameRenderer {
     /// ancestor motion can spend more CPU proving bounds than raster work saved.
     pub fn set_local_tight_layer_bounds_enabled(&mut self, enabled: bool) {
         if self.local_tight_layer_bounds != enabled {
-            self.local_tight_layer_bounds=enabled;
-            self.local_snapshot=None;
-            self.local_ink=None;
-            self.source=None;
+            self.local_tight_layer_bounds = enabled;
+            self.local_snapshot = None;
+            self.local_ink = None;
+            self.source = None;
         }
     }
     /// Original per-item ink recomputation remains a measured control. This
     /// affects only the separately enabled experimental tight-local index.
     pub fn set_local_ink_translation_enabled(&mut self, enabled: bool) {
-        self.local_ink_translation=enabled;
+        self.local_ink_translation = enabled;
     }
 
     /// Keep same-extent layer textures across origin changes (default true).
@@ -1163,7 +1163,9 @@ impl WgpuFrameRenderer {
             .backend
             .set_indexed_spatial_enabled(self.backend.indexed_spatial_enabled());
         replacement.cache_layers = self.cache_layers;
-        replacement.backend.set_layer_translation_reuse_enabled(self.backend.layer_translation_reuse_enabled());
+        replacement
+            .backend
+            .set_layer_translation_reuse_enabled(self.backend.layer_translation_reuse_enabled());
         replacement.tight_layer_bounds = self.tight_layer_bounds;
         replacement.local_tight_layer_bounds = self.local_tight_layer_bounds;
         replacement.local_ink_translation = self.local_ink_translation;

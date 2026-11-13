@@ -90,7 +90,7 @@ enum Stage {
 
 /// Resumable complete-frame raster job. `step` never publishes partial pixels.
 /// A unit is one bounded item preparation (<=32 effects, <=64 commands), one
-    /// dispatch/skip, or one pixel operation. Resource allocation is worker-only.
+/// dispatch/skip, or one pixel operation. Resource allocation is worker-only.
 /// Hosts choose quotas, yield to input, and may abandon obsolete visual jobs;
 /// lossless state transactions must already have committed before this point.
 pub struct SoftwareJob {

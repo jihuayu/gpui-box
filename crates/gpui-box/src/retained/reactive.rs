@@ -83,6 +83,16 @@ impl Property<Style> {
         }
     }
 }
+impl Property<crate::retained::layout::LayoutStyle> {
+    /// Creates a typed endpoint backed by the framework layout contract.
+    pub fn layout_style(node: NodeId) -> Self {
+        Self {
+            node,
+            field: Field::Style,
+            write: |node, value, tx| tx.layout_style(node, value.clone()),
+        }
+    }
+}
 impl Property<[f32; 2]> {
     pub fn translation(node: NodeId) -> Self {
         Self {
@@ -326,6 +336,28 @@ impl ReactiveUi {
     pub fn frame(&mut self, viewport: [f32; 2]) -> Result<FramePacket, Error> {
         self.tree.frame(viewport)
     }
+    pub fn frame_with_constraints(
+        &mut self,
+        constraints: LayoutConstraints,
+    ) -> Result<FramePacket, Error> {
+        self.tree.frame_with_constraints(constraints)
+    }
+    pub fn layout_result(&self, node: NodeId) -> Result<LayoutResult, Error> {
+        self.tree.layout_result(node)
+    }
+    pub fn measure_with_constraints(
+        &mut self,
+        constraints: LayoutConstraints,
+    ) -> Result<LayoutResult, Error> {
+        self.tree.measure_with_constraints(constraints)
+    }
+    pub fn measure_node_with_constraints(
+        &mut self,
+        node: NodeId,
+        constraints: LayoutConstraints,
+    ) -> Result<LayoutResult, Error> {
+        self.tree.measure_node_with_constraints(node, constraints)
+    }
     pub fn local_frame(&mut self, viewport: [f32; 2]) -> Result<local::LocalFrame, Error> {
         self.tree.local_frame(viewport)
     }
@@ -509,6 +541,15 @@ impl ReactiveUi {
         self.tree.append(parent, style, color)
     }
 
+    pub fn append_layout(
+        &mut self,
+        parent: NodeId,
+        style: crate::retained::layout::LayoutStyle,
+        color: u32,
+    ) -> Result<NodeId, Error> {
+        self.tree.append_layout(parent, style, color)
+    }
+
     pub(super) fn dispose_scope_sources(&mut self, sources: Vec<Box<dyn ScopedSource>>) {
         let mut ids: Vec<_> = sources.iter().map(|source| source.dependency().0).collect();
         ids.sort_by_key(|id| std::cmp::Reverse(self.source(*id).unwrap().rank));
@@ -577,8 +618,12 @@ impl ReactiveUi {
         let result = self.publish_update(value, prepared, commit, sink_writes, effects);
         #[cfg(feature = "retained-diagnostics")]
         let result = ReactiveCommit {
-            transaction_phase_times: Some([settled - started, collected - settled,
-                applied - collected, applied.elapsed()]),
+            transaction_phase_times: Some([
+                settled - started,
+                collected - settled,
+                applied - collected,
+                applied.elapsed(),
+            ]),
             ..result
         };
         Ok(result)

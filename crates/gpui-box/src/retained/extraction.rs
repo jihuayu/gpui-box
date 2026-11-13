@@ -196,7 +196,8 @@ impl UiTree {
                 effect_property,
             );
             if descendants {
-                for child in node.children.iter().rev() {
+                let children = self.ordered_children_for(id, &node.children)?;
+                for child in children.iter().rev() {
                     stack.push((*child, [x - scroll[0], y - scroll[1]], clip, state));
                 }
             }

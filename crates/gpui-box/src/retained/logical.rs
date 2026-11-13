@@ -88,6 +88,15 @@ impl LogicalUi {
         Self::from_tree(UiTree::new(style, color)?, capabilities)
     }
 
+    /// Creates a logical UI from the engine-independent Flex layout contract.
+    pub fn new_layout(
+        style: LayoutStyle,
+        color: u32,
+        capabilities: BackendCapabilities,
+    ) -> Result<Self, Error> {
+        Self::from_tree(UiTree::new_layout(style, color)?, capabilities)
+    }
+
     /// Adopt existing nodes as root-scope output without rebuilding render identity.
     pub fn from_tree(tree: UiTree, capabilities: BackendCapabilities) -> Result<Self, Error> {
         static NEXT: AtomicU64 = AtomicU64::new(1);
@@ -158,6 +167,28 @@ impl LogicalUi {
     }
     pub fn frame(&mut self, viewport: [f32; 2]) -> Result<FramePacket, Error> {
         self.ui.frame(viewport)
+    }
+    pub fn frame_with_constraints(
+        &mut self,
+        constraints: LayoutConstraints,
+    ) -> Result<FramePacket, Error> {
+        self.ui.frame_with_constraints(constraints)
+    }
+    pub fn layout_result(&self, node: NodeId) -> Result<LayoutResult, Error> {
+        self.ui.layout_result(node)
+    }
+    pub fn measure_with_constraints(
+        &mut self,
+        constraints: LayoutConstraints,
+    ) -> Result<LayoutResult, Error> {
+        self.ui.measure_with_constraints(constraints)
+    }
+    pub fn measure_node_with_constraints(
+        &mut self,
+        node: NodeId,
+        constraints: LayoutConstraints,
+    ) -> Result<LayoutResult, Error> {
+        self.ui.measure_node_with_constraints(node, constraints)
     }
     pub fn local_frame(&mut self, viewport: [f32; 2]) -> Result<local::LocalFrame, Error> {
         self.ui.local_frame(viewport)
@@ -281,6 +312,21 @@ impl LogicalUi {
     ) -> Result<NodeId, Error> {
         self.scope(owner)?;
         let node = self.ui.append(parent, style, color)?;
+        self.scope_mut(owner).renders.push(node);
+        self.render_owners.insert(node, owner);
+        Ok(node)
+    }
+
+    /// Appends render output using framework-owned layout types.
+    pub fn append_render_layout(
+        &mut self,
+        owner: ScopeId,
+        parent: NodeId,
+        style: LayoutStyle,
+        color: u32,
+    ) -> Result<NodeId, Error> {
+        self.scope(owner)?;
+        let node = self.ui.append_layout(parent, style, color)?;
         self.scope_mut(owner).renders.push(node);
         self.render_owners.insert(node, owner);
         Ok(node)
