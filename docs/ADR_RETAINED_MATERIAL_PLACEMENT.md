@@ -125,3 +125,13 @@ synchronous and pipelined reversed pairs. Synchronous publication medians fall
 Completion tails/losses remain mixed and dense owner work remains near20ms.
 Keep the structural work reduction without making a deadline or API-policy claim.
 This applies to sparse and dense material, without scene-specific conditions.
+
+## Rejected direct arena conversion
+
+The [arena conversion probe](performance/2026-11-13-arena-conversion/README.md)
+maps borrowed arena records directly into sized GPU runs, avoiding intermediate
+source arrays. Reversed pipelined submit medians improve4cases and regress4,
+with no stable deadline/stall benefit. Restore the original runtime rather than
+retaining another algorithm on structural reasoning alone. Internal submission
+phase attribution is needed before choosing the next broad optimization. No
+application-selected conversion policy is introduced.

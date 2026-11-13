@@ -1,0 +1,16 @@
+{
+  "candidate_core_tests": 166,
+  "candidate_strict_library_clippy": true,
+  "candidate_mixed_gpu_comparisons": 75,
+  "decision": "restore baseline runtime; no consistent submission or tail benefit",
+  "candidate_sources_sha256": {
+    "crates/gpui-box/src/retained/arena.rs": "ecc72bd96a4f656010023cceb2c85524d3d0e59e587db5d2f8abf29316e6b8b3",
+    "crates/gpui-box/src/retained/wgpu.rs": "727a9609be15da2d2b6b361aa782ade828b947770c01895d18d9fff05daffc49",
+    "crates/gpui-box/src/retained/wgpu/local.rs": "45aa9bae86af062d321154cbe77d2c602ba3daa918398ac7956623b3a321cf7c"
+  },
+  "restored_mixed_gpu_comparisons": 75,
+  "restored_pipeline_smoke_cases": 4,
+  "restored_runtime_matches_head": true,
+  "restored_binary_sha256": "f92e134c2d0a8f19c5b31828da18637c9b0bfaf4aeda8c1ed1937826a5d83beb",
+  "baseline_binary_sha256": "b4331df1376de53bbf4454ab70355c73c3a176e1d85313d7cdca0303a0404c26"
+}

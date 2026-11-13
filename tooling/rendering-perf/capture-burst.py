@@ -59,6 +59,8 @@ def main():
     pair_options = parser.add_mutually_exclusive_group()
     for flag in ("material-pair", "stream-pair", "pipeline-pair", "recovery-pair", "publication-pair"):
         pair_options.add_argument(f"--{flag}", action="store_true")
+    pair_options.add_argument("--baseline", type=Path, help="Exact baseline binary for a general implementation pair")
+    parser.add_argument("--candidate-name", default="candidate", help="Filesystem-safe label for a general implementation pair")
     parser.add_argument("--round", type=int, choices=(1, 2), help="Capture only this planned round in a fresh directory")
     parser.add_argument("--pipelined", action="store_true", help="Use pipelined burst workload for an implementation pair")
     options = parser.parse_args()
@@ -73,15 +75,18 @@ def main():
     stream_pair = options.stream_pair
     pipeline = options.pipeline_pair
     publication_pair = options.publication_pair
-    pair = options.recovery_pair or material_pair or stream_pair or publication_pair
+    pair = options.recovery_pair or material_pair or stream_pair or publication_pair or options.baseline is not None
+    assert options.candidate_name.replace("-", "").isalnum() and options.candidate_name != "original"
     assert not options.pipelined or pair, "--pipelined requires an implementation pair"
     baseline = Path("target/publication-order-baseline/dense-runtime-perf.exe" if publication_pair else "target/material-stream-baseline/dense-runtime-perf.exe" if stream_pair else "target/material-baseline/dense-runtime-perf.exe" if material_pair else "target/burst-baseline/dense-runtime-perf.exe").resolve()
+    if options.baseline is not None:
+        baseline = options.baseline.resolve()
     binaries = [binary, baseline] if pair else [binary]
     binary_hashes = hashes(binaries)
     before = hashes(sources)
     (output / "sources.json").write_text(json.dumps(before, indent=2), encoding="utf-8")
     assert not processes(), "Build or renderer process active before capture"
-    modes = {"source-wait": ["--source-only-wait"], "service-completions": []} if pipeline else {"original": [], "ordered" if publication_pair else "streamed" if stream_pair else "material-pages" if material_pair else "full-cache": []} if pair else {
+    modes = {"source-wait": ["--source-only-wait"], "service-completions": []} if pipeline else {"original": [], options.candidate_name if options.baseline is not None else "ordered" if publication_pair else "streamed" if stream_pair else "material-pages" if material_pair else "full-cache": []} if pair else {
         "default": [],
         "tight-lazy": ["--local-tight-layers"],
         "tight-lazy-raster": ["--local-tight-layers", "--layer-translation-reuse"],

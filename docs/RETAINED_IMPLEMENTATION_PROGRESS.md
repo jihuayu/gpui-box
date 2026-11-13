@@ -423,6 +423,15 @@ raw deadline/tail losses and no known compiler interference.165core tests and
 a pre-existing local_ink test-module-order lint. No API/quality switch is added;
 dense owner work and full modern desktop120Hz acceptance remain open.
 
+The [direct arena conversion probe](performance/2026-11-13-arena-conversion/README.md)
+removes temporary source-record arrays and sizes converted GPU runs directly.
+It passes166candidate core tests and75mixed GPU comparisons, but reversed16case
+pipeline captures show4submit medians improving /4regressing (about±2%). Dense
+owner work remains near20ms and tails/deadlines remain mixed. The candidate is
+rejected; runtime sources are restored tob956e30 with exact candidate and raw
+evidence preserved. Generic baseline/label harness controls remain. Next priority
+is internal submission phase attribution before choosing a new algorithm.
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |

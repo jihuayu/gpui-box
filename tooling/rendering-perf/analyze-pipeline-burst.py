@@ -30,7 +30,7 @@ def losses(rows, field, budget):
     return {"unsatisfied_ticks": total, "longest_unsatisfied_ticks": longest}
 
 
-def analyze(roots, expected_cases, implementation_pair=False):
+def analyze(roots, expected_cases, implementation_pair=False, candidate_name="ordered"):
     cases = []
     rejected = []
     eligible = []
@@ -116,7 +116,7 @@ def analyze(roots, expected_cases, implementation_pair=False):
     assert len(cases) == expected_cases, (len(cases), expected_cases)
     if expected_cases == 16:
         assert covered_runs == {(round_index, mode) for round_index in (1, 2)
-            for mode in (("original", "ordered") if implementation_pair else ("source-wait", "service-completions"))}
+            for mode in (("original", candidate_name) if implementation_pair else ("source-wait", "service-completions"))}
     return {"scope": "source through coalesced covering completion upper bound and owner observation; no GPU execution timestamp, native present/display or physical input", "binary_sha256": sorted(binary_ids), "rejected_runs": rejected, "expected_cases": expected_cases, "cases": cases}
 
 
@@ -125,8 +125,9 @@ if __name__ == "__main__":
     parser.add_argument("roots", type=Path, nargs="+")
     parser.add_argument("--expected-cases", type=int, default=16)
     parser.add_argument("--implementation-pair", action="store_true", help="Compare original/ordered binaries with completion servicing enabled")
+    parser.add_argument("--candidate-name", default="ordered")
     options = parser.parse_args()
-    result = analyze(options.roots, options.expected_cases, options.implementation_pair)
+    result = analyze(options.roots, options.expected_cases, options.implementation_pair, options.candidate_name)
     (options.roots[-1] / "pipeline-summary.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
     for case in result["cases"]:
         fields = case["groups"]["all"]
