@@ -293,6 +293,29 @@ validated equivalent algorithms, but must retain atomic failure/retry, complete
 snapshot recovery and exact clip/isolation/resource behavior. No unchecked batch
 API or automatic decoration simplification is justified by these probes.
 
+### Completion retirement is an independent owner event
+
+The [pipeline burst follow-up](performance/2026-11-13-pipeline-completion/README.md)
+shows that waiting exclusively for the next visual source delays already-ready
+completion handling. The benchmark now services both channels on the owner;
+the native gallery already uses a separate completion task. Retirement and
+device/lifecycle handling must remain runnable without another visual update.
+This contract applies to GPU completion and cooperative software-job completion;
+it does not authorize partial commits or imply a nonblocking submit guarantee.
+
+Do not expose an application-selectable completion policy. An owner executor
+should service completion independently of replaceable source cadence and
+retire snapshots/resources on that owner. A single polling host may await either
+source or completion with cancellation-safe readiness; it must inspect completion
+before admitting more work when both are ready. No timer-driven polling loop
+or extra rendering worker is needed by this harness correction.
+
+Serviced120Hz handling p99 falls to0.50–1.14ms, but completion upper-bound p99
+stays22.56–24.77ms and three of four completion-loss comparisons worsen.
+Dense owner-span medians remain20.10–22.03ms. Queue depth/admission timing is
+not a demonstrated remedy; prioritize total necessary work and bounded owner
+scheduling. Native visible display/input and CPU fallback acceptance stay open.
+
 ## Remaining acceptance
 
 - Local-first indexed damage/hit performance and general incremental updates;

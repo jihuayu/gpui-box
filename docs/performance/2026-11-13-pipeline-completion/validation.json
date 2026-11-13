@@ -1,0 +1,15 @@
+{
+  "harness_tests": 2,
+  "strict_harness_and_test_clippy": true,
+  "final_release_smoke_cases": 32,
+  "runtime_base": "6d1a13d47d73a12b1b9ebc1b703f1019109d810c",
+  "measured_control_binary_sha256": "db9529bc5867fda8d3b249a070bc18902fe0ef5f104df6e063b051e72d89b3bf",
+  "final_smoke_binary_sha256": "b4543c10e32a5971938332eae2a064f2e8add7d212b4d8e8c1b0193c7bef0c59",
+  "final_sources_sha256": {
+    "tooling/rendering-perf/src/dense_pipeline.rs": "eeadce22e7d45482826e65aedac7e510958c6bffa7a6aabffe9ba2faa10881c9",
+    "tooling/rendering-perf/src/dense.rs": "7f690b0c4d8bf0806964005eeca81c461f5552cb0012cefec10b5212781d5ff4",
+    "tooling/rendering-perf/src/dense_burst.rs": "d8f87b15f88c3b79461e7d895e7c7f24e9d0a793fa1384c0da0c57b7f79df4e5",
+    "tooling/rendering-perf/capture-burst.py": "7ed2c9da2be999925b264cce1139e8ad94f0ec28d2b61cc35c070968c9e351b2",
+    "tooling/rendering-perf/analyze-pipeline-burst.py": "7945ccd2199ef7a6cfce58f55cdb7763c884d6986ee3fd4e050751f725c45ac5"
+  }
+}

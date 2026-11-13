@@ -13,6 +13,8 @@ struct PendingFrame {
     admission_wait: Duration,
     superseded: usize,
     gpu_submitted: bool,
+    burst_epoch: u64,
+    burst_epochs_crossed: u64,
 }
 struct Observations {
     pending: VecDeque<PendingFrame>,
@@ -38,6 +40,7 @@ impl Observations {
             let finished = receipt.observed_at.max(f.submitted);
             self.rows.push(json!({
                 "tick":f.sample.tick,"serial":f.serial,"covering_serial":receipt.serial,
+                "burst_epoch":f.burst_epoch,"burst_epochs_crossed":f.burst_epochs_crossed,
                 "source_us":f.sample.scheduled.duration_since(self.origin).as_secs_f64()*1e6,
                 "producer_delay_us":f.sample.generated.duration_since(f.sample.scheduled).as_secs_f64()*1e6,
                 "source_to_owner_us":f.entered.saturating_duration_since(f.sample.scheduled).as_secs_f64()*1e6,
@@ -46,7 +49,7 @@ impl Observations {
                 "submit_and_admission_us":f.submitted.duration_since(f.published).as_secs_f64()*1e6,
                 "admission_wait_us":f.admission_wait.as_secs_f64()*1e6,
                 "source_to_completion_upper_bound_us":finished.duration_since(f.sample.scheduled).as_secs_f64()*1e6,
-                "completion_to_owner_observation_us":observed.saturating_duration_since(receipt.observed_at).as_secs_f64()*1e6,
+                "completion_to_owner_observation_us":observed.saturating_duration_since(finished).as_secs_f64()*1e6,
                 "source_to_owner_completion_observation_us":observed.max(f.submitted).duration_since(f.sample.scheduled).as_secs_f64()*1e6,
                 "deadline_missed":finished > f.sample.scheduled+self.budget,
                 "superseded_ticks":f.superseded,"gpu_submitted":f.gpu_submitted
@@ -58,6 +61,39 @@ impl Observations {
         if let Some(receipt) = self.latest {
             self.complete(receipt);
         }
+    }
+}
+
+// A source-only waiter can be woken by a completion yet immediately park again
+// without observing it. Poll both channels on the single owner, retire leases,
+// and then accept source work. No timer or additional completion worker.
+enum OwnerEvent {
+    Completion,
+    Source,
+}
+fn wait_source(
+    gpu: &mut WgpuFrameRenderer,
+    completions: &mut CompletionReceiver,
+    observations: &mut Observations,
+    source: &mut gpui_box::retained::reactive::UpdateReceiver,
+) -> Result<OwnerEvent, Box<dyn Error>> {
+    let waker = Waker::from(Arc::new(OwnerWake(std::thread::current())));
+    let mut context = Context::from_waker(&waker);
+    let timeout = Instant::now() + Duration::from_secs(35);
+    loop {
+        if completion(gpu, completions, observations, false)? {
+            return Ok(OwnerEvent::Completion);
+        }
+        {
+            let mut ready = std::pin::pin!(source.ready());
+            if let Poll::Ready(result) = ready.as_mut().poll(&mut context) {
+                assert!(result?, "source closed before final tick");
+                return Ok(OwnerEvent::Source);
+            }
+        }
+        let remaining = timeout.saturating_duration_since(Instant::now());
+        assert!(!remaining.is_zero(), "source/completion wait timed out");
+        std::thread::park_timeout(remaining);
     }
 }
 fn completion(
@@ -110,6 +146,8 @@ fn case(
     before_work: bool,
     seconds: f64,
 ) -> Result<Value, Box<dyn Error>> {
+    let burst = std::env::args().any(|v| v == "--pipeline-burst-only");
+    let service = !std::env::args().any(|v| v == "--source-only-wait");
     let (tree, parent, nodes) = fixture(count, effects)?;
     let mut ui = ReactiveUi::new(
         tree,
@@ -125,13 +163,23 @@ fn case(
     });
     let placement = ui.computed(&[signal.dependency()], move |inputs| {
         let tick = inputs.read(signal)?.tick;
+        if std::env::args().any(|v| v == "--integer-motion") {
+            let value = if tick % 2 == 0 { 2.0 } else { -2.0 };
+            return Ok([value, value]);
+        }
         Ok([
             1.25 + (tick % 31) as f32 * 0.125,
             2.5 + (tick % 31) as f32 * 0.125,
         ])
     })?;
-    for node in if batch { nodes } else { vec![parent] } {
-        ui.bind(placement, Property::translation(node))?;
+    for node in if batch { nodes.as_slice() } else { std::slice::from_ref(&parent) } {
+        ui.bind(placement, Property::translation(*node))?;
+    }
+    if burst {
+        let color = ui.computed(&[signal.dependency()], move |inputs| {
+            Ok(dense_burst::color(dense_burst::epoch(inputs.read(signal)?.tick, hz)))
+        })?;
+        for node in &nodes { ui.bind(color, Property::color(*node))?; }
     }
     let mut receiver = ui.open_updates(1)?;
     let sender = ui.update_sender(&receiver, signal)?;
@@ -183,9 +231,18 @@ fn case(
     let mut maximum_pending = 0;
     let mut maximum_gpu = 0;
     let mut resource_waits = 0;
+    let mut last_burst = 0;
+    let mut full_resyncs = 0;
     while next < slots {
         while completion(&mut gpu, &mut completions, &mut observations, false)? {}
-        assert!(wait_ready(receiver.ready())?);
+        if service {
+            while matches!(
+                wait_source(&mut gpu, &mut completions, &mut observations, &mut receiver)?,
+                OwnerEvent::Completion
+            ) {}
+        } else {
+            assert!(wait_ready(receiver.ready())?);
+        }
         let (mut admission_wait, n) = if before_work {
             capacity(&mut gpu, &mut completions, &mut observations)?
         } else {
@@ -210,7 +267,9 @@ fn case(
         if let Some(s) = &submission {
             maximum_gpu = maximum_gpu.max(s.gpu.in_flight);
             resource_waits += s.gpu.layer_budget_waits;
+            full_resyncs += usize::from(s.full_resync);
         }
+        let burst_epoch = if burst { dense_burst::epoch(sample.tick, hz) } else { 0 };
         observations.push(PendingFrame {
             serial: gpu.lifecycle().submitted,
             sample,
@@ -221,7 +280,10 @@ fn case(
             admission_wait,
             superseded,
             gpu_submitted: submission.is_some(),
+            burst_epoch,
+            burst_epochs_crossed: burst_epoch - last_burst,
         });
+        last_burst = burst_epoch;
         maximum_pending = maximum_pending.max(observations.pending.len());
         next = sample.tick as usize + 1;
     }
@@ -239,21 +301,21 @@ fn case(
         gpu.reference_image(&frame, surface, scale)?.as_raw()
     );
     let rows = &observations.rows;
-    let mut burst = 0;
+    let mut miss_streak = 0;
     let mut longest = 0;
     let mut skipped = 0;
     let mut missed = 0;
     for row in rows {
         let superseded = row["superseded_ticks"].as_u64().unwrap();
         skipped += superseded;
-        burst += superseded;
-        longest = longest.max(burst);
+        miss_streak += superseded;
+        longest = longest.max(miss_streak);
         if row["deadline_missed"] == true {
-            burst += 1;
+            miss_streak += 1;
             missed += 1;
-            longest = longest.max(burst);
+            longest = longest.max(miss_streak);
         } else {
-            burst = 0;
+            miss_streak = 0;
         }
     }
     assert_eq!(rows.len() as u64 + skipped, slots as u64);
@@ -274,11 +336,12 @@ fn case(
     })
     .collect();
     Ok(
-        json!({"nodes":count,"batch":batch,"effects":effects,"target_hz":hz,"max_in_flight":limit,
+        json!({"nodes":count,"batch":batch,"effects":effects,"burst":burst,"service_completions_while_waiting":service,"target_hz":hz,"max_in_flight":limit,
         "surface":surface,"scale":scale,"admission_before_work":before_work,"expected_ticks":slots,"consumed_ticks":rows.len(),
         "superseded_ticks":skipped,"deadline_misses_upper_bound":missed,"longest_consecutive_misses_upper_bound":longest,
         "unsatisfied_ticks_upper_bound":skipped+missed,"admission_waits":waits,"layer_budget_waits":resource_waits,
         "maximum_gpu_in_flight":maximum_gpu,"maximum_pending_receipts":maximum_pending,
+        "dense_epochs_crossed":last_burst,"full_resyncs_after_initial":full_resyncs,
         "pixel_equal":true,"leases_retired":true,"phases":phases,
         "update_queue":format!("{:?}",receiver.stats()?),"completion_queue":format!("{:?}",completions.stats()),
         "source_to_completion_upper_bound":distribution(rows.iter().map(|r|r["source_to_completion_upper_bound_us"].as_f64().unwrap())),
@@ -289,12 +352,13 @@ fn case(
 pub(super) fn run(output: &std::path::Path, quick: bool) -> Result<(), Box<dyn Error>> {
     let mut cases = vec![];
     let pressure = std::env::args().any(|v| v == "--pressure");
-    for (count, batch) in if pressure {
+    let burst = std::env::args().any(|v| v == "--pipeline-burst-only");
+    for (count, batch) in if pressure || burst {
         vec![(10000, false)]
     } else {
         vec![(1000, false), (10000, false), (10000, true)]
     } {
-        for effects in [false, true] {
+        for effects in if burst { vec![true] } else { vec![false, true] } {
             for hz in [60, 120] {
                 for before in if std::env::args().any(|v| v == "--reverse") {
                     [true, false]
@@ -328,4 +392,35 @@ pub(super) fn run(output: &std::path::Path, quick: bool) -> Result<(), Box<dyn E
         "quick":quick,"cases":cases}))?,
     )?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn owner_services_completion_without_another_source_update() -> Result<(), Box<dyn Error>> {
+        let tree = UiTree::new(absolute(0.0, 0.0, 16.0, 16.0), 0x4488ccff)?;
+        let mut ui = ReactiveUi::new(tree, BackendCapabilities { solid_color_patch: true })?;
+        let mut source = ui.open_updates(1)?;
+        let mut gpu = WgpuFrameRenderer::new(2)?;
+        let mut completions = gpu.open_completions()?;
+        let frame = ui.local_frame([16.0, 16.0])?;
+        gpu.submit_local(&frame, [16, 16], 1.0)?;
+        let serial = gpu.lifecycle().submitted;
+        let mut observations = Observations {
+            pending: VecDeque::new(), rows: vec![], latest: None,
+            origin: Instant::now(), budget: Duration::from_millis(8),
+        };
+        // The source remains open and idle. A source-only waiter cannot return;
+        // the owner must wake on completion and collect the submitted leases.
+        assert!(matches!(wait_source(&mut gpu, &mut completions, &mut observations, &mut source)?, OwnerEvent::Completion));
+        assert!(observations.latest.unwrap().serial >= serial);
+        assert_eq!(gpu.lifecycle().frame_leases, 0);
+        assert_eq!(gpu.lifecycle().gpu_leases, 0);
+        let waker = Waker::from(Arc::new(OwnerWake(std::thread::current())));
+        let mut context = Context::from_waker(&waker);
+        assert!(std::pin::pin!(source.ready()).as_mut().poll(&mut context).is_pending());
+        Ok(())
+    }
 }

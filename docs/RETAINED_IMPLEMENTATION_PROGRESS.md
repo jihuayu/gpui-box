@@ -402,6 +402,18 @@ pass.120Hz submit medians improve, but first60Hz regresses and first120Hz longes
 unsatisfied interval worsens9 ->14. This reduces transient work without a stable
 stall-elimination claim. The full goal stays active.
 
+The [pipeline completion follow-up](performance/2026-11-13-pipeline-completion/README.md)
+adds10second60/120Hz pipelined burst controls with completion/owner times kept
+separate. Default harness waiting now handles completion independently of source;
+normal native integration already has an independent completion task.16eligible
+cases /14,400ticks preserve final pixels, bounded flights and complete retirement.
+Idle-source completion regression, strict harness/test Clippy and32final release
+smoke cases pass.120Hz handling p99 improves to0.50–1.14ms, but completion p99
+stays22.56–24.77ms; three of four completion-loss comparisons worsen. Dense
+owner work remains20.10–22.03ms median. This corrects the harness and clarifies
+the host API contract; it does not close burst stalls or justify queue tuning.
+Rejected interference runs and raw regressions are preserved. Full goal active.
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |

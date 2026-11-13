@@ -4,12 +4,12 @@ No compiler is allowed during captures. Process observations cannot prove a
 quiet GPU/OS or qualify visible presentation. Each mode uses the same executable.
 """
 import ctypes as c
+import argparse
 from ctypes import wintypes as w
 import hashlib
 import json
 from pathlib import Path
 import subprocess
-import sys
 import time
 
 
@@ -54,36 +54,45 @@ def hashes(paths):
 
 
 def main():
-    output = Path(sys.argv[1]).resolve()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("output", type=Path)
+    pair_options = parser.add_mutually_exclusive_group()
+    for flag in ("material-pair", "stream-pair", "pipeline-pair", "recovery-pair"):
+        pair_options.add_argument(f"--{flag}", action="store_true")
+    parser.add_argument("--round", type=int, choices=(1, 2), help="Capture only this planned round in a fresh directory")
+    options = parser.parse_args()
+    output = options.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     binary = Path("target/release/dense-runtime-perf.exe").resolve()
     sources = sorted(Path("crates/gpui-box/src").rglob("*.rs"))
     sources += sorted(Path("vendor/gpui/crates/gpui_wgpu/src").rglob("*.rs"))
     sources += sorted(Path("tooling/rendering-perf/src").rglob("*.rs"))
     sources += [Path(__file__), Path("Cargo.lock")]
-    material_pair = "--material-pair" in sys.argv
-    stream_pair = "--stream-pair" in sys.argv
-    pair = "--recovery-pair" in sys.argv or material_pair or stream_pair
+    material_pair = options.material_pair
+    stream_pair = options.stream_pair
+    pipeline = options.pipeline_pair
+    pair = options.recovery_pair or material_pair or stream_pair
     baseline = Path("target/material-stream-baseline/dense-runtime-perf.exe" if stream_pair else "target/material-baseline/dense-runtime-perf.exe" if material_pair else "target/burst-baseline/dense-runtime-perf.exe").resolve()
     binaries = [binary, baseline] if pair else [binary]
     binary_hashes = hashes(binaries)
     before = hashes(sources)
     (output / "sources.json").write_text(json.dumps(before, indent=2), encoding="utf-8")
     assert not processes(), "Build or renderer process active before capture"
-    modes = {"original": [], "streamed" if stream_pair else "material-pages" if material_pair else "full-cache": []} if pair else {
+    modes = {"source-wait": ["--source-only-wait"], "service-completions": []} if pipeline else {"original": [], "streamed" if stream_pair else "material-pages" if material_pair else "full-cache": []} if pair else {
         "default": [],
         "tight-lazy": ["--local-tight-layers"],
         "tight-lazy-raster": ["--local-tight-layers", "--layer-translation-reuse"],
     }
     runs = []
-    for round_index in range(2):
+    planned_rounds = [options.round - 1] if options.round else list(range(2))
+    for round_index in planned_rounds:
         order = list(modes) if round_index == 0 else list(reversed(modes))
         for mode in order:
             folder = output / f"run-{round_index + 1}-{mode}"
             folder.mkdir()
             chosen_binary = baseline if pair and mode == "original" else binary
             args = [str(chosen_binary), str(folder), "--local", "--integer-motion",
-                    "--burst-cadence-only", *modes[mode]]
+                    *(["--pipeline-only", "--pipeline-burst-only"] if pipeline else ["--burst-cadence-only"]), *modes[mode]]
             samples = []
             start = time.perf_counter()
             with (folder / "stdout.txt").open("w", encoding="utf-8") as log:
@@ -107,11 +116,12 @@ def main():
     manifest = {"base_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
                 "binary_sha256": binary_hashes, "binary_hashes_stable": binary_hashes == hashes(binaries),
                 "source_hashes_stable": before == hashes(sources),
-                "process_sample_interval_s": .25, "runs": runs,
-                "scope": "source/owner/GPU synchronous completion; process sampler observes known compiler/renderer conflicts only; no native present/input, power/thermal/driver isolation or modern desktop qualification"}
+                "process_sample_interval_s": .25, "planned_rounds": [r + 1 for r in planned_rounds], "runs": runs,
+                "scope": "source/owner/GPU completion upper bound; process sampler observes known compiler/renderer conflicts only; no native present/input, power/thermal/driver isolation or modern desktop qualification"}
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     assert manifest["source_hashes_stable"]
-    assert len(runs) == len(modes) * 2 and all(r["exit_code"] == 0 and not r["conflicts"] for r in runs)
+    assert manifest["binary_hashes_stable"]
+    assert len(runs) == len(modes) * len(planned_rounds) and all(r["exit_code"] == 0 and not r["conflicts"] for r in runs)
 
 
 if __name__ == "__main__":
