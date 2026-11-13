@@ -31,6 +31,11 @@ taffy = { version = "=0.15.0", default-features = false, features = ["std", "taf
 workspace = true
 
 [[bin]]
+name = "software-runtime-perf"
+path = "src/software.rs"
+required-features = ["retained-runtime"]
+
+[[bin]]
 name = "dense-runtime-perf"
 path = "src/dense.rs"
 required-features = ["retained-gpu"]

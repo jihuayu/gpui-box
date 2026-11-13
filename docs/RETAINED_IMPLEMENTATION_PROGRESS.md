@@ -321,6 +321,16 @@ and image/glyph dependency regression cases remain. These results do not close
 owner work budgets, effects raster reuse, modern desktop visible 120 Hz or CPU
 rendering acceptance. The overall goal stays active.
 
+The [experimental CPU consumer](ADR_RETAINED_SOFTWARE_CONSUMER.md) now renders
+actual CPU pixels from owned packets using resumable tile work and nested isolated
+opacity, without GPU readback. Completed images retain their hit-test packet;
+partial/failed/cancelled jobs cannot publish. Exact shadows are explicitly
+unsupported; decorative omission requires application permission. Initial pixel
+controls and synthetic probe/cadence measurements are recorded separately from
+native input/presentation. Fractional edge discrepancies, native fallback wiring,
+resource-pressure tails and competitive software throughput remain open. This
+advances CPU implementation beyond policy enums without closing acceptance.
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |

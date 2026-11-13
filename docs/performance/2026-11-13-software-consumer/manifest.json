@@ -1,0 +1,23 @@
+{
+  "base_commit": "f2d62555008caf1c3416533a77bdd2a437a4b469",
+  "captured_at": "2026-11-13T09:02:26.231266+08:00",
+  "sources": {
+    "crates/gpui-box/src/retained.rs": "08a3e909fca62da94742f19011b9e23b199714d5feb90c8db33e84a7d31c9ca7",
+    "crates/gpui-box/src/retained/software.rs": "4796d8d7daf770975bf961654535c3cd1b04246dc2c6048d7126e54868fb4cde",
+    "crates/gpui-box/src/retained/software/tests.rs": "b170da6d53c038d9cb3732a82bbd490d19381c1bb38f31ef2fd13337c324ce54",
+    "tooling/rendering-perf/src/software.rs": "bdf6735353753636acd27e00498983d1e30129dcec725e0d1b2e1496178601fc",
+    "tooling/rendering-perf/src/retained_software.rs": "46582b3c38de592627856fd941901b603ce77b0a22bfc0a236adb91d7fe16991"
+  },
+  "cpu_binary_sha256": "2623dc6fc80b0fc54c7451b9588a70f201469f0bac5e27a72b017a9a61de190b",
+  "comparison_binary_sha256": "8988156988d0db87ba4cb074367f73306447e843f1239aae18bf104b4aa3f911",
+  "runs": 2,
+  "seconds_per_case": 5,
+  "size": [
+    320,
+    180
+  ],
+  "units": 512,
+  "scope": "100 moving boxes, 10 isolated rounded groups when effects enabled; packets prepared before capture; no native input or display",
+  "goal_complete": false,
+  "capture_note": "CPU executable unchanged across both captures and final build; comparison harness rebuilt afterward to expand image control from flat 1x1 to nearest 2x2 mixed alpha. Final pixel capture uses comparison hash recorded here."
+}

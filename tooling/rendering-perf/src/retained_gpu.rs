@@ -36,6 +36,7 @@ mod retained_reactive;
 mod retained_responsive;
 mod retained_routing;
 mod retained_shadows;
+mod retained_software;
 mod retained_spatial;
 mod retained_spatial_index;
 mod retained_structure;
@@ -86,6 +87,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         )?,
     )?;
     let mut results = vec![];
+    if std::env::args().any(|arg| arg == "--software-only") {
+        retained_software::run(&mut renderer, &output, &mut results)?;
+        fs::write(
+            output.join("validation.json"),
+            serde_json::to_vec_pretty(&results)?,
+        )?;
+        return Ok(());
+    }
     if std::env::args().any(|arg| arg == "--local-only") {
         retained_local::run(&output, &mut results)?;
         fs::write(

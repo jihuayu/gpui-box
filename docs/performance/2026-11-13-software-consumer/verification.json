@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "core_tests": 159,
+  "clippy": "both CPU and GPU harnesses -D warnings passed",
+  "hardware_scenarios": 2015,
+  "hardware_pixel_comparisons": 1923,
+  "hardware_validation_sha256": "1503027b896ef10e6d9be1752705fc553e4df8e95cf1cacfb95e00304e749db8",
+  "binary_sha256": "8988156988d0db87ba4cb074367f73306447e843f1239aae18bf104b4aa3f911",
+  "cpu_pixel_cases": 24,
+  "asserted_cpu_pixel_cases": 16,
+  "fractional_cases_with_known_differences": 2,
+  "cpu_validation_sha256": "d89bf1f48ff6409b684ec5b1497e9808bf97111c68437c3081f05413192063ae",
+  "native_input_or_present_measured": false,
+  "goal_complete": false
+}

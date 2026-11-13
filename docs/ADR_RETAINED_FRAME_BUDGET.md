@@ -303,8 +303,9 @@ API or automatic decoration simplification is justified by these probes.
   compositor/display observation path. Physical input latency is separate.
 - Pipelined measurements, larger pixel extents, text/images, resize/resource
   churn and cold cache/allocator/device-recovery spikes.
-- Real software renderer, explicit capability negotiation, progressive work
-  budgets and software responsiveness/fidelity acceptance.
+- Experimental [CPU consumer](ADR_RETAINED_SOFTWARE_CONSUMER.md) now implements
+  progressive raster jobs; general capabilities, native integration and software
+  responsiveness/fidelity acceptance remain open.
 - Modern desktop hardware runs, multiple independent runs and idle/energy data.
 
 References: [progress](RETAINED_IMPLEMENTATION_PROGRESS.md),

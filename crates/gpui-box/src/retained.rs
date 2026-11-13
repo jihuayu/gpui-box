@@ -18,6 +18,7 @@ mod image;
 pub mod local;
 pub mod logical;
 pub mod pacing;
+pub mod software;
 pub use image::ImageResource;
 mod dirty_nodes;
 mod extraction;
