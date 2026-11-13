@@ -1,0 +1,12 @@
+{
+  "candidate_core_tests": 165,
+  "candidate_mixed_gpu_comparisons": 75,
+  "strict_library_clippy": "passed",
+  "decision": "rejected; all eight dense submit medians regress",
+  "runtime_restored_to": "598f0eb",
+  "full_hardware_suite": "not run for rejected candidate",
+  "formal_cases": 16,
+  "expected_ticks": 14400,
+  "source_and_binary_hashes_stable": true,
+  "known_compiler_renderer_conflicts": 0
+}

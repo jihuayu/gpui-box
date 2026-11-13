@@ -135,3 +135,13 @@ with no stable deadline/stall benefit. Restore the original runtime rather than
 retaining another algorithm on structural reasoning alone. Internal submission
 phase attribution is needed before choosing the next broad optimization. No
 application-selected conversion policy is introduced.
+
+## Rejected identity lookup replacement
+
+The [identity-map probe](performance/2026-11-13-instance-lookup/README.md)
+replaces only Quad/Shadow identity BTreeMaps with standard HashMaps and sorts
+full-recovery retirement IDs to retain reuse order.165core and75mixed GPU
+comparisons pass, but all eight reversed sustained dense submit medians regress
+2.4–14.0%;120Hz longest intervals also regress in round2. Restore the original
+maps. Lookup complexity alone does not establish lower latency. No custom
+hasher, application switch or workload-specific dispatch follows from this.

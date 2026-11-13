@@ -443,6 +443,13 @@ comparisons pass. Default builds compile out the phase fields/clock reads.
 Next focus is repeated preparation and explicit temporary destruction, while
 native display/input, CPU integration and full acceptance remain open.
 
+The [identity-map experiment](performance/2026-11-13-instance-lookup/README.md)
+passes165core and75mixed GPU comparisons, but all eight reversed sustained
+dense submit medians regress2.4–14.0%. The candidate is rejected and the original
+runtime maps restored exactly. Raw tail/deadline losses, source hashes and the
+candidate are archived. Bulk preparation/cleanup attribution is the next step;
+no new rendering policy or application API is introduced.
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |
