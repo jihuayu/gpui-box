@@ -51,6 +51,7 @@ impl WgpuFrameRenderer {
                     && self.scale == scale
                     && self.surface == surface
                     && self.source == Some((old.tree(), old.revision()))
+                    && self.local_spatial_slots.len() == old.len()
                     && frame.follows(old)
             })
             .filter(|old| frame.material_updates().iter().all(|&index| {
@@ -77,6 +78,16 @@ impl WgpuFrameRenderer {
             let result = self.submit(&resolved, surface, scale);
             self.tight_layer_bounds=tight;
             let mut result = result?;
+            // Rebuild only after the complete consumer path has installed its
+            // actual allocations. Missing bases, order changes and reset cannot
+            // reuse an index from another submitted topology/device epoch.
+            self.local_spatial_slots = if self.shared_spatial && self.shared_content {
+                match resolved.items.iter().map(|item| self.spatial_arena.slot(item.node))
+                    .collect::<Result<Vec<_>, _>>() {
+                    Ok(slots) => slots,
+                    Err(error) => { self.failed = true; return Err(error); }
+                }
+            } else { Vec::new() };
             self.local_ink = if self.local_tight_layer_bounds && tight && !resolved.properties.effects.is_empty() {
                 let (ink,count)=local_ink::LocalInk::rebuild(frame);
                 if let Some(result)=&mut result {result.composition.bounds_items+=count;}
@@ -122,7 +133,7 @@ impl WgpuFrameRenderer {
                     let entry = routing::classify(old.material(index), item, true, false);
                     #[cfg(feature = "retained-diagnostics")]
                     let classified = sample_start.map(|_| std::time::Instant::now());
-                    let property = self.spatial_arena.slot(item.node)?;
+                    let property = self.local_spatial_slots[index];
                     #[cfg(feature = "retained-diagnostics")]
                     let located = sample_start.map(|_| std::time::Instant::now());
                     self.prepare_primitives(item, property, scale, last_serial, entry.quad, entry.shadow)?;

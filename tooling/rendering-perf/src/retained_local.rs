@@ -221,9 +221,72 @@ pub(super) fn run(
             );
         }
     }
+    allocation_lifecycle(results)?;
     std::fs::write(
         output.join("local-validation-count.txt"),
         format!("{} mixed route comparisons\n", results.len()),
     )?;
+    Ok(())
+}
+
+// An unchanged item count is not authority to reuse an allocation index. Exercise
+// painter reorder, generation replacement, skipped bases and representation /
+// device / capability changes, followed by exact-predecessor material edits.
+fn allocation_lifecycle(results: &mut Vec<serde_json::Value>) -> Result<(), Box<dyn Error>> {
+    for scale in [1.0, 1.25, 1.5] {
+        let mut tree = UiTree::new(fixed(0.0, 0.0, 64.0, 48.0), 0x112233ff)?;
+        let a = tree.append(tree.root(), fixed(4.0, 4.0, 40.0, 32.0), 0xff000088)?;
+        let mut b = tree.append(tree.root(), fixed(8.0, 6.0, 40.0, 32.0), 0x00ff0088)?;
+        let c = tree.append(tree.root(), fixed(12.0, 8.0, 40.0, 32.0), 0x0000ff88)?;
+        let mut gpu = WgpuFrameRenderer::new(2)?;
+        let surface = [(64.0 * scale) as u32, (48.0 * scale) as u32];
+        let initial = tree.local_frame([64.0, 48.0])?;
+        gpu.submit_local(&initial, surface, scale)?;
+        for step in 0..14 {
+            match step {
+                1 => {
+                    let mut tx = Transaction::default();
+                    tx.reorder(tree.root(), vec![c, b, a]);
+                    tree.commit(tx, BackendCapabilities::default())?;
+                }
+                3 => {
+                    let retired = b;
+                    tree.remove(b)?;
+                    b = tree.append(tree.root(), fixed(6.0, 5.0, 40.0, 32.0), 0x8844cc99)?;
+                    assert_ne!(b, retired);
+                }
+                5 => {
+                    let mut tx = Transaction::default();
+                    tx.color(c, 0xffcc4488);
+                    tree.commit(tx, BackendCapabilities::default())?;
+                    let _skipped = tree.local_frame([64.0, 48.0])?;
+                }
+                7 => {
+                    let resolved = tree.frame([64.0, 48.0])?;
+                    gpu.submit(&resolved, surface, scale)?;
+                }
+                9 => gpu.reset()?,
+                12 => gpu.set_shared_content_enabled(false),
+                13 => gpu.set_shared_content_enabled(true),
+                _ => {}
+            }
+            let mut tx = Transaction::default();
+            tx.color(a, if step % 2 == 0 { 0xee8844aa } else { 0x44aaeeaa });
+            tx.color(b, if step % 2 == 0 { 0x88dd4488 } else { 0xdd448888 });
+            tree.commit(tx, BackendCapabilities::default())?;
+            let frame = tree.local_frame([64.0, 48.0])?;
+            let submission = gpu.submit_local(&frame, surface, scale)?.unwrap();
+            let recovery = matches!(step, 1 | 3 | 5 | 7 | 9 | 12 | 13);
+            assert_eq!(submission.full_resync, recovery, "allocation lifecycle step={step}");
+            assert_eq!(gpu.image()?.as_raw(),
+                gpu.reference_image(&frame.resolve(), surface, scale)?.as_raw(),
+                "allocation lifecycle step={step} scale={scale}");
+            results.push(serde_json::json!({"case":format!("local-allocation-lifecycle-{scale}-{step}"),
+                "pixel_equal":true,"full_resync":submission.full_resync}));
+        }
+        gpu.finish()?;
+        assert_eq!(gpu.lifecycle().frame_leases, 0);
+        assert_eq!(gpu.lifecycle().gpu_leases, 0);
+    }
     Ok(())
 }

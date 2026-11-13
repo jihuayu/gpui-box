@@ -304,6 +304,8 @@ pub struct WgpuFrameRenderer {
     leases: VecDeque<(u64, FramePacket)>,
     local_leases: VecDeque<(u64, local::LocalFrame)>,
     local_snapshot: Option<local::LocalFrame>,
+    // Spatial slots in the exact local snapshot's immutable paint order.
+    local_spatial_slots: Vec<u32>,
     local_ink: Option<local_ink::LocalInk>,
     max_in_flight: usize,
     failed: bool,
@@ -351,6 +353,7 @@ impl WgpuFrameRenderer {
             leases: VecDeque::new(),
             local_leases: VecDeque::new(),
             local_snapshot: None,
+            local_spatial_slots: Vec::new(),
             local_ink: None,
             max_in_flight,
             failed: false,
@@ -720,6 +723,7 @@ impl WgpuFrameRenderer {
             self.routing_snapshot = None;
         }
         self.local_snapshot = None;
+        self.local_spatial_slots.clear();
         self.local_ink = None;
         if self.failed {
             return Err(Error::Gpu("reset after failed frame submission".into()));

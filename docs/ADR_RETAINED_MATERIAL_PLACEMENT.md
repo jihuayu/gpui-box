@@ -176,3 +176,20 @@ range tests: geometry traversal must retain actual open ancestors even when a
 range starts inside a subtree then crosses to an ancestor's sibling. Both
 comparison binaries contain that fix. Profiling should discriminate preparation
 subcosts before the next algorithmic change; fewer clones alone are not proof.
+
+## Consumer allocation metadata follows submitted topology
+
+The [local slot index](performance/2026-11-13-local-slot-index/README.md) retains
+actual SpatialArena slots in immutable submitted paint order. Exact local
+predecessor authority proves index meaning and stable allocations; full recovery
+rebuilds from the installed arena. Direct resolved submissions clear it, reset
+recreates it, and missing bases/topology/capability/scale changes force recovery.
+The index is private derived consumer data, with4Nbytes plus capacity overhead;
+it is never caller-supplied dirty or generation authority. All material/instance/
+projected GPU validation and failure/reset contracts remain intact.
+
+Eight reversed dense submit medians improve7.5–19.8%, supporting this small general
+work reduction.120Hz p99 improves in all four pairs, but longest after-work losses
+worsen4→23 and3→8ticks, and round2deadline totals worsen. Retain those failures
+and the open120Hz/native/CPU goal. A faster owner phase cannot promise lower
+completion/display latency, nor justify an application-selectable queue policy.

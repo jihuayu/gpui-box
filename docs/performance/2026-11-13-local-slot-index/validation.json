@@ -1,0 +1,21 @@
+{
+  "default_core_tests": 166,
+  "default_library_and_hardware_harness_clippy": "passed",
+  "initial_mixed_gpu_comparisons": 75,
+  "expanded_mixed_gpu_comparisons": 117,
+  "additional_lifecycle_pixel_cases": 42,
+  "full_hardware_cases": 2060,
+  "full_pixel_comparisons": 1968,
+  "formal_cases": 16,
+  "scheduled_ticks": 14400,
+  "capture_source_and_binary_hashes_stable": true,
+  "known_compiler_renderer_conflicts": 0,
+  "postcapture_changed_hashed_sources": [
+    "tooling\\rendering-perf\\src\\retained_local.rs"
+  ],
+  "postcapture_change": "hardware regression cases only; runtime and dense harness unchanged",
+  "retained": "consumer-owned local spatial slot index",
+  "remaining": "120Hz tails, native present/input, modern desktop and CPU/native/full RFC acceptance",
+  "diagnostic_core_tests": 166,
+  "diagnostic_library_clippy": "passed"
+}

@@ -484,6 +484,15 @@ deadline regressions are retained. Next investigate consumer-owned allocation
 indexing tied to exact submitted topology, with generation checks and full
 recovery; this adds no application-selected algorithm or deadline promise.
 
+The [consumer slot index](performance/2026-11-13-local-slot-index/README.md)
+removes repeated material-node spatial lookup using private paint-order metadata
+rebuilt after complete recovery. Eight reversed dense submit medians improve
+7.5–19.8%; keep this small general reduction.120Hz p99 improves but longest
+after-work intervals regress4→23 and3→8ticks; dense owner remains18–20ms.
+Tail/deadline failures are preserved and120Hz qualification remains open.
+Generation checks, exact predecessor authority and complete recovery are intact;
+42additional hardware pixel cases cover reorder/removal/missed-base/reset/handoff.
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |
