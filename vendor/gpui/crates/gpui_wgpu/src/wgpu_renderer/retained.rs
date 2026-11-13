@@ -236,6 +236,13 @@ impl RetainedQuadRenderer {
         }
     }
     pub fn layer_texture_reuse_enabled(&self) -> bool { self.layers.reuse_textures }
+    /// Experimental exact compared-content integer translation reuse. Default off.
+    pub fn set_layer_translation_reuse_enabled(&mut self, enabled:bool) {
+        if self.layers.reuse_translations != enabled {
+            self.layers.reuse_translations=enabled; self.layers.clear(); self.force_full=true;
+        }
+    }
+    pub fn layer_translation_reuse_enabled(&self)->bool {self.layers.reuse_translations}
 
     /// Adjust the unique isolated-texture payload cap after retiring this epoch.
     pub fn set_layer_budget_bytes(&mut self, bytes: u64) -> Result<()> {
@@ -530,6 +537,8 @@ impl RetainedQuadRenderer {
             &self.quads.binding,
             &self.shadows.binding,
             &self.spatial,
+            &self.quads,
+            &self.shadows,
             &mut encoder,
             batch.layers,
             &quad_stats.dirty,

@@ -431,6 +431,15 @@ impl SpatialCache {
     pub fn generation(&self) -> u64 {
         self.storage.generation
     }
+    pub fn physical_scale(&self) -> f32 { self.scale }
+    pub fn current_placement(&self, slot:u32) -> Option<([f32;2], Option<Bounds<ScaledPixels>>)> {
+        let batch = SpatialBatch {enabled:self.enabled,capacity:self.capacity,scale:self.scale,writes:vec![]};
+        let state = self.projected_state(slot, &batch).ok()?;
+        Some(([state.origin[0]*self.scale,state.origin[1]*self.scale],state.clip.map(|clip| Bounds {
+            origin:gpui::point(ScaledPixels(clip[0]*self.scale),ScaledPixels(clip[1]*self.scale)),
+            size:gpui::size(ScaledPixels(clip[2]*self.scale),ScaledPixels(clip[3]*self.scale)),
+        })))
+    }
     pub fn affected(&self, property: u32, dirty: &[Range<u32>], all: bool) -> bool {
         if property == 0 {
             return false;

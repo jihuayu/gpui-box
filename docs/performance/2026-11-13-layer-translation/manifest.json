@@ -1,0 +1,43 @@
+{
+  "base_commit": "5e1697374587c7e12a4bd24e95a600279e3ab4fc",
+  "captured_at": "2026-11-13T09:20:49.852698+08:00",
+  "binary_sha256": "2ff0f8aa0c7809e69f762ae8767f9dd374ac16f97c8090710d6b50e96ce81b66",
+  "sources": {
+    "crates/gpui-box/src/retained/wgpu.rs": "588d26caab6e5681f94ce1ffa2140ff27205c72475b4f5b04c784373017f40f2",
+    "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained.rs": "70583891a8b197749be6089c09540668315304bdf299974d9ab535c76eedd6ad",
+    "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/layers.rs": "49971fd006fc8a784fdd12113f23b2adc9dc10f7af86bd8b0ed7011769c8dcd1",
+    "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/layers/translation.rs": "74694454096f56475ebc62f22f1f1ff2f47ce7b175b35be6648f89513d16b27c",
+    "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/spatial.rs": "beb17c8ad23a972bcb993bd00c2d924270b1f2316a3ff0c8b8faa366014ec428",
+    "tooling/rendering-perf/src/retained_layer_translation.rs": "fec1c229c51490b537d9773a9bfae06913021f7246e64d2786724d169ed34354",
+    "tooling/rendering-perf/src/retained_gpu.rs": "41d617c64ff2594824ef4ce14ed7993e92eb59a50530c5ac406d4c801230f6b7"
+  },
+  "hardware": {
+    "name": "NVIDIA GeForce GTX 1650 Ti",
+    "backend": "Vulkan",
+    "driver": "571.96"
+  },
+  "default_enabled": false,
+  "runs": 2,
+  "seconds_per_case": 10,
+  "cadence_surface": [
+    1000,
+    760
+  ],
+  "independent_source_ticks": [
+    600,
+    1200
+  ],
+  "probe_scope": "128 overlapping 900x650 quads in one moving isolated opacity layer; integer unit-scale resolved route; native present excluded",
+  "goal_complete": false,
+  "initial_source_note": "Initial two measurements preceded formatting and addition of multi-flight harness only; runtime algorithm is unchanged. Exact original hashes retained.",
+  "final_binary_sha256": "4fd5f568e4c8be816c39e8a27fa80f56bceba5719f7960f15d58a4093566c916",
+  "final_sources": {
+    "crates/gpui-box/src/retained/wgpu.rs": "588d26caab6e5681f94ce1ffa2140ff27205c72475b4f5b04c784373017f40f2",
+    "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained.rs": "70583891a8b197749be6089c09540668315304bdf299974d9ab535c76eedd6ad",
+    "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/layers.rs": "61f6efcdd7a6e2c793168d5ae03e2976155b77328cf201bab0d037a77802b90c",
+    "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/layers/translation.rs": "060ca4ed6e6daae0ef95f09c0d4c61c0945c78085ae43b6ae56264d82a76a50a",
+    "vendor/gpui/crates/gpui_wgpu/src/wgpu_renderer/retained/spatial.rs": "beb17c8ad23a972bcb993bd00c2d924270b1f2316a3ff0c8b8faa366014ec428",
+    "tooling/rendering-perf/src/retained_layer_translation.rs": "ded0886b3132ce38fd0f6649cf4ac263595386b6d2a5b01245d4fd04b300ba4b",
+    "tooling/rendering-perf/src/retained_gpu.rs": "41d617c64ff2594824ef4ce14ed7993e92eb59a50530c5ac406d4c801230f6b7"
+  }
+}

@@ -1,0 +1,802 @@
+[
+  {
+    "round": 0,
+    "enabled": false,
+    "step": 4,
+    "owner_submit_us": 381.6,
+    "completed_us": 8190.599999999999,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 0,
+    "enabled": false,
+    "step": 5,
+    "owner_submit_us": 728.5,
+    "completed_us": 9028.7,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 0,
+    "enabled": false,
+    "step": 6,
+    "owner_submit_us": 363.09999999999997,
+    "completed_us": 8149.3,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 0,
+    "enabled": false,
+    "step": 7,
+    "owner_submit_us": 369.5,
+    "completed_us": 8556.2,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 0,
+    "enabled": false,
+    "step": 8,
+    "owner_submit_us": 441.8,
+    "completed_us": 8903.400000000001,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 0,
+    "enabled": false,
+    "step": 9,
+    "owner_submit_us": 652.1,
+    "completed_us": 9299.6,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 0,
+    "enabled": false,
+    "step": 10,
+    "owner_submit_us": 761.1999999999999,
+    "completed_us": 8503.4,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 0,
+    "enabled": false,
+    "step": 11,
+    "owner_submit_us": 392.8,
+    "completed_us": 9158.7,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 0,
+    "enabled": false,
+    "step": 12,
+    "owner_submit_us": 509.09999999999997,
+    "completed_us": 8540.300000000001,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 0,
+    "enabled": false,
+    "step": 13,
+    "owner_submit_us": 568.5,
+    "completed_us": 8307.699999999999,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 0,
+    "enabled": false,
+    "step": 14,
+    "owner_submit_us": 397.1,
+    "completed_us": 8320.7,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 0,
+    "enabled": false,
+    "step": 15,
+    "owner_submit_us": 623.4,
+    "completed_us": 8774.0,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 0,
+    "enabled": false,
+    "step": 16,
+    "owner_submit_us": 579.3000000000001,
+    "completed_us": 8408.9,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 0,
+    "enabled": false,
+    "step": 17,
+    "owner_submit_us": 638.3,
+    "completed_us": 8395.0,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 0,
+    "enabled": false,
+    "step": 18,
+    "owner_submit_us": 438.8,
+    "completed_us": 8277.3,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 0,
+    "enabled": false,
+    "step": 19,
+    "owner_submit_us": 561.7,
+    "completed_us": 8751.800000000001,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 0,
+    "enabled": false,
+    "step": 20,
+    "owner_submit_us": 514.5,
+    "completed_us": 8399.5,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 0,
+    "enabled": false,
+    "step": 21,
+    "owner_submit_us": 694.1999999999999,
+    "completed_us": 8569.2,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 0,
+    "enabled": false,
+    "step": 22,
+    "owner_submit_us": 611.6999999999999,
+    "completed_us": 8098.400000000001,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 0,
+    "enabled": false,
+    "step": 23,
+    "owner_submit_us": 488.2,
+    "completed_us": 6711.9,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 0,
+    "enabled": true,
+    "step": 4,
+    "owner_submit_us": 536.6999999999999,
+    "completed_us": 727.4,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 0,
+    "enabled": true,
+    "step": 5,
+    "owner_submit_us": 581.6,
+    "completed_us": 764.3,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 0,
+    "enabled": true,
+    "step": 6,
+    "owner_submit_us": 718.6999999999999,
+    "completed_us": 930.4,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 0,
+    "enabled": true,
+    "step": 7,
+    "owner_submit_us": 913.9000000000001,
+    "completed_us": 1726.1,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 0,
+    "enabled": true,
+    "step": 8,
+    "owner_submit_us": 445.09999999999997,
+    "completed_us": 628.4,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 0,
+    "enabled": true,
+    "step": 9,
+    "owner_submit_us": 617.7,
+    "completed_us": 815.1999999999999,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 0,
+    "enabled": true,
+    "step": 10,
+    "owner_submit_us": 461.5,
+    "completed_us": 632.9000000000001,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 0,
+    "enabled": true,
+    "step": 11,
+    "owner_submit_us": 523.8000000000001,
+    "completed_us": 751.8,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 0,
+    "enabled": true,
+    "step": 12,
+    "owner_submit_us": 386.70000000000005,
+    "completed_us": 563.6999999999999,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 0,
+    "enabled": true,
+    "step": 13,
+    "owner_submit_us": 356.2,
+    "completed_us": 595.5999999999999,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 0,
+    "enabled": true,
+    "step": 14,
+    "owner_submit_us": 377.90000000000003,
+    "completed_us": 546.1,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 0,
+    "enabled": true,
+    "step": 15,
+    "owner_submit_us": 360.5,
+    "completed_us": 521.4,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 0,
+    "enabled": true,
+    "step": 16,
+    "owner_submit_us": 482.9,
+    "completed_us": 702.8,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 0,
+    "enabled": true,
+    "step": 17,
+    "owner_submit_us": 456.5,
+    "completed_us": 631.4,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 0,
+    "enabled": true,
+    "step": 18,
+    "owner_submit_us": 1321.1,
+    "completed_us": 1495.5,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 0,
+    "enabled": true,
+    "step": 19,
+    "owner_submit_us": 305.7,
+    "completed_us": 465.8,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 0,
+    "enabled": true,
+    "step": 20,
+    "owner_submit_us": 251.9,
+    "completed_us": 414.2,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 0,
+    "enabled": true,
+    "step": 21,
+    "owner_submit_us": 247.1,
+    "completed_us": 408.6,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 0,
+    "enabled": true,
+    "step": 22,
+    "owner_submit_us": 254.70000000000002,
+    "completed_us": 416.5,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 0,
+    "enabled": true,
+    "step": 23,
+    "owner_submit_us": 248.69999999999996,
+    "completed_us": 398.29999999999995,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 1,
+    "enabled": true,
+    "step": 4,
+    "owner_submit_us": 511.19999999999993,
+    "completed_us": 696.9,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 1,
+    "enabled": true,
+    "step": 5,
+    "owner_submit_us": 523.5,
+    "completed_us": 681.4,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 1,
+    "enabled": true,
+    "step": 6,
+    "owner_submit_us": 395.1,
+    "completed_us": 856.3000000000001,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 1,
+    "enabled": true,
+    "step": 7,
+    "owner_submit_us": 419.7,
+    "completed_us": 609.9,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 1,
+    "enabled": true,
+    "step": 8,
+    "owner_submit_us": 538.7,
+    "completed_us": 739.4,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 1,
+    "enabled": true,
+    "step": 9,
+    "owner_submit_us": 474.2,
+    "completed_us": 645.5,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 1,
+    "enabled": true,
+    "step": 10,
+    "owner_submit_us": 269.9,
+    "completed_us": 437.8,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 1,
+    "enabled": true,
+    "step": 11,
+    "owner_submit_us": 284.3,
+    "completed_us": 458.20000000000005,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 1,
+    "enabled": true,
+    "step": 12,
+    "owner_submit_us": 276.5,
+    "completed_us": 450.5,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 1,
+    "enabled": true,
+    "step": 13,
+    "owner_submit_us": 265.0,
+    "completed_us": 495.40000000000003,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 1,
+    "enabled": true,
+    "step": 14,
+    "owner_submit_us": 438.1,
+    "completed_us": 686.3000000000001,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 1,
+    "enabled": true,
+    "step": 15,
+    "owner_submit_us": 516.9000000000001,
+    "completed_us": 710.4,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 1,
+    "enabled": true,
+    "step": 16,
+    "owner_submit_us": 397.90000000000003,
+    "completed_us": 581.2,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 1,
+    "enabled": true,
+    "step": 17,
+    "owner_submit_us": 448.0,
+    "completed_us": 649.0,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 1,
+    "enabled": true,
+    "step": 18,
+    "owner_submit_us": 370.4,
+    "completed_us": 576.4,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 1,
+    "enabled": true,
+    "step": 19,
+    "owner_submit_us": 402.1,
+    "completed_us": 583.1999999999999,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 1,
+    "enabled": true,
+    "step": 20,
+    "owner_submit_us": 501.5,
+    "completed_us": 744.7,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 1,
+    "enabled": true,
+    "step": 21,
+    "owner_submit_us": 508.8,
+    "completed_us": 691.5,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 1,
+    "enabled": true,
+    "step": 22,
+    "owner_submit_us": 331.8,
+    "completed_us": 485.2,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 1,
+    "enabled": true,
+    "step": 23,
+    "owner_submit_us": 300.59999999999997,
+    "completed_us": 446.6,
+    "rasterized_layers": 0,
+    "reused_layers": 1,
+    "rasterized_pixels": 0
+  },
+  {
+    "round": 1,
+    "enabled": false,
+    "step": 4,
+    "owner_submit_us": 603.6,
+    "completed_us": 6464.0,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 1,
+    "enabled": false,
+    "step": 5,
+    "owner_submit_us": 378.8,
+    "completed_us": 6063.200000000001,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 1,
+    "enabled": false,
+    "step": 6,
+    "owner_submit_us": 621.9,
+    "completed_us": 6209.6,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 1,
+    "enabled": false,
+    "step": 7,
+    "owner_submit_us": 855.3000000000001,
+    "completed_us": 6526.900000000001,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 1,
+    "enabled": false,
+    "step": 8,
+    "owner_submit_us": 576.6,
+    "completed_us": 6501.5,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 1,
+    "enabled": false,
+    "step": 9,
+    "owner_submit_us": 520.4,
+    "completed_us": 6806.900000000001,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 1,
+    "enabled": false,
+    "step": 10,
+    "owner_submit_us": 675.9,
+    "completed_us": 6315.4,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 1,
+    "enabled": false,
+    "step": 11,
+    "owner_submit_us": 402.0,
+    "completed_us": 6176.9,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 1,
+    "enabled": false,
+    "step": 12,
+    "owner_submit_us": 569.5,
+    "completed_us": 6547.1,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 1,
+    "enabled": false,
+    "step": 13,
+    "owner_submit_us": 634.4,
+    "completed_us": 6291.1,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 1,
+    "enabled": false,
+    "step": 14,
+    "owner_submit_us": 437.5,
+    "completed_us": 6180.8,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 1,
+    "enabled": false,
+    "step": 15,
+    "owner_submit_us": 573.5,
+    "completed_us": 6226.299999999999,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 1,
+    "enabled": false,
+    "step": 16,
+    "owner_submit_us": 429.59999999999997,
+    "completed_us": 6129.1,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 1,
+    "enabled": false,
+    "step": 17,
+    "owner_submit_us": 663.6,
+    "completed_us": 6839.3,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 1,
+    "enabled": false,
+    "step": 18,
+    "owner_submit_us": 414.0,
+    "completed_us": 6150.7,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 1,
+    "enabled": false,
+    "step": 19,
+    "owner_submit_us": 497.3,
+    "completed_us": 6228.5,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 1,
+    "enabled": false,
+    "step": 20,
+    "owner_submit_us": 485.4,
+    "completed_us": 6178.0,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 1,
+    "enabled": false,
+    "step": 21,
+    "owner_submit_us": 770.7,
+    "completed_us": 6453.6,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 1,
+    "enabled": false,
+    "step": 22,
+    "owner_submit_us": 552.9000000000001,
+    "completed_us": 6223.0,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  },
+  {
+    "round": 1,
+    "enabled": false,
+    "step": 23,
+    "owner_submit_us": 518.4,
+    "completed_us": 6201.9,
+    "rasterized_layers": 1,
+    "reused_layers": 0,
+    "rasterized_pixels": 588104
+  }
+]

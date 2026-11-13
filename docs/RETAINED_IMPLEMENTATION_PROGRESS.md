@@ -331,6 +331,17 @@ native input/presentation. Fractional edge discrepancies, native fallback wiring
 resource-pressure tails and competitive software throughput remain open. This
 advances CPU implementation beyond policy enums without closing acceptance.
 
+The [integer layer translation probe](ADR_RETAINED_LAYER_TRANSLATION.md) adds a
+default-disabled backend equivalence check for bounded solid Quad/Shadow layers.
+Two independent ten-second resolved-route overdraw captures reduce 120 Hz
+completion p99 from 15.07–16.48 ms to 8.39–8.70 ms, max from 25.94–30.80 ms to
+10.50–11.00 ms, and longest unsatisfied bursts from 7/33 to 2/2. It still misses
+13/15 of 1,200 source deadlines; no stable 120 fps or native display claim.
+Complete proof rebuilding has CPU/submission cost. Resource/nested/fractional
+fallback, broader local-space content epochs, dense independent updates and
+modern desktop visible qualification remain open. See the complete
+[evidence and scope](performance/2026-11-13-layer-translation/README.md).
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |

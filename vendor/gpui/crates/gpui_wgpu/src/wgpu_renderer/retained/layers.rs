@@ -1,6 +1,7 @@
 //! Bounded isolated layers. Coordinates remain in physical surface space.
 use super::*;
 use std::collections::{BTreeMap, BTreeSet};
+mod translation;
 
 pub type QuadLayerId = [u64; 3];
 
@@ -38,6 +39,7 @@ struct Layer {
     opacity: f32,
     draws: Arc<[QuadDraw]>,
     valid: bool,
+    translation_content: Option<Vec<u8>>,
     _memory: Arc<allocation_budget::Allocation>,
 }
 
@@ -85,6 +87,7 @@ pub(super) struct LayerCache {
     limit_bytes: u64,
     live_bytes: u64,
     pub reuse_textures: bool,
+    pub reuse_translations: bool,
 }
 
 impl LayerCache {
@@ -182,6 +185,7 @@ impl LayerCache {
             limit_bytes: 256 * 1024 * 1024,
             live_bytes: 0,
             reuse_textures: true,
+            reuse_translations: false,
         }
     }
 
@@ -411,6 +415,7 @@ impl LayerCache {
             opacity: -1.0,
             draws: Arc::from([]),
             valid: false,
+            translation_content: None,
             _memory: memory,
         })
     }
@@ -421,6 +426,8 @@ impl LayerCache {
         binding: &InstanceBinding,
         shadows: &InstanceBinding,
         spatial: &spatial::SpatialCache,
+        quad_storage: &PersistentStorage<Quad>,
+        shadow_storage: &PersistentStorage<gpui::Shadow>,
         encoder: &mut wgpu::CommandEncoder,
         layers: Vec<QuadLayer>,
         writes: &[Range<u32>],
@@ -439,6 +446,13 @@ impl LayerCache {
         let mut changed = BTreeSet::new();
         for layer in layers {
             let bounds = Self::bounds(&layer, size);
+            let content = self.reuse_translations.then(|| translation::content(
+                &layer.draws, bounds, spatial, quad_storage, shadow_storage,
+            )).flatten();
+            let translated = cache && self.layers.get(&layer.id).is_some_and(|old| {
+                old.valid && old.bounds != bounds && old.bounds[2..] == bounds[2..]
+                    && content.is_some() && old.translation_content == content
+            });
             let bytes = u64::from(bounds[2].max(1)) * u64::from(bounds[3].max(1)) * 4;
             stats.live_bytes += bytes;
             if !self.layers.contains_key(&layer.id) {
@@ -453,7 +467,7 @@ impl LayerCache {
                     anyhow::ensure!(cached.bounds[2..] == bounds[2..], "layer extent changed after admission");
                     Self::write_target(renderer, &cached.target, bounds);
                     cached.bounds = bounds;
-                    cached.valid = false;
+                    if !translated { cached.valid = false; }
                     stats.rebased += 1;
                     stats.target_bytes += 48;
                 }
@@ -463,7 +477,7 @@ impl LayerCache {
             let dirty = !cache
                 || !previous.valid
                 || (!Arc::ptr_eq(&previous.draws, &layer.draws) && previous.draws != layer.draws)
-                || layer.draws.iter().any(|draw| match draw {
+                || (!translated && layer.draws.iter().any(|draw| match draw {
                     QuadDraw::Instances(range) => writes
                         .iter()
                         .any(|write| range.start < write.end && write.start < range.end),
@@ -472,7 +486,7 @@ impl LayerCache {
                     QuadDraw::Layer(id) => changed.contains(id),
                     QuadDraw::Image(id) => changed_images.contains(id),
                     QuadDraw::Glyphs(id) => changed_glyphs.contains(id),
-                });
+                }));
             if opacity_changed {
                 let mut bytes = [0; 16];
                 bytes[..4].copy_from_slice(&layer.opacity.to_ne_bytes());
@@ -512,13 +526,14 @@ impl LayerCache {
             } else {
                 stats.reused += 1;
             }
-            if dirty || opacity_changed {
+            if dirty || opacity_changed || translated {
                 changed.insert(layer.id);
             }
             let cached = self.layers.get_mut(&layer.id).unwrap();
             cached.draws = layer.draws;
             cached.opacity = layer.opacity;
             cached.valid = true;
+            cached.translation_content = content;
         }
         Ok(stats)
     }

@@ -155,6 +155,19 @@ allocation spikes, frame age and p99/max at 60/120 Hz. Today's local route still
 rerasterizes moving effects and uses full-viewport layers; this proposal does
 not count as that implementation or acceptance.
 
+### Experimental integer-translation subset
+
+The [backend-verified layer translation probe](ADR_RETAINED_LAYER_TRANSLATION.md)
+now implements a default-disabled subset of that proposal: compare complete
+ordered Quad/Shadow records after target-relative placement/clip normalization,
+and reuse a valid same-extent raster for qualifying integer physical motion.
+No caller version or digest authorizes reuse. Fractional geometry, nested layers,
+resource draws, unsupported scale/patterns and large proofs retain original raster.
+Targeted and sustained [evidence](performance/2026-11-13-layer-translation/README.md)
+shows a useful overdraw opportunity, but rebuilding proof records adds backend
+work. The generalized persistent content/placement/raster-environment contract
+above remains proposed, and local full-viewport output still does not qualify.
+
 ### Original shared-hierarchy baseline
 
 The shared hierarchy removes descendant Quad/Shadow uploads for the covered

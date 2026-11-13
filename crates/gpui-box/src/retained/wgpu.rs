@@ -465,6 +465,14 @@ impl WgpuFrameRenderer {
         }
     }
 
+    /// Experimental backend-verified integer translation raster reuse; default off.
+    pub fn set_layer_translation_reuse_enabled(&mut self, enabled: bool) {
+        if self.backend.layer_translation_reuse_enabled() != enabled {
+            self.backend.set_layer_translation_reuse_enabled(enabled);
+            self.source = None;
+        }
+    }
+
     /// Bound unique texture payload across live cache entries and in-flight epochs.
     /// Reconfiguration completes pending work and invalidates cached layers.
     pub fn set_layer_budget_bytes(&mut self, bytes: u64) -> Result<(), Error> {
@@ -1100,6 +1108,7 @@ impl WgpuFrameRenderer {
             .backend
             .set_indexed_spatial_enabled(self.backend.indexed_spatial_enabled());
         replacement.cache_layers = self.cache_layers;
+        replacement.backend.set_layer_translation_reuse_enabled(self.backend.layer_translation_reuse_enabled());
         replacement.tight_layer_bounds = self.tight_layer_bounds;
         replacement
             .backend

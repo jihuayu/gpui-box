@@ -1,0 +1,14 @@
+{
+  "core_tests": 159,
+  "clippy_passed": true,
+  "full_hardware_scenarios": 2015,
+  "full_pixel_comparisons": 1923,
+  "full_validation_sha256": "1503027b896ef10e6d9be1752705fc553e4df8e95cf1cacfb95e00304e749db8",
+  "full_suite_scope": "default-disabled original path; enabled feature qualified separately by 61 targeted pixel controls per process",
+  "initial_enabled_pixel_cases": 61,
+  "goal_complete": false,
+  "final_enabled_pixel_cases": 62,
+  "final_validation_sha256": "6f719f143edeedbf804ee2928b0cec48f63703e2dd17400896558adde336a032",
+  "final_multiflight_passed": true,
+  "final_clippy_passed": true
+}

@@ -19,6 +19,7 @@ mod retained_image_deltas;
 mod retained_layer_bounds;
 mod retained_layer_budget;
 mod retained_layer_reuse;
+mod retained_layer_translation;
 mod retained_layers;
 mod retained_layout;
 mod retained_layout_gpu;
@@ -87,6 +88,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         )?,
     )?;
     let mut results = vec![];
+    if std::env::args().any(|arg| arg == "--layer-translation-only") {
+        retained_layer_translation::run(&output, &mut results)?;
+        fs::write(output.join("validation.json"), serde_json::to_vec_pretty(&results)?)?;
+        return Ok(());
+    }
     if std::env::args().any(|arg| arg == "--software-only") {
         retained_software::run(&mut renderer, &output, &mut results)?;
         fs::write(
