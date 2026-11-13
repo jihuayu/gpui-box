@@ -49,7 +49,11 @@ impl WgpuFrameRenderer {
                     && self.scale == scale
                     && self.surface == surface
                     && self.source == Some((old.tree(), old.revision()))
+                    && frame.follows(old)
             })
+            .filter(|old| frame.material_updates().iter().all(|&index| {
+                composition::same_topology(old.material(index), frame.material(index))
+            }))
             .and_then(|old| frame.spatial_updates(old));
         let Some(updates) = updates else {
             let resolved = frame.resolve();
@@ -79,9 +83,41 @@ impl WgpuFrameRenderer {
             self.local_snapshot = Some(frame.clone());
             return Ok(result);
         };
-        // Private immutable provenance proves only placement changed. Exact
-        // resolved anchors remain validated by the existing GPU preflight.
+        // Private provenance proves stable topology and identifies independent
+        // material/placement changes. Changed material is validated here;
+        // projected spatial and primitive records still use GPU preflight.
         self.failed = true;
+        let resources = frame.resource_frame();
+        validation::validate_header(&resources, surface, scale)?;
+        let old = previous.as_ref().unwrap();
+        let mut material_items = Vec::with_capacity(frame.material_updates().len());
+        let mut indices = frame.material_updates().iter().copied().peekable();
+        let mut error = None;
+        while let Some(start) = indices.next() {
+            let mut end = start + 1;
+            while indices.peek() == Some(&end) { indices.next(); end += 1; }
+            // Adjacent changed records share one open ancestry traversal;
+            // sparse gaps do not force resolving unaffected descendants.
+            frame.visit_geometry(start..end, |index, item| {
+                if let Err(e) = validation::validate_item(item, scale) { error = Some(e); }
+                material_items.push((index, item.clone()));
+            });
+        }
+        if let Some(error) = error { return Err(error); }
+        let mut selected_images = vec![];
+        let mut selected_glyphs = vec![];
+        let mut prepared_quads = 0;
+        let mut prepared_shadows = 0;
+        for (index, item) in &material_items {
+            let entry = routing::classify(old.material(*index), item, true, false);
+            let property = self.spatial_arena.slot(item.node)?;
+            self.prepare_primitives(item, property, scale, self.backend.last_serial(), entry.quad, entry.shadow)?;
+            prepared_quads += usize::from(entry.quad);
+            prepared_shadows += usize::from(entry.shadow);
+            let (image, glyph) = routing::classify_content(old.material(*index), item, true);
+            if image { selected_images.push(item); }
+            if glyph { selected_glyphs.push(item); }
+        }
         for item in &updates {
             self.spatial_arena.update_local(item)?;
         }
@@ -99,14 +135,18 @@ impl WgpuFrameRenderer {
             .backend
             .submit(QuadBatch {
                 capacity: self.arena.capacity(),
-                writes: vec![],
+                writes: self.arena.writes().into_iter().map(|write| QuadWrite {
+                    start: write.start, values: write.values.into_iter().map(Record::quad).collect(),
+                }).collect(),
                 order: None,
                 layers,
-                images: ImageUpdates::default(),
-                glyphs: gpui_wgpu::GlyphUpdates::default(),
+                images: image_updates(&resources, scale, false, Some(&self.spatial_arena), Some(&selected_images))?,
+                glyphs: glyph_updates(&resources, scale, false, Some(&self.spatial_arena), Some(&selected_glyphs))?,
                 shadows: gpui_wgpu::ShadowBatch {
                     capacity: self.shadow_arena.capacity(),
-                    writes: vec![],
+                    writes: self.shadow_arena.writes().into_iter().map(|write| gpui_wgpu::ShadowWrite {
+                        start: write.start, values: write.values.into_iter().map(ShadowRecord::shadow).collect(),
+                    }).collect(),
                 },
                 spatial: self.spatial_arena.batch(true, scale),
                 cache_layers: self.cache_layers,
@@ -118,6 +158,8 @@ impl WgpuFrameRenderer {
             })
             .map_err(gpu_error)?;
         self.spatial_arena.acknowledge();
+        self.arena.acknowledge();
+        self.shadow_arena.acknowledge();
         self.source = Some((frame.tree(), frame.revision()));
         self.latest = self.source;
         self.routing_snapshot = None;
@@ -129,13 +171,18 @@ impl WgpuFrameRenderer {
         Ok(Some(FrameSubmission {
             routing: RoutingStats {
                 cached: true,
-                inspected_items: updates.len(),
+                inspected_items: updates.len() + material_items.len(),
+                prepared_quad_items: prepared_quads,
+                prepared_shadow_items: prepared_shadows,
                 prepared_spatial_items: updates.len(),
                 ..Default::default()
             },
             full_resync: false,
             gpu,
-            validation: ValidationStats::default(),
+            validation: ValidationStats {
+                validated_items: material_items.len(),
+                ..Default::default()
+            },
             composition: CompositionStats {bounds_items,bounds_translated_nodes,..Default::default()},
         }))
     }

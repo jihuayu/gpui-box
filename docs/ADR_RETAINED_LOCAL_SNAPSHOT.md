@@ -51,7 +51,10 @@ flowchart LR
   current persistent overrides, without retaining every prior snapshot.
   GPU submission leases retain frames until completion. An old snapshot can
   render after its mutable owner has been dropped.
-- Opacity changes, layout/material/topology/viewport changes, skipped bases,
+- Material changes now patch owned pages independently of placement/topology,
+  using exact predecessor and existing primitive/resource routing. Changed draw
+  topology still falls back; see [material lifetimes](ADR_RETAINED_MATERIAL_PLACEMENT.md).
+- Opacity changes, layout/topology/viewport changes, skipped bases,
   consumer switches, reset and incompatible capabilities use complete
   resolution and the existing validated recovery path. No mutable public dirty
   flag grants incremental reuse. Conflicting same-revision resolved content

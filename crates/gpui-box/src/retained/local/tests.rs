@@ -134,11 +134,56 @@ fn full_publication_reuses_owning_geometry_but_sparse_successor_resolves_new_pla
     tx.color(nodes[8], 0xaabbccff);
     tree.commit(tx, BackendCapabilities::default()).unwrap();
     let material = tree.local_frame([300.0, 200.0]).unwrap();
+    // The explicit resolved subscriber above advances the owner baseline;
+    // the next local subscriber conservatively starts a complete snapshot.
     assert!(material.stats().full_publication);
     assert!(Arc::ptr_eq(&material.resolved_frame().items, &material.0.template.items));
-    // Full material recovery includes outstanding ancestor motion exactly.
     equivalent(&material.resolve(), &tree.frame([300.0, 200.0]).unwrap());
     equivalent(&original.resolve(), full);
+}
+
+#[test]
+fn independent_material_and_placement_lifetimes_preserve_resolved_subscriber_and_snapshots() {
+    let (mut tree, nodes) = fixture();
+    let first = tree.local_frame([300.0, 200.0]).unwrap();
+    let saved = first.resolve();
+    let mut latest = first.clone();
+    for round in 1..12 {
+        let mut tx = Transaction::default();
+        tx.translation(nodes[1], [round as f32 * 0.375, -0.25]);
+        for (i, &node) in nodes.iter().enumerate() {
+            if i % 3 == round % 3 {
+                tx.color(node, 0x203040ff + (round as u32) * 0x01000000);
+                tx.decoration(node, QuadDecoration { radius: round as f32, ..Default::default() });
+            }
+        }
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+        let frame = tree.local_frame([300.0, 200.0]).unwrap();
+        assert!(!frame.stats().full_publication);
+        assert!(frame.follows(&latest));
+        assert!(Arc::ptr_eq(&frame.0.topology, &first.0.topology));
+        assert!(frame.stats().material_nodes > 0);
+        assert!(tree.local_material_dirty.is_empty());
+        assert!(!tree.paint_dirty.is_empty());
+        for item in frame.resolve().items.iter() {
+            assert_eq!(format!("{:?}", frame.resolve_geometry(item.node).unwrap()), format!("{item:?}"));
+        }
+        latest = frame;
+    }
+    equivalent(&latest.resolve(), &tree.frame([300.0, 200.0]).unwrap());
+    equivalent(&saved, &first.resolve());
+    let after_resolved = tree.local_frame([300.0, 200.0]).unwrap();
+    assert!(after_resolved.stats().full_publication);
+    assert!(tree.local_material_dirty.is_empty());
+    // Layout and visibility are not authorized by material provenance.
+    let mut tx = Transaction::default();
+    let mut style = tree.style(nodes[5]).unwrap().clone();
+    style.display = taffy::Display::None;
+    tx.style(nodes[5], style);
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    let hidden = tree.local_frame([300.0, 200.0]).unwrap();
+    assert!(hidden.stats().full_publication);
+    assert!(hidden.resolve_geometry(nodes[5]).is_none());
 }
 
 #[test]

@@ -1,0 +1,14 @@
+{
+  "core_tests": 164,
+  "example_tests_passed": 11,
+  "example_hardware_test_ignored": 1,
+  "mixed_gpu_cases": 72,
+  "full_hardware_cases": 2015,
+  "pixel_comparisons": 1923,
+  "strict_core_clippy_text_and_no_text": true,
+  "strict_gpu_harness_clippy": true,
+  "final_gpu_binary_sha256": "1369eaba2ab4632604332e97684da45b2d567368ce51db26efd01ff4b7ee78a2",
+  "native_present_measured": false,
+  "modern_desktop_qualified": false,
+  "goal_complete": false
+}

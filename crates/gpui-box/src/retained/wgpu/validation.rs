@@ -160,7 +160,7 @@ pub(super) fn validate(frame: &FramePacket, surface: [u32; 2], scale: f32) -> Re
         .map(|_| ())
 }
 
-fn validate_header(frame: &FramePacket, surface: [u32; 2], scale: f32) -> Result<(), Error> {
+pub(super) fn validate_header(frame: &FramePacket, surface: [u32; 2], scale: f32) -> Result<(), Error> {
     if !scale.is_finite()
         || scale <= 0.0
         || surface
@@ -176,7 +176,7 @@ fn validate_header(frame: &FramePacket, surface: [u32; 2], scale: f32) -> Result
     Ok(())
 }
 
-fn validate_item(item: &PaintItem, scale: f32) -> Result<(), Error> {
+pub(super) fn validate_item(item: &PaintItem, scale: f32) -> Result<(), Error> {
     #[cfg(feature = "retained-text")]
     if item.text.is_some() != item.glyphs.is_some()
         || item

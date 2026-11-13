@@ -54,6 +54,7 @@ struct Topology {
 #[derive(Debug)]
 struct Snapshot {
     template: FramePacket,
+    owner_items: Weak<PaintItems>,
     topology: Arc<Topology>,
     placements: Placements,
     revision: u64,
@@ -61,6 +62,7 @@ struct Snapshot {
     #[cfg_attr(not(any(test, feature = "retained-wgpu")), allow(dead_code))]
     base: Weak<Snapshot>,
     changed: Vec<usize>,
+    material_changed: Vec<usize>,
     full_publication: bool,
     resolved: std::sync::OnceLock<FramePacket>,
 }
@@ -82,6 +84,7 @@ pub(in crate::retained) struct SpatialUpdate {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct LocalFrameStats {
     pub changed_nodes: usize,
+    pub material_nodes: usize,
     pub retained_items: usize,
     pub full_publication: bool,
 }
@@ -112,7 +115,7 @@ impl LocalFrame {
     pub(in crate::retained) fn ink_translation(
         &self, old: &Self, range: std::ops::Range<usize>,
     ) -> Option<([f32;2], Option<Rect>)> {
-        if !self.follows(old) || self.0.changed.len()>64 {return None;}
+        if !self.follows(old) || !self.0.material_changed.is_empty() || self.0.changed.len()>64 {return None;}
         if self.0.changed.iter().filter(|i| range.contains(i)).count()!=1
             || !self.0.changed.contains(&range.start) {return None;}
         let mut next=self.placement(range.start);
@@ -140,6 +143,7 @@ impl LocalFrame {
     #[cfg(feature = "retained-wgpu")]
     pub(in crate::retained) fn changed_subtrees(&self) -> Vec<std::ops::Range<usize>> {
         let mut indices = self.0.changed.clone();
+        indices.extend_from_slice(&self.0.material_changed);
         indices.sort_unstable();
         let mut ranges: Vec<std::ops::Range<usize>> = vec![];
         for i in indices {
@@ -214,6 +218,7 @@ impl LocalFrame {
         resolved.set(complete).expect("new full snapshot cache");
         Self(Arc::new(Snapshot {
             revision: frame.revision,
+            owner_items: Arc::downgrade(&frame.items),
             template: frame,
             topology: Arc::new(Topology {
                 indices,
@@ -224,6 +229,7 @@ impl LocalFrame {
             placements,
             base: Weak::new(),
             changed: vec![],
+            material_changed: vec![],
             full_publication: true,
             resolved,
         }))
@@ -243,6 +249,7 @@ impl LocalFrame {
     pub fn stats(&self) -> LocalFrameStats {
         LocalFrameStats {
             changed_nodes: self.0.changed.len(),
+            material_nodes: self.0.material_changed.len(),
             retained_items: self.len(),
             full_publication: self.0.full_publication,
         }
@@ -454,11 +461,28 @@ impl LocalFrame {
         }
         Some(result)
     }
+    #[cfg(feature = "retained-wgpu")]
+    pub(in crate::retained) fn material_updates(&self) -> &[usize] {
+        &self.0.material_changed
+    }
+    #[cfg(feature = "retained-wgpu")]
+    pub(in crate::retained) fn material(&self, index: usize) -> &PaintItem {
+        &self.0.template.items[index]
+    }
+    #[cfg(feature = "retained-wgpu")]
+    pub(in crate::retained) fn resource_frame(&self) -> FramePacket {
+        let mut frame = self.0.template.clone();
+        frame.revision = self.revision();
+        frame.base_revision = None;
+        frame.removed = Arc::from([]);
+        frame
+    }
 }
 
 impl UiTree {
     /// Publish immutable local placement changes without descendant extraction.
-    /// Layout/material/topology changes use the complete existing publisher.
+    /// Layout/topology changes use the complete existing publisher. Materials
+    /// patch immutable payload pages without invalidating placement/topology.
     /// Calling `frame` remains an explicit resolved compatibility path.
     pub fn local_frame(&mut self, viewport: [f32; 2]) -> Result<LocalFrame, Error> {
         if viewport.iter().any(|v| !v.is_finite() || *v < 0.0) {
@@ -470,25 +494,51 @@ impl UiTree {
             .filter(|old| {
                 !self.layout_dirty
                     && !self.full_extract_required
-                    && self.paint_dirty.is_empty()
                     && self.geometry_dirty.is_empty()
                     && self.viewport == Some(viewport)
                     && self
                         .frame
                         .as_ref()
-                        .is_some_and(|frame| Arc::ptr_eq(&frame.items, &old.0.template.items))
+                        .is_some_and(|frame| old.0.owner_items.ptr_eq(&Arc::downgrade(&frame.items)))
             })
             .cloned();
         let Some(old) = reusable else {
             let frame = LocalFrame::from_frame(self.frame(viewport)?);
             self.local_frame = Some(frame.clone());
             self.local_dirty.clear();
+            self.local_material_dirty.clear();
             return Ok(frame);
         };
         if old.revision() == self.revision {
             return Ok(old);
         }
         let mut placements = old.0.placements.clone();
+        let mut template = old.0.template.clone();
+        let mut material_changed = vec![];
+        let mut patches = vec![];
+        let mut recorded = 0;
+        for id in self.local_material_dirty.iter().copied().collect::<Vec<_>>() {
+            let Some(&index) = old.0.topology.indices.get(&id) else { continue; };
+            let mut item = old.0.template.items[index].clone();
+            self.refresh_material(id, &mut item, &mut recorded)?;
+            if item.commands != old.0.template.items[index].commands
+                || item.fill_color != old.0.template.items[index].fill_color
+                || item.shadows != old.0.template.items[index].shadows
+                || item.image != old.0.template.items[index].image
+                || !item.same_text(&old.0.template.items[index])
+            {
+                patches.push((index, item));
+                material_changed.push(index);
+            }
+        }
+        patches.sort_unstable_by_key(|(index, _)| *index);
+        material_changed.sort_unstable();
+        if !patches.is_empty() {
+            template.items = Arc::new(template.items.patch_owned(patches, &mut FrameBuildStats::default()));
+            // Template geometry is a private baseline. The resolved cache is
+            // empty below; public compatibility output resolves current facts.
+            template.updates = PaintUpdates::indexed(template.items.clone(), vec![]);
+        }
         let mut changed = vec![];
         for &id in self.local_dirty.iter() {
             let Some(&index) = old.0.topology.indices.get(&id) else {
@@ -511,16 +561,19 @@ impl UiTree {
             }
         }
         let frame = LocalFrame(Arc::new(Snapshot {
-            template: old.0.template.clone(),
+            owner_items: old.0.owner_items.clone(),
+            template,
             topology: old.0.topology.clone(),
             placements,
             revision: self.revision,
             base: Arc::downgrade(&old.0),
             changed,
+            material_changed,
             full_publication: false,
             resolved: std::sync::OnceLock::new(),
         }));
         self.local_dirty.clear();
+        self.local_material_dirty.clear();
         self.local_frame = Some(frame.clone());
         Ok(frame)
     }

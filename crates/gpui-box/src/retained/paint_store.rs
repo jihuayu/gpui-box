@@ -107,7 +107,7 @@ impl PaintItems {
     }
 }
 impl PaintItems {
-    fn patch_owned(&self, updates: Vec<(usize, PaintItem)>, stats: &mut FrameBuildStats) -> Self {
+    pub(in crate::retained) fn patch_owned(&self, updates: Vec<(usize, PaintItem)>, stats: &mut FrameBuildStats) -> Self {
         debug_assert!(updates.windows(2).all(|p| p[0].0 < p[1].0));
         let mut result = self.clone();
         result.hit_index = OnceLock::new();
@@ -271,33 +271,7 @@ impl UiTree {
             }
             stats.extracted_nodes += 1;
             let mut item = before.items[index].clone();
-            let node = self.node_mut(id);
-            item.commands = node
-                .chunk
-                .get_or_insert_with(|| {
-                    recorded_chunks += 1;
-                    Arc::from([if node.decoration == QuadDecoration::default() {
-                        DisplayCommand::Fill(node.color)
-                    } else {
-                        DisplayCommand::DecoratedFill {
-                            color: node.color,
-                            decoration: node.decoration,
-                        }
-                    }])
-                })
-                .clone();
-            item.fill_color = node.color;
-            item.shadows = node.shadows.clone();
-            item.image = node.image.clone();
-            #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
-            {
-                item.text = node.text.clone();
-                item.glyphs = node
-                    .text
-                    .as_ref()
-                    .map(|text| text.resource.chunk(item.content_bounds.width))
-                    .transpose()?;
-            }
+            self.refresh_material(id, &mut item, &mut recorded_chunks)?;
             // paint_dirty is already unique; only geometry points need guards
             // against the subsequent paint pass.
             candidates.insert(index, item, false);
@@ -383,10 +357,34 @@ impl UiTree {
         self.paint_dirty.clear();
         self.property_dirty.clear();
         self.local_dirty.clear();
+        self.local_material_dirty.clear();
         self.geometry_dirty.clear();
         self.dirty = false;
         self.frame = Some(frame.clone());
         Ok(frame)
+    }
+
+    // Material depends on content size, not resolved world position. Shared by
+    // both publication representations; placement and topology stay separate.
+    pub(super) fn refresh_material(&mut self, id: NodeId, item: &mut PaintItem, recorded: &mut u64) -> Result<(), Error> {
+        let node = self.node_mut(id);
+        item.commands = node.chunk.get_or_insert_with(|| {
+            *recorded += 1;
+            Arc::from([if node.decoration == QuadDecoration::default() {
+                DisplayCommand::Fill(node.color)
+            } else {
+                DisplayCommand::DecoratedFill { color: node.color, decoration: node.decoration }
+            }])
+        }).clone();
+        item.fill_color = node.color;
+        item.shadows = node.shadows.clone();
+        item.image = node.image.clone();
+        #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+        {
+            item.text = node.text.clone();
+            item.glyphs = node.text.as_ref().map(|text| text.resource.chunk(item.content_bounds.width)).transpose()?;
+        }
+        Ok(())
     }
 
     fn subtree_context(

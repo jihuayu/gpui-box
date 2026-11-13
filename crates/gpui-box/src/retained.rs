@@ -370,6 +370,7 @@ pub struct UiTree {
     geometry_dirty: std::collections::BTreeSet<NodeId>,
     property_dirty: dirty_nodes::DirtyNodes,
     local_dirty: dirty_nodes::DirtyNodes,
+    local_material_dirty: dirty_nodes::DirtyNodes,
     paint_subtree_ends: std::collections::HashMap<NodeId, usize>,
     paint_dirty: std::collections::BTreeSet<NodeId>,
     paint_indices: std::collections::HashMap<NodeId, usize>,
@@ -461,6 +462,7 @@ impl UiTree {
             geometry_dirty: Default::default(),
             property_dirty: Default::default(),
             local_dirty: Default::default(),
+            local_material_dirty: Default::default(),
             paint_subtree_ends: Default::default(),
             paint_dirty: Default::default(),
             paint_indices: Default::default(),
@@ -819,6 +821,9 @@ impl UiTree {
         {
             if color_changed || decoration_changed || image_changed || text_changed {
                 self.paint_dirty.insert(id);
+                if self.local_frame.is_some() {
+                    self.local_material_dirty.insert(id);
+                }
             }
             if property_changed {
                 self.property_dirty.insert(id);
@@ -1091,6 +1096,7 @@ impl UiTree {
         self.finish_layout_publication();
         self.property_dirty.clear();
         self.local_dirty.clear();
+        self.local_material_dirty.clear();
         self.paint_dirty.clear();
         self.index_paint_items(&frame.items);
         self.dirty = false;

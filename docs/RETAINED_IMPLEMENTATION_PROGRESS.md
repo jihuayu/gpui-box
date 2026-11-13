@@ -378,6 +378,21 @@ is the next API priority. Modern desktop visible120fps and smooth native CPU
 fallback remain open. Raw winning/losing runs, hashes and process observations:
 [evidence](performance/2026-11-13-burst-recovery/README.md).
 
+The [independent material/placement stage](ADR_RETAINED_MATERIAL_PLACEMENT.md)
+patches local material pages and journals without resetting render topology or
+extracting unchanged descendants. Existing shared material refresh, consumer
+classifiers and GPU validation handle color/decorations/shadow parameters,
+same-size image pixels and text color. Changed draw topology, opacity, layout,
+missing bases and device changes preserve complete recovery. Initial reversed
+60/120Hz burst captures reduce publication medians13ms ->5–6ms and submit15ms
+->10–11ms;120Hz p99 remains22ms and the second longest unsatisfied interval
+worsens5 ->6. This advances the general dependency design without integer/scene
+special cases; it does not close120fps, native display or CPU fallback acceptance.
+Final-source reversed pairs retain120Hz p99 reductions37.04/45.52ms ->22.56/23.05ms
+and longest unsatisfied intervals7/11 ->3/4. First60Hz longest interval regresses
+2 ->3.164core,11example,72mixed GPU and2,015hardware /1,923pixel cases pass.
+See [full evidence](performance/2026-11-13-material-placement/README.md).
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |

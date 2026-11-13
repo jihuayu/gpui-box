@@ -142,7 +142,7 @@ pub(super) struct CompositionCache {
     bounds: BTreeMap<NodeId, Rect>,
 }
 pub(super) type CompositionPlan = (Option<Vec<QuadDraw>>, Vec<QuadLayer>, CompositionStats);
-fn same_topology(a: &PaintItem, b: &PaintItem) -> bool {
+pub(super) fn same_topology(a: &PaintItem, b: &PaintItem) -> bool {
     let same = a.node == b.node
         && a.commands.len() == b.commands.len()
         && a.image.is_some() == b.image.is_some()

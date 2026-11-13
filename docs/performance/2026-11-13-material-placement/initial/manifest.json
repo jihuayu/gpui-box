@@ -1,0 +1,65 @@
+{
+  "base_commit": "ac55a594029057f2b8377f5456b51b8e7a9dcd02",
+  "binary_sha256": {
+    "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\release\\dense-runtime-perf.exe": "0a6cc299ca2837ec14e687ea2c460f7c415404011f47f2ec405f12fe03cfa807",
+    "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\material-baseline\\dense-runtime-perf.exe": "7a8b55a7023a393d01ad33b09f18a422eb8043569c3cf848e8f1d3a37454b9a4"
+  },
+  "binary_hashes_stable": true,
+  "source_hashes_stable": true,
+  "process_sample_interval_s": 0.25,
+  "runs": [
+    {
+      "round": 1,
+      "mode": "original",
+      "args": [
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\material-baseline\\dense-runtime-perf.exe",
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\material-cadence-20261113\\run-1-original",
+        "--local",
+        "--integer-motion",
+        "--burst-cadence-only"
+      ],
+      "exit_code": 0,
+      "conflicts": []
+    },
+    {
+      "round": 1,
+      "mode": "material-pages",
+      "args": [
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\release\\dense-runtime-perf.exe",
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\material-cadence-20261113\\run-1-material-pages",
+        "--local",
+        "--integer-motion",
+        "--burst-cadence-only"
+      ],
+      "exit_code": 0,
+      "conflicts": []
+    },
+    {
+      "round": 2,
+      "mode": "material-pages",
+      "args": [
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\release\\dense-runtime-perf.exe",
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\material-cadence-20261113\\run-2-material-pages",
+        "--local",
+        "--integer-motion",
+        "--burst-cadence-only"
+      ],
+      "exit_code": 0,
+      "conflicts": []
+    },
+    {
+      "round": 2,
+      "mode": "original",
+      "args": [
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\material-baseline\\dense-runtime-perf.exe",
+        "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\material-cadence-20261113\\run-2-original",
+        "--local",
+        "--integer-motion",
+        "--burst-cadence-only"
+      ],
+      "exit_code": 0,
+      "conflicts": []
+    }
+  ],
+  "scope": "source/owner/GPU synchronous completion; process sampler observes known compiler/renderer conflicts only; no native present/input, power/thermal/driver isolation or modern desktop qualification"
+}

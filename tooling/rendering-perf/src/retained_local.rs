@@ -51,10 +51,11 @@ pub(super) fn run(
                     ],
                 )?),
             );
+            let text_resource = retained_text::text(&text_system, &mut raster, "局部 GPU", scale)?;
             tx.text(
                 text,
                 Some(gpui_box::retained::text::TextPaint {
-                    resource: retained_text::text(&text_system, &mut raster, "局部 GPU", scale)?,
+                    resource: text_resource.clone(),
                     color: 0xffcc88ff,
                 }),
             );
@@ -69,6 +70,7 @@ pub(super) fn run(
             let mut saved = vec![];
             for round in 0..14 {
                 let mut tx = Transaction::default();
+                if round != 11 {
                 tx.translation(parent, [round as f32 * 0.375, round as f32 * 0.125]);
                 tx.translation(child, [-round as f32 * 0.125, 0.0]);
                 tx.clip(
@@ -81,14 +83,39 @@ pub(super) fn run(
                     }),
                 );
                 tx.scroll(parent, if round % 2 == 0 { [0.0; 2] } else { [0.5, 1.0] });
+                } else {
+                    tx.color(child, 0xbb8844cc);
+                }
                 if round == 5 {
                     tx.opacity(child, 0.45);
                 }
+                if round == 3 || round == 4 {
+                    tx.color(child, if round == 3 { 0xaa4488bb } else { 0x44aa88bb });
+                }
                 if round == 7 {
                     tx.color(child, 0x88cc4488);
+                    tx.decoration(child, gpui_box::retained::QuadDecoration {
+                        radius: 7.0, border_width: 2.0, border_color: 0xcc8844ff,
+                    });
+                    tx.shadows(child, vec![BoxShadow {
+                        color: 0x3355aa99, blur_radius: 6.0, offset: [-3.0, 2.0], ..Default::default()
+                    }]);
+                    tx.text(text, Some(gpui_box::retained::text::TextPaint {
+                        resource: text_resource.clone(),
+                        color: 0x88ffccaa,
+                    }));
                 }
                 if round == 10 {
                     tx.image(image, None);
+                }
+                if round == 8 {
+                    tx.image(image, Some(ImageResource::rgba8([2, 2], [20, 220, 140, 180].repeat(4))?));
+                }
+                if round == 9 {
+                    // Shadow insertion changes painter topology and must take
+                    // complete recovery, even though owner material pages stay local.
+                    tx.shadows(child, vec![BoxShadow { color: 0x00000088, blur_radius: 3.0, ..Default::default() },
+                        BoxShadow { color: 0xff000088, inset: true, ..Default::default() }]);
                 }
                 tree.commit(tx, BackendCapabilities::default())?;
                 let packet = tree.local_frame([160.0, 120.0])?;
@@ -98,6 +125,19 @@ pub(super) fn run(
                 }
                 let surface = [(160.0 * scale) as u32, (120.0 * scale) as u32];
                 let submission = gpu.submit_local(&packet, surface, scale)?.unwrap();
+                if round == 7 && shared {
+                    assert!(!submission.full_resync, "material edits retain exact predecessor");
+                    assert!(packet.stats().material_nodes >= 2);
+                    assert!(submission.routing.prepared_quad_items > 0);
+                    assert!(submission.routing.prepared_shadow_items > 0);
+                }
+                if round == 8 && shared { assert!(!submission.full_resync); }
+                if round == 9 { assert!(submission.full_resync); }
+                if round == 11 && shared {
+                    assert!(!submission.full_resync);
+                    assert_eq!(submission.gpu.spatial_upload_bytes, 0);
+                    assert!(submission.gpu.uploaded_bytes > 0);
+                }
                 assert!(gpu.submit_local(&packet, surface, scale)?.is_none());
                 if round == 6 {
                     gpu.reset()?;
@@ -115,7 +155,7 @@ pub(super) fn run(
                     expected.as_raw(),
                     "local pixels: round={round} shared={shared} scale={scale}"
                 );
-                results.push(serde_json::json!({"case":format!("local-mixed-{scale}-{shared}-{round}"),"pixel_equal":true,"local_changed":packet.stats().changed_nodes,"full_resync":submission.full_resync,"spatial_bytes":submission.gpu.spatial_upload_bytes}));
+                results.push(serde_json::json!({"case":format!("local-mixed-{scale}-{shared}-{round}"),"pixel_equal":true,"local_changed":packet.stats().changed_nodes,"material_changed":packet.stats().material_nodes,"full_resync":submission.full_resync,"spatial_bytes":submission.gpu.spatial_upload_bytes}));
                 if round == 13 {
                     let explicit = tree.frame([160.0, 120.0])?;
                     // Same revision may change representation, never content.

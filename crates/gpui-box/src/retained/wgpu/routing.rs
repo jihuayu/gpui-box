@@ -161,7 +161,7 @@ fn radius(item: &PaintItem) -> f32 {
         .first()
         .map_or(0.0, |c| c.quad().1.resolved(item.bounds).radius)
 }
-fn classify<'a>(old: &PaintItem, item: &'a PaintItem, shared: bool, anchor: bool) -> Entry<'a> {
+pub(super) fn classify<'a>(old: &PaintItem, item: &'a PaintItem, shared: bool, anchor: bool) -> Entry<'a> {
     let same_size =
         old.bounds.width == item.bounds.width && old.bounds.height == item.bounds.height;
     let same_world = old.bounds == item.bounds && old.clip == item.clip;
@@ -190,7 +190,7 @@ fn classify<'a>(old: &PaintItem, item: &'a PaintItem, shared: bool, anchor: bool
     }
 }
 
-fn classify_content(old: &PaintItem, item: &PaintItem, shared: bool) -> (bool, bool) {
+pub(super) fn classify_content(old: &PaintItem, item: &PaintItem, shared: bool) -> (bool, bool) {
     let same_placement = if shared {
         old.content_offsets == item.content_offsets
     } else {

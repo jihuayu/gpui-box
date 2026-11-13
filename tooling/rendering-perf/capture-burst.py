@@ -61,14 +61,15 @@ def main():
     sources += sorted(Path("vendor/gpui/crates/gpui_wgpu/src").rglob("*.rs"))
     sources += sorted(Path("tooling/rendering-perf/src").rglob("*.rs"))
     sources += [Path(__file__), Path("Cargo.lock")]
-    pair = "--recovery-pair" in sys.argv
-    baseline = Path("target/burst-baseline/dense-runtime-perf.exe").resolve()
+    material_pair = "--material-pair" in sys.argv
+    pair = "--recovery-pair" in sys.argv or material_pair
+    baseline = Path("target/material-baseline/dense-runtime-perf.exe" if material_pair else "target/burst-baseline/dense-runtime-perf.exe").resolve()
     binaries = [binary, baseline] if pair else [binary]
     binary_hashes = hashes(binaries)
     before = hashes(sources)
     (output / "sources.json").write_text(json.dumps(before, indent=2), encoding="utf-8")
     assert not processes(), "Build or renderer process active before capture"
-    modes = {"original": [], "full-cache": []} if pair else {
+    modes = {"original": [], "material-pages" if material_pair else "full-cache": []} if pair else {
         "default": [],
         "tight-lazy": ["--local-tight-layers"],
         "tight-lazy-raster": ["--local-tight-layers", "--layer-translation-reuse"],
