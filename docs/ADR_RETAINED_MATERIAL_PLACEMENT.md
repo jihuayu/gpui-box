@@ -110,3 +110,18 @@ Reversed120Hz pairs reduce submit medians13.88/12.61ms ->9.32/8.54ms, but first
 60Hz regresses and first120Hz longest unsatisfied interval worsens9 ->14 despite
 better p99/max. Retain the general working-set reduction without claiming stable
 stall improvement. See [evidence](performance/2026-11-13-material-stream/README.md).
+
+## Follow-up: order indices before building wide material records
+
+The publisher now maps journal membership to immutable topology indices, sorts
+those indices once, and refreshes material in that order. Both the owned patch
+array and changed-index journal are then ordered by construction. The dirty
+journal still defines membership only; ID or insertion order cannot define paint
+order. Full recovery and exact predecessor authority are unchanged.
+
+The [ordering study](performance/2026-11-13-publication-order/README.md) retains
+synchronous and pipelined reversed pairs. Synchronous publication medians fall
+9–15%; pipelined publication improves7/8medians but one60Hz case regresses3.4%.
+Completion tails/losses remain mixed and dense owner work remains near20ms.
+Keep the structural work reduction without making a deadline or API-policy claim.
+This applies to sparse and dense material, without scene-specific conditions.

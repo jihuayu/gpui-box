@@ -517,8 +517,15 @@ impl UiTree {
         let mut material_changed = vec![];
         let mut patches = vec![];
         let mut recorded = 0;
-        for id in self.local_material_dirty.iter().copied().collect::<Vec<_>>() {
-            let Some(&index) = old.0.topology.indices.get(&id) else { continue; };
+        // Sort only lightweight topology indices. Moving wide PaintItems in a
+        // second sort adds bandwidth and scatters page/resource access, while
+        // the dirty journal's NodeId order need not match final paint order.
+        let mut material_indices = self.local_material_dirty.iter()
+            .filter_map(|id| old.0.topology.indices.get(id).copied())
+            .collect::<Vec<_>>();
+        material_indices.sort_unstable();
+        for index in material_indices {
+            let id = old.0.template.items[index].node;
             let mut item = old.0.template.items[index].clone();
             self.refresh_material(id, &mut item, &mut recorded)?;
             if item.commands != old.0.template.items[index].commands
@@ -531,8 +538,6 @@ impl UiTree {
                 material_changed.push(index);
             }
         }
-        patches.sort_unstable_by_key(|(index, _)| *index);
-        material_changed.sort_unstable();
         if !patches.is_empty() {
             template.items = Arc::new(template.items.patch_owned(patches, &mut FrameBuildStats::default()));
             // Template geometry is a private baseline. The resolved cache is

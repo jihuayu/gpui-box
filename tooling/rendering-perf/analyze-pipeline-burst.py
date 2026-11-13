@@ -30,7 +30,7 @@ def losses(rows, field, budget):
     return {"unsatisfied_ticks": total, "longest_unsatisfied_ticks": longest}
 
 
-def analyze(roots, expected_cases):
+def analyze(roots, expected_cases, implementation_pair=False):
     cases = []
     rejected = []
     eligible = []
@@ -54,7 +54,7 @@ def analyze(roots, expected_cases):
                 covered_runs.add(key)
                 eligible.append(folder)
                 binary_ids.update(manifest["binary_sha256"].values())
-    assert len(binary_ids) == 1, "Pipeline controls must use the same binary"
+    assert len(binary_ids) == (2 if implementation_pair else 1), "Unexpected number of pipeline control binaries"
     for run in eligible:
         data = json.loads((run / "pipeline.json").read_text(encoding="utf-8"))
         assert not data["quick"] and len(data["cases"]) == 4
@@ -65,7 +65,7 @@ def analyze(roots, expected_cases):
             # miss streak counter. Invocation and per-row epoch checks below
             # establish the workload independently of that metadata defect.
             assert case["pixel_equal"] and case["leases_retired"]
-            assert case["service_completions_while_waiting"] == run.name.endswith("service-completions")
+            assert case["service_completions_while_waiting"] == (implementation_pair or run.name.endswith("service-completions"))
             assert case["nodes"] == 10000 and case["effects"] and not case["batch"]
             assert case["max_in_flight"] == 2 and case["expected_ticks"] == case["target_hz"] * 10
             assert case["maximum_gpu_in_flight"] <= case["max_in_flight"]
@@ -116,7 +116,7 @@ def analyze(roots, expected_cases):
     assert len(cases) == expected_cases, (len(cases), expected_cases)
     if expected_cases == 16:
         assert covered_runs == {(round_index, mode) for round_index in (1, 2)
-            for mode in ("source-wait", "service-completions")}
+            for mode in (("original", "ordered") if implementation_pair else ("source-wait", "service-completions"))}
     return {"scope": "source through coalesced covering completion upper bound and owner observation; no GPU execution timestamp, native present/display or physical input", "binary_sha256": sorted(binary_ids), "rejected_runs": rejected, "expected_cases": expected_cases, "cases": cases}
 
 
@@ -124,8 +124,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("roots", type=Path, nargs="+")
     parser.add_argument("--expected-cases", type=int, default=16)
+    parser.add_argument("--implementation-pair", action="store_true", help="Compare original/ordered binaries with completion servicing enabled")
     options = parser.parse_args()
-    result = analyze(options.roots, options.expected_cases)
+    result = analyze(options.roots, options.expected_cases, options.implementation_pair)
     (options.roots[-1] / "pipeline-summary.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
     for case in result["cases"]:
         fields = case["groups"]["all"]

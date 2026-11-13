@@ -414,6 +414,15 @@ owner work remains20.10–22.03ms median. This corrects the harness and clarifie
 the host API contract; it does not close burst stalls or justify queue tuning.
 Rejected interference runs and raw regressions are preserved. Full goal active.
 
+The [publication-order follow-up](performance/2026-11-13-publication-order/README.md)
+sorts topology indices before material construction, removing wide-record and
+duplicate index sorts. Synchronous dense publication medians improve9–15%;
+pipelined medians improve7/8cases, with one60Hz regression.24formal cases retain
+raw deadline/tail losses and no known compiler interference.165core tests and
+75mixed GPU comparisons pass; strict library Clippy passes, test Clippy exposes
+a pre-existing local_ink test-module-order lint. No API/quality switch is added;
+dense owner work and full modern desktop120Hz acceptance remain open.
+
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |

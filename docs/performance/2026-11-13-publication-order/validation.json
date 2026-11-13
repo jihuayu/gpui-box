@@ -1,0 +1,16 @@
+{
+  "retained_tests": 133,
+  "retained_text_gpu_tests": 165,
+  "mixed_gpu_comparisons": 75,
+  "hardware_scenarios": 2018,
+  "hardware_pixel_comparisons": 1926,
+  "strict_library_clippy": "passed",
+  "strict_test_clippy": "pre-existing local_ink.rs items_after_test_module lint",
+  "retained_only_warning": "existing SpatialUpdate unused spatial/anchor fields",
+  "source_sha256": {
+    "crates/gpui-box/src/retained/local.rs": "2b213c0bbb0288fac2ec7d6d4995a322c7d7b9fef8e0d0cd2324ec98ed805f8b",
+    "crates/gpui-box/src/retained/local/tests.rs": "ff7efd8d9f9de4e32bb3221918010a88d1cdb23d293cb0f04fa608b8b805c557",
+    "tooling/rendering-perf/capture-burst.py": "8ea0a2efc735bcef7c5a97678e3f42003cb02325a774f97b429d3b748fd53e81",
+    "tooling/rendering-perf/analyze-pipeline-burst.py": "e2fd917989fad59403c2a427be2044b9c1a6b9e5a777b29d6a4270b85f9faafc"
+  }
+}

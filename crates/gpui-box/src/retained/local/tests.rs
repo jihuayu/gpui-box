@@ -187,6 +187,45 @@ fn independent_material_and_placement_lifetimes_preserve_resolved_subscriber_and
 }
 
 #[test]
+fn material_journal_follows_reordered_paint_indices_and_keeps_old_snapshots() {
+    let mut tree = UiTree::new(Style::default(), 0x102030ff).unwrap();
+    let nodes: Vec<_> = (0..150).map(|_| tree.append(tree.root(), Style::default(), 0x4488ccff).unwrap()).collect();
+    let mut order = nodes.clone();
+    order.reverse();
+    let mut structure = StructureTransaction::default();
+    structure.children(tree.root(), order);
+    tree.commit_structure(structure).unwrap();
+    let first = tree.local_frame([300.0, 200.0]).unwrap();
+    let saved = first.resolve();
+    let mut latest = first.clone();
+    let mut expected = vec![0x4488ccff; nodes.len()];
+    // Full pages and sparse cross-page patches, plus equal final values.
+    for step in 0..3 {
+        let mut tx = Transaction::default();
+        for (i, &node) in nodes.iter().enumerate() {
+            if step == 0 || i % 3 == step {
+                if step == 0 || i % 5 != 0 {
+                    expected[i] = 0x203040ff + i as u32 * 0x010000 + step as u32 * 0x0100;
+                }
+                tx.color(node, expected[i]);
+            }
+        }
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+        let next = tree.local_frame([300.0, 200.0]).unwrap();
+        assert!(next.follows(&latest));
+        assert!(!next.stats().full_publication);
+        assert!(next.0.material_changed.windows(2).all(|p| p[0] < p[1]));
+        for item in next.resolve().items.iter().skip(1) {
+            let i = nodes.iter().position(|node| *node == item.node).unwrap();
+            assert_eq!(item.fill_color, expected[i]);
+        }
+        latest = next;
+    }
+    equivalent(&latest.resolve(), &tree.frame([300.0, 200.0]).unwrap());
+    equivalent(&saved, &first.resolve());
+}
+
+#[test]
 fn consecutive_local_updates_are_sparse_and_deep_anchors_follow_ancestor_motion() {
     let (mut tree, nodes) = fixture();
     let first = tree.local_frame([300.0, 200.0]).unwrap();
