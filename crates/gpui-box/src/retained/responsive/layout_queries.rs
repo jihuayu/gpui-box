@@ -227,13 +227,6 @@ fn full_size_boundary(style: &Style) -> bool {
         )
 }
 
-fn fixed_inline_extent(style: &Style) -> bool {
-    use taffy::style::ExpandedDimension as D;
-    matches!((style.size.width.expand(),style.min_size.width.expand(),style.max_size.width.expand()),
-        (D::Length(w),D::Length(min),D::Length(max)) if w == min && w == max)
-        && style.box_sizing == taffy::BoxSizing::BorderBox
-}
-
 fn validate_query_host(
     ui: &impl QueryContext,
     rules: &[Rule<'_>],
@@ -287,71 +280,19 @@ fn column_inline_chain(
     node: NodeId,
     style: &Style,
 ) -> Result<bool, Error> {
-    column_inline_style(ui, rules, node, style, &mut Default::default())
-}
-
-fn column_inline_style(
-    ui: &impl QueryContext,
-    rules: &[Rule<'_>],
-    node: NodeId,
-    style: &Style,
-    memo: &mut std::collections::HashMap<NodeId, bool>,
-) -> Result<bool, Error> {
-    use taffy::style::{ExpandedDimension as D, ExpandedLengthPercentageAuto as A};
-    if style.aspect_ratio.is_some()
-        || style.position.is_out_of_flow()
-        || style.min_size.width.is_sizing_keyword()
-        || style.max_size.width.is_sizing_keyword()
-        || !matches!(style.display, taffy::Display::Flex | taffy::Display::None)
-    {
-        return Ok(false);
+    struct Context<'a, 'b, C> {
+        ui: &'a C,
+        rules: &'a [Rule<'b>],
     }
-    let definite_width = matches!(
-        style.size.width.expand(),
-        D::Length(_) | D::Percent(_) | D::Stretch
-    );
-    let Some(parent) = ui.tree().node(node)?.parent else {
-        return Ok(definite_width);
-    };
-    let parents = possible_styles(ui, rules, parent)?;
-    for parent_style in &parents {
-        if !matches!(
-            parent_style.display,
-            taffy::Display::Flex | taffy::Display::None
-        ) || !matches!(
-            parent_style.flex_direction,
-            taffy::FlexDirection::Column | taffy::FlexDirection::ColumnReverse
-        ) || parent_style.flex_wrap != taffy::FlexWrap::NoWrap
-            || parent_style.aspect_ratio.is_some()
-        {
-            return Ok(false);
+    impl<C: QueryContext> layout_dependencies::InlineContext for Context<'_, '_, C> {
+        fn tree(&self) -> &UiTree {
+            self.ui.tree()
         }
-        let alignment = style.align_self.unwrap_or(parent_style.align_items);
-        let stretched = style.size.width.is_auto()
-            && matches!(
-                alignment.keyword,
-                taffy::AlignItemsKeyword::Stretch | taffy::AlignItemsKeyword::Normal
-            )
-            && !matches!(style.margin.left.expand(), A::Auto)
-            && !matches!(style.margin.right.expand(), A::Auto);
-        if !definite_width && !stretched && !fixed_inline_extent(style) {
-            return Ok(false);
+        fn styles(&self, node: NodeId) -> Result<Vec<Style>, Error> {
+            possible_styles(self.ui, self.rules, node)
         }
     }
-    // Every ancestor's style alternatives share the same ancestors above it.
-    // Memoize that proof within this host query instead of expanding a product
-    // of breakpoint alternatives over the entire depth of the tree.
-    if let Some(valid) = memo.get(&parent) {
-        return Ok(*valid);
-    }
-    for parent_style in &parents {
-        if !column_inline_style(ui, rules, parent, parent_style, memo)? {
-            memo.insert(parent, false);
-            return Ok(false);
-        }
-    }
-    memo.insert(parent, true);
-    Ok(true)
+    layout_dependencies::column_inline_chain(&Context { ui, rules }, node, style)
 }
 
 fn validate_inline_extent(style: &Style) -> Result<(), Error> {

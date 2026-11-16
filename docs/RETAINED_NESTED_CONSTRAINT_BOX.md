@@ -5,6 +5,9 @@ Updated 2026-11-16 on `codex/rendering-performance-research`. This builds on
 active. The subsequent [constraint-builder stage](RETAINED_CONSTRAINT_BUILDERS.md)
 adds size-contained parent-input construction and atomic keyed frames. General
 content-sized construction remains unfinished.
+The later [inline builder](RETAINED_INLINE_CONSTRAINT_BUILDERS.md) supports
+content-derived block height through an inline-only input and checked dependency
+chain; general full-axis content-sized construction remains open.
 
 ## Public protocol
 

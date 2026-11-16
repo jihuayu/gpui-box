@@ -21,7 +21,7 @@ pub struct LogicalEdit<'a, 'draft, 'tree> {
     next_scope_generation: &'a mut u64,
     capabilities: BackendCapabilities,
     frame_environment: Option<(LayoutConstraints, [f32; 2])>,
-    constraint_inputs: Vec<(NodeId, ConstraintBuilderInput)>,
+    constraint_inputs: Vec<super::constraint_builder::Observation>,
 }
 impl LogicalEdit<'_, '_, '_> {
     /// Reads the final child-slot input of a size-contained constraint box,
@@ -33,6 +33,32 @@ impl LogicalEdit<'_, '_, '_> {
         host: NodeId,
         build: impl FnOnce(ConstraintBuilderInput, &mut Self) -> Result<R, Error>,
     ) -> Result<R, Error> {
+        let preview = self.constraint_preview(host, false)?;
+        let input = super::constraint_builder::input(&preview, host)?;
+        drop(preview);
+        self.constraint_inputs
+            .push(super::constraint_builder::Observation::Full(host, input));
+        build(input, self)
+    }
+
+    /// Reads only the inline assignment. InlineSize containment and a proven
+    /// column/Tight-box chain or exact fixed-width CSS boundary permit
+    /// content-derived block height.
+    /// Final validation rechecks both the proof and observed inline values.
+    pub fn inline_constraint_builder<R>(
+        &mut self,
+        host: NodeId,
+        build: impl FnOnce(InlineConstraintBuilderInput, &mut Self) -> Result<R, Error>,
+    ) -> Result<R, Error> {
+        let preview = self.constraint_preview(host, true)?;
+        let input = super::constraint_builder::inline_input(&preview, host)?;
+        drop(preview);
+        self.constraint_inputs
+            .push(super::constraint_builder::Observation::Inline(host, input));
+        build(input, self)
+    }
+
+    fn constraint_preview(&mut self, host: NodeId, inline: bool) -> Result<UiTree, Error> {
         let (constraints, viewport) = self
             .frame_environment
             .ok_or(Error::UnsafeConstraintBuilder)?;
@@ -51,12 +77,14 @@ impl LogicalEdit<'_, '_, '_> {
             .map(|(node, _)| *node)
             .collect::<Vec<_>>();
         let mut preview = self.render.preview(self.capabilities, &removed)?;
-        super::constraint_builder::validate_host(&preview, host)?;
+        if inline {
+            super::constraint_builder::validate_inline_host(&preview, host)?;
+        } else {
+            super::constraint_builder::validate_host(&preview, host)?;
+        }
         preview.prepare_layout_environment(constraints, viewport)?;
         preview.compute_layout(constraints)?;
-        let input = super::constraint_builder::input(&preview, host)?;
-        self.constraint_inputs.push((host, input));
-        build(input, self)
+        Ok(preview)
     }
 
     /// Surviving output of a scope in append order. Use it with keyed state to
@@ -369,7 +397,8 @@ impl LogicalUi {
         let mut removed_scopes = BTreeSet::new();
         let mut added_sources = BTreeMap::new();
         let mut added_effects = BTreeMap::new();
-        let constraint_inputs = std::cell::RefCell::new(vec![]);
+        let constraint_inputs: std::cell::RefCell<Vec<super::constraint_builder::Observation>> =
+            std::cell::RefCell::new(vec![]);
         let capabilities = self.ui.capabilities();
         let pending = self.ui.edit_deferred_validated(
             sources,
@@ -533,10 +562,8 @@ impl LogicalUi {
             validate.map(|validate| {
                 |tree: &mut UiTree| {
                     validate(tree)?;
-                    for (node, input) in constraint_inputs.borrow().iter() {
-                        if super::constraint_builder::input(tree, *node)? != *input {
-                            return Err(Error::UnsafeConstraintBuilder);
-                        }
+                    for input in constraint_inputs.borrow().iter() {
+                        input.validate(tree)?;
                     }
                     Ok(())
                 }

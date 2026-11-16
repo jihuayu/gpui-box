@@ -17,6 +17,12 @@ proofs. [Normal unbounded layout](RETAINED_UNBOUNDED_LAYOUT.md) subsequently
 adds Unbounded and a finite paint viewport independent of layout inputs.
 Counts and the open list below describe this containment stage.
 
+The [inline builder follow-up](RETAINED_INLINE_CONSTRAINT_BUILDERS.md) shares
+the Column dependency proof with structural construction. It additionally
+permits Tight constraint-box edges and exact numeric-inset fixed-width CSS
+boundaries. Every responsive ancestor style alternative and final runtime
+proof is still checked; a Loose parent box edge cannot assign fluid inline size.
+
 ## Public boundary
 
 `LayoutStyle.container_type` and its builder accept `LayoutContainerType`:

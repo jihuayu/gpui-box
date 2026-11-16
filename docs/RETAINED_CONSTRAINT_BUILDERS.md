@@ -2,8 +2,10 @@
 
 Updated 2026-11-16 on `codex/rendering-performance-research`. The full RFC goal
 remains active. This stage implements a size-contained ConstraintBuilder
-subset and conditional keyed construction; general content-sized builders and
-Flutter RenderBox remain open.
+subset and conditional keyed construction. The subsequent
+[inline builder stage](RETAINED_INLINE_CONSTRAINT_BUILDERS.md) permits
+content-derived block height with an inline-only public input and shared
+dependency proof. General full-axis content-sized builders and RenderBox remain open.
 
 ## Public contract
 
@@ -170,7 +172,9 @@ after failed replacement. A fresh forced-full tree supplies an independent
 CPU pixel reference. Bundled Noto paragraphs wrap at 50/90/140/50 content widths
 after branch selection. Vendor tests cover cached/empty/hidden/retired inputs.
 
-Still open: content-sized builders, inline-only isolation, general custom parent
+Inline-only construction with content-derived block height is implemented in
+the [subsequent stage](RETAINED_INLINE_CONSTRAINT_BUILDERS.md). Still open:
+general full-axis content-sized builders, general custom parent
 policies/RenderBox, automatic builder dependency scheduling and indexed/incremental
 planning, structural plans combined with existing multi-stage ContainerQuery
 bindings, public atomic LocalFrame edit output, broader Flex/percentage/cyclic

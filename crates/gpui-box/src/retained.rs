@@ -36,6 +36,7 @@ mod dirty_nodes;
 mod extraction;
 #[cfg(test)]
 mod extraction_tests;
+mod layout_dependencies;
 mod layout_publication;
 mod measure;
 mod paint_store;

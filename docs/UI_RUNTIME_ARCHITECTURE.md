@@ -175,7 +175,13 @@ preferred/min/max、宽高比与 padding floor；tight 轴为确定分配，loos
 keyed 分支，并把生命周期、最终布局和完整 FramePacket 一起原子发布。嵌套
 调用读取当前草稿；最终再验证已读输入，后续父/兄弟变动使输入改变则拒绝发布，
 不反复迭代。临时 intrinsic probe 不调用用户 builder。私有完整树副本、每个
-builder 的全量 preview 和最终几何校验增加成本；普通 content-sized builder、
+builder 的全量 preview 和最终几何校验增加成本。新增
+`inline_constraint_builder` 与 `InlineConstraintBuilderInput` 只暴露横向
+min/max/available/percentage basis；InlineSize 约束盒在共享依赖证明通过时
+可让分支决定内容高度，更新祖先与后续兄弟。证明支持 Column/Tight-box 链及
+精确固定宽且 numeric inset 的 CSS 边界；最终复验输入和证明，宽度数值相等
+也不能掩盖依赖方向失效。preview 在 callback 前释放，嵌套不按深度保留整树。
+详见 [inline 构建契约](RETAINED_INLINE_CONSTRAINT_BUILDERS.md)。通用 full-axis content-sized builder、
 自动依赖调度和增量规划仍未实现，不能称为完整 Flutter RenderBox。
 详见 [嵌套协议](RETAINED_NESTED_CONSTRAINT_BOX.md) 与
 [构建器契约和决策](RETAINED_CONSTRAINT_BUILDERS.md)。

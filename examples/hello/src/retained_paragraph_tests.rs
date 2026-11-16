@@ -21,6 +21,126 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 }
 
 #[test]
+fn inline_constraint_builder_publishes_real_text_auto_height_and_following_sibling_pixels() {
+    use gpui_box::retained::logical::LogicalUi;
+    let system = text_system();
+    let paragraph = shape(&system, "one two three four five six 中文段落");
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let text = TextPaint {
+        resource: raster.prepare(paragraph.clone(), 1.0).unwrap(),
+        color: 0xffffffff,
+    };
+    let column = LayoutStyle::column().size(LayoutDimension::Percent(1.0), LayoutDimension::Auto);
+    let boundary = LayoutStyle::constraint_box(ConstraintFit::Tight, ConstraintFit::Loose)
+        .container_type(LayoutContainerType::InlineSize)
+        .padding(LayoutEdges::all(LayoutLength::Px(5.0)));
+    let footer_style = LayoutStyle::row()
+        .size(LayoutDimension::Px(20.0), LayoutDimension::Px(10.0))
+        .flex_shrink(0.0);
+    let mut ui = LogicalUi::new_layout(column.clone(), 0, BackendCapabilities::default()).unwrap();
+    let scope = ui.root_scope();
+    let host = ui
+        .append_render_layout(scope, ui.root_render(), boundary.clone(), 0)
+        .unwrap();
+    let footer = ui
+        .append_render_layout(scope, ui.root_render(), footer_style.clone(), 0xff0000ff)
+        .unwrap();
+    fn pixels(frame: FramePacket) -> Vec<u8> {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [200, 700],
+                scale: 1.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 4 * 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(4096).unwrap() {}
+        job.into_frame().unwrap().pixels().to_vec()
+    }
+    let mut old = None;
+    for width in [50.0, 90.0, 140.0, 50.0] {
+        let constraints = LayoutConstraints::new(
+            LayoutAvailableSpace::Definite(width + 10.0),
+            LayoutAvailableSpace::Unbounded,
+        );
+        let (commit, frame) = ui
+            .edit_frame(
+                constraints,
+                [200.0, 700.0],
+                |_| Ok(()),
+                |(), edit| {
+                    edit.inline_constraint_builder(host, |input, edit| {
+                        assert_eq!(input.max, width);
+                        let branch =
+                            edit.reconcile_keys(scope, &[u64::from(input.max >= 100.0)])?[0];
+                        let renders = edit.renders(branch)?;
+                        if let Some(leaf) = renders.first() {
+                            return Ok(*leaf);
+                        }
+                        let leaf = edit.append_layout(branch, host, LayoutStyle::row(), 0)?;
+                        edit.properties().text(leaf, Some(text.clone()));
+                        Ok(leaf)
+                    })
+                },
+            )
+            .unwrap();
+        let leaf = commit.result.value;
+        let expected = paragraph.layout(Some(width)).unwrap();
+        assert_eq!(
+            ui.layout_result(leaf).unwrap().size,
+            [width, expected.size[1]]
+        );
+        assert_eq!(
+            ui.layout_result(host).unwrap().size,
+            [width + 10.0, expected.size[1] + 10.0]
+        );
+        assert_eq!(
+            ui.layout_result(footer).unwrap().location,
+            [0.0, expected.size[1] + 10.0]
+        );
+        assert_eq!(
+            ui.layout_result(leaf).unwrap().baseline,
+            Some(paragraph.first_baseline())
+        );
+        let actual = pixels(frame.clone());
+        let mut full = UiTree::new_layout(column.clone(), 0).unwrap();
+        full.set_frame_build_policy(FrameBuildPolicy::Full);
+        let full_host = full
+            .append_layout(full.root(), boundary.clone(), 0)
+            .unwrap();
+        let full_leaf = full
+            .append_layout(full_host, LayoutStyle::row(), 0)
+            .unwrap();
+        full.append_layout(full.root(), footer_style.clone(), 0xff0000ff)
+            .unwrap();
+        let mut tx = Transaction::default();
+        tx.text(full_leaf, Some(text.clone()));
+        full.commit(tx, BackendCapabilities::default()).unwrap();
+        assert_eq!(
+            actual,
+            pixels(full.frame_in_viewport(constraints, [200.0, 700.0]).unwrap())
+        );
+        assert!(
+            actual
+                .chunks_exact(4)
+                .any(|p| p[0] > 0 && p[1] > 0 && p[2] > 0 && p[3] > 0),
+            "real glyphs rendered"
+        );
+        if old.is_none() {
+            old = Some((frame, actual));
+        }
+    }
+    let (old, original) = old.unwrap();
+    drop(ui);
+    drop(system);
+    drop(raster);
+    assert_eq!(pixels(old), original);
+}
+
+#[test]
 fn constraint_builder_branches_measure_real_paragraphs_at_final_flex_width() {
     use gpui_box::retained::logical::LogicalUi;
     let paragraph = shape(&text_system(), "one two three four five six 中文段落");

@@ -11,6 +11,38 @@ pub struct ConstraintBuilderInput {
     pub percentage_basis: LayoutSize<Option<f32>>,
 }
 
+/// Only the inline-axis assignment is observable. Block size may be derived
+/// from the selected child content without becoming a structural dependency.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct InlineConstraintBuilderInput {
+    /// Hard minimum border-box width of the direct child slot.
+    pub min: f32,
+    /// Hard maximum width, possibly positive infinity. This is not a used size.
+    pub max: f32,
+    /// Normal layout space or explicit intrinsic mode for this axis.
+    pub available: layout::AvailableSpace,
+    /// The parent's independently established inline percentage basis.
+    pub percentage_basis: Option<f32>,
+}
+
+pub(super) enum Observation {
+    Full(NodeId, ConstraintBuilderInput),
+    Inline(NodeId, InlineConstraintBuilderInput),
+}
+impl Observation {
+    pub(super) fn validate(&self, tree: &UiTree) -> Result<(), Error> {
+        let equal = match self {
+            Self::Full(node, previous) => input(tree, *node)? == *previous,
+            Self::Inline(node, previous) => inline_input(tree, *node)? == *previous,
+        };
+        if equal {
+            Ok(())
+        } else {
+            Err(Error::UnsafeConstraintBuilder)
+        }
+    }
+}
+
 pub(super) fn validate_host(tree: &UiTree, host: NodeId) -> Result<(), Error> {
     let style = &tree.node(host)?.style;
     if !matches!(style.display, taffy::Display::ConstraintBox { .. })
@@ -25,6 +57,45 @@ pub(super) fn validate_host(tree: &UiTree, host: NodeId) -> Result<(), Error> {
 
 pub(super) fn input(tree: &UiTree, host: NodeId) -> Result<ConstraintBuilderInput, Error> {
     validate_host(tree, host)?;
+    read_input(tree, host)
+}
+
+pub(super) fn validate_inline_host(tree: &UiTree, host: NodeId) -> Result<(), Error> {
+    let style = &tree.node(host)?.style;
+    if !matches!(style.display, taffy::Display::ConstraintBox { .. }) {
+        return Err(Error::UnsafeConstraintBuilder);
+    }
+    if style
+        .contain
+        .contains(taffy::Contain::SIZE | taffy::Contain::LAYOUT)
+    {
+        return Ok(());
+    }
+    if !style
+        .contain
+        .contains(taffy::Contain::INLINE_SIZE | taffy::Contain::LAYOUT)
+        || !layout_dependencies::column_inline_chain(tree, host, style)?
+    {
+        return Err(Error::UnsafeConstraintBuilder);
+    }
+    Ok(())
+}
+
+pub(super) fn inline_input(
+    tree: &UiTree,
+    host: NodeId,
+) -> Result<InlineConstraintBuilderInput, Error> {
+    validate_inline_host(tree, host)?;
+    let input = read_input(tree, host)?;
+    Ok(InlineConstraintBuilderInput {
+        min: input.constraints.bounds.min.width,
+        max: input.constraints.bounds.max.width,
+        available: input.constraints.width,
+        percentage_basis: input.percentage_basis.width,
+    })
+}
+
+fn read_input(tree: &UiTree, host: NodeId) -> Result<ConstraintBuilderInput, Error> {
     let input = tree
         .layout
         .constraint_box_input(tree.node(host)?.layout)?
@@ -52,5 +123,7 @@ pub(super) fn input(tree: &UiTree, host: NodeId) -> Result<ConstraintBuilderInpu
     })
 }
 
+#[cfg(test)]
+mod inline_tests;
 #[cfg(test)]
 mod tests;
