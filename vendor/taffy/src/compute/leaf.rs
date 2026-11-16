@@ -21,10 +21,10 @@ pub fn compute_leaf_layout<MeasureFunction>(
     inputs: LayoutInput,
     style: &impl CoreStyle,
     resolve_calc_value: impl Fn(*const (), f32) -> f32,
-    measure_function: MeasureFunction,
+    mut measure_function: MeasureFunction,
 ) -> LayoutOutput
 where
-    MeasureFunction: FnOnce(Size<Option<f32>>, Size<AvailableSpace>) -> Size<f32>,
+    MeasureFunction: FnMut(Size<Option<f32>>, Size<AvailableSpace>) -> Size<f32>,
 {
     let LayoutInput { known_dimensions, parent_size, available_space, sizing_mode, run_mode, .. } = inputs;
 
@@ -38,7 +38,7 @@ where
 
     // Resolve node's preferred/min/max sizes (width/heights) against the available space (percentages resolve to pixel values)
     // For ContentSize mode, we pretend that the node has no size styles as these should be ignored.
-    let (mut node_size, node_min_size, node_max_size, aspect_ratio) = match sizing_mode {
+    let (mut node_size, mut node_min_size, mut node_max_size, aspect_ratio) = match sizing_mode {
         SizingMode::ContentSize => {
             let node_size = known_dimensions;
             let node_min_size = Size::NONE;
@@ -76,6 +76,54 @@ where
     let mut content_box_inset = padding_border;
     content_box_inset.right += scrollbar_gutter.x;
     content_box_inset.bottom += scrollbar_gutter.y;
+
+    // Intrinsic limits measure content independently of this node's preferred
+    // size and other-axis min/max. They return a border-box contribution.
+    if sizing_mode == SizingMode::InherentSize {
+        use super::common::intrinsic_limits::set_axis;
+        use super::common::sizing_keyword::{resolve_sizing_keyword, SizingKeywordResolution};
+        use crate::geometry::AbsoluteAxis;
+        for axis in [AbsoluteAxis::Horizontal, AbsoluteAxis::Vertical] {
+            for (is_min, value) in [(true, style.min_size().get_abs(axis)), (false, style.max_size().get_abs(axis))] {
+                if !value.is_sizing_keyword() {
+                    continue;
+                }
+                let resolution = resolve_sizing_keyword(
+                    value,
+                    available_space.get_abs(axis).into_option(),
+                    parent_size.get_abs(axis),
+                    &resolve_calc_value,
+                );
+                let resolved = match resolution {
+                    Some(SizingKeywordResolution::Exact(value)) => Some(value),
+                    Some(SizingKeywordResolution::Measure(space)) => {
+                        let mut query = available_space;
+                        set_axis(&mut query, axis, space);
+                        let mut known = node_size.maybe_clamp(node_min_size, node_max_size);
+                        set_axis(&mut known, axis, None);
+                        query = known.map(|value| value.map(AvailableSpace::Definite)).unwrap_or(query);
+                        let measured = measure_function(
+                            known.maybe_sub(content_box_inset.sum_axes()),
+                            query.maybe_sub(content_box_inset.sum_axes()),
+                        );
+                        let contained = style.contain().size_containment().get_abs(axis);
+                        Some(if contained {
+                            content_box_inset.sum_axes().get_abs(axis)
+                        } else {
+                            measured.get_abs(axis) + content_box_inset.sum_axes().get_abs(axis)
+                        })
+                    }
+                    None => None,
+                };
+                if let Some(value) = resolved {
+                    set_axis(if is_min { &mut node_min_size } else { &mut node_max_size }, axis, Some(value));
+                }
+            }
+        }
+        node_min_size = node_min_size.maybe_apply_aspect_ratio(aspect_ratio);
+        node_max_size = node_max_size.maybe_apply_aspect_ratio(aspect_ratio);
+        node_size = node_size.maybe_clamp(node_min_size, node_max_size);
+    }
 
     // Contained auto axes use an empty content contribution before measuring
     // the other axis. In particular, inline containment must wrap a paragraph

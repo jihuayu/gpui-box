@@ -154,9 +154,9 @@ fn full_size_boundary(style: &Style) -> bool {
 }
 
 fn fixed_inline_extent(style: &Style) -> bool {
-    use taffy::style::{ExpandedDimension as D, ExpandedLengthPercentageAuto as A};
+    use taffy::style::ExpandedDimension as D;
     matches!((style.size.width.expand(),style.min_size.width.expand(),style.max_size.width.expand()),
-        (D::Length(w),A::Length(min),A::Length(max)) if w == min && w == max)
+        (D::Length(w),D::Length(min),D::Length(max)) if w == min && w == max)
         && style.box_sizing == taffy::BoxSizing::BorderBox
 }
 
@@ -222,6 +222,8 @@ fn column_inline_style(
     use taffy::style::{ExpandedDimension as D, ExpandedLengthPercentageAuto as A};
     if style.aspect_ratio.is_some()
         || style.position.is_out_of_flow()
+        || style.min_size.width.is_sizing_keyword()
+        || style.max_size.width.is_sizing_keyword()
         || !matches!(style.display, taffy::Display::Flex | taffy::Display::None)
     {
         return Ok(false);
@@ -272,10 +274,8 @@ fn column_inline_style(
 }
 
 fn validate_inline_extent(style: &Style) -> Result<(), Error> {
-    use taffy::style::{
-        ExpandedDimension as D, ExpandedLengthPercentage as L, ExpandedLengthPercentageAuto as A,
-    };
-    let (D::Length(width), A::Length(min), A::Length(max)) = (
+    use taffy::style::{ExpandedDimension as D, ExpandedLengthPercentage as L};
+    let (D::Length(width), D::Length(min), D::Length(max)) = (
         style.size.width.expand(),
         style.min_size.width.expand(),
         style.max_size.width.expand(),

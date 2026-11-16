@@ -48,9 +48,9 @@ pub(in super::super) struct GridItem {
     /// The item's size style
     pub size: Size<Dimension>,
     /// The item's min_size style
-    pub min_size: Size<LengthPercentageAuto>,
+    pub min_size: Size<Dimension>,
     /// The item's max_size style
-    pub max_size: Size<LengthPercentageAuto>,
+    pub max_size: Size<Dimension>,
     /// The item's aspect_ratio style
     pub aspect_ratio: Option<f32>,
     /// The item's padding style
@@ -347,7 +347,7 @@ impl GridItem {
             .maybe_resolve(grid_area_size, |val, basis| tree.calc(val, basis))
             .maybe_apply_aspect_ratio(aspect_ratio)
             .maybe_add(box_sizing_adjustment);
-        let min_size = self
+        let mut min_size = self
             .min_size
             .maybe_resolve(grid_area_size, |val, basis| tree.calc(val, basis))
             .maybe_apply_aspect_ratio(aspect_ratio)
@@ -355,13 +355,30 @@ impl GridItem {
             // The size of the item is floored by its padding and border
             .or(padding_border_size.map(Some))
             .maybe_max(padding_border_size);
-        let max_size = self
+        let mut max_size = self
             .max_size
             .maybe_resolve(grid_area_size, |val, basis| tree.calc(val, basis))
             .maybe_apply_aspect_ratio(aspect_ratio)
             .maybe_add(box_sizing_adjustment);
 
         let grid_area_minus_item_margins_size = grid_area_size.maybe_sub(margins).maybe_max(Size::ZERO);
+        let (intrinsic_min, intrinsic_max) = crate::compute::common::intrinsic_limits::resolve_intrinsic_limits(
+            tree,
+            self.node,
+            self.min_size,
+            self.max_size,
+            crate::tree::LayoutInput {
+                known_dimensions: inherent_size,
+                parent_size: grid_area_size,
+                available_space: grid_area_minus_item_margins_size
+                    .map(|v| v.map(AvailableSpace::Definite).unwrap_or(AvailableSpace::MaxContent)),
+                sizing_mode: SizingMode::InherentSize,
+                run_mode: crate::tree::RunMode::ComputeSize,
+                ..crate::tree::LayoutInput::HIDDEN
+            },
+        );
+        min_size = intrinsic_min.or(min_size);
+        max_size = intrinsic_max.or(max_size);
 
         // If node is absolutely positioned and width is not set explicitly, then deduce it
         // from left, right and container_content_box if both are set.
@@ -712,6 +729,24 @@ impl GridItem {
         let padding_border_size = (padding + border).sum_axes();
         let box_sizing_adjustment =
             if self.box_sizing == BoxSizing::ContentBox { padding_border_size } else { Size::ZERO };
+        let (intrinsic_min, intrinsic_max) = crate::compute::common::intrinsic_limits::resolve_intrinsic_limits(
+            tree,
+            self.node,
+            self.min_size,
+            self.max_size,
+            crate::tree::LayoutInput {
+                known_dimensions: self
+                    .size
+                    .maybe_resolve(grid_area_size, |v, b| tree.calc(v, b))
+                    .maybe_add(box_sizing_adjustment),
+                parent_size: grid_area_size,
+                available_space: grid_area_size
+                    .map(|v| v.map(AvailableSpace::Definite).unwrap_or(AvailableSpace::MaxContent)),
+                sizing_mode: SizingMode::InherentSize,
+                run_mode: crate::tree::RunMode::ComputeSize,
+                ..crate::tree::LayoutInput::HIDDEN
+            },
+        );
         self.size
             .maybe_resolve(grid_area_size, |val, basis| tree.calc(val, basis))
             .maybe_apply_aspect_ratio(self.aspect_ratio)
@@ -730,8 +765,12 @@ impl GridItem {
                 let adjustment = box_sizing_adjustment.get(axis);
                 let min_size = min_size.maybe_resolve(basis, |val, basis| tree.calc(val, basis));
                 let max_size = max_size.maybe_resolve(max_size_basis, |val, basis| tree.calc(val, basis));
-                size.maybe_clamp(min_size.maybe_add(adjustment), max_size.maybe_add(adjustment))
+                size.maybe_clamp(
+                    intrinsic_min.get(axis).or(min_size.maybe_add(adjustment)),
+                    intrinsic_max.get(axis).or(max_size.maybe_add(adjustment)),
+                )
             })
+            .or(intrinsic_min.get(axis))
             .or_else(|| {
                 // A preferred size that is a sizing keyword other than `stretch` does not behave as auto,
                 // so the minimum contribution is the min-content contribution.

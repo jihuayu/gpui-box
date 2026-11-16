@@ -379,6 +379,12 @@ pub fn compute_block_layout(
 ) -> LayoutOutput {
     let LayoutInput { known_dimensions, parent_size, run_mode, .. } = inputs;
     let style = tree.get_block_container_style(node_id);
+    let min_style = style.min_size();
+    let max_style = style.max_size();
+    drop(style);
+    let (intrinsic_min, intrinsic_max) =
+        super::common::intrinsic_limits::resolve_intrinsic_limits(tree, node_id, min_style, max_style, inputs);
+    let style = tree.get_block_container_style(node_id);
 
     // Pull these out earlier to avoid borrowing issues
     let overflow = style.overflow();
@@ -398,16 +404,24 @@ pub fn compute_block_layout(
     let box_sizing_adjustment =
         if style.box_sizing() == BoxSizing::ContentBox { padding_border_size } else { Size::ZERO };
 
-    let min_size = style
-        .min_size()
-        .maybe_resolve(parent_size, |val, basis| tree.calc(val, basis))
-        .maybe_apply_aspect_ratio(aspect_ratio)
-        .maybe_add(box_sizing_adjustment);
-    let max_size = style
-        .max_size()
-        .maybe_resolve(parent_size, |val, basis| tree.calc(val, basis))
-        .maybe_apply_aspect_ratio(aspect_ratio)
-        .maybe_add(box_sizing_adjustment);
+    let min_size = if inputs.sizing_mode == SizingMode::ContentSize {
+        Size::NONE
+    } else {
+        intrinsic_min.or(style
+            .min_size()
+            .maybe_resolve(parent_size, |val, basis| tree.calc(val, basis))
+            .maybe_apply_aspect_ratio(aspect_ratio)
+            .maybe_add(box_sizing_adjustment))
+    };
+    let max_size = if inputs.sizing_mode == SizingMode::ContentSize {
+        Size::NONE
+    } else {
+        intrinsic_max.or(style
+            .max_size()
+            .maybe_resolve(parent_size, |val, basis| tree.calc(val, basis))
+            .maybe_apply_aspect_ratio(aspect_ratio)
+            .maybe_add(box_sizing_adjustment))
+    };
     let clamped_style_size = if inputs.sizing_mode == SizingMode::InherentSize {
         style
             .size()
@@ -450,14 +464,24 @@ pub fn compute_block_layout(
         }
     }
 
+    let mut known_dimensions_are_definite = inputs.known_dimensions_are_definite;
+    if known_dimensions.height.is_none()
+        && clamped_style_size.height.is_none()
+        && (min_style.height.is_sizing_keyword() || max_style.height.is_sizing_keyword())
+    {
+        known_dimensions_are_definite.height = false;
+    }
+
     // Unwrap the block formatting context if one was passed, or else create a new one
     debug_log!("BLOCK");
     let mut output = match block_ctx {
         Some(inherited_bfc) if !establishes_new_bfc => compute_inner(
             tree,
             node_id,
-            LayoutInput { known_dimensions: styled_based_known_dimensions, ..inputs },
+            LayoutInput { known_dimensions: styled_based_known_dimensions, known_dimensions_are_definite, ..inputs },
             inherited_bfc,
+            min_size,
+            max_size,
         ),
         _ => {
             let mut root_bfc = BlockFormattingContext::new();
@@ -465,8 +489,14 @@ pub fn compute_block_layout(
             compute_inner(
                 tree,
                 node_id,
-                LayoutInput { known_dimensions: styled_based_known_dimensions, ..inputs },
+                LayoutInput {
+                    known_dimensions: styled_based_known_dimensions,
+                    known_dimensions_are_definite,
+                    ..inputs
+                },
                 &mut root_ctx,
+                min_size,
+                max_size,
             )
         }
     };
@@ -485,6 +515,8 @@ fn compute_inner(
     node_id: NodeId,
     inputs: LayoutInput,
     #[allow(unused_mut)] mut block_ctx: &mut BlockContext<'_>,
+    resolved_min: Size<Option<f32>>,
+    resolved_max: Size<Option<f32>>,
 ) -> LayoutOutput {
     let LayoutInput {
         known_dimensions, parent_size, available_space, run_mode, vertical_margins_are_collapsible, ..
@@ -522,21 +554,19 @@ fn compute_inner(
 
     let box_sizing_adjustment =
         if style.box_sizing() == BoxSizing::ContentBox { padding_border_size } else { Size::ZERO };
-    let size = style
-        .size()
-        .maybe_resolve(parent_size, |val, basis| tree.calc(val, basis))
-        .maybe_apply_aspect_ratio(aspect_ratio)
-        .maybe_add(box_sizing_adjustment);
-    let min_size = style
-        .min_size()
-        .maybe_resolve(parent_size, |val, basis| tree.calc(val, basis))
-        .maybe_apply_aspect_ratio(aspect_ratio)
-        .maybe_add(box_sizing_adjustment);
-    let max_size = style
-        .max_size()
-        .maybe_resolve(parent_size, |val, basis| tree.calc(val, basis))
-        .maybe_apply_aspect_ratio(aspect_ratio)
-        .maybe_add(box_sizing_adjustment);
+    let size = if inputs.sizing_mode == SizingMode::InherentSize {
+        style
+            .size()
+            .maybe_resolve(parent_size, |val, basis| tree.calc(val, basis))
+            .maybe_apply_aspect_ratio(aspect_ratio)
+            .maybe_add(box_sizing_adjustment)
+    } else {
+        Size::NONE
+    };
+    // The outer algorithm has already resolved both numeric and intrinsic
+    // limits, and removed the queried box's own limits for ContentSize.
+    let min_size = resolved_min;
+    let max_size = resolved_max;
 
     // css-sizing-4: a definite size in one axis transfers through `aspect-ratio`
     // to make the other definite. Deriving it from `known_dimensions` self-gates
@@ -597,6 +627,32 @@ fn compute_inner(
 
     // 1. Generate items
     let mut items = generate_item_list(tree, node_id, container_content_box_size);
+    for item in &mut items {
+        if item.position.is_out_of_flow() {
+            continue;
+        }
+        let style = tree.get_block_child_style(item.node_id);
+        let min_style = style.min_size();
+        let max_style = style.max_size();
+        drop(style);
+        let (min, max) = super::common::intrinsic_limits::resolve_intrinsic_limits(
+            tree,
+            item.node_id,
+            min_style,
+            max_style,
+            LayoutInput {
+                known_dimensions: item.size,
+                parent_size: container_content_box_size,
+                available_space: available_space.maybe_sub(content_box_inset.sum_axes()).maybe_sub(
+                    item.margin.resolve_or_zero(container_content_box_size.width, |v, b| tree.calc(v, b)).sum_axes(),
+                ),
+                sizing_mode: SizingMode::InherentSize,
+                ..inputs
+            },
+        );
+        item.min_size = min.or(item.min_size);
+        item.max_size = max.or(item.max_size);
+    }
 
     // 2. Compute container width
     let container_outer_width = known_dimensions.width.unwrap_or_else(|| {

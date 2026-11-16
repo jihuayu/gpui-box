@@ -1059,11 +1059,198 @@ mod tests {
             style,
             |_, _| 0.0,
             |known_dimensions, _available_space| {
-                known_dimensions.unwrap_or(node_context.cloned().unwrap_or(Size::ZERO))
+                known_dimensions.unwrap_or(node_context.as_deref().copied().unwrap_or(Size::ZERO))
             },
         )
     }
 
+    #[test]
+    fn intrinsic_limits_apply_to_container_and_item_algorithms() {
+        for display in [Display::Flex, Display::Grid, Display::Block] {
+            for nested in [false, true] {
+                for (min, max, expected) in
+                    [(Dimension::max_content(), auto(), 90.0), (auto(), Dimension::min_content(), 40.0)]
+                {
+                    let mut tree: TaffyTree<()> = TaffyTree::new();
+                    tree.disable_rounding();
+                    let children = [40.0, 50.0].map(|w| {
+                        tree.new_leaf(Style {
+                            size: Size { width: length(w), height: length(10.0) },
+                            flex_shrink: 0.0,
+                            ..Style::default()
+                        })
+                        .unwrap()
+                    });
+                    // The measured host uses Flex to provide distinct min/max
+                    // contributions; its parent exercises all item algorithms.
+                    let host = tree
+                        .new_with_children(
+                            Style {
+                                size: Size { width: length(if min.is_auto() { 100.0 } else { 10.0 }), height: auto() },
+                                min_size: Size { width: min, height: auto() },
+                                max_size: Size { width: max, height: auto() },
+                                flex_wrap: crate::FlexWrap::Wrap,
+                                align_self: Some(crate::AlignSelf::START),
+                                ..Style::default()
+                            },
+                            &children,
+                        )
+                        .unwrap();
+                    let root = if nested {
+                        tree.new_with_children(
+                            Style {
+                                display,
+                                size: Size { width: length(100.0), height: length(100.0) },
+                                ..Style::default()
+                            },
+                            &[host],
+                        )
+                        .unwrap()
+                    } else {
+                        host
+                    };
+                    tree.compute_layout(root, Size::MAX_CONTENT).unwrap();
+                    let expected = if max.is_sizing_keyword() { 50.0 } else { expected };
+                    assert_eq!(tree.layout(host).unwrap().size.width, expected, "{display:?}/{nested}/{min:?}/{max:?}");
+                    let before = *tree.layout(host).unwrap();
+                    tree.compute_layout(root, Size::MAX_CONTENT).unwrap();
+                    assert_eq!(*tree.layout(host).unwrap(), before);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn intrinsic_limits_apply_inside_grid_and_block_hosts() {
+        for display in [Display::Grid, Display::Block] {
+            for nested in [false, true] {
+                for minimum in [false, true] {
+                    let mut tree: TaffyTree<()> = TaffyTree::new();
+                    tree.disable_rounding();
+                    let children = [40.0, 50.0].map(|width| {
+                        tree.new_leaf(Style {
+                            size: Size { width: length(width), height: length(10.0) },
+                            ..Style::default()
+                        })
+                        .unwrap()
+                    });
+                    let host = tree
+                        .new_with_children(
+                            Style {
+                                display,
+                                size: Size { width: length(if minimum { 10.0 } else { 100.0 }), height: auto() },
+                                min_size: Size {
+                                    width: if minimum { Dimension::max_content() } else { auto() },
+                                    height: auto(),
+                                },
+                                max_size: Size {
+                                    width: if minimum { auto() } else { Dimension::max_content() },
+                                    height: auto(),
+                                },
+                                align_self: Some(crate::AlignSelf::START),
+                                flex_shrink: 0.0,
+                                ..Style::default()
+                            },
+                            &children,
+                        )
+                        .unwrap();
+                    let root = if nested {
+                        tree.new_with_children(
+                            Style { size: Size { width: length(100.0), height: length(100.0) }, ..Style::default() },
+                            &[host],
+                        )
+                        .unwrap()
+                    } else {
+                        host
+                    };
+                    tree.compute_layout(root, Size::MAX_CONTENT).unwrap();
+                    assert_eq!(
+                        tree.layout(host).unwrap().size,
+                        Size { width: 50.0, height: 20.0 },
+                        "{display:?}/{nested}/{minimum}"
+                    );
+                    // A numeric maximum must not cap the intrinsic minimum's
+                    // ContentSize query before minimum-wins-maximum clamping.
+                    let mut style = tree.style(host).unwrap().clone();
+                    style.min_size.width = Dimension::max_content();
+                    style.max_size.width = length(30.0);
+                    tree.set_style(host, style).unwrap();
+                    tree.compute_layout(root, Size::MAX_CONTENT).unwrap();
+                    assert_eq!(tree.layout(host).unwrap().size.width, 50.0, "{display:?}/{nested}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn intrinsic_leaf_height_limit_remeasures_after_flex_shrink() {
+        let mut tree: TaffyTree<()> = TaffyTree::new();
+        tree.disable_rounding();
+        let child = tree
+            .new_leaf(Style {
+                size: Size { width: length(100.0), height: length(5.0) },
+                min_size: Size { width: length(0.0), height: Dimension::max_content() },
+                ..Style::default()
+            })
+            .unwrap();
+        let root = tree
+            .new_with_children(
+                Style {
+                    size: Size { width: length(50.0), height: length(100.0) },
+                    align_items: crate::AlignItems::START,
+                    ..Style::default()
+                },
+                &[child],
+            )
+            .unwrap();
+        tree.compute_layout_with_measure(root, Size::MAX_CONTENT, |inputs, _, _, style| {
+            compute_leaf_layout(
+                inputs,
+                style,
+                |_, _| 0.0,
+                |known, space| {
+                    let width = known.width.or(space.width.into_option()).unwrap_or(100.0);
+                    Size { width: width.min(100.0), height: if width < 100.0 { 40.0 } else { 10.0 } }
+                },
+            )
+        })
+        .unwrap();
+        assert_eq!(tree.layout(child).unwrap().size, Size { width: 50.0, height: 40.0 });
+    }
+
+    #[test]
+    fn intrinsic_limits_size_absolutely_positioned_content() {
+        let mut tree: TaffyTree<()> = TaffyTree::new();
+        tree.disable_rounding();
+        let children = [30.0, 40.0].map(|w| {
+            tree.new_leaf(Style {
+                size: Size { width: length(w), height: length(10.0) },
+                flex_shrink: 0.0,
+                ..Style::default()
+            })
+            .unwrap()
+        });
+        let host = tree
+            .new_with_children(
+                Style {
+                    position: crate::Position::Absolute,
+                    size: Size { width: length(100.0), height: auto() },
+                    max_size: Size { width: Dimension::min_content(), height: auto() },
+                    flex_wrap: crate::FlexWrap::Wrap,
+                    ..Style::default()
+                },
+                &children,
+            )
+            .unwrap();
+        let root = tree
+            .new_with_children(
+                Style { size: Size { width: length(200.0), height: length(100.0) }, ..Style::default() },
+                &[host],
+            )
+            .unwrap();
+        tree.compute_layout(root, Size::MAX_CONTENT).unwrap();
+        assert_eq!(tree.layout(host).unwrap().size, Size { width: 40.0, height: 20.0 });
+    }
     #[test]
     fn size_containment_preserves_descendant_layout_for_all_container_algorithms() {
         for display in [Display::Flex, Display::Grid, Display::Block] {

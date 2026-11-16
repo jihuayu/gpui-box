@@ -72,6 +72,16 @@ pub enum Dimension {
     Content,
 }
 
+impl From<Length> for Dimension {
+    fn from(value: Length) -> Self {
+        match value {
+            Length::Px(value) => Self::Px(value),
+            Length::Percent(value) => Self::Percent(value),
+            Length::Auto => Self::Auto,
+        }
+    }
+}
+
 impl Dimension {
     pub const fn px(value: f32) -> Self {
         Self::Px(value)
@@ -461,8 +471,8 @@ pub struct LayoutStyle {
     pub position: LayoutPosition,
     pub inset: Edges,
     pub size: LayoutSize<Dimension>,
-    pub min_size: LayoutSize<Length>,
-    pub max_size: LayoutSize<Length>,
+    pub min_size: LayoutSize<Dimension>,
+    pub max_size: LayoutSize<Dimension>,
     pub aspect_ratio: Option<f32>,
     pub margin: Edges,
     pub padding: Edges,
@@ -494,8 +504,8 @@ impl Default for LayoutStyle {
             position: LayoutPosition::Static,
             inset: Edges::all(Length::Auto),
             size: LayoutSize::new(Dimension::Auto, Dimension::Auto),
-            min_size: LayoutSize::new(Length::Auto, Length::Auto),
-            max_size: LayoutSize::new(Length::Auto, Length::Auto),
+            min_size: LayoutSize::new(Dimension::Auto, Dimension::Auto),
+            max_size: LayoutSize::new(Dimension::Auto, Dimension::Auto),
             aspect_ratio: None,
             margin: Edges::zero(),
             padding: Edges::zero(),
@@ -544,12 +554,12 @@ impl LayoutStyle {
         self.size = LayoutSize::new(width, height);
         self
     }
-    pub fn min_size(mut self, width: Length, height: Length) -> Self {
-        self.min_size = LayoutSize::new(width, height);
+    pub fn min_size(mut self, width: impl Into<Dimension>, height: impl Into<Dimension>) -> Self {
+        self.min_size = LayoutSize::new(width.into(), height.into());
         self
     }
-    pub fn max_size(mut self, width: Length, height: Length) -> Self {
-        self.max_size = LayoutSize::new(width, height);
+    pub fn max_size(mut self, width: impl Into<Dimension>, height: impl Into<Dimension>) -> Self {
+        self.max_size = LayoutSize::new(width.into(), height.into());
         self
     }
     /// Locks the horizontal inline extent through width/min/max. Height stays
@@ -557,8 +567,8 @@ impl LayoutStyle {
     /// BorderBox sizing and fixed horizontal insets that fit this extent.
     pub fn fixed_inline_size(mut self, width: f32) -> Self {
         self.size.width = Dimension::Px(width);
-        self.min_size.width = Length::Px(width);
-        self.max_size.width = Length::Px(width);
+        self.min_size.width = Dimension::Px(width);
+        self.max_size.width = Dimension::Px(width);
         self
     }
     pub fn direction(mut self, direction: LayoutDirection) -> Self {
@@ -640,10 +650,17 @@ impl LayoutStyle {
         self.margin.validate(true, true)?;
         self.padding.validate(false, false)?;
         self.border.validate(false, false)?;
-        self.min_size.width.validate(true, false)?;
-        self.min_size.height.validate(true, false)?;
-        self.max_size.width.validate(true, false)?;
-        self.max_size.height.validate(true, false)?;
+        for limit in [
+            self.min_size.width,
+            self.min_size.height,
+            self.max_size.width,
+            self.max_size.height,
+        ] {
+            limit.validate()?;
+            if limit == Dimension::Content {
+                return Err(Error::InvalidStyle);
+            }
+        }
         self.size.width.validate()?;
         self.size.height.validate()?;
         if self.size.width == Dimension::Content || self.size.height == Dimension::Content {
@@ -790,6 +807,8 @@ impl LayoutStyle {
 mod baseline_tests;
 #[cfg(test)]
 mod containment_tests;
+#[cfg(test)]
+mod intrinsic_limits_tests;
 #[cfg(test)]
 mod sizing_tests;
 

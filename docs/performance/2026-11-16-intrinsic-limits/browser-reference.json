@@ -1,0 +1,622 @@
+{
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36",
+  "fitContentFunctionSupported": false,
+  "passed": 47,
+  "failed": 0,
+  "cases": [
+    {
+      "name": "wrap-false-row-min-content-none",
+      "actual": [
+        40,
+        20
+      ],
+      "expected": [
+        40,
+        20
+      ],
+      "pass": true
+    },
+    {
+      "name": "wrap-false-row-max-content-none",
+      "actual": [
+        70,
+        10
+      ],
+      "expected": [
+        70,
+        10
+      ],
+      "pass": true
+    },
+    {
+      "name": "wrap-false-row-auto-min-content",
+      "actual": [
+        40,
+        20
+      ],
+      "expected": [
+        40,
+        20
+      ],
+      "pass": true
+    },
+    {
+      "name": "wrap-false-row-auto-max-content",
+      "actual": [
+        70,
+        10
+      ],
+      "expected": [
+        70,
+        10
+      ],
+      "pass": true
+    },
+    {
+      "name": "wrap-false-row-max-content-min-content",
+      "actual": [
+        70,
+        10
+      ],
+      "expected": [
+        70,
+        10
+      ],
+      "pass": true
+    },
+    {
+      "name": "wrap-false-column-min-content-none",
+      "actual": [
+        40,
+        20
+      ],
+      "expected": [
+        40,
+        20
+      ],
+      "pass": true
+    },
+    {
+      "name": "wrap-false-column-max-content-none",
+      "actual": [
+        70,
+        10
+      ],
+      "expected": [
+        70,
+        10
+      ],
+      "pass": true
+    },
+    {
+      "name": "wrap-false-column-auto-min-content",
+      "actual": [
+        40,
+        20
+      ],
+      "expected": [
+        40,
+        20
+      ],
+      "pass": true
+    },
+    {
+      "name": "wrap-false-column-auto-max-content",
+      "actual": [
+        70,
+        10
+      ],
+      "expected": [
+        70,
+        10
+      ],
+      "pass": true
+    },
+    {
+      "name": "wrap-false-column-max-content-min-content",
+      "actual": [
+        70,
+        10
+      ],
+      "expected": [
+        70,
+        10
+      ],
+      "pass": true
+    },
+    {
+      "name": "wrap-true-row-min-content-none",
+      "actual": [
+        40,
+        20
+      ],
+      "expected": [
+        40,
+        20
+      ],
+      "pass": true
+    },
+    {
+      "name": "wrap-true-row-max-content-none",
+      "actual": [
+        70,
+        10
+      ],
+      "expected": [
+        70,
+        10
+      ],
+      "pass": true
+    },
+    {
+      "name": "wrap-true-row-auto-min-content",
+      "actual": [
+        40,
+        20
+      ],
+      "expected": [
+        40,
+        20
+      ],
+      "pass": true
+    },
+    {
+      "name": "wrap-true-row-auto-max-content",
+      "actual": [
+        70,
+        10
+      ],
+      "expected": [
+        70,
+        10
+      ],
+      "pass": true
+    },
+    {
+      "name": "wrap-true-row-max-content-min-content",
+      "actual": [
+        70,
+        10
+      ],
+      "expected": [
+        70,
+        10
+      ],
+      "pass": true
+    },
+    {
+      "name": "wrap-true-column-min-content-none",
+      "actual": [
+        40,
+        20
+      ],
+      "expected": [
+        40,
+        20
+      ],
+      "pass": true
+    },
+    {
+      "name": "wrap-true-column-max-content-none",
+      "actual": [
+        70,
+        10
+      ],
+      "expected": [
+        70,
+        10
+      ],
+      "pass": true
+    },
+    {
+      "name": "wrap-true-column-auto-min-content",
+      "actual": [
+        40,
+        20
+      ],
+      "expected": [
+        40,
+        20
+      ],
+      "pass": true
+    },
+    {
+      "name": "wrap-true-column-auto-max-content",
+      "actual": [
+        70,
+        10
+      ],
+      "expected": [
+        70,
+        10
+      ],
+      "pass": true
+    },
+    {
+      "name": "wrap-true-column-max-content-min-content",
+      "actual": [
+        70,
+        10
+      ],
+      "expected": [
+        70,
+        10
+      ],
+      "pass": true
+    },
+    {
+      "name": "shrink-auto-none",
+      "actual": [
+        40,
+        20
+      ],
+      "expected": [
+        40,
+        20
+      ],
+      "pass": true
+    },
+    {
+      "name": "shrink-max-content-none",
+      "actual": [
+        70,
+        20
+      ],
+      "expected": [
+        70,
+        20
+      ],
+      "pass": true
+    },
+    {
+      "name": "shrink-0px-max-content",
+      "actual": [
+        40,
+        20
+      ],
+      "expected": [
+        40,
+        20
+      ],
+      "pass": true
+    },
+    {
+      "name": "padding-border-box-normal",
+      "actual": [
+        44,
+        24
+      ],
+      "expected": [
+        44,
+        24
+      ],
+      "pass": true
+    },
+    {
+      "name": "padding-border-box-inline-size",
+      "actual": [
+        4,
+        24
+      ],
+      "expected": [
+        4,
+        24
+      ],
+      "pass": true
+    },
+    {
+      "name": "padding-border-box-size",
+      "actual": [
+        4,
+        4
+      ],
+      "expected": [
+        4,
+        4
+      ],
+      "pass": true
+    },
+    {
+      "name": "padding-content-box-normal",
+      "actual": [
+        44,
+        24
+      ],
+      "expected": [
+        44,
+        24
+      ],
+      "pass": true
+    },
+    {
+      "name": "padding-content-box-inline-size",
+      "actual": [
+        4,
+        24
+      ],
+      "expected": [
+        4,
+        24
+      ],
+      "pass": true
+    },
+    {
+      "name": "padding-content-box-size",
+      "actual": [
+        4,
+        4
+      ],
+      "expected": [
+        4,
+        4
+      ],
+      "pass": true
+    },
+    {
+      "name": "height-cap-min-content",
+      "actual": [
+        80,
+        5
+      ],
+      "expected": [
+        80,
+        5
+      ],
+      "pass": true
+    },
+    {
+      "name": "height-cap-max-content",
+      "actual": [
+        80,
+        5
+      ],
+      "expected": [
+        80,
+        5
+      ],
+      "pass": true
+    },
+    {
+      "name": "percent-height-false-auto-false",
+      "actual": [
+        80,
+        30,
+        80,
+        30
+      ],
+      "expected": [
+        80,
+        30,
+        80,
+        30
+      ],
+      "pass": true
+    },
+    {
+      "name": "percent-height-false-auto-true",
+      "actual": [
+        80,
+        30,
+        80,
+        30
+      ],
+      "expected": [
+        80,
+        30,
+        80,
+        30
+      ],
+      "pass": true
+    },
+    {
+      "name": "percent-height-true-auto-false",
+      "actual": [
+        80,
+        30,
+        80,
+        30
+      ],
+      "expected": [
+        80,
+        30,
+        80,
+        30
+      ],
+      "pass": true
+    },
+    {
+      "name": "percent-height-true-auto-true",
+      "actual": [
+        80,
+        30,
+        80,
+        30
+      ],
+      "expected": [
+        80,
+        30,
+        80,
+        30
+      ],
+      "pass": true
+    },
+    {
+      "name": "host-grid-false-min",
+      "actual": [
+        50,
+        20
+      ],
+      "expected": [
+        50,
+        20
+      ],
+      "pass": true
+    },
+    {
+      "name": "host-grid-false-max",
+      "actual": [
+        50,
+        20
+      ],
+      "expected": [
+        50,
+        20
+      ],
+      "pass": true
+    },
+    {
+      "name": "host-grid-true-min",
+      "actual": [
+        50,
+        20
+      ],
+      "expected": [
+        50,
+        20
+      ],
+      "pass": true
+    },
+    {
+      "name": "host-grid-true-max",
+      "actual": [
+        50,
+        20
+      ],
+      "expected": [
+        50,
+        20
+      ],
+      "pass": true
+    },
+    {
+      "name": "host-block-false-min",
+      "actual": [
+        50,
+        20
+      ],
+      "expected": [
+        50,
+        20
+      ],
+      "pass": true
+    },
+    {
+      "name": "host-block-false-max",
+      "actual": [
+        50,
+        20
+      ],
+      "expected": [
+        50,
+        20
+      ],
+      "pass": true
+    },
+    {
+      "name": "host-block-true-min",
+      "actual": [
+        50,
+        20
+      ],
+      "expected": [
+        50,
+        20
+      ],
+      "pass": true
+    },
+    {
+      "name": "host-block-true-max",
+      "actual": [
+        50,
+        20
+      ],
+      "expected": [
+        50,
+        20
+      ],
+      "pass": true
+    },
+    {
+      "name": "preferred-and-ratio-false-false",
+      "actual": [
+        70,
+        10
+      ],
+      "expected": [
+        70,
+        10
+      ],
+      "pass": true
+    },
+    {
+      "name": "preferred-and-ratio-false-true",
+      "actual": [
+        70,
+        35
+      ],
+      "expected": [
+        70,
+        35
+      ],
+      "pass": true
+    },
+    {
+      "name": "preferred-and-ratio-true-false",
+      "actual": [
+        70,
+        10
+      ],
+      "expected": [
+        70,
+        10
+      ],
+      "pass": true
+    },
+    {
+      "name": "preferred-and-ratio-true-true",
+      "actual": [
+        70,
+        35
+      ],
+      "expected": [
+        70,
+        35
+      ],
+      "pass": true
+    }
+  ],
+  "deviations": [
+    {
+      "name": "definite-height-with-intrinsic-limits-false",
+      "browser": [
+        80,
+        5,
+        80,
+        2.5
+      ],
+      "framework": [
+        80,
+        30,
+        80,
+        15
+      ],
+      "reason": "Framework content query excludes own preferred height; CSS percentage intrinsic sizing is not yet equivalent."
+    },
+    {
+      "name": "definite-height-with-intrinsic-limits-true",
+      "browser": [
+        80,
+        2.5,
+        80,
+        2.5
+      ],
+      "framework": [
+        80,
+        30,
+        80,
+        15
+      ],
+      "reason": "Framework content query excludes own preferred height; CSS percentage intrinsic sizing is not yet equivalent."
+    }
+  ]
+}

@@ -127,8 +127,12 @@ layout containment（基线隔离与定位包含块），比当前浏览器单�
 [尺寸隔离与流式查询](RETAINED_SIZE_CONTAINMENT.md)。这轮没有宣称帧率提升。
 
 公共 `Dimension` 现已提供 MinContent/MaxContent/FitContent/数值或百分比
-FitContent/Stretch，以及仅供 flex-basis 的 Content；min/max 字段仍使用 Length，
-没有 intrinsic min/max。物理 `gap(row,column)` 已修复为垂直 row gap、水平 column
+FitContent/Stretch，以及仅供 flex-basis 的 Content；min/max 字段也已改用 Dimension，
+内在约束参与实际 Flex 分配，交叉轴在最终主轴宽度后重新测量。原 Length builder
+通过 Into 保留，直接字段赋值需要迁移。相等内在 min/max 不会使 auto 内容高度成为
+后代百分比高度基准；固定高度与百分比后代组合仍有已记录的 Chromium 差异。
+详见 [内在 min/max 契约](RETAINED_INTRINSIC_LIMITS.md)。物理 `gap(row,column)`
+已修复为垂直 row gap、水平 column
 gap，不随方向交换；只有 `main_cross_gap` 按最终方向 lower。此前补偿了错误轴向的
 调用方需要相应调整。项目内 Taffy fork 补齐 in-flow 根节点尺寸关键词解析，修复
 Flex ContentSize 过早施加自身 min/max 的测量，以及内容决定的最终尺寸不能约束

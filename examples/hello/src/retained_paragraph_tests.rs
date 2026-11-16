@@ -21,6 +21,40 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 }
 
 #[test]
+fn intrinsic_height_limit_uses_final_flex_width_for_shaped_paragraph() {
+    let system = text_system();
+    let paragraph = shape(&system, "one two three four five six seven 中文段落");
+    for width in [50.0, 90.0, 140.0] {
+        let mut tree = UiTree::new_layout(
+            LayoutStyle::row()
+                .size(LayoutDimension::Px(width), LayoutDimension::Px(500.0))
+                .align_items(LayoutAlignItems::Start),
+            0,
+        )
+        .unwrap();
+        let child = tree
+            .append_layout(
+                tree.root(),
+                LayoutStyle::row()
+                    .size(LayoutDimension::Px(400.0), LayoutDimension::Px(1.0))
+                    .min_size(LayoutDimension::Px(0.0), LayoutDimension::MaxContent),
+                0,
+            )
+            .unwrap();
+        let mut tx = Transaction::default();
+        tx.measure(child, Some(MeasureSnapshot::Paragraph(paragraph.clone())));
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+        tree.frame([width, 500.0]).unwrap();
+        let result = tree.layout_result(child).unwrap();
+        assert_eq!(
+            result.size,
+            [width, paragraph.layout(Some(width)).unwrap().size[1]]
+        );
+        assert_eq!(result.baseline, Some(paragraph.first_baseline()));
+    }
+}
+
+#[test]
 fn draft_constructed_text_measures_like_fresh_and_can_become_a_container() {
     let system = text_system();
     let mut raster = GlyphRasterizer::new(Arc::clone(&system));

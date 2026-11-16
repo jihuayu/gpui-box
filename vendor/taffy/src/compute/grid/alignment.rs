@@ -151,14 +151,14 @@ pub(super) fn align_and_position_item(
         .maybe_resolve(containing_block_size, |val, basis| tree.calc(val, basis))
         .maybe_apply_aspect_ratio(aspect_ratio)
         .maybe_add(box_sizing_adjustment);
-    let min_size = style
+    let mut min_size = style
         .min_size()
         .maybe_resolve(containing_block_size, |val, basis| tree.calc(val, basis))
         .maybe_add(box_sizing_adjustment)
         .or(padding_border_size.map(Some))
         .maybe_max(padding_border_size)
         .maybe_apply_aspect_ratio(aspect_ratio);
-    let max_size = style
+    let mut max_size = style
         .max_size()
         .maybe_resolve(containing_block_size, |val, basis| tree.calc(val, basis))
         .maybe_apply_aspect_ratio(aspect_ratio)
@@ -208,6 +208,27 @@ pub(super) fn align_and_position_item(
         width: grid_area_size.width.maybe_sub(margin.left).maybe_sub(margin.right).max(0.0),
         height: (grid_area_size.height.maybe_sub(margin.top).maybe_sub(margin.bottom) - baseline_shim).max(0.0),
     };
+
+    let style = tree.get_grid_child_style(node);
+    let min_style = style.min_size();
+    let max_style = style.max_size();
+    drop(style);
+    let (intrinsic_min, intrinsic_max) = crate::compute::common::intrinsic_limits::resolve_intrinsic_limits(
+        tree,
+        node,
+        min_style,
+        max_style,
+        crate::tree::LayoutInput {
+            known_dimensions: inherent_size,
+            parent_size: containing_block_size.map(Some),
+            available_space: grid_area_minus_item_margins_size.map(AvailableSpace::Definite),
+            sizing_mode: SizingMode::InherentSize,
+            run_mode: crate::tree::RunMode::ComputeSize,
+            ..crate::tree::LayoutInput::HIDDEN
+        },
+    );
+    min_size = intrinsic_min.or(min_size);
+    max_size = intrinsic_max.or(max_size);
 
     // A size that is a sizing keyword (min-content, max-content, fit-content,
     // fit-content(...), stretch) either resolves to an exact size or is resolved

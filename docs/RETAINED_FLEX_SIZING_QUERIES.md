@@ -9,7 +9,9 @@ extend the fixed-inline proof below with explicit boundaries, fluid external
 allocation, safe auto-height column chains and sibling-allocation dependencies.
 The validation counts in this document describe the preceding sizing stage;
 the linked follow-up records current combined counts and API differences from
-browser `container-type`.
+browser `container-type`. The subsequent [intrinsic min/max stage](RETAINED_INTRINSIC_LIMITS.md)
+also migrates the minimum/maximum fields to Dimension and adds actual algorithm
+integration. Counts below remain historical for this preferred-size stage.
 
 ## Public dimensions and gap axes
 
@@ -21,8 +23,9 @@ nonnegative. `Content` in width/height is rejected before a property transaction
 can publish, even when a later write overwrites the invalid value.
 
 These are preferred-size styles, separate from `LayoutAvailableSpace` intrinsic
-measurement constraints. Min/max fields still use `LayoutLength`, which does
-not accept intrinsic keywords. `Unbounded` remains explicitly unsupported.
+measurement constraints. At this stage min/max fields used `LayoutLength`;
+the linked intrinsic-limit follow-up changes them to `LayoutDimension` and
+documents migration. `Unbounded` remains explicitly unsupported.
 The numeric fit-content functions use Taffy's existing semantics; the browser
 reference below does not support `width:fit-content(50px)` and does not validate
 those functions as browser-compatible.

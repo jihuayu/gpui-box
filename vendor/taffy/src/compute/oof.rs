@@ -510,12 +510,11 @@ pub(crate) fn layout_oof_box<Tree: LayoutContainingBlock>(
         .maybe_add(box_sizing_adjustment)
         .or(padding_border_sum.map(Some))
         .maybe_max(padding_border_sum);
-    let max_size = child_style
+    let mut max_size = child_style
         .max_size()
         .maybe_resolve(area_size, |val, basis| tree.calc(val, basis))
         .maybe_apply_aspect_ratio(aspect_ratio)
         .maybe_add(box_sizing_adjustment);
-    let mut known_dimensions = style_size.maybe_clamp(min_size, max_size);
 
     let is_replaced = child_style.is_replaced();
     let is_table = child_style.is_table();
@@ -581,6 +580,27 @@ pub(crate) fn layout_oof_box<Tree: LayoutContainingBlock>(
             height: f32_max(area_height - non_auto_margin.vertical_axis_sum(), 0.0),
         });
     }
+    let style = tree.get_oof_item_style(candidate.node);
+    let min_style = style.min_size();
+    let max_style = style.max_size();
+    drop(style);
+    let (intrinsic_min, intrinsic_max) = super::common::intrinsic_limits::resolve_intrinsic_limits(
+        tree,
+        candidate.node,
+        min_style,
+        max_style,
+        LayoutInput {
+            known_dimensions: style_size,
+            parent_size: area_size.map(Some),
+            available_space: available_space.map(AvailableSpace::Definite),
+            sizing_mode: SizingMode::InherentSize,
+            run_mode: RunMode::ComputeSize,
+            ..LayoutInput::HIDDEN
+        },
+    );
+    min_size = intrinsic_min.or(min_size);
+    max_size = intrinsic_max.or(max_size);
+    let mut known_dimensions = style_size.maybe_clamp(min_size, max_size);
     let available_space = available_space.maybe_clamp(min_size, max_size).map(AvailableSpace::Definite);
 
     // Resolve any sizing keywords (min-content, max-content, fit-content, fit-content(...),

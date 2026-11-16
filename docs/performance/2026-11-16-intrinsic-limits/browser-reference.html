@@ -1,0 +1,80 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Intrinsic minimum and maximum reference</title>
+<style>body{margin:0} #results{white-space:pre-wrap}</style>
+<div id="fixture"></div><pre id="results"></pre>
+<script>
+window.referenceReady = (async()=>{
+const cases=[], fixture=document.querySelector('#fixture');
+function box(css,parent=fixture){const e=document.createElement('div');e.style.cssText=css;parent.append(e);return e;}
+function size(e){const r=e.getBoundingClientRect();return[r.width,r.height];}
+function check(name,actual,expected){cases.push({name,actual,expected,pass:JSON.stringify(actual)===JSON.stringify(expected)});}
+for(const nested of [false,true]) for(const direction of ['row','column']) {
+ for(const [min,max,expected] of [
+  ['min-content','none',[40,20]],['max-content','none',[70,10]],
+  ['auto','min-content',[40,20]],['auto','max-content',[70,10]],
+  ['max-content','min-content',[70,10]],
+ ]){
+  fixture.replaceChildren();
+  const parent=nested?box(`display:flex;width:100px;height:100px;flex-direction:${direction}`):fixture;
+  const width=min==='auto'?100:10;
+  const host=box(`display:flex;box-sizing:border-box;flex-wrap:wrap;align-items:start;align-self:start;width:${width}px;min-width:${min};max-width:${max}`,parent);
+  for(const w of [30,40])box(`width:${w}px;height:10px;flex-shrink:0`,host);
+  check(`wrap-${nested}-${direction}-${min}-${max}`,size(host),expected);
+ }
+}
+for(const [min,max,expected] of [['auto','none',40],['max-content','none',70],['0px','max-content',40]]){
+ fixture.replaceChildren();const root=box('display:flex;width:100px;height:100px');
+ const host=box(`display:flex;width:100px;height:20px;flex-wrap:wrap;min-width:${min};max-width:${max}`,root);
+ for(const w of [30,40])box(`width:${w}px;height:10px;flex-shrink:0`,host);
+ box('width:60px;height:10px;flex-shrink:0',root);
+ check(`shrink-${min}-${max}`,size(host),[expected,20]);
+}
+for(const sizing of ['border-box','content-box']) for(const type of ['normal','inline-size','size']){
+ fixture.replaceChildren();
+ const host=box(`display:flex;box-sizing:${sizing};width:100px;padding:2px;flex-wrap:wrap;max-width:min-content;container-type:${type}`);
+ for(const w of [30,40])box(`width:${w}px;height:10px;flex-shrink:0`,host);
+ const expected=type==='normal'?[44,24]:type==='inline-size'?[4,24]:[4,4];
+ check(`padding-${sizing}-${type}`,size(host),expected);
+}
+// Fixed div children independently check that an intrinsic height cap does not
+// increase a smaller authored height. Real shaped text is a native-only test.
+for(const limit of ['min-content','max-content']){
+ fixture.replaceChildren();const root=box('display:flex;width:80px;height:100px;align-items:start');
+ const host=box(`display:flex;width:100px;height:5px;max-height:${limit};min-width:0`,root);
+ for(const w of [30,40])box(`width:${w}px;height:10px;flex-shrink:0`,host);
+ check(`height-cap-${limit}`,size(host),[80,5]);
+}
+for(const nested of [false,true])for(const height of ['auto'])for(const equal of [false,true]){
+ fixture.replaceChildren();
+ const parent=nested?box('display:flex;width:100px;height:100px'):fixture;
+ const host=box(`display:flex;flex-direction:column;width:80px;height:${height};min-height:max-content;${equal?'max-height:max-content;':''}align-self:start;flex-shrink:0`,parent);
+ const child=box('display:flex;flex-direction:column;height:50%;flex-shrink:0',host);
+ box('width:10px;height:30px;flex-shrink:0',child);
+ check(`percent-height-${nested}-${height}-${equal}`,[...size(host),...size(child)],[80,30,80,height==='auto'?30:15]);
+}
+for(const display of ['grid','block'])for(const nested of [false,true])for(const limit of ['min','max']){
+ fixture.replaceChildren();const parent=nested?box('display:flex;width:100px;height:100px'):fixture;
+ const host=box(`display:${display};width:${limit==='min'?10:100}px;${limit}-width:max-content;align-self:start;flex-shrink:0`,parent);
+ for(const w of [40,50])box(`width:${w}px;height:10px;flex-shrink:0`,host);
+ check(`host-${display}-${nested}-${limit}`,size(host),[50,20]);
+}
+for(const nested of [false,true])for(const ratio of [false,true]){
+ fixture.replaceChildren();const parent=nested?box('display:flex;width:100px;height:100px'):fixture;
+ const host=box(`display:flex;width:${ratio?'10px':'min-content'};min-width:max-content;align-self:start;${ratio?'aspect-ratio:2':'flex-wrap:wrap'}`,parent);
+ for(const w of [30,40])box(`width:${w}px;height:10px;flex-shrink:0`,host);
+ check(`preferred-and-ratio-${nested}-${ratio}`,size(host),[70,ratio?35:10]);
+}
+// Explicit differences are retained separately, not counted as compatibility
+// passes: ContentSize queries in the framework ignore the queried box's own
+// preferred height, while Chromium uses it for these percentage descendants.
+const deviations=[];
+for(const equal of [false,true]){
+ fixture.replaceChildren();const host=box(`display:flex;flex-direction:column;width:80px;height:5px;min-height:max-content;${equal?'max-height:max-content;':''}`);
+ const child=box('display:flex;flex-direction:column;height:50%;flex-shrink:0',host);box('width:10px;height:30px;flex-shrink:0',child);
+ deviations.push({name:`definite-height-with-intrinsic-limits-${equal}`,browser:[...size(host),...size(child)],framework:[80,30,80,15],reason:'Framework content query excludes own preferred height; CSS percentage intrinsic sizing is not yet equivalent.'});
+}
+const result={userAgent:navigator.userAgent,fitContentFunctionSupported:CSS.supports('max-width','fit-content(50px)'),passed:cases.filter(x=>x.pass).length,failed:cases.filter(x=>!x.pass).length,cases,deviations};
+document.querySelector('#results').textContent=JSON.stringify(result,null,2);return result;
+})();
+</script>

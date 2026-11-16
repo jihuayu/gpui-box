@@ -270,6 +270,26 @@ fn compute_in_flow_root_layout(
         run_mode: RunMode::PerformLayout,
         vertical_margins_are_collapsible: Line::FALSE,
     };
+    let style = tree.get_core_container_style(root);
+    let min_style = style.min_size();
+    let max_style = style.max_size();
+    let pb = (style.padding().resolve_or_zero(inputs.parent_size.width, |v, b| tree.calc(v, b))
+        + style.border().resolve_or_zero(inputs.parent_size.width, |v, b| tree.calc(v, b)))
+    .sum_axes();
+    let adjustment = if style.box_sizing() == crate::BoxSizing::ContentBox { pb } else { Size::ZERO };
+    let numeric_min = min_style
+        .maybe_resolve(inputs.parent_size, |v, b| tree.calc(v, b))
+        .maybe_apply_aspect_ratio(style.aspect_ratio())
+        .maybe_add(adjustment);
+    let numeric_max = max_style
+        .maybe_resolve(inputs.parent_size, |v, b| tree.calc(v, b))
+        .maybe_apply_aspect_ratio(style.aspect_ratio())
+        .maybe_add(adjustment);
+    drop(style);
+    let (intrinsic_min, intrinsic_max) =
+        common::intrinsic_limits::resolve_intrinsic_limits(tree, root, min_style, max_style, inputs);
+    inputs.known_dimensions =
+        inputs.known_dimensions.maybe_clamp(intrinsic_min.or(numeric_min), intrinsic_max.or(numeric_max));
     // A root has no parent item algorithm to resolve its sizing keywords.
     // Measure the requested intrinsic axes using the same resolver as Flex,
     // Grid and out-of-flow items, then run normal layout with the used size.
@@ -279,28 +299,21 @@ fn compute_in_flow_root_layout(
     if size_style.width.is_sizing_keyword() || size_style.height.is_sizing_keyword() {
         let style = tree.get_core_container_style(root);
         let aspect_ratio = style.aspect_ratio();
-        let padding_border = (style
-            .padding()
-            .resolve_or_zero(inputs.parent_size.width, |val, basis| tree.calc(val, basis))
-            + style
-                .border()
-                .resolve_or_zero(inputs.parent_size.width, |val, basis| tree.calc(val, basis)))
-        .sum_axes();
-        let adjustment = if style.box_sizing() == crate::BoxSizing::ContentBox {
-            padding_border
-        } else {
-            Size::ZERO
-        };
-        let min_size = style
+        let padding_border =
+            (style.padding().resolve_or_zero(inputs.parent_size.width, |val, basis| tree.calc(val, basis))
+                + style.border().resolve_or_zero(inputs.parent_size.width, |val, basis| tree.calc(val, basis)))
+            .sum_axes();
+        let adjustment = if style.box_sizing() == crate::BoxSizing::ContentBox { padding_border } else { Size::ZERO };
+        let min_size = intrinsic_min.or(style
             .min_size()
             .maybe_resolve(inputs.parent_size, |val, basis| tree.calc(val, basis))
             .maybe_apply_aspect_ratio(aspect_ratio)
-            .maybe_add(adjustment);
-        let max_size = style
+            .maybe_add(adjustment));
+        let max_size = intrinsic_max.or(style
             .max_size()
             .maybe_resolve(inputs.parent_size, |val, basis| tree.calc(val, basis))
             .maybe_apply_aspect_ratio(aspect_ratio)
-            .maybe_add(adjustment);
+            .maybe_add(adjustment));
         inputs.known_dimensions = inputs.known_dimensions.or(size_style
             .maybe_resolve(inputs.parent_size, |val, basis| tree.calc(val, basis))
             .maybe_apply_aspect_ratio(aspect_ratio)
@@ -308,10 +321,7 @@ fn compute_in_flow_root_layout(
             .maybe_clamp(min_size, max_size));
         drop(style);
         let mut query_space = root_available_space;
-        let mut measured_axes = Size {
-            width: false,
-            height: false,
-        };
+        let mut measured_axes = Size { width: false, height: false };
         for (style, stretch, basis, known, query, measure) in [
             (
                 size_style.width,
@@ -355,10 +365,9 @@ fn compute_in_flow_root_layout(
                 SizingMode::ContentSize,
                 Line::FALSE,
             );
-            inputs.known_dimensions = inputs.known_dimensions.zip_map(
-                measured.zip_map(measured_axes, |size, used| used.then_some(size)),
-                Option::or,
-            );
+            inputs.known_dimensions = inputs
+                .known_dimensions
+                .zip_map(measured.zip_map(measured_axes, |size, used| used.then_some(size)), Option::or);
             // A content-derived block-axis size constrains final line breaks
             // without becoming a definite basis for percentage heights. Inline
             // percentages resolve against the final used width.

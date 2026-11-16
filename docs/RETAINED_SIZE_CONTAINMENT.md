@@ -5,6 +5,10 @@ on [intrinsic sizing and staged queries](RETAINED_FLEX_SIZING_QUERIES.md).
 It extends framework/API semantics and the project-owned Taffy algorithms;
 it does not complete the RFC or qualify sustained frame rates.
 
+The later same-date [intrinsic min/max stage](RETAINED_INTRINSIC_LIMITS.md)
+extends minimum/maximum styles and algorithms, and tightens ancestor query
+proofs. Counts and the open list below describe this containment stage.
+
 ## Public boundary
 
 `LayoutStyle.container_type` and its builder accept `LayoutContainerType`:

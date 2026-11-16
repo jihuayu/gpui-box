@@ -94,6 +94,8 @@ fn compute_container_constants<Tree: LayoutGridContainer>(
     tree: &Tree,
     style: &Tree::GridContainerStyle<'_>,
     inputs: LayoutInput,
+    intrinsic_min: Size<Option<f32>>,
+    intrinsic_max: Size<Option<f32>>,
 ) -> GridContainerConstants {
     let LayoutInput { known_dimensions, parent_size, available_space, .. } = inputs;
 
@@ -111,16 +113,22 @@ fn compute_container_constants<Tree: LayoutGridContainer>(
     let box_sizing_adjustment =
         if style.box_sizing() == BoxSizing::ContentBox { padding_border_size } else { Size::ZERO };
 
-    let min_size = style
+    let mut min_size = intrinsic_min.or(style
         .min_size()
         .maybe_resolve(parent_size, |val, basis| tree.calc(val, basis))
         .maybe_apply_aspect_ratio(aspect_ratio)
-        .maybe_add(box_sizing_adjustment);
-    let max_size = style
+        .maybe_add(box_sizing_adjustment));
+    let mut max_size = intrinsic_max.or(style
         .max_size()
         .maybe_resolve(parent_size, |val, basis| tree.calc(val, basis))
         .maybe_apply_aspect_ratio(aspect_ratio)
-        .maybe_add(box_sizing_adjustment);
+        .maybe_add(box_sizing_adjustment));
+    if inputs.sizing_mode == SizingMode::ContentSize {
+        // Measure the content contribution before applying this box's own
+        // constraints. Descendant constraints are handled by item sizing.
+        min_size = Size::NONE;
+        max_size = Size::NONE;
+    }
     let preferred_size = if inputs.sizing_mode == SizingMode::InherentSize {
         style
             .size()
@@ -227,7 +235,13 @@ pub fn compute_grid_layout<Tree: LayoutGridContainer>(
             tree.calc(value, basis)
         }));
     let LayoutInput { known_dimensions, run_mode, .. } = inputs;
-    let constants = compute_container_constants(tree, &style, inputs);
+    let min_style = style.min_size();
+    let max_style = style.max_size();
+    drop(style);
+    let (intrinsic_min, intrinsic_max) =
+        super::common::intrinsic_limits::resolve_intrinsic_limits(tree, node, min_style, max_style, inputs);
+    let style = tree.get_grid_container_style(node);
+    let constants = compute_container_constants(tree, &style, inputs, intrinsic_min, intrinsic_max);
     let GridContainerConstants {
         direction,
         contain,

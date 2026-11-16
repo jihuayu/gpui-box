@@ -759,3 +759,46 @@ fn column_query_proof_rechecks_ancestor_producers_and_runtime_style() {
         before.frame.revision
     );
 }
+
+#[test]
+fn inline_query_chain_rejects_ancestor_intrinsic_width_limits() {
+    for (minimum, maximum) in [
+        (LayoutDimension::MaxContent, LayoutDimension::Auto),
+        (LayoutDimension::Auto, LayoutDimension::MinContent),
+    ] {
+        let mut ui = LogicalUi::new_layout(
+            LayoutStyle::column()
+                .size(LayoutDimension::Percent(1.0), LayoutDimension::Auto)
+                .min_size(minimum, LayoutDimension::Auto)
+                .max_size(maximum, LayoutDimension::Auto),
+            0,
+            BackendCapabilities::default(),
+        )
+        .unwrap();
+        let scope = ui.root_scope();
+        let host = ui
+            .append_render_layout(
+                scope,
+                ui.root_render(),
+                LayoutStyle::column().container_type(LayoutContainerType::InlineSize),
+                0,
+            )
+            .unwrap();
+        let target = ui
+            .append_render_layout(scope, host, LayoutStyle::row(), 0)
+            .unwrap();
+        let source = ui.state(scope, 0, LayoutStyle::row).unwrap();
+        let mut responsive = LayoutResponsiveBindings::new();
+        assert_eq!(
+            responsive.bind_container(
+                &mut ui,
+                source,
+                target,
+                host,
+                rules(LayoutStyle::row(), 100.0, LayoutStyle::column())
+            ),
+            Err(Error::UnsafeContainerQuery)
+        );
+        assert_eq!(ui.reactive().binding_count(), 0);
+    }
+}

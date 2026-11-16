@@ -238,6 +238,12 @@ pub fn compute_flexbox_layout(
 ) -> LayoutOutput {
     let LayoutInput { known_dimensions, parent_size, run_mode, .. } = inputs;
     let style = tree.get_flexbox_container_style(node);
+    let min_style = style.min_size();
+    let max_style = style.max_size();
+    drop(style);
+    let (intrinsic_min, intrinsic_max) =
+        super::common::intrinsic_limits::resolve_intrinsic_limits(tree, node, min_style, max_style, inputs);
+    let style = tree.get_flexbox_container_style(node);
 
     // Pull these out earlier to avoid borrowing issues
     let contain = style.contain();
@@ -258,6 +264,8 @@ pub fn compute_flexbox_layout(
         .maybe_resolve(parent_size, |val, basis| tree.calc(val, basis))
         .maybe_apply_aspect_ratio(aspect_ratio)
         .maybe_add(box_sizing_adjustment);
+    min_size = intrinsic_min.or(min_size);
+    max_size = intrinsic_max.or(max_size);
     if inputs.sizing_mode == SizingMode::ContentSize {
         // The parent applies this item's min/max after measuring its content
         // contribution. Applying them here can change wrapping before the
@@ -316,14 +324,24 @@ pub fn compute_flexbox_layout(
 
     // Normalize the definiteness flags: they only apply to dimensions which were passed in as known
     // by the parent. Dimensions resolved from the node's own style are always definite.
-    let known_dimensions_are_definite = inputs
+    let mut known_dimensions_are_definite = inputs
         .known_dimensions_are_definite
         .zip_map(known_dimensions, |is_definite, known_dimension| is_definite || known_dimension.is_none());
+    if known_dimensions.height.is_none()
+        && clamped_style_size.height.is_none()
+        && (min_style.height.is_sizing_keyword() || max_style.height.is_sizing_keyword())
+    {
+        // Equal intrinsic min/max can select a used height without making the
+        // content-derived height a definite percentage basis.
+        known_dimensions_are_definite.height = false;
+    }
 
     let mut output = compute_preliminary(
         tree,
         node,
         LayoutInput { known_dimensions: styled_based_known_dimensions, known_dimensions_are_definite, ..inputs },
+        min_size,
+        max_size,
     );
 
     // Layout containment suppresses the box's baseline for baseline-alignment purposes
@@ -335,7 +353,13 @@ pub fn compute_flexbox_layout(
 }
 
 /// Compute a preliminary size for an item
-fn compute_preliminary(tree: &mut impl LayoutFlexboxContainer, node: NodeId, inputs: LayoutInput) -> LayoutOutput {
+fn compute_preliminary(
+    tree: &mut impl LayoutFlexboxContainer,
+    node: NodeId,
+    inputs: LayoutInput,
+    min_size: Size<Option<f32>>,
+    max_size: Size<Option<f32>>,
+) -> LayoutOutput {
     let LayoutInput { known_dimensions, parent_size, available_space, run_mode, .. } = inputs;
 
     // Define some general constants we will need for the remainder of the algorithm.
@@ -348,6 +372,9 @@ fn compute_preliminary(tree: &mut impl LayoutFlexboxContainer, node: NodeId, inp
         available_space,
         inputs.sizing_mode,
     );
+
+    constants.min_size = min_size;
+    constants.max_size = max_size;
 
     // 9. Flex Layout Algorithm
 
@@ -910,6 +937,36 @@ fn determine_flex_base_size(
     let dir = constants.dir;
 
     for child in flex_items.iter_mut() {
+        let child_style = tree.get_flexbox_child_style(child.node);
+        let min_style = child_style.min_size();
+        let max_style = child_style.max_size();
+        drop(child_style);
+        if [min_style.width, min_style.height, max_style.width, max_style.height]
+            .into_iter()
+            .any(Dimension::is_sizing_keyword)
+        {
+            let percent_basis = if constants.known_main_size_is_definite {
+                constants.node_inner_size
+            } else {
+                constants.node_inner_size.with_main(constants.dir, None)
+            };
+            let (min, max) = super::common::intrinsic_limits::resolve_intrinsic_limits(
+                tree,
+                child.node,
+                min_style,
+                max_style,
+                LayoutInput {
+                    known_dimensions: child.size,
+                    parent_size: percent_basis,
+                    available_space: available_space.maybe_sub(child.margin.sum_axes()),
+                    sizing_mode: SizingMode::InherentSize,
+                    run_mode: RunMode::ComputeSize,
+                    ..LayoutInput::HIDDEN
+                },
+            );
+            child.min_size = min.or(child.min_size);
+            child.max_size = max.or(child.max_size);
+        }
         let child_style = tree.get_flexbox_child_style(child.node);
 
         // Parent size for child sizing
@@ -1918,6 +1975,35 @@ fn determine_hypothetical_cross_size(
     available_space: Size<AvailableSpace>,
 ) {
     for child in line.items.iter_mut() {
+        // Height intrinsic limits can change after main-axis shrink/grow has
+        // selected the actual wrap width. Re-resolve only the cross limits;
+        // the main-axis flex allocation is already complete.
+        let style = tree.get_flexbox_child_style(child.node);
+        let min_style = style.min_size();
+        let max_style = style.max_size();
+        drop(style);
+        if min_style.cross(constants.dir).is_sizing_keyword() || max_style.cross(constants.dir).is_sizing_keyword() {
+            let (min, max) = super::common::intrinsic_limits::resolve_intrinsic_limits(
+                tree,
+                child.node,
+                min_style,
+                max_style,
+                LayoutInput {
+                    known_dimensions: child.size.with_main(constants.dir, Some(child.target_size.main(constants.dir))),
+                    parent_size: constants.node_inner_size,
+                    available_space,
+                    sizing_mode: SizingMode::InherentSize,
+                    run_mode: RunMode::ComputeSize,
+                    ..LayoutInput::HIDDEN
+                },
+            );
+            if let Some(value) = min.cross(constants.dir) {
+                child.min_size.set_cross(constants.dir, Some(value));
+            }
+            if let Some(value) = max.cross(constants.dir) {
+                child.max_size.set_cross(constants.dir, Some(value));
+            }
+        }
         let padding_border_sum = (child.padding + child.border).cross_axis_sum(constants.dir);
 
         // The available space passed to the child excludes the child's margins
@@ -2230,7 +2316,7 @@ fn determine_used_cross_size(
 
                     (line_cross_size - child.margin.cross_axis_sum(constants.dir)).max(0.0).maybe_clamp(
                         child.min_size.cross(constants.dir),
-                        max_size_ignoring_aspect_ratio.cross(constants.dir),
+                        max_size_ignoring_aspect_ratio.cross(constants.dir).or(child.max_size.cross(constants.dir)),
                     )
                 } else {
                     child.hypothetical_inner_size.cross(constants.dir)

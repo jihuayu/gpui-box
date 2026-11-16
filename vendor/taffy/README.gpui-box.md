@@ -12,6 +12,18 @@ local test artifacts and ignored.
 
 ## Local changes
 
+- Minimum/maximum styles in `Style` and `CoreStyle` now use `Size<Dimension>`.
+  The shared intrinsic-limit resolver integrates keywords into actual Flex,
+  root, legacy Grid/Block and out-of-flow algorithms, with ContentSize isolation
+  and final Flex-width cross-axis remeasurement. This is a source API departure
+  from upstream; explicit `LengthPercentageAuto` field values need conversion
+  to `Dimension`. Numeric style helpers still infer the field type.
+  `compute_leaf_layout` now requires `FnMut` rather than `FnOnce` because
+  intrinsic probes may call the measure function repeatedly. GPUI and the
+  measurement example reborrow mutable context per invocation. See the
+  [intrinsic-limit contract](../../docs/RETAINED_INTRINSIC_LIMITS.md) for costs,
+  migration, browser differences and incomplete conformance.
+
 - `src/tree/taffy_tree.rs` adds a generic, statically dispatched callback at
   `set_unrounded_layout` and a `compute_layout_with_measure_and_observer` entry
   point. The existing entry point supplies a no-op callback. Observations

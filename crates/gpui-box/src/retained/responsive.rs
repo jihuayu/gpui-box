@@ -106,11 +106,6 @@ fn validate_flex(style: &Style) -> Result<(), Error> {
         taffy::style::ExpandedLengthPercentage::Length(v)
         | taffy::style::ExpandedLengthPercentage::Percent(v) => valid(v),
     };
-    let lpa = |value: taffy::LengthPercentageAuto| match value.expand() {
-        taffy::style::ExpandedLengthPercentageAuto::Length(v)
-        | taffy::style::ExpandedLengthPercentageAuto::Percent(v) => valid(v),
-        taffy::style::ExpandedLengthPercentageAuto::Auto => true,
-    };
     let dimension = |value: taffy::Dimension| match value.expand() {
         taffy::style::ExpandedDimension::Length(v)
         | taffy::style::ExpandedDimension::Percent(v) => valid(v),
@@ -127,7 +122,7 @@ fn validate_flex(style: &Style) -> Result<(), Error> {
             style.max_size.height,
         ]
         .into_iter()
-        .all(lpa)
+        .all(dimension)
         || ![
             style.padding.left,
             style.padding.right,
@@ -605,18 +600,19 @@ impl ResponsiveBindings {
         };
         let host = tree.node(container)?;
         let definite = |value: taffy::Dimension| matches!(value.expand(), taffy::style::ExpandedDimension::Length(v) if v.is_finite() && v >= 0.0);
-        let fixed_axis = |size: taffy::Dimension,
-                          min: taffy::LengthPercentageAuto,
-                          max: taffy::LengthPercentageAuto| {
-            match (size.expand(), min.expand(), max.expand()) {
+        let fixed_axis =
+            |size: taffy::Dimension, min: taffy::Dimension, max: taffy::Dimension| match (
+                size.expand(),
+                min.expand(),
+                max.expand(),
+            ) {
                 (
                     taffy::style::ExpandedDimension::Length(size),
-                    taffy::style::ExpandedLengthPercentageAuto::Length(min),
-                    taffy::style::ExpandedLengthPercentageAuto::Length(max),
+                    taffy::style::ExpandedDimension::Length(min),
+                    taffy::style::ExpandedDimension::Length(max),
                 ) => size == min && size == max,
                 _ => false,
-            }
-        };
+            };
         let length = |value: taffy::LengthPercentage| match value.expand() {
             taffy::style::ExpandedLengthPercentage::Length(value)
                 if value.is_finite() && value >= 0.0 =>

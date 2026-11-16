@@ -236,13 +236,13 @@ impl TaffyLayoutEngine {
             .compute_layout_with_measure(
                 id.into(),
                 available_space.into(),
-                |input, _id, node_context, style| {
+                |input, _id, mut node_context, style| {
                     taffy::compute_leaf_layout(
                         input,
                         style,
                         |_, _| 0.0,
                         |known_dimensions, available_space| {
-                            let Some(node_context) = node_context else {
+                            let Some(node_context) = node_context.as_deref_mut() else {
                                 return taffy::geometry::Size::default();
                             };
 
