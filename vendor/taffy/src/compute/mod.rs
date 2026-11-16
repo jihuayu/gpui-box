@@ -310,6 +310,7 @@ fn compute_in_flow_root_layout(
         order: 0,
         location,
         size: output.size,
+        baselines: output.baselines,
         #[cfg(feature = "content_size")]
         scrollable_overflow_rect: output.scrollable_overflow_rect,
         scrollbar_size,
@@ -389,6 +390,10 @@ pub fn round_layout(tree: &mut impl RoundTree, node_id: NodeId) {
         layout.location.y = round(cumulative_y) - round(parent_y);
         layout.size.width = round(cumulative_x + unrounded_layout.size.width) - round(cumulative_x);
         layout.size.height = round(cumulative_y + unrounded_layout.size.height) - round(cumulative_y);
+        layout.baselines.first =
+            unrounded_layout.baselines.first.map(|value| round(cumulative_y + value) - round(cumulative_y));
+        layout.baselines.last =
+            unrounded_layout.baselines.last.map(|value| round(cumulative_y + value) - round(cumulative_y));
         layout.scrollbar_size.width = round(unrounded_layout.scrollbar_size.width);
         layout.scrollbar_size.height = round(unrounded_layout.scrollbar_size.height);
         layout.border.left = round(cumulative_x + unrounded_layout.border.left) - round(cumulative_x);

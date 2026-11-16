@@ -1224,6 +1224,7 @@ fn perform_final_layout_on_in_flow_children(
                 item.final_layout = Some(Layout {
                     order: item.order,
                     size: item_layout.size,
+                    baselines: item_layout.baselines,
                     #[cfg(feature = "content_size")]
                     scrollable_overflow_rect: item_layout.scrollable_overflow_rect,
                     scrollbar_size,
@@ -1723,6 +1724,7 @@ fn perform_final_layout_on_in_flow_children(
             item.final_layout = Some(Layout {
                 order: item.order,
                 size: item_layout.size,
+                baselines: item_layout.baselines,
                 #[cfg(feature = "content_size")]
                 scrollable_overflow_rect: item_layout.scrollable_overflow_rect,
                 scrollbar_size,

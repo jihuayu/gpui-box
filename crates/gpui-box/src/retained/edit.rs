@@ -64,7 +64,6 @@ impl TreeEdit<'_> {
             Node {
                 layout: self.tree.node(self.tree.root)?.layout, // replaced only at publication
                 published_layout: taffy::Layout::new(),
-                published_baseline: None,
                 layout_order: 0,
                 parent: Some(parent),
                 children: vec![],

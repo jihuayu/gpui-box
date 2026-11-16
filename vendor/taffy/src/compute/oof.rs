@@ -690,6 +690,7 @@ pub(crate) fn layout_oof_box<Tree: LayoutContainingBlock>(
     let layout = Layout {
         order: candidate.order,
         size: final_size,
+        baselines: layout_output.baselines,
         #[cfg(feature = "content_size")]
         scrollable_overflow_rect: layout_output.scrollable_overflow_rect,
         scrollbar_size,

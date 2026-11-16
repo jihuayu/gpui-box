@@ -779,6 +779,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "calc")]
     fn calc_round_trips_pointer() {
         let boxed = Box::new(42u64);
         let ptr = &*boxed as *const u64 as *const ();

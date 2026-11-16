@@ -586,6 +586,10 @@ pub struct Layout {
     pub location: Point<f32>,
     /// The width and height of the node
     pub size: Size<f32>,
+    /// Baselines produced by this node's final layout, measured from the top
+    /// of its border box. These are published with geometry so cache eviction,
+    /// hidden layout and baseline-only changes cannot expose stale results.
+    pub baselines: Baselines,
     #[cfg(feature = "content_size")]
     /// The scrollable overflow rectangle of the node: the axis-aligned rectangle containing the
     /// content of the node (the border boxes of its descendants plus their non-clipped overflow),
@@ -629,6 +633,7 @@ impl Layout {
             order: 0,
             location: Point::ZERO,
             size: Size::zero(),
+            baselines: Baselines::NONE,
             #[cfg(feature = "content_size")]
             scrollable_overflow_rect: Rect::ZERO,
             scrollbar_size: Size::zero(),
@@ -648,6 +653,7 @@ impl Layout {
             order,
             size: Size::zero(),
             location: Point::ZERO,
+            baselines: Baselines::NONE,
             #[cfg(feature = "content_size")]
             scrollable_overflow_rect: Rect::ZERO,
             scrollbar_size: Size::zero(),

@@ -37,13 +37,7 @@ impl UiTree {
             |_, _, _| {},
         )?;
         let result = layout.unrounded_layout(root);
-        let baseline = self
-            .node(id)?
-            .measure
-            .as_ref()
-            .and_then(MeasureSnapshot::baseline)
-            .map(|value| value + result.padding.top + result.border.top);
-        Ok(LayoutResult::from_taffy_and_baseline(result, baseline))
+        Ok(LayoutResult::from_taffy(result))
     }
 
     pub(super) fn compute_layout(&mut self, viewport: [f32; 2]) -> Result<LayoutStats, Error> {
@@ -114,18 +108,9 @@ impl UiTree {
 
     pub(super) fn finish_layout_publication(&mut self) {
         for id in std::mem::take(&mut self.layout_written) {
-            let (layout, measure) = {
-                let node = self.node(id).expect("published layout identity");
-                (node.layout, node.measure.clone())
-            };
+            let layout = self.node(id).expect("published layout identity").layout;
             let published = *self.layout.unrounded_layout(layout);
-            let baseline = measure
-                .as_ref()
-                .and_then(MeasureSnapshot::baseline)
-                .map(|value| value + published.padding.top + published.border.top);
-            let node = self.node_mut(id);
-            node.published_layout = published;
-            node.published_baseline = baseline;
+            self.node_mut(id).published_layout = published;
         }
         self.layout_dirty = false;
     }

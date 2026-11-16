@@ -350,7 +350,6 @@ impl From<taffy::TaffyError> for Error {
 struct Node {
     layout: taffy::NodeId,
     published_layout: taffy::Layout,
-    published_baseline: Option<f32>,
     layout_order: i32,
     children: Vec<NodeId>,
     parent: Option<NodeId>,
@@ -461,7 +460,6 @@ impl UiTree {
                 node: Some(Node {
                     layout: id,
                     published_layout: taffy::Layout::new(),
-                    published_baseline: None,
                     layout_order: 0,
                     children: vec![],
                     parent: None,
@@ -532,10 +530,7 @@ impl UiTree {
             return Err(Error::InvalidFrame);
         }
         let node = self.node(id)?;
-        Ok(LayoutResult::from_taffy_and_baseline(
-            &node.published_layout,
-            node.published_baseline,
-        ))
+        Ok(LayoutResult::from_taffy(&node.published_layout))
     }
 
     /// Measures the root under framework-owned intrinsic/definite constraints
@@ -607,7 +602,6 @@ impl UiTree {
         self.slots[slot].node = Some(Node {
             layout,
             published_layout: taffy::Layout::new(),
-            published_baseline: None,
             layout_order: 0,
             children: vec![],
             parent: Some(parent),

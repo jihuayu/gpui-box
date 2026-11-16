@@ -1805,12 +1805,13 @@ mod tests {
         assert_type_size::<GridTemplateComponent<String>>(56);
         assert_type_size::<GridPlacement<String>>(32);
         assert_type_size::<Line<GridPlacement<String>>>(64);
-        assert_type_size::<Style<String>>(560);
+        // flexbox_balance adds flex_line_count to Style.
+        assert_type_size::<Style<String>>(if cfg!(feature = "flexbox_balance") { 560 } else { 552 });
 
         // String-type dependent (Arc<str>)
         assert_type_size::<GridTemplateComponent<Arc<str>>>(56);
         assert_type_size::<GridPlacement<Arc<str>>>(24);
         assert_type_size::<Line<GridPlacement<Arc<str>>>>(48);
-        assert_type_size::<Style<Arc<str>>>(528);
+        assert_type_size::<Style<Arc<str>>>(if cfg!(feature = "flexbox_balance") { 528 } else { 520 });
     }
 }

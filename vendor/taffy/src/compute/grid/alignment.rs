@@ -99,7 +99,7 @@ pub(super) fn align_and_position_item(
     container_border: Rect<f32>,
     #[cfg(feature = "content_size")] container_is_scroll_container: bool,
     bubbled_candidates: &mut OofCandidates,
-) -> (Rect<f32>, f32, f32) {
+) -> (Rect<f32>, f32, f32, Option<f32>) {
     let grid_area_size = Size { width: grid_area.right - grid_area.left, height: grid_area.bottom - grid_area.top };
 
     let style = tree.get_grid_child_style(node);
@@ -416,6 +416,7 @@ pub(super) fn align_and_position_item(
             order,
             location: Point { x, y },
             size: Size { width, height },
+            baselines: layout_output.baselines,
             #[cfg(feature = "content_size")]
             scrollable_overflow_rect: layout_output.scrollable_overflow_rect,
             scrollbar_size,
@@ -446,7 +447,15 @@ pub(super) fn align_and_position_item(
     #[cfg(not(feature = "content_size"))]
     let contribution = Rect::ZERO;
 
-    (contribution, y, height)
+    // Container baseline propagation must use the final layout result even
+    // when the track-sizing baseline pass was skipped (zero or one aligned
+    // item). `y` already includes the margin, so this remains border-box local.
+    let baseline = if overflow.y.is_scroll_container() {
+        Some(layout_output.baselines.first.unwrap_or(height).min(height).max(0.0))
+    } else {
+        layout_output.baselines.first
+    };
+    (contribution, y, height, baseline)
 }
 
 /// Align and size a grid item along a single axis

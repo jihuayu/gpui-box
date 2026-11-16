@@ -48,11 +48,13 @@ for user measurement/resource validation remains unchanged.
 
 The workspace now patches `taffy =0.15.0` to the [vendored source](../vendor/taffy/README.gpui-box.md).
 Its original package hashes, registry checksum, exact Git revision and MIT
-license provenance are retained. Only `tree/taffy_tree.rs` changes: a generic
-observer receives each unrounded write's node/old/new result. Original APIs
-pass a statically dispatched no-op. Layout algorithms, cache behavior and
-rounding remain unchanged. The retained owner disables rounding, as before.
-Rounded-layout consumers cannot treat these writes as final rounded output.
+license provenance are retained. The initial observer change was confined to
+`tree/taffy_tree.rs`: a generic observer receives each unrounded write's
+node/old/new result. Original APIs pass a statically dispatched no-op.
+The later [baseline publication stage](RETAINED_LAYOUT_BASELINES.md) extends
+final Layout outputs, baseline rounding and Grid container propagation; cache
+algorithms remain unchanged. The retained owner still disables rounding.
+Rounded-layout consumers cannot treat observer writes as final rounded output.
 
 `LayoutStats` adds `layout_writes`, `changed_layout_writes` and
 `net_changed_nodes`, alongside actual leaf-layout/measure callbacks. Writes
@@ -70,13 +72,14 @@ sixty-four rounds combine Grid, Block, percentages, min/max, margins, absolute
 positioning and owned baselines. Tests also cover one-item parent/leaf resizing,
 old page sharing, equal final geometry, hidden updates, generation reuse,
 structure/viewport fallback and observed versus original Taffy entry points.
-The core suite passes 113 combined-feature tests, gallery/font passes 12 with
-hardware ordinary-click assertions for selective measurement/paragraph updates,
-and Clippy passes `-D warnings`. Retained-only passes 104 tests, and the desktop
-WGPU executable builds. Taffy's default-feature library suite passes
-169 tests. Its no-default-feature test module has an existing ungated `calc`
-test compile error, documented in the vendor readme; distribution tests validate
-the actual selected feature set.
+At this stage, the core suite passed 113 combined-feature tests and gallery/font
+passed 12 with hardware ordinary-click assertions for selective measurement/
+paragraph updates. Clippy passed `-D warnings`, retained-only passed 104 tests,
+and the desktop WGPU executable built. Taffy's default-feature library suite passed
+169 tests. Its no-default-feature test module then had an ungated `calc` test
+compile error. That test gate and feature-dependent Style size assertions are
+now corrected; current validation is recorded in the baseline publication
+document linked above.
 
 The hardware suite passes 171 pixel cases on Windows / GTX 1650 Ti Vulkan.
 Nine additions cover one-size update, dependent siblings, wrap/scroll, changed

@@ -2,7 +2,7 @@
 
 状态：设计草案，已开始落地框架层；Rust 优先，预留 JS、Go。当前实现已新增与 Taffy 解耦的 `LayoutStyle` Flex 契约、建树入口、动态布局属性事务和布局方向类型；其余拟议 UI IR、Store/Command、组件宏、独立呈现仍未实现，也没有改变原有总目标的验收状态。
 
-日期：2026-11-13。实现对照取自 `codex/rendering-performance-research`；本次更新包含未提交的框架层改动。本文是架构映射与实现状态记录；实验能力与正式承诺仍分别列出。
+更新日期：2026-11-16。实现对照取自 `codex/rendering-performance-research`。本文是架构映射与实现状态记录；实验能力与正式承诺仍分别列出。
 
 ## 1. 要解决的问题
 
@@ -89,9 +89,9 @@ CSS Flexbox 或最终跨语言 ABI；Grid、复杂 `calc()`、完整 intrinsic/b
 adapter 在 `set_children`、布局提取、绘制顺序和命中索引前统一应用。逻辑树仍保存
 原始 sibling 顺序；order 更新会进入原子事务、触发布局并重建视觉顺序，旧的
 Taffy `Style` 更新不会把公共 order 重置为 0。该实现已用两个节点覆盖反转位置、
-命中顺序、同值稳定性和动态更新；没有修改 `vendor/taffy` 本体。它仍不是完整
+命中顺序、同值稳定性和动态更新；order 本身不需要修改 `vendor/taffy` 本体。它仍不是完整
 CSS order 兼容承诺：Grid order、匿名 flex item、复杂 stacking/context 和完整
-baseline 传播仍未实现。
+baseline 语义仍未完成；首水平基线的正式发布现已另行接入，见下文。
 
 响应式方向也已有第一条新 API：`LayoutBreakpointStyles` 和
 `LayoutResponsiveBindings` 接收/绑定 `LayoutStyle`，按 `LayoutEnvironment`
@@ -120,13 +120,19 @@ container 的 resolved content width，再做一次后代样式事务和最终�
 同样的 measure-only 查询；结果局部于被查询节点，不发布 frame，也不把子树
 临时几何误认为已提交的 `layout_result`。查询运行在持久布局树的 owned clone
 上，不改写正式 Taffy 缓存、已发布几何或 frame revision。
-`layout_result`
-返回 parent-local 的 size/location、派生 content size、border/padding、margin
-和 scrollable overflow；世界
-变换、设备像素取整和完整 baseline 语义仍在后续阶段，当前 Taffy 适配无法提供
-叶子 measure snapshot 的 baseline 现在会随正式布局发布到 `LayoutResult`；容器
-或没有稳定叶子 baseline 的节点仍返回 `None`。这一步建立了 API 边界，但不等于完整 intrinsic、
-baseline、Grid 或 `calc()` 已完成。
+`layout_result` 返回 parent-local 的 size/location、派生 content size、
+border/padding、margin 和 scrollable overflow。`LayoutResult.baseline` 现在
+来自项目内 Taffy fork 的最终 `Layout.baselines.first`，表示从本节点 border box
+顶部计算的首水平基线。叶子测量与 Flex/Grid/Block 容器传播使用实际算法结果，
+仅基线变化也会随正式 frame 发布；隐藏子树清空该结果。measure-only 查询从
+clone 的最终布局读取同一字段，不改写已发布状态。Grid 在未运行预备基线对齐
+阶段时错误回退到子节点底边、以及重复计入 margin 的问题也已修复。
+
+这次把结果保存在布局输出中，而非事后读布局缓存或猜测容器基线，避免缓存驱逐、
+同几何不同基线和 display:none 暴露陈旧值。它没有新增全树扫描；几何不变时仍可
+保留原 PaintItems 与零 chunk 重录。详细契约、验证和成本见
+[布局基线发布](RETAINED_LAYOUT_BASELINES.md)。世界变换、公共设备像素取整策略、
+last-baseline 对齐、竖排文字、复杂 intrinsic、公共 Grid 和 `calc()` 仍未完成。
 
 UI IR 的最小数据集合：
 

@@ -333,11 +333,14 @@ pub struct LayoutResult {
     pub margin: [f32; 4],
     /// Scrollable overflow in the queried node's scroll-origin coordinates.
     pub scrollable_overflow: [f32; 4],
+    /// First horizontal baseline, measured from this node's border-box top.
+    /// Containers expose the baseline selected by their layout algorithm;
+    /// a leaf with no baseline or a hidden subtree returns `None`.
     pub baseline: Option<f32>,
 }
 
 impl LayoutResult {
-    pub(crate) fn from_taffy_and_baseline(layout: &taffy::Layout, baseline: Option<f32>) -> Self {
+    pub(crate) fn from_taffy(layout: &taffy::Layout) -> Self {
         Self {
             location: [layout.location.x, layout.location.y],
             size: [layout.size.width, layout.size.height],
@@ -379,10 +382,7 @@ impl LayoutResult {
                 layout.scrollable_overflow_rect.top,
                 layout.scrollable_overflow_rect.bottom,
             ],
-            // Taffy 0.15 stores baselines during layout computation but does
-            // not expose them on the published `Layout`; keep this optional
-            // until the framework owns a stable baseline contract.
-            baseline,
+            baseline: layout.baselines.first,
         }
     }
 }
@@ -705,6 +705,9 @@ impl LayoutStyle {
 }
 
 #[cfg(test)]
+mod baseline_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::retained::{
@@ -795,7 +798,7 @@ mod tests {
                 1,
             )
             .unwrap();
-        let style = ui.state(scope, 0, || LayoutStyle::default()).unwrap();
+        let style = ui.state(scope, 0, LayoutStyle::default).unwrap();
         ui.bind(
             style,
             crate::retained::reactive::Property::layout_style(node),
@@ -981,5 +984,41 @@ mod tests {
             .unwrap();
         tree.frame([100.0, 40.0]).unwrap();
         assert_eq!(tree.layout_result(child).unwrap().baseline, Some(6.0));
+    }
+
+    #[test]
+    fn published_layout_result_exposes_flex_container_baseline_from_taffy_output() {
+        let mut tree = UiTree::new(
+            Style {
+                size: taffy::Size {
+                    width: length(100.0),
+                    height: length(30.0),
+                },
+                flex_direction: taffy::FlexDirection::Row,
+                align_items: taffy::AlignItems::BASELINE,
+                padding: taffy::Rect {
+                    top: length(3.0),
+                    ..taffy::Rect::zero()
+                },
+                ..Style::default()
+            },
+            0,
+        )
+        .unwrap();
+        let child = tree.append(tree.root(), Style::default(), 1).unwrap();
+        let mut transaction = Transaction::default();
+        transaction.measure(
+            child,
+            Some(MeasureSnapshot::Fixed(CustomMeasureSnapshot {
+                width: 20.0,
+                height: 10.0,
+                baseline: Some(6.0),
+            })),
+        );
+        tree.commit(transaction, BackendCapabilities::default())
+            .unwrap();
+        tree.frame([100.0, 30.0]).unwrap();
+        assert_eq!(tree.layout_result(child).unwrap().baseline, Some(6.0));
+        assert_eq!(tree.layout_result(tree.root()).unwrap().baseline, Some(9.0));
     }
 }

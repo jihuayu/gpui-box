@@ -2598,6 +2598,7 @@ fn calculate_flex_item(
         &Layout {
             order: item.order,
             size,
+            baselines: layout_output.baselines,
             #[cfg(feature = "content_size")]
             scrollable_overflow_rect,
             scrollbar_size,

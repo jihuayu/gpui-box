@@ -1438,6 +1438,129 @@ mod tests {
     }
 
     #[test]
+    fn published_baselines_survive_cache_hits_dirtying_and_hidden_layout() {
+        use crate::tree::Baselines;
+        let mut taffy: TaffyTree<f32> = TaffyTree::new();
+        taffy.disable_rounding();
+        let child = taffy.new_leaf_with_context(Style::default(), 6.25).unwrap();
+        let root = taffy.new_with_children(Style::default(), &[child]).unwrap();
+        let mut measure = |inputs, _, baseline: Option<&mut f32>, style: &Style| {
+            let mut output =
+                compute_leaf_layout(inputs, style, |_, _| 0.0, |_, _| Size { width: 20.0, height: 12.0 });
+            output.baselines = Baselines::from_first(baseline.map(|value| *value));
+            output
+        };
+        taffy.compute_layout_with_measure(root, Size::MAX_CONTENT, &mut measure).unwrap();
+        assert_eq!(taffy.layout(child).unwrap().baselines.first, Some(6.25));
+        assert_eq!(taffy.layout(root).unwrap().baselines.first, Some(6.25));
+        let mut writes = 0;
+        taffy
+            .compute_layout_with_measure_and_observer(root, Size::MAX_CONTENT, &mut measure, |_, _, _| writes += 1)
+            .unwrap();
+        // The parent still publishes its root position on a cached pass, while
+        // a cached descendant retains its baseline without another write.
+        assert_eq!(writes, 1);
+        assert_eq!(taffy.layout(child).unwrap().baselines.first, Some(6.25));
+        taffy.mark_dirty(child).unwrap();
+        assert_eq!(taffy.layout(root).unwrap().baselines.first, Some(6.25));
+        taffy.set_node_context(child, Some(8.5)).unwrap();
+        let mut baseline_writes = 0;
+        taffy
+            .compute_layout_with_measure_and_observer(root, Size::MAX_CONTENT, &mut measure, |_, old, new| {
+                if old.baselines != new.baselines {
+                    assert_eq!(old.size, new.size);
+                    assert_eq!(old.location, new.location);
+                    baseline_writes += 1;
+                }
+            })
+            .unwrap();
+        assert_eq!(baseline_writes, 2);
+        assert_eq!(taffy.layout(root).unwrap().baselines.first, Some(8.5));
+        taffy.set_style(root, Style { display: Display::None, ..Style::default() }).unwrap();
+        taffy.compute_layout_with_measure(root, Size::MAX_CONTENT, &mut measure).unwrap();
+        assert_eq!(taffy.layout(root).unwrap().baselines, Baselines::NONE);
+        assert_eq!(taffy.layout(child).unwrap().baselines, Baselines::NONE);
+    }
+
+    #[test]
+    fn published_baselines_round_in_border_box_coordinates() {
+        use crate::tree::Baselines;
+        let mut taffy: TaffyTree<()> = TaffyTree::new();
+        let root = taffy
+            .new_leaf(Style {
+                margin: crate::geometry::Rect { top: length(0.6), ..crate::geometry::Rect::zero() },
+                ..Style::default()
+            })
+            .unwrap();
+        taffy
+            .compute_layout_with_measure(root, Size::MAX_CONTENT, |inputs, _, _, style| {
+                let mut output =
+                    compute_leaf_layout(inputs, style, |_, _| 0.0, |_, _| Size { width: 10.0, height: 12.0 });
+                output.baselines = Baselines { first: Some(2.6), last: Some(8.8) };
+                output
+            })
+            .unwrap();
+        let unrounded = taffy.unrounded_layout(root);
+        assert_eq!(unrounded.baselines, Baselines { first: Some(2.6), last: Some(8.8) });
+        let rounded = taffy.layout(root).unwrap();
+        assert_eq!(rounded.location.y, 1.0);
+        // Round the absolute baseline, then subtract the rounded box origin.
+        assert_eq!(rounded.baselines, Baselines { first: Some(2.0), last: Some(8.0) });
+    }
+
+    #[cfg(feature = "grid")]
+    #[test]
+    fn grid_propagates_final_baseline_with_one_or_multiple_aligned_items() {
+        use crate::tree::Baselines;
+        for alignment in [crate::AlignItems::START, crate::AlignItems::BASELINE] {
+            for child_count in [1, 2] {
+                let mut taffy: TaffyTree<f32> = TaffyTree::new();
+                taffy.disable_rounding();
+                let mut children = Vec::new();
+                for index in 0..child_count {
+                    children.push(
+                        taffy
+                            .new_leaf_with_context(
+                                Style {
+                                    size: Size { width: length(20.0), height: length(12.0) },
+                                    margin: crate::geometry::Rect { top: length(2.0), ..crate::geometry::Rect::zero() },
+                                    ..Style::default()
+                                },
+                                6.0 + index as f32 * 2.0,
+                            )
+                            .unwrap(),
+                    );
+                }
+                let root = taffy
+                    .new_with_children(
+                        Style {
+                            display: Display::Grid,
+                            align_items: alignment,
+                            grid_template_columns: vec![length(30.0), length(30.0)],
+                            padding: crate::geometry::Rect { top: length(3.0), ..crate::geometry::Rect::zero() },
+                            ..Style::default()
+                        },
+                        &children,
+                    )
+                    .unwrap();
+                taffy
+                    .compute_layout_with_measure(root, Size::MAX_CONTENT, |inputs, _, baseline, style| {
+                        let mut output =
+                            compute_leaf_layout(inputs, style, |_, _| 0.0, |_, _| Size { width: 20.0, height: 12.0 });
+                        output.baselines = Baselines::from_first(baseline.copied());
+                        output
+                    })
+                    .unwrap();
+                let expected = if alignment == crate::AlignItems::BASELINE && child_count == 2 { 13.0 } else { 11.0 };
+                let child = taffy.layout(children[0]).unwrap();
+                assert_eq!(child.location.y + child.baselines.first.unwrap(), expected);
+                // Child position already includes its margin; don't count it twice.
+                assert_eq!(taffy.layout(root).unwrap().baselines.first, Some(expected));
+            }
+        }
+    }
+
+    #[test]
     fn test_mark_dirty() {
         let mut taffy: TaffyTree<()> = TaffyTree::new();
         let child0 = taffy.new_leaf(Style::default()).unwrap();
