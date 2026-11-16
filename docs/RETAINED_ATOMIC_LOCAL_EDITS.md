@@ -99,7 +99,9 @@ ordinary forced-full trees. An explicitly run WGPU test exercises consecutive
 local updates, a skipped predecessor and full recovery, with independent
 full-reference pixel equality.
 
-Still open: ContainerQuery and structural builders in one plan, automatic
+The subsequent [structural responsive stage](RETAINED_STRUCTURAL_RESPONSIVE.md)
+combines existing ContainerQuery rules and explicit structural builders in this
+atomic edit. Still open: draft rule registration/retirement, automatic
 dependency scheduling, full-axis content-sized structural builders, incremental
 planner/rollback, general RenderBox and wider Flex conformance. This stage does
 not change GPU queue or resource lease semantics, qualify modern GPU effects,

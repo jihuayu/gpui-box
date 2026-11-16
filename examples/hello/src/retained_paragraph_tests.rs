@@ -21,6 +21,170 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 }
 
 #[test]
+fn responsive_rules_and_keyed_paragraph_builder_share_atomic_local_output() {
+    use gpui_box::retained::{logical::LogicalUi, responsive::*};
+    let system = text_system();
+    let paragraph = shape(&system, "one two three four five six 中文段落");
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let text = TextPaint {
+        resource: raster.prepare(paragraph.clone(), 1.0).unwrap(),
+        color: 0x00ffffff,
+    };
+    let column = LayoutStyle::column().size(LayoutDimension::Percent(1.0), LayoutDimension::Auto);
+    let container_style = LayoutStyle::column().fixed_inline_size(60.0);
+    let boundary = LayoutStyle::constraint_box(ConstraintFit::Tight, ConstraintFit::Loose)
+        .container_type(LayoutContainerType::InlineSize);
+    let footer_style = LayoutStyle::row()
+        .size(LayoutDimension::Px(20.0), LayoutDimension::Px(10.0))
+        .flex_shrink(0.0);
+    let mut ui = LogicalUi::new_layout(column.clone(), 0, BackendCapabilities::default()).unwrap();
+    let root = ui.root_render();
+    let scope = ui.root_scope();
+    let container = ui
+        .append_render_layout(scope, root, container_style.clone(), 0)
+        .unwrap();
+    let host = ui
+        .append_render_layout(scope, container, boundary.clone(), 0)
+        .unwrap();
+    let footer = ui
+        .append_render_layout(scope, root, footer_style.clone(), 0xff0000ff)
+        .unwrap();
+    let size_source = ui.state(scope, 20, || container_style.clone()).unwrap();
+    let box_source = ui.state(scope, 21, || boundary.clone()).unwrap();
+    let mut responsive = LayoutResponsiveBindings::new();
+    responsive
+        .bind(
+            &mut ui,
+            size_source,
+            container,
+            LayoutBreakpointStyles::new(
+                container_style.clone(),
+                vec![(100.0, LayoutStyle::column().fixed_inline_size(150.0))],
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    responsive
+        .bind_container(
+            &mut ui,
+            box_source,
+            host,
+            container,
+            LayoutBreakpointStyles::new(
+                boundary.clone(),
+                vec![(
+                    100.0,
+                    boundary
+                        .clone()
+                        .padding(LayoutEdges::all(LayoutLength::Px(5.0))),
+                )],
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    fn pixels(frame: FramePacket) -> Vec<u8> {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [200, 700],
+                scale: 1.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 4 * 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(4096).unwrap() {}
+        job.into_frame().unwrap().pixels().to_vec()
+    }
+    let mut old = None;
+    for env_width in [80.0, 180.0, 80.0, 180.0] {
+        let wide = env_width >= 100.0;
+        let width = if wide { 140.0 } else { 60.0 };
+        let constraints = LayoutConstraints::new(
+            LayoutAvailableSpace::Definite(180.0),
+            LayoutAvailableSpace::Unbounded,
+        );
+        let (commit, frame) = ui
+            .edit_local_frame(
+                constraints,
+                [200.0, 700.0],
+                |_| Ok(()),
+                |(), edit| {
+                    edit.responsive(&responsive, &LayoutEnvironment::new([env_width, 700.0]))?;
+                    edit.inline_constraint_builder(host, |input, edit| {
+                        assert_eq!(input.max, width);
+                        let branch = edit.reconcile_keys(scope, &[u64::from(wide)])?[0];
+                        let renders = edit.renders(branch)?;
+                        let leaf = match renders.first() {
+                            Some(node) => *node,
+                            None => edit.append_layout(branch, host, LayoutStyle::row(), 0)?,
+                        };
+                        edit.properties().text(leaf, Some(text.clone()));
+                        Ok(leaf)
+                    })
+                },
+            )
+            .unwrap();
+        let expected = paragraph.layout(Some(width)).unwrap();
+        assert_eq!(
+            ui.layout_result(commit.result.value).unwrap().size,
+            [width, expected.size[1]]
+        );
+        assert_eq!(
+            ui.layout_result(footer).unwrap().location,
+            [0.0, expected.size[1] + if wide { 10.0 } else { 0.0 }]
+        );
+        let actual = pixels(frame.resolve());
+        let mut full = UiTree::new_layout(column.clone(), 0).unwrap();
+        full.set_frame_build_policy(FrameBuildPolicy::Full);
+        let c = full
+            .append_layout(
+                full.root(),
+                LayoutStyle::column().fixed_inline_size(if wide { 150.0 } else { 60.0 }),
+                0,
+            )
+            .unwrap();
+        let h = full
+            .append_layout(
+                c,
+                if wide {
+                    boundary
+                        .clone()
+                        .padding(LayoutEdges::all(LayoutLength::Px(5.0)))
+                } else {
+                    boundary.clone()
+                },
+                0,
+            )
+            .unwrap();
+        let leaf = full.append_layout(h, LayoutStyle::row(), 0).unwrap();
+        full.append_layout(full.root(), footer_style.clone(), 0xff0000ff)
+            .unwrap();
+        let mut tx = Transaction::default();
+        tx.text(leaf, Some(text.clone()));
+        full.commit(tx, BackendCapabilities::default()).unwrap();
+        assert_eq!(
+            actual,
+            pixels(full.frame_in_viewport(constraints, [200.0, 700.0]).unwrap())
+        );
+        assert!(
+            actual
+                .chunks_exact(4)
+                .any(|p| p[0] == 0 && p[1] > 0 && p[2] > 0 && p[3] > 0)
+        );
+        if old.is_none() {
+            old = Some((frame, actual));
+        }
+    }
+    drop(ui);
+    drop(raster);
+    drop(system);
+    let (frame, expected) = old.unwrap();
+    assert_eq!(pixels(frame.resolve()), expected);
+}
+
+#[test]
 fn atomic_local_builder_and_sparse_text_material_match_full_glyph_pixels() {
     use gpui_box::retained::logical::LogicalUi;
     let system = text_system();

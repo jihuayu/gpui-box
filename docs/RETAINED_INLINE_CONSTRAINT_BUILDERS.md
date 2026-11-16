@@ -137,9 +137,11 @@ compares every GPU pixel against a fresh full reference through repeated branch
 retirement and resize, with explicit red content and green footer checks.
 
 Subsequent stages add [pure custom parent measurement/placement](RETAINED_CUSTOM_PARENT_LAYOUT.md)
-and [atomic local edit output](RETAINED_ATOMIC_LOCAL_EDITS.md). Still open:
+and [atomic local edit output](RETAINED_ATOMIC_LOCAL_EDITS.md).
+[Explicit responsive stages](RETAINED_STRUCTURAL_RESPONSIVE.md) combine existing
+ContainerQuery rules and keyed inline builders in that atomic edit. Still open:
 general content-sized/full-axis builders, automatic dependency scheduling,
-complete RenderBox, combined ContainerQuery structural plans, incremental planning, broad Flex/
+complete RenderBox, draft rule registration/retirement, incremental planning, broad Flex/
 percentage/cyclic/baseline and device-rounding conformance. The actual GPU test
 uses GTX 1650 Ti; newer desktop GPU/effect workloads, sustained 60/120Hz, visible
 presentation, input-to-visible tails and CPU smoothness remain unqualified.

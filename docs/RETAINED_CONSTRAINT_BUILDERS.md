@@ -178,11 +178,13 @@ after branch selection. Vendor tests cover cached/empty/hidden/retired inputs.
 Inline-only construction with content-derived block height is implemented in
 the [subsequent stage](RETAINED_INLINE_CONSTRAINT_BUILDERS.md). Subsequent stages
 also add [pure custom parent measurement/placement](RETAINED_CUSTOM_PARENT_LAYOUT.md)
-and [atomic LocalFrame edit output](RETAINED_ATOMIC_LOCAL_EDITS.md). Still open:
+and [atomic LocalFrame edit output](RETAINED_ATOMIC_LOCAL_EDITS.md).
+[Explicit responsive stages](RETAINED_STRUCTURAL_RESPONSIVE.md) now compose
+existing multi-stage ContainerQuery bindings with construction in one edit.
+Still open:
 general full-axis content-sized builders, complete RenderBox,
 automatic builder dependency scheduling and indexed/incremental
-planning, structural plans combined with existing multi-stage ContainerQuery
-bindings, broader Flex/percentage/cyclic
+planning, draft responsive registration/retirement, broader Flex/percentage/cyclic
 sizing and device rounding. Modern desktop GPU/effects, CPU smooth delivery,
 sustained 60/120Hz and input-to-visible tail latency remain unqualified by this
 stage. No new GPU readback, browser comparison, or timing benchmark was run.

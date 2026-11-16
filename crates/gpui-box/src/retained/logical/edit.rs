@@ -22,8 +22,36 @@ pub struct LogicalEdit<'a, 'draft, 'tree> {
     capabilities: BackendCapabilities,
     frame_environment: Option<(LayoutConstraints, [f32; 2])>,
     constraint_inputs: Vec<super::constraint_builder::Observation>,
+    responsive_inputs: Vec<responsive::structural::Observation>,
 }
 impl LogicalEdit<'_, '_, '_> {
+    /// Settle viewport/container rules against the current keyed/source draft.
+    /// Rules must already be registered. Call within `edit_frame` or
+    /// `edit_local_frame`, after prerequisite structure and before dependent
+    /// builders. This call restores source values/counters if evaluation fails;
+    /// final publication rechecks every observed width, writer and proof.
+    /// Returned work excludes builder previews and final frame production.
+    pub fn responsive(
+        &mut self,
+        rules: &responsive::LayoutResponsiveBindings,
+        environment: &responsive::LayoutEnvironment,
+    ) -> Result<responsive::ResponsiveEditStats, Error> {
+        let (constraints, viewport) = self.frame_environment.ok_or(Error::UnsafeContainerQuery)?;
+        let removed = self.retired_outputs()?;
+        let (stats, observation) = self.render.responsive_plan(|render| {
+            rules.resolve_edit(
+                render,
+                environment,
+                constraints,
+                viewport,
+                self.capabilities,
+                &removed,
+            )
+        })?;
+        self.responsive_inputs.push(observation);
+        Ok(stats)
+    }
+
     /// Reads the final child-slot input of a size-contained constraint box,
     /// before choosing/building that child's keyed structure. Call within
     /// `edit_frame` or `edit_local_frame`. Nested calls observe earlier staged
@@ -63,20 +91,7 @@ impl LogicalEdit<'_, '_, '_> {
         let (constraints, viewport) = self
             .frame_environment
             .ok_or(Error::UnsafeConstraintBuilder)?;
-        let mut dead = BTreeSet::new();
-        let mut stack: Vec<_> = self.removed_scopes.iter().copied().collect();
-        while let Some(id) = stack.pop() {
-            if dead.insert(id) {
-                stack.extend(self.children(id)?);
-            }
-        }
-        let removed = self
-            .owners
-            .iter()
-            .chain(self.inserted.iter())
-            .filter(|(_, owner)| dead.contains(owner))
-            .map(|(node, _)| *node)
-            .collect::<Vec<_>>();
+        let removed = self.retired_outputs()?;
         let mut preview = self.render.preview(self.capabilities, &removed)?;
         if inline {
             super::constraint_builder::validate_inline_host(&preview, host)?;
@@ -86,6 +101,23 @@ impl LogicalEdit<'_, '_, '_> {
         preview.prepare_layout_environment(constraints, viewport)?;
         preview.compute_layout(constraints)?;
         Ok(preview)
+    }
+
+    fn retired_outputs(&self) -> Result<Vec<NodeId>, Error> {
+        let mut dead = BTreeSet::new();
+        let mut stack: Vec<_> = self.removed_scopes.iter().copied().collect();
+        while let Some(id) = stack.pop() {
+            if dead.insert(id) {
+                stack.extend(self.children(id)?);
+            }
+        }
+        Ok(self
+            .owners
+            .iter()
+            .chain(self.inserted.iter())
+            .filter(|(_, owner)| dead.contains(owner))
+            .map(|(node, _)| *node)
+            .collect())
     }
 
     /// Surviving output of a scope in append order. Use it with keyed state to
@@ -413,6 +445,8 @@ impl LogicalUi {
         let mut added_effects = BTreeMap::new();
         let constraint_inputs: std::cell::RefCell<Vec<super::constraint_builder::Observation>> =
             std::cell::RefCell::new(vec![]);
+        let responsive_inputs: std::cell::RefCell<Vec<responsive::structural::FinalObservation>> =
+            std::cell::RefCell::new(vec![]);
         let capabilities = self.ui.capabilities();
         let pending = self.ui.edit_deferred_validated(
             sources,
@@ -437,6 +471,7 @@ impl LogicalUi {
                     capabilities,
                     frame_environment,
                     constraint_inputs: vec![],
+                    responsive_inputs: vec![],
                 };
                 let value = render(value, &mut draft)?;
                 let mut dead = BTreeSet::new();
@@ -563,6 +598,11 @@ impl LogicalUi {
                         }
                     }
                 }
+                *responsive_inputs.borrow_mut() = draft
+                    .responsive_inputs
+                    .into_iter()
+                    .map(|observation| observation.finish(draft.render))
+                    .collect::<Result<Vec<_>, _>>()?;
                 inserted = draft.inserted;
                 inserted_order = draft.inserted_order;
                 created_scopes = draft.created_scopes;
@@ -577,6 +617,9 @@ impl LogicalUi {
                 |tree: &mut UiTree| {
                     validate(tree)?;
                     for input in constraint_inputs.borrow().iter() {
+                        input.validate(tree)?;
+                    }
+                    for input in responsive_inputs.borrow().iter() {
                         input.validate(tree)?;
                     }
                     Ok(())

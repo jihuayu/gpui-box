@@ -5,6 +5,8 @@ use super::{
     *,
 };
 mod layout_queries;
+pub(in crate::retained) mod structural;
+pub use structural::ResponsiveEditStats;
 
 /// Layout, application zoom and device scale are separate host inputs. Unknown
 /// input capabilities stay unknown; this is not a mobile/desktop classifier.
@@ -209,6 +211,7 @@ impl LayoutBreakpointStyles {
     }
 }
 
+#[derive(Clone)]
 struct LayoutBinding {
     binding: reactive::BindingId,
     source: Signal<LayoutStyle>,
@@ -229,7 +232,7 @@ pub enum LayoutQuery {
 /// Stages use private source/layout drafts and publish final sources and output
 /// only after validation; effects observe the final values once. Changed plans
 /// may copy the owned tree and repeat layout during final publication.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct LayoutResponsiveBindings {
     bindings: Vec<LayoutBinding>,
 }

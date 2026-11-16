@@ -154,8 +154,12 @@ output and full/local CPU pixel/geometry/hit/old-snapshot comparisons. One
 explicitly run WGPU test compares local output against a fresh full render,
 asserts a red pixel after the breakpoint and verifies idle submit suppression.
 
-Still open: general min/max parent BoxConstraints, ConstraintBuilder and
-structural adaptation; broader Flex/percentage/baseline and query proofs;
+Subsequent stages add [parent BoxConstraints](RETAINED_PARENT_CONSTRAINTS.md),
+[full/inline builders](RETAINED_INLINE_CONSTRAINT_BUILDERS.md) and
+[explicit ContainerQuery/keyed construction composition](RETAINED_STRUCTURAL_RESPONSIVE.md).
+Still open: general full-axis content-sized structural builders, draft responsive
+rule registration/retirement and automatic dependency scheduling;
+broader Flex/percentage/baseline and query proofs;
 cached/indexed dispatch and reducing planning copies; sustained 60/120Hz,
 full-chain tail latency, modern desktop GPU effects and CPU smoothness
 qualification. See the [implementation table](RETAINED_IMPLEMENTATION_PROGRESS.md)

@@ -1,6 +1,7 @@
 //! Source settlement and render construction share one validation/publication.
 use super::*;
 
+#[derive(Clone)]
 pub(super) struct PreparedUpdate {
     values: BTreeMap<SourceId, Rc<dyn Value>>,
     writes: u64,
@@ -39,7 +40,7 @@ pub struct ReactiveEdit<'a, 'tree> {
     tree: &'a mut TreeEdit<'tree>,
     identity: u64,
     sources: &'a [SourceSlot],
-    values: &'a BTreeMap<SourceId, Rc<dyn Value>>,
+    prepared: &'a mut PreparedUpdate,
     endpoints: &'a BTreeMap<(NodeId, Field), BindingId>,
     next_binding: &'a mut u64,
     bindings: Vec<(BindingId, Binding)>,
@@ -58,6 +59,191 @@ pub struct ReactiveEdit<'a, 'tree> {
     next_effect: &'a mut u64,
 }
 impl<'tree> ReactiveEdit<'_, 'tree> {
+    pub(in crate::retained) fn responsive_plan<R>(
+        &mut self,
+        plan: impl FnOnce(&mut Self) -> Result<R, Error>,
+    ) -> Result<R, Error> {
+        let previous = self.prepared.clone();
+        match plan(self) {
+            Ok(value) => Ok(value),
+            Err(error) => {
+                *self.prepared = previous;
+                Err(error)
+            }
+        }
+    }
+
+    pub(in crate::retained) fn responsive_values(
+        &mut self,
+        values: Vec<(Signal<LayoutStyle>, LayoutStyle)>,
+    ) -> Result<(), Error> {
+        let mut next = self.prepared.clone();
+        let mut changed = BTreeSet::new();
+        for (signal, value) in values {
+            let source = self.source(signal.id)?;
+            if self.removed_sources.contains(&signal.id) {
+                return Err(Error::InvalidSignal);
+            }
+            if source.computation.is_some() {
+                return Err(Error::ReadonlySignal);
+            }
+            next.writes += 1;
+            let value: Rc<dyn Value> = Rc::new(value);
+            if next
+                .values
+                .get(&signal.id)
+                .unwrap_or(&source.value)
+                .equal(value.as_ref())
+            {
+                next.equal += 1;
+                continue;
+            }
+            changed.insert(signal.id);
+            if source.value.equal(value.as_ref()) {
+                next.values.remove(&signal.id);
+            } else {
+                next.values.insert(signal.id, value);
+            }
+        }
+        // Draft-created computations have no live reverse edges until commit.
+        // Rank order handles both live and newly constructed dependencies.
+        if changed.is_empty() {
+            *self.prepared = next;
+            return Ok(());
+        }
+        for (_, id) in self.derived_sources() {
+            let source = self.source(id)?;
+            let computation = source.computation.as_ref().unwrap();
+            if !computation
+                .dependencies
+                .iter()
+                .any(|id| changed.contains(id))
+            {
+                continue;
+            }
+            let value = (computation.evaluate)(&ComputedInputs {
+                context: self.context(),
+                dependencies: &computation.dependencies,
+                values: &next.values,
+            })?;
+            next.computed_evaluations += 1;
+            if next
+                .values
+                .get(&id)
+                .unwrap_or(&source.value)
+                .equal(value.as_ref())
+            {
+                next.computed_equal += 1;
+                continue;
+            }
+            changed.insert(id);
+            if source.value.equal(value.as_ref()) {
+                next.values.remove(&id);
+            } else {
+                next.values.insert(id, value);
+            }
+        }
+        *self.prepared = next;
+        Ok(())
+    }
+
+    pub(in crate::retained) fn responsive_layout_targets(
+        &self,
+        signal: Signal<LayoutStyle>,
+    ) -> Result<Vec<NodeId>, Error> {
+        let source = self.source(signal.id)?;
+        if self.removed_sources.contains(&signal.id) {
+            return Err(Error::InvalidSignal);
+        }
+        if source.computation.is_some() {
+            return Err(Error::ReadonlySignal);
+        }
+        let mut reachable = BTreeSet::from([signal.id]);
+        for (_, id) in self.derived_sources() {
+            if self
+                .source(id)?
+                .computation
+                .as_ref()
+                .unwrap()
+                .dependencies
+                .iter()
+                .any(|id| reachable.contains(id))
+            {
+                reachable.insert(id);
+            }
+        }
+        let targets = self
+            .live_bindings
+            .iter()
+            .filter(|(id, _)| !self.unbound.contains(id))
+            .chain(self.bindings.iter().map(|(id, binding)| (id, binding)))
+            .filter(|(_, binding)| {
+                reachable.contains(&binding.source)
+                    && match binding.field {
+                        Field::Style | Field::Measure | Field::ParentLayout | Field::Image => true,
+                        #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+                        Field::Text => true,
+                        _ => false,
+                    }
+            })
+            .map(|(_, binding)| binding.node)
+            .collect::<BTreeSet<_>>();
+        Ok(targets.into_iter().collect())
+    }
+
+    fn derived_sources(&self) -> Vec<(u64, SourceId)> {
+        let mut derived =
+            self.sources
+                .iter()
+                .enumerate()
+                .filter_map(|(slot, entry)| {
+                    entry.source.as_ref().and_then(|source| {
+                        source.computation.as_ref().map(|_| {
+                            (
+                                source.rank,
+                                SourceId {
+                                    owner: self.identity,
+                                    slot,
+                                    generation: entry.generation,
+                                },
+                            )
+                        })
+                    })
+                })
+                .chain(self.created.iter().filter_map(|(id, source)| {
+                    source.computation.as_ref().map(|_| (source.rank, *id))
+                }))
+                .filter(|(_, id)| !self.removed_sources.contains(id))
+                .collect::<Vec<_>>();
+        derived.sort_unstable();
+        derived
+    }
+
+    pub(in crate::retained) fn validate_responsive_writer(
+        &self,
+        source: Signal<LayoutStyle>,
+        target: NodeId,
+        id: BindingId,
+    ) -> Result<(), Error> {
+        self.read(source)?;
+        let binding = self
+            .bindings
+            .iter()
+            .find(|(candidate, _)| *candidate == id)
+            .map(|(_, b)| b)
+            .or_else(|| self.live_bindings.get(&id))
+            .ok_or(Error::InvalidBinding)?;
+        if self.unbound.contains(&id)
+            || self.removed_sources.contains(&source.id)
+            || binding.source != source.id
+            || binding.node != target
+            || binding.field != Field::Style
+        {
+            return Err(Error::InvalidBinding);
+        }
+        Ok(())
+    }
+
     pub(in crate::retained) fn preview(
         &self,
         capabilities: BackendCapabilities,
@@ -67,6 +253,7 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
         for (_, binding) in &self.bindings {
             if !self.removed_sources.contains(&binding.source) {
                 let value = self
+                    .prepared
                     .values
                     .get(&binding.source)
                     .unwrap_or(&self.source(binding.source)?.value);
@@ -76,7 +263,7 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
         for (id, binding) in self.live_bindings {
             if !self.unbound.contains(id)
                 && !self.removed_sources.contains(&binding.source)
-                && let Some(value) = self.values.get(&binding.source)
+                && let Some(value) = self.prepared.values.get(&binding.source)
             {
                 (binding.write)(value.as_ref(), &mut tx);
             }
@@ -89,7 +276,8 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
     }
     pub fn read<T: 'static>(&self, signal: Signal<T>) -> Result<&T, Error> {
         let source = self.source(signal.id)?;
-        self.values
+        self.prepared
+            .values
             .get(&signal.id)
             .unwrap_or(&source.value)
             .as_any()
@@ -234,7 +422,7 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
         let value = evaluate(&ComputedInputs {
             context: self.context(),
             dependencies: &dependencies,
-            values: self.values,
+            values: &self.prepared.values,
         })?;
         self.insert_source(Source {
             value: Rc::new(value),
@@ -468,19 +656,7 @@ impl ReactiveUi {
         validate: Option<impl FnOnce(&mut UiTree) -> Result<(), Error>>,
     ) -> Result<PendingReactiveEdit<R>, Error> {
         let (source_result, mut prepared) = self.prepare_update(sources)?;
-        // Capture each endpoint separately so deletions can skip its whole write.
-        let mut sinks = vec![];
         let mut effects = BTreeSet::new();
-        for (id, value) in &prepared.values {
-            let source = self.source(*id)?;
-            effects.extend(&source.effects);
-            for id in &source.bindings {
-                let b = &self.bindings[id];
-                let mut tx = Transaction::default();
-                (b.write)(value.as_ref(), &mut tx);
-                sinks.push((*id, b.node, tx));
-            }
-        }
         let mut new_bindings = vec![];
         let mut unbound = BTreeSet::new();
         let mut created = BTreeMap::new();
@@ -494,7 +670,7 @@ impl ReactiveUi {
                 tree,
                 identity,
                 sources: &self.sources,
-                values: &prepared.values,
+                prepared: &mut prepared,
                 endpoints: &self.endpoints,
                 next_binding: &mut self.next_binding,
                 bindings: vec![],
@@ -555,6 +731,7 @@ impl ReactiveUi {
                     return Err(Error::InvalidNode);
                 }
                 let value = edit
+                    .prepared
                     .values
                     .get(&binding.source)
                     .unwrap_or(&edit.source(binding.source)?.value)
@@ -562,13 +739,28 @@ impl ReactiveUi {
                 (binding.write)(value.as_ref(), edit.tree.properties());
             }
             sink_writes = edit.bindings.len();
-            for (id, node, tx) in sinks {
-                if !dead.contains(&node)
-                    && !edit.unbound.contains(&id)
-                    && !edit.removed_sources.contains(&self.bindings[&id].source)
-                {
-                    edit.tree.properties().patches.extend(tx.patches);
-                    sink_writes += 1;
+            // Collect once from final settled values, including responsive stages
+            // performed during construction. Restored values emit no transient sink.
+            for (source_id, value) in &edit.prepared.values {
+                if edit.removed_sources.contains(source_id) {
+                    continue;
+                }
+                if edit.created.contains_key(source_id) {
+                    // New sources only have draft bindings/effects, handled
+                    // separately. They have no published reverse edges yet.
+                    continue;
+                }
+                let source = edit.sources[source_id.slot]
+                    .source
+                    .as_ref()
+                    .expect("validated live source");
+                effects.extend(&source.effects);
+                for id in &source.bindings {
+                    let binding = &self.bindings[id];
+                    if !dead.contains(&binding.node) && !edit.unbound.contains(id) {
+                        (binding.write)(value.as_ref(), edit.tree.properties());
+                        sink_writes += 1;
+                    }
                 }
             }
             new_bindings = edit.bindings;

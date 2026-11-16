@@ -212,6 +212,16 @@ axis、sizing/margin mode 与硬 bounds 全部匹配，保留基线/overflow 等
 每个 builder 的 preview 以及 O(N) 最终检查仍存在，不能称为整个事务的次线性
 更新。真实文字 CPU 像素和连续/跳帧后的 GPU 恢复与独立完整路径一致；这轮没有
 时延或持续帧率结论。详见 [原子局部帧契约与成本](RETAINED_ATOMIC_LOCAL_EDITS.md)。
+新增 `LogicalEdit::responsive(&rules, &environment)`，在 `edit_frame` /
+`edit_local_frame` 内对当前 source/结构草稿执行既有 viewport 与多阶段容器规则，
+后续 full/inline builder 可读取最终选中的样式与真实 slot。新建 computed 链、
+binding 和 effect 参与同一次结算；sink/effect 只接收最终值。最终发布复验每次
+调用观察的 content width、选中 source、精确 writer 和依赖证明，新加 layout
+sink 也纳入检查；错误回滚，调用者捕获规则错误时仍恢复该次 source savepoint。
+这使已注册规则与结构构建可以在同一原子编辑中显式编排。规则的草稿内注册/退休、
+跨 builder 自动依赖调度仍未实现。完整 preview、source map clone、computed 扫描
+排序及证明/DAG 复验仍增加成本，不能据此宣称端到端性能提高。详见
+[响应式结构构建契约与 ADR](RETAINED_STRUCTURAL_RESPONSIVE.md)。
 详见 [嵌套协议](RETAINED_NESTED_CONSTRAINT_BOX.md) 与
 [构建器契约和决策](RETAINED_CONSTRAINT_BUILDERS.md)。
 缓存新增每节点四个 float 的约束
