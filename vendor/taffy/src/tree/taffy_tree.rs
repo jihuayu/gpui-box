@@ -4,6 +4,10 @@ use slotmap::SecondaryMap;
 #[cfg(feature = "std")]
 use slotmap::SparseSecondaryMap as SecondaryMap;
 use slotmap::{DefaultKey, SlotMap};
+#[cfg(feature = "std")]
+use std::sync::Arc;
+#[cfg(not(feature = "std"))]
+use alloc::sync::Arc;
 
 #[cfg(feature = "block_layout")]
 use crate::block::BlockContext;
@@ -43,6 +47,8 @@ pub enum TaffyError {
     InvalidSizeBounds,
     /// A ConstraintBox must have at most one direct, in-flow child.
     InvalidConstraintBox,
+    /// A custom parent returned an invalid plan or has out-of-flow direct children.
+    InvalidCustomLayout,
     /// The parent node does not have a child at `child_index`. It only has `child_count` children
     ChildIndexOutOfBounds {
         /// The parent node whose child was being looked up
@@ -65,6 +71,7 @@ impl core::fmt::Display for TaffyError {
         match self {
             TaffyError::InvalidSizeBounds => write!(f, "Invalid host size bounds"),
             TaffyError::InvalidConstraintBox => write!(f, "Invalid single-child constraint box"),
+            TaffyError::InvalidCustomLayout => write!(f, "Invalid custom parent layout"),
             TaffyError::ChildIndexOutOfBounds { parent, child_index, child_count } => {
                 write!(f, "Index (is {child_index}) should be < child_count ({child_count}) for parent node {parent:?}")
             }
@@ -169,6 +176,9 @@ pub struct TaffyTree<NodeContext = ()> {
 
     /// Last final child-slot inputs, retained across ancestor cache hits.
     constraint_box_inputs: SecondaryMap<DefaultKey, LayoutInput>,
+
+    /// Owned immutable parent algorithms; ordinary nodes carry no delegate slot.
+    custom_layouts: SecondaryMap<DefaultKey, Arc<dyn crate::tree::CustomLayout>>,
 
     /// The children of each node
     ///
@@ -295,6 +305,8 @@ where
     pub(crate) measure_function: MeasureFunction,
     /// Reports every unrounded layout write; may include transient repeated writes.
     pub(crate) layout_observer: LayoutObserver,
+    layout_error: Option<TaffyError>,
+    exact_measure: bool,
 }
 
 impl<NodeContext, MeasureFunction, LayoutObserver> TaffyView<'_, NodeContext, MeasureFunction, LayoutObserver>
@@ -331,25 +343,36 @@ where
             debug_log_node!(inputs);
 
             // Dispatch to a layout algorithm based on the node's display style and whether the node has children or not.
-            let mut output = match (display_mode, has_children) {
-                (Display::None, _) => compute_hidden_layout(tree, node_id),
-                (Display::ConstraintBox { width, height }, _) => {
-                    crate::compute::compute_constraint_box_layout(tree, node_id, inputs, Size { width, height })
+            let custom = tree.taffy.custom_layouts.get(node_id.into()).cloned();
+            let mut output = if display_mode != Display::None && custom.is_some() {
+                match crate::compute::compute_custom_layout(tree, node_id, inputs, custom.unwrap().as_ref()) {
+                    Ok(output) => output,
+                    Err(error) => {
+                        tree.layout_error.get_or_insert(error);
+                        LayoutOutput::HIDDEN
+                    }
                 }
-                #[cfg(feature = "block_layout")]
-                (Display::Block, true) => compute_block_layout(tree, node_id, inputs, block_ctx),
-                #[cfg(feature = "block_layout")]
-                (Display::FlowRoot, true) => compute_block_layout(tree, node_id, inputs, None),
-                #[cfg(feature = "flexbox")]
-                (Display::Flex, true) => compute_flexbox_layout(tree, node_id, inputs),
-                #[cfg(feature = "grid")]
-                (Display::Grid, true) => compute_grid_layout(tree, node_id, inputs),
-                (_, false) => {
-                    let node_key = node_id.into();
-                    let style = &tree.taffy.nodes[node_key].style;
-                    let has_context = tree.taffy.nodes[node_key].has_context;
-                    let node_context = has_context.then(|| tree.taffy.node_context_data.get_mut(node_key)).flatten();
-                    (tree.measure_function)(inputs, node_id, node_context, style)
+            } else {
+                match (display_mode, has_children) {
+                    (Display::None, _) => compute_hidden_layout(tree, node_id),
+                    (Display::ConstraintBox { width, height }, _) => {
+                        crate::compute::compute_constraint_box_layout(tree, node_id, inputs, Size { width, height })
+                    }
+                    #[cfg(feature = "block_layout")]
+                    (Display::Block, true) => compute_block_layout(tree, node_id, inputs, block_ctx),
+                    #[cfg(feature = "block_layout")]
+                    (Display::FlowRoot, true) => compute_block_layout(tree, node_id, inputs, None),
+                    #[cfg(feature = "flexbox")]
+                    (Display::Flex, true) => compute_flexbox_layout(tree, node_id, inputs),
+                    #[cfg(feature = "grid")]
+                    (Display::Grid, true) => compute_grid_layout(tree, node_id, inputs),
+                    (_, false) => {
+                        let node_key = node_id.into();
+                        let style = &tree.taffy.nodes[node_key].style;
+                        let has_context = tree.taffy.nodes[node_key].has_context;
+                        let node_context = has_context.then(|| tree.taffy.node_context_data.get_mut(node_key)).flatten();
+                        (tree.measure_function)(inputs, node_id, node_context, style)
+                    }
                 }
             };
 
@@ -439,6 +462,14 @@ where
     }
 
     #[inline(always)]
+    fn compute_custom_child_layout(&mut self, node: NodeId, inputs: LayoutInput) -> LayoutOutput {
+        let previous = self.exact_measure;
+        self.exact_measure = true;
+        let output = crate::compute::constraint_box::layout_child(self, node, inputs);
+        self.exact_measure = previous;
+        output
+    }
+
     fn compute_child_layout(&mut self, node_id: NodeId, inputs: LayoutInput) -> LayoutOutput {
         self.compute_child_layout(
             node_id,
@@ -486,11 +517,19 @@ where
     LayoutObserver: FnMut(NodeId, &Layout, &Layout),
 {
     fn cache_get(&mut self, node_id: NodeId, input: &LayoutInput) -> Option<LayoutOutput> {
+        // The ordinary size cache drops baselines and vertical percentage bases.
+        // Arbitrary parent policies may observe both; final-layout cache is exact.
+        if input.run_mode == RunMode::ComputeSize && (self.exact_measure || self.taffy.custom_layouts.contains_key(node_id.into())) {
+            return None;
+        }
         self.taffy.nodes[node_id.into()].cache.get(input)
     }
 
     fn cache_store(&mut self, node_id: NodeId, input: &LayoutInput, layout_output: LayoutOutput) {
-        self.taffy.nodes[node_id.into()].cache.store(input, layout_output)
+        if self.layout_error.is_none()
+            && !(input.run_mode == RunMode::ComputeSize && (self.exact_measure || self.taffy.custom_layouts.contains_key(node_id.into()))) {
+            self.taffy.nodes[node_id.into()].cache.store(input, layout_output);
+        }
     }
 
     fn cache_clear(&mut self, node_id: NodeId) {
@@ -646,8 +685,28 @@ impl<NodeContext> TaffyTree<NodeContext> {
             node_context_data: SecondaryMap::with_capacity(capacity),
             constraint_boxes: SecondaryMap::new(),
             constraint_box_inputs: SecondaryMap::new(),
+            custom_layouts: SecondaryMap::new(),
             config: TaffyConfig::default(),
         }
+    }
+
+    /// Install an immutable parent algorithm. Replacing it invalidates this node
+    /// and ancestors. Display::None still hides the entire subtree. The delegate
+    /// owns direct child placement; direct out-of-flow children are unsupported.
+    pub fn set_custom_layout(
+        &mut self,
+        node: NodeId,
+        delegate: Option<Arc<dyn crate::tree::CustomLayout>>,
+    ) -> TaffyResult<()> {
+        if !self.nodes.contains_key(node.into()) {
+            return Err(TaffyError::InvalidInputNode(node));
+        }
+        if let Some(delegate) = delegate {
+            self.custom_layouts.insert(node.into(), delegate);
+        } else {
+            self.custom_layouts.remove(node.into());
+        }
+        self.mark_dirty(node)
     }
 
     /// Enable rounding of layout values. Rounding is enabled by default.
@@ -729,6 +788,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
         self.node_context_data.clear();
         self.constraint_boxes.clear();
         self.constraint_box_inputs.clear();
+        self.custom_layouts.clear();
     }
 
     /// Remove a specific node from the tree and drop it
@@ -756,6 +816,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
         let _ = self.node_context_data.remove(key);
         let _ = self.constraint_boxes.remove(key);
         let _ = self.constraint_box_inputs.remove(key);
+        let _ = self.custom_layouts.remove(key);
 
         Ok(node)
     }
@@ -1115,9 +1176,27 @@ impl<NodeContext> TaffyTree<NodeContext> {
                 ancestor = self.parents[id.into()];
             }
         }
+        for (key, _) in &self.custom_layouts {
+            let mut ancestor = Some(NodeId::from(key));
+            while let Some(id) = ancestor {
+                if id == node_id {
+                    if self.children[key].iter().any(|child| self.nodes[(*child).into()].style.position.is_out_of_flow()) {
+                        return Err(TaffyError::InvalidCustomLayout);
+                    }
+                    break;
+                }
+                ancestor = self.parents[id.into()];
+            }
+        }
         let use_rounding = self.config.use_rounding;
-        let mut taffy_view = TaffyView { taffy: self, measure_function, layout_observer };
+        // Custom descendants can observe vertical percentage bases and baseline
+        // metadata omitted by ordinary CSS size caches, including through a
+        // cached Flex ancestor. Keep final-layout reuse but disable lossy size
+        // entries throughout invocations containing custom algorithms.
+        let exact_measure = !self.custom_layouts.is_empty();
+        let mut taffy_view = TaffyView { taffy: self, measure_function, layout_observer, layout_error: None, exact_measure };
         crate::compute::compute_root_layout_with_bounds(&mut taffy_view, node_id, available_space, bounds);
+        if let Some(error) = taffy_view.layout_error { return Err(error); }
         if use_rounding {
             round_layout(&mut taffy_view, node_id);
         }
@@ -1144,6 +1223,8 @@ impl<NodeContext> TaffyTree<NodeContext> {
             taffy: self,
             measure_function: |inputs, _, _, style| compute_leaf_layout(inputs, style, |_, _| 0.0, |_, _| Size::ZERO),
             layout_observer: |_, _, _| {},
+            layout_error: None,
+            exact_measure: false,
         }
     }
 }

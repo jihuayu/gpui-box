@@ -150,6 +150,18 @@ impl UiTree {
             live += 1;
             let children = lists[id.slot].unwrap_or(&node.children);
             validate_constraint_box(&node.style, children.len(), node.measure.is_some())?;
+            parent_layout::validate_node(
+                &node.style,
+                node.measure.is_some(),
+                node.parent_layout.is_some(),
+            )?;
+            if node.parent_layout.is_some()
+                && children
+                    .iter()
+                    .any(|child| node_for(*child).is_ok_and(|n| n.style.position.is_out_of_flow()))
+            {
+                return Err(Error::InvalidParentLayout);
+            }
             if matches!(node.style.display, taffy::Display::ConstraintBox { .. }) {
                 for child in children {
                     if node_for(*child)?.style.position.is_out_of_flow() {
@@ -220,6 +232,7 @@ impl UiTree {
             self.layout_nodes.remove(&layout);
             self.layout_written.remove(id);
             self.out_of_flow.remove(id);
+            self.custom_parents.remove(id);
             let slot = &mut self.slots[id.slot];
             slot.node = None;
             if let Some(next) = slot.generation.checked_add(1) {

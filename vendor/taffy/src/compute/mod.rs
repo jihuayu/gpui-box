@@ -22,7 +22,11 @@
 //! | [`print_tree`](crate::print_tree) | [`PrintTree`](crate::PrintTree)                                                                                                                                                                    | Print a debug representation of a node tree and it's computed layout |
 //!
 pub(crate) mod common;
-mod constraint_box;
+pub(crate) mod constraint_box;
+#[cfg(feature = "taffy_tree")]
+mod custom_layout;
+#[cfg(feature = "taffy_tree")]
+pub use custom_layout::compute_custom_layout;
 pub(crate) mod leaf;
 pub use constraint_box::compute_constraint_box_layout;
 pub(crate) mod oof;

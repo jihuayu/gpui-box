@@ -233,6 +233,15 @@ fn validate_query_host(
     host: NodeId,
     style: &Style,
 ) -> Result<(), Error> {
+    // A custom allocator may couple either axis or siblings arbitrarily. CSS
+    // fixed-width/containment proofs do not establish its dependency contract.
+    let mut ancestor = Some(host);
+    while let Some(node) = ancestor {
+        if ui.tree().node(node)?.parent_layout.is_some() {
+            return Err(Error::UnsafeContainerQuery);
+        }
+        ancestor = ui.tree().node(node)?.parent;
+    }
     if full_size_boundary(style) || external_inline_extent(ui, rules, host, style)? {
         return Ok(());
     }

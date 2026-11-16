@@ -181,7 +181,7 @@ impl ReactiveUi {
             for binding in &source.bindings {
                 let binding = &self.bindings[binding];
                 let layout = match binding.field {
-                    Field::Style | Field::Measure | Field::Image => true,
+                    Field::Style | Field::Measure | Field::ParentLayout | Field::Image => true,
                     #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
                     Field::Text => true,
                     _ => false,
@@ -321,6 +321,7 @@ impl UiTree {
             layout_nodes: self.layout_nodes.clone(),
             layout_written: self.layout_written.clone(),
             out_of_flow: self.out_of_flow.clone(),
+            custom_parents: self.custom_parents.clone(),
             geometry_dirty: self.geometry_dirty.clone(),
             property_dirty: self.property_dirty.clone(),
             local_dirty: self.local_dirty.clone(),

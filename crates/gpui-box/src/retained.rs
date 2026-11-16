@@ -40,12 +40,17 @@ mod layout_dependencies;
 mod layout_publication;
 mod measure;
 mod paint_store;
+pub mod parent_layout;
 pub use paint_store::{FrameBuildPolicy, FrameBuildStats, HitTestStats, PaintItems, PaintUpdates};
 #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
 pub mod paragraph;
 #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
 pub mod text;
 pub use measure::{CustomMeasureSnapshot, ImageIntrinsicSize, LayoutStats, MeasureSnapshot};
+pub use parent_layout::{
+    ChildLayoutInput, ChildLayoutResult, ParentLayout, ParentLayoutChildren, ParentLayoutInput,
+    ParentLayoutOutput, ParentLayoutSnapshot, ParentPlacement,
+};
 mod primitive;
 mod properties;
 pub use primitive::{BoxShadow, QuadDecoration, ShadowGeometry};
@@ -203,6 +208,7 @@ pub enum Patch {
     Scroll(NodeId, [f32; 2]),
     Opacity(NodeId, f32),
     Measure(NodeId, Option<MeasureSnapshot>),
+    ParentLayout(NodeId, Option<ParentLayoutSnapshot>),
     Decoration(NodeId, QuadDecoration),
     Shadows(NodeId, Arc<[BoxShadow]>),
     Image(NodeId, Option<ImageResource>),
@@ -226,6 +232,7 @@ impl Patch {
             | Self::Scroll(id, _)
             | Self::Opacity(id, _)
             | Self::Measure(id, _)
+            | Self::ParentLayout(id, _)
             | Self::Decoration(id, _)
             | Self::Shadows(id, _)
             | Self::Image(id, _) => *id,
@@ -272,6 +279,10 @@ impl Transaction {
     /// Replace an owned intrinsic input. Only leaf render nodes accept measures.
     pub fn measure(&mut self, node: NodeId, snapshot: Option<MeasureSnapshot>) {
         self.patches.push(Patch::Measure(node, snapshot));
+    }
+    /// Replace a pure owned parent algorithm. Equal snapshot handles coalesce.
+    pub fn parent_layout(&mut self, node: NodeId, snapshot: Option<ParentLayoutSnapshot>) {
+        self.patches.push(Patch::ParentLayout(node, snapshot));
     }
     pub fn decoration(&mut self, node: NodeId, value: QuadDecoration) {
         self.patches.push(Patch::Decoration(node, value));
@@ -325,6 +336,7 @@ pub enum Error {
     InvalidMeasure,
     MeasuredNodeHasChildren,
     InvalidConstraintBox,
+    InvalidParentLayout,
     UnsafeConstraintBuilder,
     InvalidEnvironment,
     InvalidStyle,
@@ -346,7 +358,11 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {}
 impl From<taffy::TaffyError> for Error {
     fn from(error: taffy::TaffyError) -> Self {
-        Self::Layout(error.to_string())
+        if error == taffy::TaffyError::InvalidCustomLayout {
+            Self::InvalidParentLayout
+        } else {
+            Self::Layout(error.to_string())
+        }
     }
 }
 
@@ -369,6 +385,7 @@ struct Node {
     scroll: [f32; 2],
     opacity: f32,
     measure: Option<MeasureSnapshot>,
+    parent_layout: Option<ParentLayoutSnapshot>,
     decoration: QuadDecoration,
     shadows: Arc<[BoxShadow]>,
     image: Option<ImageResource>,
@@ -396,6 +413,7 @@ pub struct UiTree {
     layout_nodes: std::collections::HashMap<taffy::NodeId, NodeId>,
     layout_written: std::collections::BTreeSet<NodeId>,
     out_of_flow: std::collections::BTreeSet<NodeId>,
+    custom_parents: std::collections::BTreeSet<NodeId>,
     geometry_dirty: std::collections::BTreeSet<NodeId>,
     property_dirty: dirty_nodes::DirtyNodes,
     local_dirty: dirty_nodes::DirtyNodes,
@@ -421,6 +439,7 @@ struct Pending {
     scroll: Option<[f32; 2]>,
     opacity: Option<f32>,
     measure: Option<Option<MeasureSnapshot>>,
+    parent_layout: Option<Option<ParentLayoutSnapshot>>,
     decoration: Option<QuadDecoration>,
     shadows: Option<Arc<[BoxShadow]>>,
     image: Option<Option<ImageResource>>,
@@ -489,6 +508,7 @@ impl UiTree {
                     scroll: [0.0; 2],
                     opacity: 1.0,
                     measure: None,
+                    parent_layout: None,
                     decoration: QuadDecoration::default(),
                     shadows: Arc::from([]),
                     image: None,
@@ -507,6 +527,7 @@ impl UiTree {
             layout_nodes: [(id, root)].into(),
             layout_written: Default::default(),
             out_of_flow,
+            custom_parents: Default::default(),
             geometry_dirty: Default::default(),
             property_dirty: Default::default(),
             local_dirty: Default::default(),
@@ -612,6 +633,9 @@ impl UiTree {
         {
             return Err(Error::InvalidConstraintBox);
         }
+        if self.node(parent)?.parent_layout.is_some() && style.position.is_out_of_flow() {
+            return Err(Error::InvalidParentLayout);
+        }
         let parent_layout = self.node(parent)?.layout;
         let next = self
             .revision
@@ -652,6 +676,7 @@ impl UiTree {
             scroll: [0.0; 2],
             opacity: 1.0,
             measure: None,
+            parent_layout: None,
             decoration: QuadDecoration::default(),
             shadows: Arc::from([]),
             image: None,
@@ -845,6 +870,7 @@ impl UiTree {
                         }
                         entry.measure = Some(snapshot);
                     }
+                    Patch::ParentLayout(_, snapshot) => entry.parent_layout = Some(snapshot),
                     Patch::Decoration(_, decoration) => {
                         decoration.validate()?;
                         entry.decoration = Some(decoration);
@@ -919,6 +945,15 @@ impl UiTree {
             {
                 return Err(Error::MeasuredNodeHasChildren);
             }
+            parent_layout::validate_node(
+                entry.style.as_deref().unwrap_or(&node.style),
+                entry.measure.as_ref().unwrap_or(&node.measure).is_some(),
+                entry
+                    .parent_layout
+                    .as_ref()
+                    .unwrap_or(&node.parent_layout)
+                    .is_some(),
+            )?;
             let style_changed = entry
                 .style
                 .as_ref()
@@ -953,7 +988,11 @@ impl UiTree {
             let measure_changed = entry
                 .measure
                 .as_ref()
-                .is_some_and(|value| *value != node.measure);
+                .is_some_and(|value| *value != node.measure)
+                || entry
+                    .parent_layout
+                    .as_ref()
+                    .is_some_and(|value| *value != node.parent_layout);
             if style_changed
                 || order_changed
                 || color_changed
@@ -987,6 +1026,31 @@ impl UiTree {
             }
             Ok(&node_for(id)?.style)
         };
+        let final_custom = |id| -> Result<bool, Error> {
+            if let Ok(index) = changed.binary_search_by_key(&id, |change| change.0)
+                && let Some(value) = &changed[index].1.parent_layout
+            {
+                return Ok(value.is_some());
+            }
+            Ok(node_for(id)?.parent_layout.is_some())
+        };
+        for (id, ..) in &changed {
+            let node = node_for(*id)?;
+            if final_custom(*id)?
+                && node
+                    .children
+                    .iter()
+                    .any(|child| final_style(*child).is_ok_and(|s| s.position.is_out_of_flow()))
+            {
+                return Err(Error::InvalidParentLayout);
+            }
+            if let Some(parent) = node.parent
+                && final_custom(parent)?
+                && final_style(*id)?.position.is_out_of_flow()
+            {
+                return Err(Error::InvalidParentLayout);
+            }
+        }
         // Layout protocol changes validate the complete coalesced batch.
         // This also permits switching parent and child protocols atomically.
         for (id, _, style_changed, ..) in &changed {
@@ -1091,6 +1155,11 @@ impl UiTree {
                     .map(|style| *style)
                     .unwrap_or_else(|| node.style.clone());
                 let snapshot = entry.measure.unwrap_or_else(|| node.measure.clone());
+                let parent_written = entry.parent_layout.is_some();
+                let parent_layout = entry
+                    .parent_layout
+                    .unwrap_or_else(|| node.parent_layout.clone());
+                let parent_changed = parent_written || node.parent_layout != parent_layout;
                 let layout = node.layout;
                 self.full_extract_required |= node.style.display != style.display;
                 self.layout
@@ -1109,6 +1178,20 @@ impl UiTree {
                         .set_node_context(layout, snapshot.clone())
                         .expect("prepared Taffy context");
                 }
+                if parent_changed {
+                    self.layout
+                        .set_custom_layout(
+                            layout,
+                            parent_layout.as_ref().map(ParentLayoutSnapshot::to_taffy),
+                        )
+                        .expect("prepared parent algorithm");
+                    if parent_layout.is_some() {
+                        self.custom_parents.insert(id);
+                    } else {
+                        self.custom_parents.remove(&id);
+                    }
+                }
+                self.node_mut(id).parent_layout = parent_layout;
                 self.node_mut(id).style = style;
                 self.node_mut(id).measure = snapshot;
                 self.layout_dirty = true;

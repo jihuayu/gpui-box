@@ -300,7 +300,7 @@ fn tight_dimensions(bounds: SizeBounds) -> Size<Option<f32>> {
 // CSS Flex/Grid parents normally resolve preferred sizing keywords for their
 // items. This parent protocol has its own child entry and must perform the same
 // resolution before the ordinary child algorithm, without changing its style.
-fn layout_child(tree: &mut impl LayoutPartialTree, child: NodeId, mut inputs: LayoutInput) -> LayoutOutput {
+pub(crate) fn layout_child(tree: &mut impl LayoutPartialTree, child: NodeId, mut inputs: LayoutInput) -> LayoutOutput {
     let style = tree.get_core_container_style(child);
     let size = style.size();
     if style.box_generation_mode() == crate::BoxGenerationMode::None

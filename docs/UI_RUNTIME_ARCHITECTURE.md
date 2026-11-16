@@ -183,6 +183,17 @@ min/max/available/percentage basis；InlineSize 约束盒在共享依赖证明�
 也不能掩盖依赖方向失效。preview 在 callback 前释放，嵌套不按深度保留整树。
 详见 [inline 构建契约](RETAINED_INLINE_CONSTRAINT_BUILDERS.md)。通用 full-axis content-sized builder、
 自动依赖调度和增量规划仍未实现，不能称为完整 Flutter RenderBox。
+新增 `ParentLayoutSnapshot` 与纯 `ParentLayout` 父协议，通过 typed property 安装；
+公共输入包含 content 分配、available 和独立 percentage basis，算法只能测量真实
+直接子树并返回完整 child constraints/placement。子代可以继续使用真实 Flex、文字
+或其他自定义父布局，content height、baseline、overflow 和后续兄弟进入同一发布
+链路。已知维度、完整摆放、有限几何和非法直接 OOF/leaf 冲突均校验。项目内 Taffy
+新增稀疏 delegate dispatch；自定义 invocation 禁用丢失 baseline/vertical basis 的
+ComputeSize cache，保留完整布局缓存。dirty custom layout 用私有 Taffy clone 保证
+失败不污染已发布布局；普通树仍原地布局。已有 CSS ContainerQuery/inline proof
+不能证明任意策略的依赖，因此查询祖先含 custom allocator 时明确拒绝。通用
+结构构建、自动依赖、精确测量缓存和增量回滚仍开放；这是父布局原语，不是完整
+RenderBox。详见 [自定义父布局契约与 ADR](RETAINED_CUSTOM_PARENT_LAYOUT.md)。
 详见 [嵌套协议](RETAINED_NESTED_CONSTRAINT_BOX.md) 与
 [构建器契约和决策](RETAINED_CONSTRAINT_BUILDERS.md)。
 缓存新增每节点四个 float 的约束

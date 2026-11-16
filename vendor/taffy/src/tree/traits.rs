@@ -202,6 +202,13 @@ pub trait LayoutPartialTree: TraversePartialTree {
     /// Compute the specified node's size or full layout given the specified constraints
     fn compute_child_layout(&mut self, node_id: NodeId, inputs: LayoutInput) -> LayoutOutput;
 
+    /// Exact direct-child measurement for an arbitrary parent. Implementations
+    /// with lossy size-only caches should bypass them and resolve preferred
+    /// sizing keywords here, preserving baseline metadata and percentage bases.
+    fn compute_custom_child_layout(&mut self, node: NodeId, inputs: LayoutInput) -> LayoutOutput {
+        self.compute_child_layout(node, inputs)
+    }
+
     /// Records the final child-slot input of a parent-owned constraint box.
     /// This is not an intrinsic probe or a child layout result. `None` retires
     /// the observation when the box is hidden. Other tree adapters may ignore it.

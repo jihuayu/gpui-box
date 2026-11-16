@@ -35,7 +35,8 @@ fn prove(
     memo: &mut std::collections::HashMap<NodeId, bool>,
 ) -> Result<bool, Error> {
     use taffy::style::{ExpandedDimension as D, ExpandedLengthPercentageAuto as A};
-    if style.aspect_ratio.is_some()
+    if context.tree().node(node)?.parent_layout.is_some()
+        || style.aspect_ratio.is_some()
         || style.position.is_out_of_flow()
         || style.min_size.width.is_sizing_keyword()
         || style.max_size.width.is_sizing_keyword()
@@ -53,6 +54,9 @@ fn prove(
     let Some(parent) = context.tree().node(node)?.parent else {
         return Ok(definite);
     };
+    if context.tree().node(parent)?.parent_layout.is_some() {
+        return Ok(false);
+    }
     let parents = context.styles(parent)?;
     // CSS Flex cannot grow/shrink an item's exact min=max border-box width.
     // With numeric inline insets its content width is independent of parent

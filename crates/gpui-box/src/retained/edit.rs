@@ -106,6 +106,7 @@ impl TreeEdit<'_> {
                 scroll: [0.0; 2],
                 opacity: 1.0,
                 measure: None,
+                parent_layout: None,
                 decoration: QuadDecoration::default(),
                 shadows: Arc::from([]),
                 image: None,
@@ -331,6 +332,9 @@ impl TreeEdit<'_> {
         for (id, entry, _, _, _, _, _, _, _, _, _) in &changes {
             if let Some(measure) = &entry.measure {
                 self.node_mut(*id)?.measure = measure.clone();
+            }
+            if let Some(snapshot) = &entry.parent_layout {
+                self.node_mut(*id)?.parent_layout = snapshot.clone();
             }
             if let Some(style) = &entry.style {
                 self.node_mut(*id)?.style = (**style).clone();

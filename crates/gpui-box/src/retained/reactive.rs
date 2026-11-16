@@ -53,6 +53,7 @@ enum Field {
     Scroll,
     Opacity,
     Measure,
+    ParentLayout,
     Decoration,
     Shadows,
     Image,
@@ -134,6 +135,15 @@ impl Property<Option<MeasureSnapshot>> {
             node,
             field: Field::Measure,
             write: |node, value, tx| tx.measure(node, value.clone()),
+        }
+    }
+}
+impl Property<Option<ParentLayoutSnapshot>> {
+    pub fn parent_layout(node: NodeId) -> Self {
+        Self {
+            node,
+            field: Field::ParentLayout,
+            write: |node, value, tx| tx.parent_layout(node, value.clone()),
         }
     }
 }

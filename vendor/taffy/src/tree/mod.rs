@@ -5,6 +5,10 @@
 
 // Submodules
 mod cache;
+#[cfg(feature = "taffy_tree")]
+mod custom_layout;
+#[cfg(feature = "taffy_tree")]
+pub use custom_layout::{CustomLayout, CustomLayoutChildren, CustomLayoutInput, CustomLayoutOutput, CustomPlacement};
 mod layout;
 mod node;
 pub mod traits;

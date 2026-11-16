@@ -20,6 +20,145 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
     ParagraphSnapshot::shape(system, text, font("Noto Sans CJK SC"), 16.0, 32.0).unwrap()
 }
 
+#[derive(Debug)]
+struct ParagraphParent;
+impl ParentLayout for ParagraphParent {
+    fn layout(
+        &self,
+        input: ParentLayoutInput,
+        children: &mut dyn ParentLayoutChildren,
+    ) -> Result<ParentLayoutOutput, Error> {
+        let width = input.known_size.width.or(match input.available.width {
+            LayoutAvailableSpace::Definite(v) => Some(v),
+            _ => None,
+        });
+        let slot = ChildLayoutInput {
+            constraints: LayoutConstraints::new(
+                input.available.width,
+                LayoutAvailableSpace::Unbounded,
+            )
+            .with_bounds(
+                width
+                    .map(|w| BoxConstraints::new([w, 0.0], [w, f32::INFINITY]))
+                    .unwrap_or(BoxConstraints::UNBOUNDED),
+            ),
+            percentage_basis: input.percentage_basis,
+        };
+        let measured = children.measure(0, slot)?;
+        Ok(ParentLayoutOutput {
+            size: [
+                input.known_size.width.unwrap_or(measured.size[0]),
+                input.known_size.height.unwrap_or(measured.size[1]),
+            ],
+            baseline: measured.baseline,
+            placements: vec![ParentPlacement {
+                child: 0,
+                input: slot,
+                origin: [0.0; 2],
+            }],
+        })
+    }
+}
+
+#[test]
+fn custom_parent_allocates_real_paragraph_and_matches_independent_flex_glyph_pixels() {
+    let system = text_system();
+    let paragraph = shape(&system, "one two three four five six 中文段落");
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let text = TextPaint {
+        resource: raster.prepare(paragraph.clone(), 1.0).unwrap(),
+        color: 0xffffffff,
+    };
+    let column = LayoutStyle::column().size(LayoutDimension::Percent(1.0), LayoutDimension::Auto);
+    let boundary = column
+        .clone()
+        .padding(LayoutEdges::all(LayoutLength::Px(5.0)));
+    let footer_style = LayoutStyle::row()
+        .size(LayoutDimension::Px(20.0), LayoutDimension::Px(10.0))
+        .flex_shrink(0.0);
+    let mut tree = UiTree::new_layout(column.clone(), 0).unwrap();
+    let host = tree
+        .append_layout(tree.root(), boundary.clone(), 0)
+        .unwrap();
+    let leaf = tree.append_layout(host, LayoutStyle::row(), 0).unwrap();
+    let footer = tree
+        .append_layout(tree.root(), footer_style.clone(), 0xff0000ff)
+        .unwrap();
+    let mut tx = Transaction::default();
+    tx.text(leaf, Some(text.clone()));
+    tx.parent_layout(host, Some(ParentLayoutSnapshot::new(ParagraphParent)));
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    fn pixels(frame: FramePacket) -> Vec<u8> {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [200, 700],
+                scale: 1.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 4 * 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(4096).unwrap() {}
+        job.into_frame().unwrap().pixels().to_vec()
+    }
+    let mut old = None;
+    for width in [50.0, 90.0, 140.0, 50.0] {
+        let constraints = LayoutConstraints::new(
+            LayoutAvailableSpace::Definite(width + 10.0),
+            LayoutAvailableSpace::Unbounded,
+        );
+        let frame = tree.frame_in_viewport(constraints, [200.0, 700.0]).unwrap();
+        let expected = paragraph.layout(Some(width)).unwrap();
+        assert_eq!(
+            tree.layout_result(leaf).unwrap().size,
+            [width, expected.size[1]]
+        );
+        assert_eq!(
+            tree.layout_result(host).unwrap().size,
+            [width + 10.0, expected.size[1] + 10.0]
+        );
+        assert_eq!(
+            tree.layout_result(host).unwrap().baseline,
+            Some(paragraph.first_baseline() + 5.0)
+        );
+        assert_eq!(
+            tree.layout_result(footer).unwrap().location,
+            [0.0, expected.size[1] + 10.0]
+        );
+        let actual = pixels(frame.clone());
+        let mut full = UiTree::new_layout(column.clone(), 0).unwrap();
+        full.set_frame_build_policy(FrameBuildPolicy::Full);
+        let host = full
+            .append_layout(full.root(), boundary.clone(), 0)
+            .unwrap();
+        let leaf = full.append_layout(host, LayoutStyle::row(), 0).unwrap();
+        full.append_layout(full.root(), footer_style.clone(), 0xff0000ff)
+            .unwrap();
+        let mut tx = Transaction::default();
+        tx.text(leaf, Some(text.clone()));
+        full.commit(tx, BackendCapabilities::default()).unwrap();
+        assert_eq!(
+            actual,
+            pixels(full.frame_in_viewport(constraints, [200.0, 700.0]).unwrap())
+        );
+        assert!(
+            actual
+                .chunks_exact(4)
+                .any(|p| p[0] > 0 && p[1] > 0 && p[2] > 0 && p[3] > 0)
+        );
+        if old.is_none() {
+            old = Some((frame, actual));
+        }
+    }
+    let (old, original) = old.unwrap();
+    drop(tree);
+    drop(system);
+    drop(raster);
+    assert_eq!(pixels(old), original);
+}
+
 #[test]
 fn inline_constraint_builder_publishes_real_text_auto_height_and_following_sibling_pixels() {
     use gpui_box::retained::logical::LogicalUi;

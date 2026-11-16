@@ -95,29 +95,41 @@ impl UiTree {
         let mut layout_writes = 0;
         let mut changed_layout_writes = 0;
         let nodes = &self.layout_nodes;
-        let written = &mut self.layout_written;
-        self.layout
-            .compute_layout_with_bounds_and_measure_and_observer(
-                root,
-                Size {
-                    width: constraints.width.to_taffy()?,
-                    height: constraints.height.to_taffy()?,
-                },
-                constraints.bounds.to_taffy()?,
-                |inputs, _, snapshot, style| {
-                    measure::layout_leaf(inputs, snapshot.as_deref(), style, &mut stats)
-                },
-                |id, previous, current| {
-                    stats_layout_write(
-                        &mut layout_writes,
-                        &mut changed_layout_writes,
-                        previous != current,
-                    );
-                    if previous != current {
-                        written.insert(nodes[&id]);
-                    }
-                },
-            )?;
+        // User parent algorithms may fail after measuring real descendants.
+        // Keep persistent caches/geometry and observer writes private on this path.
+        let mut candidate = (!self.custom_parents.is_empty()).then(|| self.layout.clone());
+        let mut staged_written = std::collections::BTreeSet::new();
+        let written = if candidate.is_some() {
+            &mut staged_written
+        } else {
+            &mut self.layout_written
+        };
+        let layout = candidate.as_mut().unwrap_or(&mut self.layout);
+        layout.compute_layout_with_bounds_and_measure_and_observer(
+            root,
+            Size {
+                width: constraints.width.to_taffy()?,
+                height: constraints.height.to_taffy()?,
+            },
+            constraints.bounds.to_taffy()?,
+            |inputs, _, snapshot, style| {
+                measure::layout_leaf(inputs, snapshot.as_deref(), style, &mut stats)
+            },
+            |id, previous, current| {
+                stats_layout_write(
+                    &mut layout_writes,
+                    &mut changed_layout_writes,
+                    previous != current,
+                );
+                if previous != current {
+                    written.insert(nodes[&id]);
+                }
+            },
+        )?;
+        if let Some(candidate) = candidate {
+            self.layout = candidate;
+        }
+        self.layout_written.extend(staged_written);
         stats.layout_writes = layout_writes;
         stats.changed_layout_writes = changed_layout_writes;
         // Cached out-of-flow raw positions can still need new parent-local
