@@ -54,11 +54,22 @@ impl Length {
     }
 }
 
+/// Preferred box size or flex basis. Pixels are logical units; percentages
+/// are fractions (0.5 = 50%). Intrinsic keywords use the layout algorithm's
+/// content measurement; they are not aliases for unbounded available space.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Dimension {
     Px(f32),
     Percent(f32),
     Auto,
+    MinContent,
+    MaxContent,
+    FitContent,
+    FitContentPx(f32),
+    FitContentPercent(f32),
+    Stretch,
+    /// Content-based flex basis. Rejected for width/height; use Auto there.
+    Content,
 }
 
 impl Dimension {
@@ -71,18 +82,51 @@ impl Dimension {
     pub const fn auto() -> Self {
         Self::Auto
     }
+    pub const fn min_content() -> Self {
+        Self::MinContent
+    }
+    pub const fn max_content() -> Self {
+        Self::MaxContent
+    }
+    pub const fn fit_content() -> Self {
+        Self::FitContent
+    }
+    pub const fn fit_content_px(limit: f32) -> Self {
+        Self::FitContentPx(limit)
+    }
+    pub const fn fit_content_percent(limit: f32) -> Self {
+        Self::FitContentPercent(limit)
+    }
+    pub const fn stretch() -> Self {
+        Self::Stretch
+    }
+    pub const fn content() -> Self {
+        Self::Content
+    }
 
     fn to_taffy(self) -> taffy::Dimension {
         match self {
             Self::Px(value) => taffy::Dimension::length(value),
             Self::Percent(value) => taffy::Dimension::percent(value),
             Self::Auto => taffy::Dimension::auto(),
+            Self::MinContent => taffy::Dimension::min_content(),
+            Self::MaxContent => taffy::Dimension::max_content(),
+            Self::FitContent => taffy::Dimension::fit_content(),
+            Self::FitContentPx(limit) => taffy::Dimension::fit_content_px(limit),
+            Self::FitContentPercent(limit) => taffy::Dimension::fit_content_percent(limit),
+            Self::Stretch => taffy::Dimension::stretch(),
+            Self::Content => taffy::Dimension::content(),
         }
     }
 
     fn validate(self) -> Result<(), Error> {
         match self {
-            Self::Px(value) | Self::Percent(value) if !value.is_finite() || value < 0.0 => {
+            Self::Px(value)
+            | Self::Percent(value)
+            | Self::FitContentPx(value)
+            | Self::FitContentPercent(value)
+                if !value.is_finite() || value < 0.0 =>
+            {
                 Err(Error::InvalidStyle)
             }
             _ => Ok(()),
@@ -418,7 +462,9 @@ pub struct LayoutStyle {
     pub align_self: AlignSelf,
     pub align_content: AlignContent,
     pub justify_content: JustifyContent,
+    /// Physical gaps: width = column gap, height = row gap.
     pub gap: LayoutSize<Length>,
+    /// Optional flex-axis override: width = main gap, height = cross gap.
     pub main_cross_gap: Option<LayoutSize<Length>>,
     pub overflow: LayoutSize<Overflow>,
     pub box_sizing: BoxSizing,
@@ -487,6 +533,15 @@ impl LayoutStyle {
         self.max_size = LayoutSize::new(width, height);
         self
     }
+    /// Locks the horizontal inline extent through width/min/max. Height stays
+    /// independently authored, including Auto. Query containers also require
+    /// BorderBox sizing and fixed horizontal insets that fit this extent.
+    pub fn fixed_inline_size(mut self, width: f32) -> Self {
+        self.size.width = Dimension::Px(width);
+        self.min_size.width = Length::Px(width);
+        self.max_size.width = Length::Px(width);
+        self
+    }
     pub fn direction(mut self, direction: LayoutDirection) -> Self {
         self.direction = direction;
         self
@@ -511,20 +566,20 @@ impl LayoutStyle {
         self.flex_shrink = shrink;
         self
     }
-    pub fn gap(mut self, main: Length, cross: Length) -> Self {
-        // `gap` is expressed as physical row/column gaps, like CSS. Use
-        // `main_cross_gap` when authoring a direction-independent flex helper.
-        self.gap = LayoutSize::new(main, cross);
+    /// Physical CSS gaps: row is vertical, column is horizontal, independent
+    /// of flex direction. Use main_cross_gap for a flex-axis-relative helper.
+    pub fn gap(mut self, row: Length, column: Length) -> Self {
+        self.gap = LayoutSize::new(column, row);
         self.main_cross_gap = None;
         self
     }
     pub fn row_gap(mut self, value: Length) -> Self {
-        self.gap.width = value;
+        self.gap.height = value;
         self.main_cross_gap = None;
         self
     }
     pub fn column_gap(mut self, value: Length) -> Self {
-        self.gap.height = value;
+        self.gap.width = value;
         self.main_cross_gap = None;
         self
     }
@@ -572,6 +627,9 @@ impl LayoutStyle {
         self.max_size.height.validate(true, false)?;
         self.size.width.validate()?;
         self.size.height.validate()?;
+        if self.size.width == Dimension::Content || self.size.height == Dimension::Content {
+            return Err(Error::InvalidStyle);
+        }
         self.flex_basis.validate()?;
         let gap = self.main_cross_gap.unwrap_or(self.gap);
         gap.width.validate(false, false)?;
@@ -669,10 +727,10 @@ impl LayoutStyle {
                 JustifyContent::SpaceAround => taffy::JustifyContent::SPACE_AROUND,
             },
             gap: {
-                let gap = self.main_cross_gap.unwrap_or(self.gap);
-                let physical = match self.flex_direction {
-                    FlexDirection::Row | FlexDirection::RowReverse => gap,
-                    FlexDirection::Column | FlexDirection::ColumnReverse => {
+                let physical = match (self.main_cross_gap, self.flex_direction) {
+                    (None, _) => self.gap,
+                    (Some(gap), FlexDirection::Row | FlexDirection::RowReverse) => gap,
+                    (Some(gap), FlexDirection::Column | FlexDirection::ColumnReverse) => {
                         LayoutSize::new(gap.height, gap.width)
                     }
                 };
@@ -706,6 +764,8 @@ impl LayoutStyle {
 
 #[cfg(test)]
 mod baseline_tests;
+#[cfg(test)]
+mod sizing_tests;
 
 #[cfg(test)]
 mod tests {

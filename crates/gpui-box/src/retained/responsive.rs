@@ -4,6 +4,7 @@ use super::{
     reactive::{Property, Signal},
     *,
 };
+mod layout_queries;
 
 /// Layout, application zoom and device scale are separate host inputs. Unknown
 /// input capabilities stay unknown; this is not a mobile/desktop classifier.
@@ -226,9 +227,9 @@ pub enum LayoutQuery {
     ContainerInline(NodeId),
 }
 
-/// Viewport-responsive bindings using only framework-owned layout types.
-/// Container queries stay on the bounded legacy adapter until their public
-/// query-container contract is moved to the same engine-independent layer.
+/// Responsive bindings using framework-owned layout types. Container queries
+/// use proven fixed inline extents, allow content-driven heights and resolve
+/// nested dependencies in bounded topological stages.
 #[derive(Default)]
 pub struct LayoutResponsiveBindings {
     bindings: Vec<LayoutBinding>,
@@ -262,6 +263,10 @@ impl LayoutResponsiveBindings {
             return Err(Error::BindingConflict);
         }
         ui.read(source)?.validate()?;
+        self.validate_layout_rules(
+            ui,
+            Some((source, target, LayoutQuery::ViewportInline, &styles)),
+        )?;
         ui.bind(source, Property::layout_style(target))?;
         self.bindings.push(LayoutBinding {
             source,
@@ -272,10 +277,9 @@ impl LayoutResponsiveBindings {
         Ok(())
     }
 
-    /// Binds a style rule to the resolved inline size of a fixed query
-    /// container. The container must be outside the target subtree so the
-    /// bounded two-pass algorithm cannot feed a descendant's size back into
-    /// its own ancestor.
+    /// Binds to a fixed inline query extent. The target must be a strict render
+    /// descendant. Nested rules are evaluated after rules that can affect their
+    /// query host; auto height is allowed, inline feedback is rejected.
     pub fn bind_container(
         &mut self,
         ui: &mut LogicalUi,
@@ -292,10 +296,15 @@ impl LayoutResponsiveBindings {
             return Err(Error::BindingConflict);
         }
         ui.read(source)?.validate()?;
-        let tree = ui.reactive().tree();
-        if target == container || Self::is_ancestor(tree, target, container)? {
-            return Err(Error::UnsafeContainerQuery);
-        }
+        self.validate_layout_rules(
+            ui,
+            Some((
+                source,
+                target,
+                LayoutQuery::ContainerInline(container),
+                &styles,
+            )),
+        )?;
         ui.bind(source, Property::layout_style(target))?;
         self.bindings.push(LayoutBinding {
             source,
@@ -315,6 +324,8 @@ impl LayoutResponsiveBindings {
         self.bindings.retain(|binding| {
             ui.read(binding.source).is_ok() && ui.reactive().tree().node(binding.target).is_ok()
         });
+        self.validate_layout_rules(ui, None)?;
+        let stages = self.layout_query_stages(ui.reactive().tree())?;
         let values = self
             .bindings
             .iter()
@@ -329,38 +340,50 @@ impl LayoutResponsiveBindings {
             })
             .collect::<Vec<_>>();
         let changed_styles = Self::apply(ui, values)?;
-        let mut frame = ui.frame(environment.layout_viewport)?;
-        let container_values = self
-            .bindings
-            .iter()
-            .filter_map(|binding| {
+        let first = ui.frame(environment.layout_viewport)?;
+        let mut result = ResponsiveFrame {
+            layout_runs: first.layout_runs,
+            layout_stats: first.layout_stats,
+            frame: first,
+            rules_examined: self.bindings.len(),
+            changed_styles,
+        };
+        for stage in stages {
+            let mut values = Vec::with_capacity(stage.len());
+            for index in stage {
+                let binding = &self.bindings[index];
                 let LayoutQuery::ContainerInline(container) = binding.query else {
-                    return None;
+                    unreachable!()
                 };
-                let result = ui.layout_result(container).ok()?;
-                let width = (result.size[0]
-                    - result.padding[0]
-                    - result.padding[1]
-                    - result.border[0]
-                    - result.border[1])
+                let tree = ui.reactive().tree();
+                let layout = tree.layout.layout(tree.node(container)?.layout)?;
+                let width = (layout.size.width
+                    - layout.padding.left
+                    - layout.padding.right
+                    - layout.border.left
+                    - layout.border.right
+                    - layout.scrollbar_size.width)
                     .max(0.0);
-                Some((
+                values.push((
                     binding.source,
                     binding.styles.select(width, environment.direction),
-                ))
-            })
-            .collect::<Vec<_>>();
-        let changed_container_styles = Self::apply(ui, container_values)?;
-        if changed_container_styles > 0 {
-            frame = ui.frame(environment.layout_viewport)?;
+                ));
+            }
+            let changed = Self::apply(ui, values)?;
+            result.changed_styles += changed;
+            if changed > 0 {
+                let frame = ui.frame(environment.layout_viewport)?;
+                result.layout_runs += frame.layout_runs;
+                result.layout_stats.leaf_layouts += frame.layout_stats.leaf_layouts;
+                result.layout_stats.measure_calls += frame.layout_stats.measure_calls;
+                result.layout_stats.layout_writes += frame.layout_stats.layout_writes;
+                result.layout_stats.changed_layout_writes +=
+                    frame.layout_stats.changed_layout_writes;
+                result.layout_stats.net_changed_nodes += frame.layout_stats.net_changed_nodes;
+                result.frame = frame;
+            }
         }
-        Ok(ResponsiveFrame {
-            layout_runs: frame.layout_runs,
-            layout_stats: frame.layout_stats,
-            frame,
-            rules_examined: self.bindings.len(),
-            changed_styles: changed_styles + changed_container_styles,
-        })
+        Ok(result)
     }
 
     fn is_ancestor(tree: &UiTree, ancestor: NodeId, descendant: NodeId) -> Result<bool, Error> {
@@ -378,10 +401,12 @@ impl LayoutResponsiveBindings {
         ui: &mut LogicalUi,
         values: Vec<(Signal<LayoutStyle>, LayoutStyle)>,
     ) -> Result<usize, Error> {
-        let changes = values
-            .into_iter()
-            .filter(|(source, value)| ui.read(*source).is_ok_and(|current| current != value))
-            .collect::<Vec<_>>();
+        let mut changes = vec![];
+        for (source, value) in values {
+            if ui.read(source)? != &value {
+                changes.push((source, value));
+            }
+        }
         if changes.is_empty() {
             return Ok(0);
         }
@@ -1173,6 +1198,7 @@ mod tests {
                 scope,
                 ui.root_render(),
                 LayoutStyle::row()
+                    .fixed_inline_size(80.0)
                     .size(LayoutDimension::px(80.0), LayoutDimension::px(40.0))
                     .padding(LayoutEdges::all(LayoutLength::px(10.0))),
                 0,

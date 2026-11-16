@@ -102,11 +102,28 @@ baseline 语义仍未完成；首水平基线的正式发布现已另行接入�
 成已实现能力。
 
 容器查询也已迁移出 Taffy 风格入口：`LayoutResponsiveBindings::bind_container`
-接受框架自己的 `LayoutQuery` 语义，在窗口样式应用和第一次布局后读取 query
-container 的 resolved content width，再做一次后代样式事务和最终布局。最多两次
-布局，不迭代到“碰巧稳定”；target 不能是 container 自身或 container 的祖先，
-否则返回 `UnsafeContainerQuery`。这提供了可复用的公共容器查询边界，但仍不
-支持 shrink-wrap 自依赖、复杂嵌套反馈、完整 CSS 条件规则或任意 `calc()`。
+接受框架自己的 `LayoutQuery` 语义，要求 target 为 host 的严格 render 后代，
+并验证 host 的 inline extent 独立于内容。`fixed_inline_size(width)` 设置相等的
+width/min-width/max-width，height 可以为 Auto；BorderBox、水平 padding/border
+和滚动条 gutter 必须固定且装入该宽度。仅固定 preferred width 不足以通过检查。
+host 若受其他 responsive rule 控制，该 producer 的当前 source 与每一个断点分支
+也必须满足证明，注册顺序不影响检查。每帧先复验拓扑/host，再更新 viewport 样式，
+然后按依赖图分阶段读取实际 content width（减去 padding/border/滚动条）、批量提交
+规则和布局。安全嵌套与自动高度现已支持，不采用迭代收敛；最多初始布局加每个变化
+依赖层一次，所有阶段的布局计数累加。中间包可能发布，最终消费者仍需原有 base
+revision 恢复；多个阶段不是一次原子结构事务。构图每帧检查规则对和祖先关系，尚未
+索引化。shrink-wrap/弹性 inline 宽度、完整 CSS 条件、结构自适应与通用反馈仍未实现。
+旧 `ResponsiveBindings` 保持原固定宽高、最多两阶段、拒绝嵌套依赖的迁移契约。
+
+公共 `Dimension` 现已提供 MinContent/MaxContent/FitContent/数值或百分比
+FitContent/Stretch，以及仅供 flex-basis 的 Content；min/max 字段仍使用 Length，
+没有 intrinsic min/max。物理 `gap(row,column)` 已修复为垂直 row gap、水平 column
+gap，不随方向交换；只有 `main_cross_gap` 按最终方向 lower。此前补偿了错误轴向的
+调用方需要相应调整。项目内 Taffy fork 补齐 in-flow 根节点尺寸关键词解析，修复
+Flex ContentSize 过早施加自身 min/max 的测量，以及内容决定的最终尺寸不能约束
+换行的问题；最终换行与后代百分比确定性分开，内容高度不会成为确定的百分比高度
+基准。详见 [尺寸与查询契约](RETAINED_FLEX_SIZING_QUERIES.md)。这些改动没有宣称
+性能提升；intrinsic 预查询有成本且可能改变内部缓存命中。
 
 布局输入/输出也开始脱离 Taffy 类型：`LayoutAvailableSpace`、
 `LayoutConstraints` 和 `LayoutResult` 是框架自己的约束与局部结果契约。

@@ -1483,6 +1483,172 @@ mod tests {
     }
 
     #[test]
+    fn root_sizing_keywords_preserve_constraints_other_axis_and_final_children() {
+        for display in [Display::Flex, Display::Grid, Display::Block] {
+            let mut tree: TaffyTree<()> = TaffyTree::new();
+            tree.disable_rounding();
+            let children: Vec<_> = [30.0, 40.0]
+                .into_iter()
+                .map(|width| {
+                    tree.new_leaf(Style {
+                        size: Size {
+                            width: length(width),
+                            height: length(10.0),
+                        },
+                        flex_shrink: 0.0,
+                        ..Style::default()
+                    })
+                    .unwrap()
+                })
+                .collect();
+            let style = Style {
+                display,
+                size: Size {
+                    width: Dimension::max_content(),
+                    height: length(32.0),
+                },
+                max_size: Size {
+                    width: length(55.0),
+                    height: auto(),
+                },
+                flex_wrap: crate::FlexWrap::Wrap,
+                grid_auto_flow: crate::GridAutoFlow::Column,
+                padding: crate::Rect {
+                    left: length(2.0),
+                    right: length(2.0),
+                    top: length(2.0),
+                    bottom: length(2.0),
+                },
+                ..Style::default()
+            };
+            let root = tree.new_with_children(style, &children).unwrap();
+            let viewport = Size {
+                width: AvailableSpace::Definite(100.0),
+                height: AvailableSpace::Definite(100.0),
+            };
+            tree.compute_layout(root, viewport).unwrap();
+            let expected_width = if display == Display::Block { 44.0 } else { 55.0 };
+            assert_eq!(
+                tree.layout(root).unwrap().size,
+                Size {
+                    width: expected_width,
+                    height: 32.0
+                },
+                "{display:?}"
+            );
+            // Cache reuse must preserve the final layout, not the preliminary query.
+            let before = *tree.layout(root).unwrap();
+            let child_before = *tree.layout(children[1]).unwrap();
+            tree.compute_layout(root, viewport).unwrap();
+            assert_eq!(*tree.layout(root).unwrap(), before);
+            assert_eq!(*tree.layout(children[1]).unwrap(), child_before);
+        }
+    }
+
+    #[test]
+    fn intrinsic_column_used_height_wraps_without_resolving_percentage_height() {
+        let wraps = [
+            crate::FlexWrap::Wrap,
+            #[cfg(feature = "flexbox_balance")]
+            crate::FlexWrap::Balance,
+        ];
+        for wrap in wraps {
+            let mut tree: TaffyTree<()> = TaffyTree::new();
+            tree.disable_rounding();
+            let children = [30.0, 40.0].map(|height| {
+                tree.new_leaf(Style {
+                    size: Size {
+                        width: length(10.0),
+                        height: length(height),
+                    },
+                    flex_shrink: 0.0,
+                    ..Style::default()
+                })
+                .unwrap()
+            });
+            let host = tree
+                .new_with_children(
+                    Style {
+                        size: Size {
+                            width: length(50.0),
+                            height: Dimension::max_content(),
+                        },
+                        min_size: Size {
+                            width: auto(),
+                            height: length(45.0),
+                        },
+                        max_size: Size {
+                            width: auto(),
+                            height: length(40.0),
+                        },
+                        flex_direction: crate::FlexDirection::Column,
+                        flex_wrap: wrap,
+                        align_items: crate::AlignItems::START,
+                        align_self: Some(crate::AlignSelf::START),
+                        ..Style::default()
+                    },
+                    &children,
+                )
+                .unwrap();
+            let root = tree
+                .new_with_children(
+                    Style {
+                        size: Size {
+                            width: length(100.0),
+                            height: length(100.0),
+                        },
+                        ..Style::default()
+                    },
+                    &[host],
+                )
+                .unwrap();
+            tree.compute_layout(root, Size::MAX_CONTENT).unwrap();
+            assert_eq!(tree.layout(host).unwrap().size.height, 45.0);
+            assert_eq!(tree.layout(children[1]).unwrap().location, crate::Point { x: 25.0, y: 0.0 });
+
+            // The same content-derived height is still indefinite for percentages.
+            tree.set_style(
+                children[0],
+                Style {
+                    size: Size {
+                        width: length(10.0),
+                        height: percent(0.5),
+                    },
+                    flex_shrink: 0.0,
+                    ..Style::default()
+                },
+            )
+            .unwrap();
+            let grandchild = tree
+                .new_leaf(Style {
+                    size: Size {
+                        width: length(10.0),
+                        height: length(30.0),
+                    },
+                    ..Style::default()
+                })
+                .unwrap();
+            tree.set_children(children[0], &[grandchild]).unwrap();
+            tree.set_children(host, &[children[0]]).unwrap();
+            tree.set_style(
+                host,
+                Style {
+                    size: Size {
+                        width: length(80.0),
+                        height: Dimension::max_content(),
+                    },
+                    flex_direction: crate::FlexDirection::Column,
+                    ..Style::default()
+                },
+            )
+            .unwrap();
+            tree.compute_layout(host, Size::MAX_CONTENT).unwrap();
+            assert_eq!(tree.layout(host).unwrap().size.height, 30.0);
+            assert_eq!(tree.layout(children[0]).unwrap().size.height, 30.0);
+        }
+    }
+
+    #[test]
     fn published_baselines_round_in_border_box_coordinates() {
         use crate::tree::Baselines;
         let mut taffy: TaffyTree<()> = TaffyTree::new();

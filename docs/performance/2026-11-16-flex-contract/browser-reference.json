@@ -1,0 +1,249 @@
+{
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36",
+  "fitContentFunctionSupported": false,
+  "passed": 24,
+  "failed": 0,
+  "cases": [
+    {
+      "name": "column-min-over-max-in-row",
+      "size": [
+        50,
+        45
+      ],
+      "positions": [
+        [
+          0,
+          0
+        ],
+        [
+          25,
+          0
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "column-min-over-max-in-column",
+      "size": [
+        50,
+        45
+      ],
+      "positions": [
+        [
+          0,
+          0
+        ],
+        [
+          25,
+          0
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "aspect-ratio",
+      "size": [
+        40,
+        20
+      ],
+      "positions": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          10
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "max-width-and-padding",
+      "size": [
+        55,
+        32
+      ],
+      "positions": [
+        [
+          2,
+          2
+        ],
+        [
+          2,
+          16
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "width-min-content",
+      "size": [
+        40,
+        20
+      ],
+      "positions": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          10
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "width-max-content",
+      "size": [
+        70,
+        10
+      ],
+      "positions": [
+        [
+          0,
+          0
+        ],
+        [
+          30,
+          0
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "width-fit-content",
+      "size": [
+        70,
+        10
+      ],
+      "positions": [
+        [
+          0,
+          0
+        ],
+        [
+          30,
+          0
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "width-stretch",
+      "size": [
+        100,
+        10
+      ],
+      "positions": [
+        [
+          0,
+          0
+        ],
+        [
+          30,
+          0
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "percentage-width-min-content-false",
+      "used": 30,
+      "percentage": 15,
+      "pass": true
+    },
+    {
+      "name": "percentage-width-min-content-true",
+      "used": 30,
+      "percentage": 15,
+      "pass": true
+    },
+    {
+      "name": "percentage-width-max-content-false",
+      "used": 30,
+      "percentage": 15,
+      "pass": true
+    },
+    {
+      "name": "percentage-width-max-content-true",
+      "used": 30,
+      "percentage": 15,
+      "pass": true
+    },
+    {
+      "name": "percentage-width-fit-content-false",
+      "used": 30,
+      "percentage": 15,
+      "pass": true
+    },
+    {
+      "name": "percentage-width-fit-content-true",
+      "used": 30,
+      "percentage": 15,
+      "pass": true
+    },
+    {
+      "name": "percentage-width-80px-false",
+      "used": 80,
+      "percentage": 40,
+      "pass": true
+    },
+    {
+      "name": "percentage-width-80px-true",
+      "used": 80,
+      "percentage": 40,
+      "pass": true
+    },
+    {
+      "name": "percentage-height-min-content-false",
+      "used": 30,
+      "percentage": 30,
+      "pass": true
+    },
+    {
+      "name": "percentage-height-min-content-true",
+      "used": 30,
+      "percentage": 30,
+      "pass": true
+    },
+    {
+      "name": "percentage-height-max-content-false",
+      "used": 30,
+      "percentage": 30,
+      "pass": true
+    },
+    {
+      "name": "percentage-height-max-content-true",
+      "used": 30,
+      "percentage": 30,
+      "pass": true
+    },
+    {
+      "name": "percentage-height-fit-content-false",
+      "used": 30,
+      "percentage": 30,
+      "pass": true
+    },
+    {
+      "name": "percentage-height-fit-content-true",
+      "used": 30,
+      "percentage": 30,
+      "pass": true
+    },
+    {
+      "name": "percentage-height-80px-false",
+      "used": 80,
+      "percentage": 40,
+      "pass": true
+    },
+    {
+      "name": "percentage-height-80px-true",
+      "used": 80,
+      "percentage": 40,
+      "pass": true
+    }
+  ],
+  "browserVersion": "145.0.7632.6"
+}

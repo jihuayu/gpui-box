@@ -248,16 +248,23 @@ pub fn compute_flexbox_layout(
     let box_sizing_adjustment =
         if style.box_sizing() == BoxSizing::ContentBox { padding_border_sum } else { Size::ZERO };
 
-    let min_size = style
+    let mut min_size = style
         .min_size()
         .maybe_resolve(parent_size, |val, basis| tree.calc(val, basis))
         .maybe_apply_aspect_ratio(aspect_ratio)
         .maybe_add(box_sizing_adjustment);
-    let max_size = style
+    let mut max_size = style
         .max_size()
         .maybe_resolve(parent_size, |val, basis| tree.calc(val, basis))
         .maybe_apply_aspect_ratio(aspect_ratio)
         .maybe_add(box_sizing_adjustment);
+    if inputs.sizing_mode == SizingMode::ContentSize {
+        // The parent applies this item's min/max after measuring its content
+        // contribution. Applying them here can change wrapping before the
+        // intrinsic contribution has been determined (unlike leaf sizing).
+        min_size = Size::NONE;
+        max_size = Size::NONE;
+    }
     let clamped_style_size = if inputs.sizing_mode == SizingMode::InherentSize {
         style
             .size()
@@ -337,6 +344,7 @@ fn compute_preliminary(tree: &mut impl LayoutFlexboxContainer, node: NodeId, inp
         inputs.known_dimensions_are_definite,
         parent_size,
         available_space,
+        inputs.sizing_mode,
     );
 
     // 9. Flex Layout Algorithm
@@ -583,6 +591,7 @@ fn compute_constants(
     known_dimensions_are_definite: Size<bool>,
     parent_size: Size<Option<f32>>,
     available_space: Size<AvailableSpace>,
+    sizing_mode: SizingMode,
 ) -> AlgoConstants {
     let dir = style.flex_direction();
     let is_row = dir.is_row();
@@ -661,16 +670,24 @@ fn compute_constants(
         is_balance,
         #[cfg(feature = "flexbox_balance")]
         line_count,
-        min_size: style
-            .min_size()
-            .maybe_resolve(parent_size, |val, basis| tree.calc(val, basis))
-            .maybe_apply_aspect_ratio(aspect_ratio)
-            .maybe_add(box_sizing_adjustment),
-        max_size: style
-            .max_size()
-            .maybe_resolve(parent_size, |val, basis| tree.calc(val, basis))
-            .maybe_apply_aspect_ratio(aspect_ratio)
-            .maybe_add(box_sizing_adjustment),
+        min_size: if sizing_mode == SizingMode::ContentSize {
+            Size::NONE
+        } else {
+            style
+                .min_size()
+                .maybe_resolve(parent_size, |val, basis| tree.calc(val, basis))
+                .maybe_apply_aspect_ratio(aspect_ratio)
+                .maybe_add(box_sizing_adjustment)
+        },
+        max_size: if sizing_mode == SizingMode::ContentSize {
+            Size::NONE
+        } else {
+            style
+                .max_size()
+                .maybe_resolve(parent_size, |val, basis| tree.calc(val, basis))
+                .maybe_apply_aspect_ratio(aspect_ratio)
+                .maybe_add(box_sizing_adjustment)
+        },
         border,
         gap,
         content_box_inset,
@@ -1183,10 +1200,10 @@ fn collect_flex_lines<'a>(
     available_space: Size<AvailableSpace>,
     flex_items: &'a mut Vec<FlexItem>,
 ) -> Vec<FlexLine<'a>> {
-    // Wrapping into multiple lines requires a definite main size. If the container's known main size
-    // is derived from its own content (and is thus indefinite) then all items are collected into a
-    // single flex line, matching how the container was sized under a min/max-content constraint.
-    if !constants.is_wrap || !constants.known_main_size_is_definite {
+    // A final used main size constrains line breaking even when content-derived
+    // and therefore indefinite for descendant percentage resolution. Keep that
+    // separate from the intrinsic query, where no used main size is known yet.
+    if !constants.is_wrap {
         let mut lines = new_vec_with_capacity(1);
         lines.push(FlexLine { items: flex_items.as_mut_slice(), cross_size: 0.0, offset_cross: 0.0 });
         lines
@@ -1196,14 +1213,18 @@ fn collect_flex_lines<'a>(
                 let available = available_space.main(constants.dir).into_option().unwrap_or(max_size);
                 // If the container's main size is not definite then it is at most the max main size,
                 // so the max size (and not the available space) is the limit that items wrap against.
-                let available = if constants.has_definite_main_size { available } else { available.min(max_size) };
+                let available = if constants.node_outer_size.main(constants.dir).is_some() {
+                    available
+                } else {
+                    available.min(max_size)
+                };
                 available.maybe_max(constants.min_size.main(constants.dir))
             }),
             // A column container's automatic main size is content-based, so definite available space
             // handed down by an ancestor does not constrain where its lines wrap. Automatic widths
             // resolve against available space, so rows do wrap against it.
             None if !constants.dir.is_row()
-                && !constants.has_definite_main_size
+                && constants.node_outer_size.main(constants.dir).is_none()
                 && available_space.main(constants.dir).is_definite() =>
             {
                 AvailableSpace::MaxContent
@@ -1277,31 +1298,30 @@ fn collect_balanced_flex_lines<'a>(
         return new_vec_with_capacity(0);
     }
 
-    // If the container's known main size is derived from its own content (and is thus indefinite)
-    // then items are balanced without a size limit, matching how the container was sized under a
-    // min/max-content constraint.
-    let main_axis_available_space = if constants.known_main_size_is_definite {
-        match constants.max_size.main(constants.dir) {
-            Some(max_size) => AvailableSpace::Definite({
-                let available = available_space.main(constants.dir).into_option().unwrap_or(max_size);
-                // If the container's main size is not definite then it is at most the max main size,
-                // so the max size (and not the available space) is the limit that items wrap against.
-                let available = if constants.has_definite_main_size { available } else { available.min(max_size) };
-                available.maybe_max(constants.min_size.main(constants.dir))
-            }),
-            // A column container's automatic main size is content-based, so definite available space
-            // handed down by an ancestor does not constrain where its lines wrap. Automatic widths
-            // resolve against available space, so rows do wrap against it.
-            None if !constants.dir.is_row()
-                && !constants.has_definite_main_size
-                && available_space.main(constants.dir).is_definite() =>
-            {
-                AvailableSpace::MaxContent
-            }
-            None => available_space.main(constants.dir),
+    // Final used dimensions constrain line breaking independently of whether
+    // percentages can resolve against them; see greedy line collection above.
+    let main_axis_available_space = match constants.max_size.main(constants.dir) {
+        Some(max_size) => AvailableSpace::Definite({
+            let available = available_space.main(constants.dir).into_option().unwrap_or(max_size);
+            // If the container's main size is not definite then it is at most the max main size,
+            // so the max size (and not the available space) is the limit that items wrap against.
+            let available = if constants.node_outer_size.main(constants.dir).is_some() {
+                available
+            } else {
+                available.min(max_size)
+            };
+            available.maybe_max(constants.min_size.main(constants.dir))
+        }),
+        // A column container's automatic main size is content-based, so definite available space
+        // handed down by an ancestor does not constrain where its lines wrap. Automatic widths
+        // resolve against available space, so rows do wrap against it.
+        None if !constants.dir.is_row()
+            && constants.node_outer_size.main(constants.dir).is_none()
+            && available_space.main(constants.dir).is_definite() =>
+        {
+            AvailableSpace::MaxContent
         }
-    } else {
-        AvailableSpace::MaxContent
+        None => available_space.main(constants.dir),
     };
 
     // If we're sizing under a min-content constraint then we take every possible wrapping

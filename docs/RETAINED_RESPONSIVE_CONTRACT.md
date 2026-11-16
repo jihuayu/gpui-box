@@ -1,5 +1,13 @@
 # Bounded responsive styles and an explicit Flex subset
 
+Current public API update (2026-11-16):
+[intrinsic sizing and staged queries](RETAINED_FLEX_SIZING_QUERIES.md) extends
+`LayoutStyle`/`LayoutResponsiveBindings` with size keywords and dependency-checked
+fixed-inline, auto-height nested queries. The `FlexStyle`/`ResponsiveBindings`
+restrictions and historical counts below describe the legacy adapter and its
+original acceptance. Its two-pass nested-query rejection remains unchanged;
+it is no longer the limit of the framework-owned public resolver.
+
 `retained::responsive` adds validated Flex style values, configurable width
 thresholds and a bounded responsive resolver. The normal gallery prepaint path
 now uses this resolver; actual window resize switches a stable pair of tiles
@@ -87,6 +95,8 @@ they do not establish independent browser/CSS conformance.
 [Frozen evidence](performance/2026-11-11-responsive/README.md) records these
 sources, hardware results and new images. No responsive performance speedup is
 claimed. Rule scanning currently examines all registered rules. Full environment
-subscriptions, constraint builders, auto-height/nested safe query graphs,
-responsive structural adaptation, shared-boundary device rounding, broad Flex
-conformance and the rest of the full RFC remain open.
+subscriptions, constraint builders, responsive structural adaptation,
+shared-boundary device rounding, broad Flex conformance and the rest of the
+full RFC remain open. Auto-height and safe nested query graphs now have the
+separate public implementation linked above; flexible/content-dependent inline
+query extents remain open.

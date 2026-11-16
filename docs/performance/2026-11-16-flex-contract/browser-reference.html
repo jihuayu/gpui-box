@@ -1,0 +1,83 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Flex contract reference</title>
+<style>body { margin: 0; } #results { white-space: pre-wrap; }</style>
+<div id="fixture"></div><pre id="results"></pre>
+<script>
+// Independent browser geometry references for the Rust contract regressions.
+// No framework or Taffy code participates in this computation.
+const cases = [];
+const fixture = document.querySelector('#fixture');
+function sample(name, parentDirection, style, children, expectedSize, expectedChildren) {
+    fixture.replaceChildren();
+    const root = document.createElement('div');
+    root.style.cssText = `display:flex;width:100px;height:100px;flex-direction:${parentDirection}`;
+    const host = document.createElement('div');
+    host.style.cssText = 'display:flex;box-sizing:border-box;align-self:start;flex-shrink:0;flex-wrap:wrap;align-items:start;' + style;
+    for (const [width, height] of children) {
+        const child = document.createElement('div');
+        child.style.cssText = `width:${width}px;height:${height}px;flex-shrink:0`;
+        host.append(child);
+    }
+    root.append(host); fixture.append(root);
+    const rect = host.getBoundingClientRect();
+    const size = [rect.width, rect.height];
+    const positions = [...host.children].map(child => {
+        const box = child.getBoundingClientRect();
+        return [box.x - rect.x, box.y - rect.y];
+    });
+    const pass = JSON.stringify(size) === JSON.stringify(expectedSize)
+        && JSON.stringify(positions) === JSON.stringify(expectedChildren);
+    cases.push({name, size, positions, pass});
+}
+for (const parent of ['row', 'column']) {
+    sample(`column-min-over-max-in-${parent}`, parent,
+        'flex-direction:column;width:50px;height:max-content;min-height:45px;max-height:40px',
+        [[10,30],[10,40]], [50,45], [[0,0],[25,0]]);
+}
+sample('aspect-ratio', 'row', 'width:max-content;height:20px;aspect-ratio:2',
+    [[30,10],[40,10]], [40,20], [[0,0],[0,10]]);
+sample('max-width-and-padding', 'row', 'width:max-content;height:32px;max-width:55px;padding:2px',
+    [[30,10],[40,10]], [55,32], [[2,2],[2,16]]);
+for (const [dimension, size, positions] of [
+    ['min-content',[40,20],[[0,0],[0,10]]],
+    ['max-content',[70,10],[[0,0],[30,0]]],
+    ['fit-content',[70,10],[[0,0],[30,0]]],
+    ['stretch',[100,10],[[0,0],[30,0]]],
+]) {
+    sample(`width-${dimension}`, 'row', `width:${dimension};height:auto`, [[30,10],[40,10]], size, positions);
+}
+for (const axis of ['width', 'height']) {
+    for (const dimension of ['min-content', 'max-content', 'fit-content', '80px']) {
+        for (const nested of [false, true]) {
+            fixture.replaceChildren();
+            const outer = document.createElement('div');
+            outer.style.cssText = 'display:flex;width:100px;height:100px;align-items:start';
+            const host = document.createElement('div');
+            host.style.cssText = `display:flex;flex-shrink:0;align-self:start;` + (axis === 'height'
+                ? `flex-direction:column;width:80px;height:${dimension}` : `width:${dimension};height:40px`);
+            const child = document.createElement('div');
+            child.style.cssText = `${axis}:50%;flex-shrink:0`;
+            const grand = document.createElement('div');
+            grand.style.cssText = 'width:30px;height:30px';
+            child.append(grand); host.append(child);
+            if (nested) { outer.append(host); fixture.append(outer); } else { fixture.append(host); }
+            const used = host.getBoundingClientRect()[axis];
+            const percentage = child.getBoundingClientRect()[axis];
+            const expected = dimension === '80px' ? [80,40] : [30,axis === 'height' ? 30 : 15];
+            cases.push({name:`percentage-${axis}-${dimension}-${nested}`, used, percentage,
+                pass:used === expected[0] && percentage === expected[1]});
+        }
+    }
+}
+fixture.replaceChildren();
+window.flexReference = {
+    userAgent:navigator.userAgent,
+    fitContentFunctionSupported:CSS.supports('width','fit-content(50px)'),
+    passed:cases.filter(value=>value.pass).length,
+    failed:cases.filter(value=>!value.pass).length,
+    cases,
+};
+document.querySelector('#results').textContent = JSON.stringify(window.flexReference,null,2);
+document.title = window.flexReference.failed ? 'FAIL Flex contract reference' : 'PASS Flex contract reference';
+</script>

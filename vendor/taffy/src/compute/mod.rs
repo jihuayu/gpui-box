@@ -241,7 +241,14 @@ fn compute_in_flow_root_layout(
             });
 
             // Block nodes automatically stretch fit their width to fit available space if available space is definite
-            let available_space_based_size = Size { width: root_available_space.width.into_option(), height: None };
+            let available_space_based_size = Size {
+                width: if style.size().width.is_sizing_keyword() {
+                    None
+                } else {
+                    root_available_space.width.into_option()
+                },
+                height: None,
+            };
 
             let styled_based_known_dimensions = known_dimensions
                 .or(min_max_definite_size)
@@ -253,7 +260,7 @@ fn compute_in_flow_root_layout(
         }
     }
 
-    let inputs = LayoutInput {
+    let mut inputs = LayoutInput {
         known_dimensions,
         known_dimensions_are_definite: Size { width: true, height: true },
         parent_size: available_space.into_options(),
@@ -263,6 +270,108 @@ fn compute_in_flow_root_layout(
         run_mode: RunMode::PerformLayout,
         vertical_margins_are_collapsible: Line::FALSE,
     };
+    // A root has no parent item algorithm to resolve its sizing keywords.
+    // Measure the requested intrinsic axes using the same resolver as Flex,
+    // Grid and out-of-flow items, then run normal layout with the used size.
+    // ContentSize ignores the root's preferred size during this query.
+    use common::sizing_keyword::{resolve_sizing_keyword, SizingKeywordResolution};
+    let size_style = tree.get_core_container_style(root).size();
+    if size_style.width.is_sizing_keyword() || size_style.height.is_sizing_keyword() {
+        let style = tree.get_core_container_style(root);
+        let aspect_ratio = style.aspect_ratio();
+        let padding_border = (style
+            .padding()
+            .resolve_or_zero(inputs.parent_size.width, |val, basis| tree.calc(val, basis))
+            + style
+                .border()
+                .resolve_or_zero(inputs.parent_size.width, |val, basis| tree.calc(val, basis)))
+        .sum_axes();
+        let adjustment = if style.box_sizing() == crate::BoxSizing::ContentBox {
+            padding_border
+        } else {
+            Size::ZERO
+        };
+        let min_size = style
+            .min_size()
+            .maybe_resolve(inputs.parent_size, |val, basis| tree.calc(val, basis))
+            .maybe_apply_aspect_ratio(aspect_ratio)
+            .maybe_add(adjustment);
+        let max_size = style
+            .max_size()
+            .maybe_resolve(inputs.parent_size, |val, basis| tree.calc(val, basis))
+            .maybe_apply_aspect_ratio(aspect_ratio)
+            .maybe_add(adjustment);
+        inputs.known_dimensions = inputs.known_dimensions.or(size_style
+            .maybe_resolve(inputs.parent_size, |val, basis| tree.calc(val, basis))
+            .maybe_apply_aspect_ratio(aspect_ratio)
+            .maybe_add(adjustment)
+            .maybe_clamp(min_size, max_size));
+        drop(style);
+        let mut query_space = root_available_space;
+        let mut measured_axes = Size {
+            width: false,
+            height: false,
+        };
+        for (style, stretch, basis, known, query, measure) in [
+            (
+                size_style.width,
+                root_available_space.width,
+                available_space.width,
+                &mut inputs.known_dimensions.width,
+                &mut query_space.width,
+                &mut measured_axes.width,
+            ),
+            (
+                size_style.height,
+                root_available_space.height,
+                available_space.height,
+                &mut inputs.known_dimensions.height,
+                &mut query_space.height,
+                &mut measured_axes.height,
+            ),
+        ] {
+            if known.is_some() {
+                continue;
+            }
+            match resolve_sizing_keyword(style, stretch.into_option(), basis.into_option(), |val, basis| {
+                tree.calc(val, basis)
+            }) {
+                Some(SizingKeywordResolution::Exact(size)) => {
+                    *known = Some(size);
+                }
+                Some(SizingKeywordResolution::Measure(space)) => {
+                    *query = space;
+                    *measure = true;
+                }
+                None => {}
+            }
+        }
+        if measured_axes.width || measured_axes.height {
+            let measured = tree.measure_child_size_both(
+                root,
+                inputs.known_dimensions,
+                inputs.parent_size,
+                query_space,
+                SizingMode::ContentSize,
+                Line::FALSE,
+            );
+            inputs.known_dimensions = inputs.known_dimensions.zip_map(
+                measured.zip_map(measured_axes, |size, used| used.then_some(size)),
+                Option::or,
+            );
+            // A content-derived block-axis size constrains final line breaks
+            // without becoming a definite basis for percentage heights. Inline
+            // percentages resolve against the final used width.
+            if measured_axes.height {
+                inputs.known_dimensions_are_definite.height = false;
+            }
+        }
+        inputs.known_dimensions = inputs
+            .known_dimensions
+            .maybe_apply_aspect_ratio(aspect_ratio)
+            .maybe_clamp(min_size, max_size)
+            .maybe_max(padding_border);
+    }
     *root_is_cached = tree.cache_get(root, &inputs).is_some();
 
     // Recursively compute node layout

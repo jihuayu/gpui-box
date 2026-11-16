@@ -36,6 +36,15 @@ local test artifacts and ignored.
 - Two test-only feature assumptions are corrected: the calc pointer test is
   gated on `calc`, and Style size expectations account for `flexbox_balance`.
   Runtime features, dependency versions and cache algorithms are unchanged.
+- In-flow root sizing keywords are resolved before final layout, preserving
+  constraints, the other axis, box-sizing and percentage-height definiteness.
+  Block automatic width stretch no longer overrides intrinsic width. Flex
+  ContentSize ignores the measured container's own min/max until the caller
+  applies them; final used main dimensions constrain greedy/balanced wrapping
+  independently of descendant percentage definiteness. These are algorithm
+  changes, not only publication instrumentation. Focused regressions and a
+  small independent Chromium reference accompany the framework
+  [sizing/query contract](../../docs/RETAINED_FLEX_SIZING_QUERIES.md).
 
 The framework publishes only the first horizontal baseline. Retaining Taffy's
 `Baselines.last` field does not implement last-baseline alignment, vertical
