@@ -140,6 +140,7 @@ impl MaybeMath<f32, AvailableSpace> for AvailableSpace {
             AvailableSpace::Definite(val) => AvailableSpace::Definite(val.min(rhs)),
             AvailableSpace::MinContent => AvailableSpace::Definite(rhs),
             AvailableSpace::MaxContent => AvailableSpace::Definite(rhs),
+            AvailableSpace::Unbounded => AvailableSpace::Definite(rhs),
         }
     }
     fn maybe_max(self, rhs: f32) -> AvailableSpace {
@@ -147,6 +148,7 @@ impl MaybeMath<f32, AvailableSpace> for AvailableSpace {
             AvailableSpace::Definite(val) => AvailableSpace::Definite(val.max(rhs)),
             AvailableSpace::MinContent => AvailableSpace::MinContent,
             AvailableSpace::MaxContent => AvailableSpace::MaxContent,
+            AvailableSpace::Unbounded => AvailableSpace::Unbounded,
         }
     }
 
@@ -155,6 +157,7 @@ impl MaybeMath<f32, AvailableSpace> for AvailableSpace {
             AvailableSpace::Definite(val) => AvailableSpace::Definite(val.min(max).max(min)),
             AvailableSpace::MinContent => AvailableSpace::MinContent,
             AvailableSpace::MaxContent => AvailableSpace::MaxContent,
+            AvailableSpace::Unbounded => AvailableSpace::Definite(max.max(min)),
         }
     }
 
@@ -163,6 +166,7 @@ impl MaybeMath<f32, AvailableSpace> for AvailableSpace {
             AvailableSpace::Definite(val) => AvailableSpace::Definite(val + rhs),
             AvailableSpace::MinContent => AvailableSpace::MinContent,
             AvailableSpace::MaxContent => AvailableSpace::MaxContent,
+            AvailableSpace::Unbounded => AvailableSpace::Unbounded,
         }
     }
     fn maybe_sub(self, rhs: f32) -> AvailableSpace {
@@ -170,6 +174,7 @@ impl MaybeMath<f32, AvailableSpace> for AvailableSpace {
             AvailableSpace::Definite(val) => AvailableSpace::Definite(val - rhs),
             AvailableSpace::MinContent => AvailableSpace::MinContent,
             AvailableSpace::MaxContent => AvailableSpace::MaxContent,
+            AvailableSpace::Unbounded => AvailableSpace::Unbounded,
         }
     }
 }
@@ -182,7 +187,9 @@ impl MaybeMath<Option<f32>, AvailableSpace> for AvailableSpace {
             (AvailableSpace::MinContent, Some(rhs)) => AvailableSpace::Definite(rhs),
             (AvailableSpace::MinContent, None) => AvailableSpace::MinContent,
             (AvailableSpace::MaxContent, Some(rhs)) => AvailableSpace::Definite(rhs),
+            (AvailableSpace::Unbounded, Some(rhs)) => AvailableSpace::Definite(rhs),
             (AvailableSpace::MaxContent, None) => AvailableSpace::MaxContent,
+            (AvailableSpace::Unbounded, None) => AvailableSpace::Unbounded,
         }
     }
     fn maybe_max(self, rhs: Option<f32>) -> AvailableSpace {
@@ -191,6 +198,7 @@ impl MaybeMath<Option<f32>, AvailableSpace> for AvailableSpace {
             (AvailableSpace::Definite(val), None) => AvailableSpace::Definite(val),
             (AvailableSpace::MinContent, _) => AvailableSpace::MinContent,
             (AvailableSpace::MaxContent, _) => AvailableSpace::MaxContent,
+            (AvailableSpace::Unbounded, _) => AvailableSpace::Unbounded,
         }
     }
 
@@ -202,6 +210,8 @@ impl MaybeMath<Option<f32>, AvailableSpace> for AvailableSpace {
             (AvailableSpace::Definite(val), None, None) => AvailableSpace::Definite(val),
             (AvailableSpace::MinContent, _, _) => AvailableSpace::MinContent,
             (AvailableSpace::MaxContent, _, _) => AvailableSpace::MaxContent,
+            (AvailableSpace::Unbounded, min, Some(max)) => AvailableSpace::Definite(max.maybe_max(min)),
+            (AvailableSpace::Unbounded, _, None) => AvailableSpace::Unbounded,
         }
     }
 
@@ -211,6 +221,7 @@ impl MaybeMath<Option<f32>, AvailableSpace> for AvailableSpace {
             (AvailableSpace::Definite(val), None) => AvailableSpace::Definite(val),
             (AvailableSpace::MinContent, _) => AvailableSpace::MinContent,
             (AvailableSpace::MaxContent, _) => AvailableSpace::MaxContent,
+            (AvailableSpace::Unbounded, _) => AvailableSpace::Unbounded,
         }
     }
     fn maybe_sub(self, rhs: Option<f32>) -> AvailableSpace {
@@ -219,6 +230,7 @@ impl MaybeMath<Option<f32>, AvailableSpace> for AvailableSpace {
             (AvailableSpace::Definite(val), None) => AvailableSpace::Definite(val),
             (AvailableSpace::MinContent, _) => AvailableSpace::MinContent,
             (AvailableSpace::MaxContent, _) => AvailableSpace::MaxContent,
+            (AvailableSpace::Unbounded, _) => AvailableSpace::Unbounded,
         }
     }
 }

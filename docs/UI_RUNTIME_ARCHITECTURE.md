@@ -144,10 +144,18 @@ Flex ContentSize 过早施加自身 min/max 的测量，以及内容决定的最
 `LayoutConstraints` 和 `LayoutResult` 是框架自己的约束与局部结果契约。
 `UiTree::frame_with_constraints`、`ReactiveUi::frame_with_constraints` 与
 `LogicalUi::frame_with_constraints` 接受该约束对象；原有 `frame([w, h])`
-仍是确定窗口 viewport 的兼容入口。当前可绘制 frame 要求宽高为
-`Definite`；`MinContent`、`MaxContent` 已可通过独立的
-`measure_with_constraints` 查询进行 intrinsic 测量，且不会发布绘制 frame；
-`Unbounded` 仍明确拒绝，因为当前 Taffy 版本没有等价的公开约束值。
+仍是确定窗口 viewport 的兼容入口。`frame_with_constraints` 继续从两个
+`Definite` 轴取得裁剪 viewport；新增 `frame_in_viewport` 与
+`local_frame_in_viewport` 可在独立有限绘制 viewport 下运行正常 Unbounded
+布局或显式 MinContent/MaxContent 查询，并暴露在 UiTree/ReactiveUi/LogicalUi。
+项目内 Taffy 与 GPUI 的 AvailableSpace 均新增 Unbounded；正常无上限主轴用
+hypothetical outer size、margin/gap/inset 决定自然尺寸，不运行 MaxContent
+的 intrinsic flex-fraction 算法。百分比基准来自布局，不借用呈现窗口；OOF
+初始包含块在不确定轴回退根 padding box。仅 viewport 改变会更新完整裁剪
+输出，但布局次数为零。显式 intrinsic 样式和尺寸隔离仍保留各自语义。
+这仍不是 Flutter min/max BoxConstraints 或 ConstraintBuilder，结构自适应
+也未完成。详见 [无上限布局契约](RETAINED_UNBOUNDED_LAYOUT.md)。
+独立的 `measure_with_constraints` 查询仍不发布绘制 frame；
 `measure_node_with_constraints(node, constraints)` 可以对任意活跃子树执行
 同样的 measure-only 查询；结果局部于被查询节点，不发布 frame，也不把子树
 临时几何误认为已提交的 `layout_result`。查询运行在持久布局树的 owned clone

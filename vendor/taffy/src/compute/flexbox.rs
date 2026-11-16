@@ -997,6 +997,10 @@ fn determine_flex_base_size(
                 Some(max) => AvailableSpace::Definite(max),
                 None => AvailableSpace::MaxContent,
             },
+            AvailableSpace::Unbounded => match child_max_cross {
+                Some(max) => AvailableSpace::Definite(max),
+                None => AvailableSpace::Unbounded,
+            },
         };
 
         // Known dimensions for child sizing
@@ -1294,7 +1298,7 @@ fn collect_flex_lines<'a>(
         match main_axis_available_space {
             // If we're sizing under a max-content constraint then the flex items will never wrap
             // (at least for now - future extensions to the CSS spec may add provisions for forced wrap points)
-            AvailableSpace::MaxContent => {
+            AvailableSpace::MaxContent | AvailableSpace::Unbounded => {
                 let mut lines = new_vec_with_capacity(1);
                 lines.push(FlexLine { items: flex_items.as_mut_slice(), cross_size: 0.0, offset_cross: 0.0 });
                 lines
@@ -1456,6 +1460,19 @@ fn determine_container_main_size(
 
     let outer_main_size: f32 = constants.node_outer_size.main(constants.dir).unwrap_or_else(|| {
         match available_space.main(dir) {
+            AvailableSpace::Unbounded => {
+                // Normal unconstrained layout starts from each item's flex
+                // base, constrained by its used min/max. It must not apply
+                // the intrinsic content-flex-fraction algorithm below.
+                lines
+                    .iter()
+                    .map(|line| {
+                        line.items.iter().map(|item| item.hypothetical_outer_size.main(dir)).sum::<f32>()
+                            + sum_axis_gaps(constants.gap.main(dir), line.items.len())
+                    })
+                    .fold(0.0, f32::max)
+                    + main_content_box_inset
+            }
             AvailableSpace::Definite(main_axis_available_space) => {
                 let main_axis_gap = constants.gap.main(constants.dir);
                 let item_main_length = |child: &FlexItem| {

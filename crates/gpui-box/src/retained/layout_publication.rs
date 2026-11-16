@@ -85,7 +85,10 @@ impl UiTree {
         Ok(LayoutResult::from_taffy(result))
     }
 
-    pub(super) fn compute_layout(&mut self, viewport: [f32; 2]) -> Result<LayoutStats, Error> {
+    pub(super) fn compute_layout(
+        &mut self,
+        constraints: LayoutConstraints,
+    ) -> Result<LayoutStats, Error> {
         let root = self.node(self.root)?.layout;
         let mut stats = LayoutStats::default();
         let mut layout_writes = 0;
@@ -95,8 +98,8 @@ impl UiTree {
         self.layout.compute_layout_with_measure_and_observer(
             root,
             Size {
-                width: AvailableSpace::Definite(viewport[0]),
-                height: AvailableSpace::Definite(viewport[1]),
+                width: constraints.width.to_taffy()?,
+                height: constraints.height.to_taffy()?,
             },
             |inputs, _, snapshot, style| {
                 measure::layout_leaf(inputs, snapshot.as_deref(), style, &mut stats)

@@ -4,6 +4,11 @@ Updated 2026-11-16 on `codex/rendering-performance-research`. This completes
 first-horizontal-baseline publication for the current layout adapter. The
 [complete-runtime goal](RETAINED_IMPLEMENTATION_PROGRESS.md) remains open.
 
+Later same-day stages add [intrinsic min/max](RETAINED_INTRINSIC_LIMITS.md)
+and [normal unbounded layout](RETAINED_UNBOUNDED_LAYOUT.md). The test counts
+and remaining-work list below describe this baseline-publication stage;
+the complete-runtime progress table is authoritative for current status.
+
 ## Public contract
 
 `LayoutResult.baseline` is an optional first horizontal baseline, in logical

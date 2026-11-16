@@ -41,7 +41,7 @@ pub fn text_measure_function(
     let inline_size =
         known_dimensions.get_abs(inline_axis).unwrap_or_else(|| match available_space.get_abs(inline_axis) {
             AvailableSpace::MinContent => min_line_length as f32 * font_metrics.char_width,
-            AvailableSpace::MaxContent => max_line_length as f32 * font_metrics.char_width,
+            AvailableSpace::MaxContent | AvailableSpace::Unbounded => max_line_length as f32 * font_metrics.char_width,
             AvailableSpace::Definite(inline_size) => inline_size
                 .min(max_line_length as f32 * font_metrics.char_width)
                 .max(min_line_length as f32 * font_metrics.char_width),

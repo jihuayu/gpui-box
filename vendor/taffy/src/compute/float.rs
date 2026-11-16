@@ -767,7 +767,7 @@ impl FloatIntrinsicWidthCalculator {
             // Definite available width means the container is being fit-content sized
             // (e.g. it is itself a float being shrink-to-fit sized). The floats' max-content
             // contribution (widths summed) is clamped by the available width in `result`.
-            AvailableSpace::Definite(_) | AvailableSpace::MaxContent => {
+            AvailableSpace::Definite(_) | AvailableSpace::MaxContent | AvailableSpace::Unbounded => {
                 // A float that clears a side is placed below the floats on that side, so its
                 // width does not accumulate with theirs.
                 if matches!(clear, Clear::Left | Clear::Both) {

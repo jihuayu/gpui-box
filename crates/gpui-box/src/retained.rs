@@ -400,6 +400,7 @@ pub struct UiTree {
     paint_indices: std::collections::HashMap<NodeId, usize>,
     frame_build_policy: FrameBuildPolicy,
     viewport: Option<[f32; 2]>,
+    layout_constraints: Option<LayoutConstraints>,
     frame: Option<FramePacket>,
     local_frame: Option<local::LocalFrame>,
 }
@@ -510,6 +511,7 @@ impl UiTree {
             paint_indices: Default::default(),
             frame_build_policy: Default::default(),
             viewport: None,
+            layout_constraints: None,
             frame: None,
             local_frame: None,
         })
@@ -1138,9 +1140,9 @@ impl UiTree {
         self.frame_with_constraints(LayoutConstraints::viewport(viewport[0], viewport[1]))
     }
 
-    /// Produces a renderable frame from the framework-owned sizing contract.
-    /// A paint frame requires definite dimensions for its clip and present
-    /// surface; intrinsic constraints belong to the measure-only APIs.
+    /// Produces a frame using definite layout dimensions as the paint viewport.
+    /// For intrinsic or unbounded layout with an independent finite clip, use
+    /// `frame_in_viewport`; measure-only APIs do not publish a paint frame.
     pub fn frame_with_constraints(
         &mut self,
         constraints: LayoutConstraints,
@@ -1150,13 +1152,59 @@ impl UiTree {
             constraints.width.resolve_definite()?,
             constraints.height.resolve_definite()?,
         ];
-        let viewport_changed = self.viewport != Some(viewport);
-        if viewport_changed {
-            self.advance()?;
-            self.layout_dirty = true;
-            self.full_extract_required = true;
-            self.viewport = Some(viewport);
+        self.frame_in_viewport(constraints, viewport)
+    }
+
+    /// Lay out under independent available space and render through a finite
+    /// viewport. Unbounded/intrinsic axes do not become percentage bases merely
+    /// because the host has a present surface of a known size.
+    pub fn frame_in_viewport(
+        &mut self,
+        constraints: LayoutConstraints,
+        viewport: [f32; 2],
+    ) -> Result<FramePacket, Error> {
+        self.prepare_layout_environment(constraints, viewport)?;
+        self.build_frame(viewport)
+    }
+
+    pub(super) fn prepare_layout_environment(
+        &mut self,
+        constraints: LayoutConstraints,
+        viewport: [f32; 2],
+    ) -> Result<(), Error> {
+        constraints.validate()?;
+        if viewport
+            .iter()
+            .any(|value| !value.is_finite() || *value < 0.0)
+        {
+            return Err(Error::InvalidViewport);
         }
+        let viewport_changed = self.viewport != Some(viewport);
+        let constraints_changed = self.layout_constraints != Some(constraints);
+        if viewport_changed || constraints_changed {
+            self.advance()?;
+            self.layout_dirty |= constraints_changed;
+            self.full_extract_required |= viewport_changed;
+            self.viewport = Some(viewport);
+            self.layout_constraints = Some(constraints);
+        }
+        Ok(())
+    }
+
+    fn build_frame(&mut self, viewport: [f32; 2]) -> Result<FramePacket, Error> {
+        // Compare against published output, not the working environment: local
+        // publication may prepare it before entering this resolved fallback.
+        let root_clip = Some(Rect {
+            x: 0.0,
+            y: 0.0,
+            width: viewport[0],
+            height: viewport[1],
+        });
+        let viewport_changed = self
+            .frame
+            .as_ref()
+            .and_then(|frame| frame.items.iter().next())
+            .is_none_or(|item| item.spatial.root_clip != root_clip);
         if !self.dirty {
             let mut cached = self.frame.as_ref().expect("prepared frame").clone();
             cached.layout_runs = 0;
@@ -1167,6 +1215,7 @@ impl UiTree {
         }
         if self.frame_build_policy != FrameBuildPolicy::Full
             && !self.layout_dirty
+            && !self.full_extract_required
             && self.frame.is_some()
         {
             return self.patch_paint_frame(0, LayoutStats::default());
@@ -1174,7 +1223,10 @@ impl UiTree {
         let layout_runs = u64::from(self.layout_dirty);
         let mut layout_stats = LayoutStats::default();
         if self.layout_dirty {
-            layout_stats = self.compute_layout(viewport)?;
+            layout_stats = self.compute_layout(
+                self.layout_constraints
+                    .expect("validated frame environment"),
+            )?;
         }
         if self.frame_build_policy != FrameBuildPolicy::Full
             && !self.full_extract_required

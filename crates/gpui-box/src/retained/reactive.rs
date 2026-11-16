@@ -345,6 +345,22 @@ impl ReactiveUi {
     pub fn layout_result(&self, node: NodeId) -> Result<LayoutResult, Error> {
         self.tree.layout_result(node)
     }
+
+    pub fn frame_in_viewport(
+        &mut self,
+        constraints: LayoutConstraints,
+        viewport: [f32; 2],
+    ) -> Result<FramePacket, Error> {
+        self.tree.frame_in_viewport(constraints, viewport)
+    }
+
+    pub fn local_frame_in_viewport(
+        &mut self,
+        constraints: LayoutConstraints,
+        viewport: [f32; 2],
+    ) -> Result<local::LocalFrame, Error> {
+        self.tree.local_frame_in_viewport(constraints, viewport)
+    }
     pub fn measure_with_constraints(
         &mut self,
         constraints: LayoutConstraints,

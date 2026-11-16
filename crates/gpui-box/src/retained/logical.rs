@@ -174,6 +174,20 @@ impl LogicalUi {
     ) -> Result<FramePacket, Error> {
         self.ui.frame_with_constraints(constraints)
     }
+    pub fn frame_in_viewport(
+        &mut self,
+        constraints: LayoutConstraints,
+        viewport: [f32; 2],
+    ) -> Result<FramePacket, Error> {
+        self.ui.frame_in_viewport(constraints, viewport)
+    }
+    pub fn local_frame_in_viewport(
+        &mut self,
+        constraints: LayoutConstraints,
+        viewport: [f32; 2],
+    ) -> Result<local::LocalFrame, Error> {
+        self.ui.local_frame_in_viewport(constraints, viewport)
+    }
     pub fn layout_result(&self, node: NodeId) -> Result<LayoutResult, Error> {
         self.ui.layout_result(node)
     }

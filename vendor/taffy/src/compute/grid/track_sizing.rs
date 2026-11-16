@@ -343,6 +343,7 @@ pub(super) fn track_sizing_algorithm<Tree: LayoutPartialTree>(
     } else {
         match available_grid_space.get(axis) {
             AvailableSpace::MinContent if axis == AbstractAxis::Inline => AvailableSpace::MinContent,
+            AvailableSpace::Unbounded => AvailableSpace::Unbounded,
             _ => AvailableSpace::MaxContent,
         }
     };
@@ -1276,7 +1277,7 @@ fn expand_flexible_tracks<Tree: LayoutPartialTree>(
         // If ... sizing the grid container under a min-content constraint the used flex fraction is zero.
         AvailableSpace::MinContent => 0.0,
         // Otherwise, if the free space is an indefinite length:
-        AvailableSpace::MaxContent => {
+        AvailableSpace::MaxContent | AvailableSpace::Unbounded => {
             // The used flex fraction is the maximum of:
             let flex_fraction = f32_max(
                 // For each flexible track, if the flexible track’s flex factor is greater than one,

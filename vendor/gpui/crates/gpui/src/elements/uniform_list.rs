@@ -297,15 +297,15 @@ impl Element for UniformList {
                                     .width
                                 {
                                     AvailableSpace::Definite(x) => x,
-                                    AvailableSpace::MinContent | AvailableSpace::MaxContent => {
-                                        item_size.width
-                                    }
+                                    AvailableSpace::MinContent
+                                    | AvailableSpace::MaxContent
+                                    | AvailableSpace::Unbounded => item_size.width,
                                 });
                                 let height = match available_space.height {
                                     AvailableSpace::Definite(height) => desired_height.min(height),
-                                    AvailableSpace::MinContent | AvailableSpace::MaxContent => {
-                                        desired_height
-                                    }
+                                    AvailableSpace::MinContent
+                                    | AvailableSpace::MaxContent
+                                    | AvailableSpace::Unbounded => desired_height,
                                 };
                                 size(width, height)
                             },

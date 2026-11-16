@@ -315,8 +315,9 @@ pub struct LayoutSize<T> {
     pub height: T,
 }
 
-/// A finite available space or an intrinsic sizing query. This mirrors the
-/// concepts needed by Flex without leaking a layout engine's enum.
+/// Available space for normal layout or an explicit intrinsic sizing query.
+/// Unbounded is a normal indefinite axis without a finite upper limit; it does
+/// not request the max-content contribution or establish a percentage basis.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum AvailableSpace {
     Definite(f32),
@@ -345,10 +346,7 @@ impl AvailableSpace {
             Self::Definite(value) => Ok(taffy::AvailableSpace::Definite(value)),
             Self::MinContent => Ok(taffy::AvailableSpace::MinContent),
             Self::MaxContent => Ok(taffy::AvailableSpace::MaxContent),
-            // Taffy 0.15 has no separate unbounded variant. Do not silently
-            // equate it with max-content; callers must use the explicit
-            // measure contract once the backend can represent this distinction.
-            Self::Unbounded => Err(Error::UnsupportedLayout),
+            Self::Unbounded => Ok(taffy::AvailableSpace::Unbounded),
         }
     }
 
@@ -811,6 +809,8 @@ mod containment_tests;
 mod intrinsic_limits_tests;
 #[cfg(test)]
 mod sizing_tests;
+#[cfg(test)]
+mod unbounded_tests;
 
 #[cfg(test)]
 mod tests {
@@ -992,13 +992,14 @@ mod tests {
         assert!(tree.published_frame().is_none());
         let frame = tree.frame([80.0, 40.0]).unwrap();
         assert_eq!(frame.items.len(), 2);
-        assert!(matches!(
-            tree.measure_with_constraints(LayoutConstraints::new(
+        let unbounded = tree
+            .measure_with_constraints(LayoutConstraints::new(
                 AvailableSpace::Unbounded,
                 AvailableSpace::MaxContent,
-            )),
-            Err(Error::UnsupportedLayout)
-        ));
+            ))
+            .unwrap();
+        assert_eq!(unbounded.size, [24.0, 12.0]);
+        assert_eq!(tree.published_frame().unwrap().revision, frame.revision);
     }
 
     #[test]

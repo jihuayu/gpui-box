@@ -1,0 +1,53 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Normal unbounded block-axis Flex reference</title>
+<style>body{margin:0} #results{white-space:pre-wrap}</style>
+<div id="fixture"></div><pre id="results"></pre>
+<script>
+// CSS auto-height Column Flex is the reference for an unbounded block axis.
+// CSS does not expose the framework's independent unbounded inline input.
+const fixture=document.querySelector('#fixture'),cases=[];
+function box(css,parent=fixture){const e=document.createElement('div');e.style.cssText=css;parent.append(e);return e;}
+function size(e){const r=e.getBoundingClientRect();return[r.width,r.height];}
+function localPosition(e,parent){const r=e.getBoundingClientRect(),p=parent.getBoundingClientRect();return[r.x-p.x,r.y-p.y];}
+function check(name,actual,expected){cases.push({name,actual,expected,pass:JSON.stringify(actual)===JSON.stringify(expected)});}
+for(const minimum of [0,50]){
+ fixture.replaceChildren();
+ const root=box(`display:flex;flex-direction:column;align-items:start;width:100px;min-height:${minimum}px`);
+ const child=box('width:80px;height:80px;min-height:0;flex-basis:20px;flex-grow:1',root);
+ check(`normal-basis-${minimum}`,size(root),[100,minimum||20]);
+ check(`normal-child-${minimum}`,size(child),[80,minimum||20]);
+}
+fixture.replaceChildren();
+{
+ const root=box('display:flex;flex-direction:column;flex-wrap:wrap;align-items:start;align-content:start;width:100px;max-height:50px');
+ const first=box('width:10px;height:30px;flex-shrink:0',root);
+ const second=box('width:10px;height:40px;flex-shrink:0',root);
+ check('max-bounded-wrap',size(root),[100,40]);
+ check('wrap-second-location',localPosition(second,root),[10,0]);
+}
+fixture.replaceChildren();
+{
+ const root=box('display:flex;box-sizing:border-box;flex-direction:column;align-items:start;width:100px;padding:2px;row-gap:3px');
+ const first=box('display:flex;width:50%;height:20px;flex-basis:50%;flex-grow:1;flex-shrink:0',root);
+ box('width:10px;height:20px;flex-shrink:0',first);
+ const second=box('width:30px;height:10px;flex-shrink:0',root);
+ check('indefinite-percent-basis-root',size(root),[100,37]);
+ check('indefinite-percent-basis-child',size(first),[48,20]);
+ check('indefinite-percent-basis-location',localPosition(second,root),[2,25]);
+}
+fixture.replaceChildren();
+{
+ const root=box('display:flex;box-sizing:border-box;flex-direction:column;align-items:start;width:100px;padding:2px;row-gap:3px');
+ const first=box('display:flex;flex-direction:column;align-items:start;width:80px;height:80px;min-height:25px;max-height:15px;margin:1px;flex-basis:20px;flex-grow:1',root);
+ const nested=box('width:4px;height:4px;min-height:0;flex-grow:1',first);
+ const second=box('width:80px;height:80px;min-height:0;max-height:15px;margin:1px;flex-basis:20px;flex-grow:1',root);
+ check('limits-margins-gap-root',size(root),[100,51]);
+ check('limits-first',size(first),[80,25]);
+ check('limits-second',size(second),[80,15]);
+ check('limits-second-location',localPosition(second,root),[3,33]);
+ check('nested-finite-growth',size(nested),[4,25]);
+}
+window.referenceResult={userAgent:navigator.userAgent,scope:'Finite inline width / normal indefinite block axis only',passed:cases.filter(c=>c.pass).length,failed:cases.filter(c=>!c.pass).length,cases};
+document.querySelector('#results').textContent=JSON.stringify(window.referenceResult,null,2);
+</script>

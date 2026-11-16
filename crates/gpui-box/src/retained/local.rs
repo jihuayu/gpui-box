@@ -525,9 +525,20 @@ impl UiTree {
     /// patch immutable payload pages without invalidating placement/topology.
     /// Calling `frame` remains an explicit resolved compatibility path.
     pub fn local_frame(&mut self, viewport: [f32; 2]) -> Result<LocalFrame, Error> {
-        if viewport.iter().any(|v| !v.is_finite() || *v < 0.0) {
-            return Err(Error::InvalidViewport);
-        }
+        self.local_frame_in_viewport(
+            LayoutConstraints::viewport(viewport[0], viewport[1]),
+            viewport,
+        )
+    }
+
+    /// Local-placement counterpart to `frame_in_viewport`, sharing its layout
+    /// environment invalidation and finite clip semantics.
+    pub fn local_frame_in_viewport(
+        &mut self,
+        constraints: LayoutConstraints,
+        viewport: [f32; 2],
+    ) -> Result<LocalFrame, Error> {
+        self.prepare_layout_environment(constraints, viewport)?;
         let reusable = self
             .local_frame
             .as_ref()
@@ -542,7 +553,7 @@ impl UiTree {
             })
             .cloned();
         let Some(old) = reusable else {
-            let frame = LocalFrame::from_frame(self.frame(viewport)?);
+            let frame = LocalFrame::from_frame(self.frame_in_viewport(constraints, viewport)?);
             self.local_frame = Some(frame.clone());
             self.local_dirty.clear();
             self.local_material_dirty.clear();

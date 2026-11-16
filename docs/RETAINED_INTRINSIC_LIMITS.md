@@ -4,6 +4,11 @@ Updated 2026-11-16 on `codex/rendering-performance-research`. This extends
 [preferred intrinsic sizing](RETAINED_FLEX_SIZING_QUERIES.md) and
 [size containment](RETAINED_SIZE_CONTAINMENT.md). The full RFC remains open.
 
+Same-day follow-up: [normal unbounded layout](RETAINED_UNBOUNDED_LAYOUT.md)
+now implements Unbounded and independent finite paint viewports. Validation
+numbers and the open list below describe this earlier intrinsic-limit stage;
+the authoritative current status is in the linked progress table.
+
 ## Public contract and migration
 
 `LayoutStyle.min_size` and `max_size` now use `LayoutSize<LayoutDimension>`,

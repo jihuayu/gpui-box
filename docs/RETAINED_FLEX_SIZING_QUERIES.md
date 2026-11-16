@@ -11,7 +11,9 @@ The validation counts in this document describe the preceding sizing stage;
 the linked follow-up records current combined counts and API differences from
 browser `container-type`. The subsequent [intrinsic min/max stage](RETAINED_INTRINSIC_LIMITS.md)
 also migrates the minimum/maximum fields to Dimension and adds actual algorithm
-integration. Counts below remain historical for this preferred-size stage.
+integration. The subsequent [normal unbounded layout stage](RETAINED_UNBOUNDED_LAYOUT.md)
+implements Unbounded with an independent finite paint viewport. Counts below
+remain historical for this preferred-size stage.
 
 ## Public dimensions and gap axes
 
@@ -25,7 +27,8 @@ can publish, even when a later write overwrites the invalid value.
 These are preferred-size styles, separate from `LayoutAvailableSpace` intrinsic
 measurement constraints. At this stage min/max fields used `LayoutLength`;
 the linked intrinsic-limit follow-up changes them to `LayoutDimension` and
-documents migration. `Unbounded` remains explicitly unsupported.
+documents migration. `Unbounded` was unsupported at this preferred-size stage;
+the linked normal-unbounded follow-up implements its distinct semantics.
 The numeric fit-content functions use Taffy's existing semantics; the browser
 reference below does not support `width:fit-content(50px)` and does not validate
 those functions as browser-compatible.

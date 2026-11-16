@@ -12,6 +12,17 @@ local test artifacts and ignored.
 
 ## Local changes
 
+- `AvailableSpace::Unbounded` represents normal indefinite layout, separate
+  from intrinsic MinContent/MaxContent. Flex uses hypothetical outer sizes for
+  normal unbounded main sizing; real bounds constrain wrapping/growth. Grid
+  handles indefinite track expansion without taking intrinsic-only branches;
+  Block/float/text and arithmetic support the tag. The mixed cache key reserves
+  a distinct bit payload. GPUI's compatibility enum, scale conversions and list
+  measure adapters also handle the new variant. Downstream exhaustive matches
+  must migrate; CSS parsing does not add a new keyword. The framework owns the
+  [independent viewport and unbounded contract](../../docs/RETAINED_UNBOUNDED_LAYOUT.md),
+  including remaining conformance and performance limits.
+
 - Minimum/maximum styles in `Style` and `CoreStyle` now use `Size<Dimension>`.
   The shared intrinsic-limit resolver integrates keywords into actual Flex,
   root, legacy Grid/Block and out-of-flow algorithms, with ContentSize isolation

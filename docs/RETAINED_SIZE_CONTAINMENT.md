@@ -7,7 +7,9 @@ it does not complete the RFC or qualify sustained frame rates.
 
 The later same-date [intrinsic min/max stage](RETAINED_INTRINSIC_LIMITS.md)
 extends minimum/maximum styles and algorithms, and tightens ancestor query
-proofs. Counts and the open list below describe this containment stage.
+proofs. [Normal unbounded layout](RETAINED_UNBOUNDED_LAYOUT.md) subsequently
+adds Unbounded and a finite paint viewport independent of layout inputs.
+Counts and the open list below describe this containment stage.
 
 ## Public boundary
 

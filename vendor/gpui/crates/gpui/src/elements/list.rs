@@ -1514,15 +1514,15 @@ impl Element for List {
                                     .width
                                     .unwrap_or(match available_space.width {
                                         AvailableSpace::Definite(x) => x,
-                                        AvailableSpace::MinContent | AvailableSpace::MaxContent => {
-                                            max_element_width
-                                        }
+                                        AvailableSpace::MinContent
+                                        | AvailableSpace::MaxContent
+                                        | AvailableSpace::Unbounded => max_element_width,
                                     });
                             let height = match available_space.height {
                                 AvailableSpace::Definite(height) => total_height.min(height),
-                                AvailableSpace::MinContent | AvailableSpace::MaxContent => {
-                                    total_height
-                                }
+                                AvailableSpace::MinContent
+                                | AvailableSpace::MaxContent
+                                | AvailableSpace::Unbounded => total_height,
                             };
                             size(width, height)
                         },

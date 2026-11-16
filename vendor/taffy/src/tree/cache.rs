@@ -57,6 +57,9 @@ fn available_space_cache_key(input: AvailableSpace) -> u32 {
         AvailableSpace::Definite(value) => (-value).to_bits(),
         AvailableSpace::MinContent => NEG_INFINITY_BITS,
         AvailableSpace::MaxContent => INFINITY_BITS,
+        // A quiet NaN payload cannot collide with a finite known dimension,
+        // negative definite available space or the intrinsic infinity tags.
+        AvailableSpace::Unbounded => 0x7fc0_0001,
     }
 }
 
@@ -371,6 +374,43 @@ mod tests {
     use super::*;
     use crate::geometry::Line;
     use crate::tree::SizingMode;
+
+    #[test]
+    fn unbounded_cache_keys_do_not_alias_intrinsic_or_known_dimensions() {
+        for run_mode in [RunMode::ComputeSize, RunMode::PerformLayout] {
+            for axis in [RequestedAxis::Horizontal, RequestedAxis::Vertical, RequestedAxis::Both] {
+                let mut query = input(1.0);
+                query.run_mode = run_mode;
+                query.axis = axis;
+                query.known_dimensions = Size::NONE;
+                query.available_space = Size { width: AvailableSpace::Unbounded, height: AvailableSpace::Unbounded };
+                let mut cache = Cache::new();
+                cache.store(&query, output(20.0));
+                assert_eq!(cache.get(&query), Some(output(20.0)));
+                for value in [
+                    AvailableSpace::MaxContent,
+                    AvailableSpace::MinContent,
+                    AvailableSpace::Definite(0.0),
+                    AvailableSpace::Definite(20.0),
+                    AvailableSpace::Definite(f32::MAX),
+                ] {
+                    let mut other = query;
+                    other.available_space.width = value;
+                    assert_eq!(cache.get(&other), None, "{run_mode:?}/{axis:?}/{value:?}");
+                }
+                let mut known = query;
+                known.known_dimensions.width = Some(20.0);
+                assert_eq!(cache.get(&known), None);
+                // A finite known width supersedes available width in the key,
+                // but the still-unknown height must retain its separate mode.
+                cache.store(&known, output(30.0));
+                known.available_space.width = AvailableSpace::MaxContent;
+                assert_eq!(cache.get(&known), Some(output(30.0)));
+                known.available_space.height = AvailableSpace::MaxContent;
+                assert_eq!(cache.get(&known), None);
+            }
+        }
+    }
 
     fn input(width: f32) -> LayoutInput {
         LayoutInput {

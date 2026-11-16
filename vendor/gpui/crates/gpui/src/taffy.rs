@@ -226,6 +226,7 @@ impl TaffyLayoutEngine {
             }
             AvailableSpace::MinContent => AvailableSpace::MinContent,
             AvailableSpace::MaxContent => AvailableSpace::MaxContent,
+            AvailableSpace::Unbounded => AvailableSpace::Unbounded,
         };
         let available_space = size(
             transform(available_space.width),
@@ -258,6 +259,7 @@ impl TaffyLayoutEngine {
                                 }
                                 AvailableSpace::MinContent => AvailableSpace::MinContent,
                                 AvailableSpace::MaxContent => AvailableSpace::MaxContent,
+                                AvailableSpace::Unbounded => AvailableSpace::Unbounded,
                             };
                             let available_space = size(
                                 untransform(available_space.width),
@@ -694,6 +696,8 @@ pub enum AvailableSpace {
     MinContent,
     /// The amount of space available is indefinite and the node should be laid out under a max-content constraint
     MaxContent,
+    /// Normal layout with no finite upper bound. Percentages remain indefinite.
+    Unbounded,
 }
 
 impl AvailableSpace {
@@ -724,6 +728,7 @@ impl From<AvailableSpace> for TaffyAvailableSpace {
             AvailableSpace::Definite(Pixels(value)) => TaffyAvailableSpace::Definite(value),
             AvailableSpace::MinContent => TaffyAvailableSpace::MinContent,
             AvailableSpace::MaxContent => TaffyAvailableSpace::MaxContent,
+            AvailableSpace::Unbounded => TaffyAvailableSpace::Unbounded,
         }
     }
 }
@@ -734,6 +739,7 @@ impl From<TaffyAvailableSpace> for AvailableSpace {
             TaffyAvailableSpace::Definite(value) => AvailableSpace::Definite(Pixels(value)),
             TaffyAvailableSpace::MinContent => AvailableSpace::MinContent,
             TaffyAvailableSpace::MaxContent => AvailableSpace::MaxContent,
+            TaffyAvailableSpace::Unbounded => AvailableSpace::Unbounded,
         }
     }
 }

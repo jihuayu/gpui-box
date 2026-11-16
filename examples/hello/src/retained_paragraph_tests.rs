@@ -21,6 +21,58 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 }
 
 #[test]
+fn unbounded_paragraph_measurement_and_finite_viewport_remain_independent() {
+    let system = text_system();
+    let paragraph = shape(&system, "one two three four five six seven 中文段落");
+    let mut tree = UiTree::new_layout(
+        LayoutStyle::column().align_items(LayoutAlignItems::Start),
+        0,
+    )
+    .unwrap();
+    let child = tree
+        .append_layout(tree.root(), LayoutStyle::row(), 0xffffffff)
+        .unwrap();
+    let mut tx = Transaction::default();
+    tx.measure(child, Some(MeasureSnapshot::Paragraph(paragraph.clone())));
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    let constraints = LayoutConstraints::new(
+        LayoutAvailableSpace::Unbounded,
+        LayoutAvailableSpace::Unbounded,
+    );
+    tree.frame_in_viewport(constraints, [50.0, 500.0]).unwrap();
+    assert_eq!(
+        tree.layout_result(child).unwrap().size,
+        paragraph.layout(None).unwrap().size
+    );
+    assert_eq!(
+        tree.layout_result(child).unwrap().baseline,
+        Some(paragraph.first_baseline())
+    );
+    let first = tree.layout_result(child).unwrap();
+    assert_eq!(
+        tree.frame_in_viewport(constraints, [90.0, 500.0])
+            .unwrap()
+            .layout_runs,
+        0
+    );
+    assert_eq!(tree.layout_result(child).unwrap(), first);
+    tree.frame_in_viewport(
+        LayoutConstraints::new(
+            LayoutAvailableSpace::Definite(50.0),
+            LayoutAvailableSpace::Unbounded,
+        ),
+        [50.0, 500.0],
+    )
+    .unwrap();
+    assert_eq!(
+        tree.layout_result(child).unwrap().size,
+        paragraph.layout(Some(50.0)).unwrap().size
+    );
+    tree.frame_in_viewport(constraints, [50.0, 500.0]).unwrap();
+    assert_eq!(tree.layout_result(child).unwrap(), first);
+}
+
+#[test]
 fn intrinsic_height_limit_uses_final_flex_width_for_shaped_paragraph() {
     let system = text_system();
     let paragraph = shape(&system, "one two three four five six seven 中文段落");

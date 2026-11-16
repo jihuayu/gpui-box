@@ -208,7 +208,7 @@ impl ParagraphSnapshot {
         let width = match available {
             AvailableSpace::Definite(width) => Some(width.max(0.0)),
             AvailableSpace::MinContent => Some(self.0.min_width),
-            AvailableSpace::MaxContent => None,
+            AvailableSpace::MaxContent | AvailableSpace::Unbounded => None,
         };
         let layout = self.layout(width).expect("validated Taffy content width");
         Size {

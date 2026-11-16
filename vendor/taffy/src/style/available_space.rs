@@ -19,6 +19,9 @@ pub enum AvailableSpace {
     MinContent,
     /// The amount of space available is indefinite and the node should be laid out under a max-content constraint
     MaxContent,
+    /// Normal layout without an upper bound. Unlike MaxContent, this does not
+    /// request an intrinsic contribution. It is indefinite for percentages.
+    Unbounded,
 }
 impl TaffyZero for AvailableSpace {
     const ZERO: Self = Self::Definite(0.0);
@@ -56,8 +59,13 @@ impl AvailableSpace {
         matches!(self, AvailableSpace::Definite(_))
     }
 
+    /// True only for explicit intrinsic sizing queries, not normal unbounded layout.
+    pub const fn is_intrinsic(self) -> bool {
+        matches!(self, Self::MinContent | Self::MaxContent)
+    }
+
     /// Convert to Option
-    /// Definite values become Some(value). Constraints become None.
+    /// Definite values become Some(value). Intrinsic and unbounded axes become None.
     pub const fn into_option(self) -> Option<f32> {
         match self {
             AvailableSpace::Definite(value) => Some(value),
@@ -116,7 +124,7 @@ impl AvailableSpace {
     /// Compute free_space given the passed used_space
     pub fn compute_free_space(&self, used_space: f32) -> f32 {
         match self {
-            AvailableSpace::MaxContent => f32::INFINITY,
+            AvailableSpace::MaxContent | AvailableSpace::Unbounded => f32::INFINITY,
             AvailableSpace::MinContent => 0.0,
             AvailableSpace::Definite(available_space) => available_space - used_space,
         }
@@ -130,6 +138,7 @@ impl AvailableSpace {
             (Definite(a), Definite(b)) => abs(a - b) < f32::EPSILON,
             (MinContent, MinContent) => true,
             (MaxContent, MaxContent) => true,
+            (Unbounded, Unbounded) => true,
             _ => false,
         }
     }
