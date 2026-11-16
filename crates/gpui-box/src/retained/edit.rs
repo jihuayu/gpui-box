@@ -64,6 +64,8 @@ impl TreeEdit<'_> {
             Node {
                 layout: self.tree.node(self.tree.root)?.layout, // replaced only at publication
                 published_layout: taffy::Layout::new(),
+                layout_origin: [0.0; 2],
+                published_origin: [0.0; 2],
                 layout_order: 0,
                 parent: Some(parent),
                 children: vec![],
@@ -345,6 +347,9 @@ impl TreeEdit<'_> {
                 .expect("draft Taffy leaf");
             node.children.clear();
             self.tree.layout_nodes.insert(node.layout, *id);
+            if node.style.position.is_out_of_flow() {
+                self.tree.out_of_flow.insert(*id);
+            }
             if id.slot >= self.tree.slots.len() {
                 for slot in self.tree.slots.len()..id.slot {
                     self.tree.free.push(slot);

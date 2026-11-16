@@ -117,6 +117,16 @@ pub(super) fn layout_leaf(
             };
             stats.measure_calls += 1;
             // Available space alone is not a known content dimension.
+            // Size containment suppresses a replaced image's natural aspect
+            // ratio, including transfer from externally allocated dimensions.
+            // Explicit authored aspect_ratio is still handled by the box model.
+            let known = if matches!(snapshot, MeasureSnapshot::Image(_))
+                && style.contain.intersects(taffy::Contain::INLINE_SIZE)
+            {
+                Size::NONE
+            } else {
+                known
+            };
             snapshot.size(known, available)
         },
     );
@@ -154,7 +164,9 @@ pub(super) fn layout_leaf(
             .max(0.0),
         };
     }
-    if let Some(baseline) = snapshot.and_then(MeasureSnapshot::baseline) {
+    if let Some(baseline) = snapshot.and_then(MeasureSnapshot::baseline)
+        && !style.contain.suppresses_baseline()
+    {
         // Resolve percentage top padding/border against containing inline size,
         // as the leaf algorithm does. Baseline output remains in border-box space.
         output.baselines = taffy::tree::Baselines::from_first(Some(
@@ -170,6 +182,7 @@ pub(super) fn effective_style(style: &Style, snapshot: Option<&MeasureSnapshot>)
         effective.item_is_replaced = true;
     }
     if effective.aspect_ratio.is_none()
+        && !effective.contain.intersects(taffy::Contain::INLINE_SIZE)
         && let Some(MeasureSnapshot::Image(image)) = snapshot
         && image.width > 0.0
         && image.height > 0.0

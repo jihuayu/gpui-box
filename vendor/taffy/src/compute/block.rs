@@ -419,6 +419,8 @@ pub fn compute_block_layout(
         Size::NONE
     };
 
+    let contained_size =
+        super::common::size_containment::contained_size(inputs, &style, |value, basis| tree.calc(value, basis));
     drop(style);
 
     // If both min and max in a given axis are set and max <= min then this determines the size in that axis
@@ -427,8 +429,11 @@ pub fn compute_block_layout(
         _ => None,
     });
 
-    let styled_based_known_dimensions =
-        known_dimensions.or(min_max_definite_size).or(clamped_style_size).maybe_max(padding_border_size);
+    let styled_based_known_dimensions = known_dimensions
+        .or(min_max_definite_size)
+        .or(clamped_style_size)
+        .or(contained_size)
+        .maybe_max(padding_border_size);
 
     // Short-circuit layout if the container's size is fully determined by the container's size and the run mode
     // is ComputeSize (and thus the container's size is all that we're interested in)

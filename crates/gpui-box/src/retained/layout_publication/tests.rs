@@ -490,3 +490,174 @@ fn grid_block_absolute_constraints_and_baselines_match_complete_extraction() {
         assert!(!a.build_stats.full_rebuild);
     }
 }
+
+#[test]
+fn containing_block_offsets_survive_static_ancestors_and_incremental_publication() {
+    let raster = |frame: FramePacket| {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [300, 200],
+                scale: 1.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 16 * 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(4096).unwrap() {}
+        job.into_frame().unwrap()
+    };
+    let make = || {
+        let mut tree = UiTree::new_layout(
+            LayoutStyle::column().size(LayoutDimension::Px(300.0), LayoutDimension::Px(200.0)),
+            0,
+        )
+        .unwrap();
+        let host_style = LayoutStyle::column()
+            .size(LayoutDimension::Px(100.0), LayoutDimension::Px(80.0))
+            .container_type(LayoutContainerType::Size)
+            .margin(LayoutEdges {
+                left: LayoutLength::Px(20.0),
+                top: LayoutLength::Px(10.0),
+                ..LayoutEdges::zero()
+            });
+        let host = tree
+            .append_layout(tree.root(), host_style.clone(), 0)
+            .unwrap();
+        let middle_style = LayoutStyle::column()
+            .size(LayoutDimension::Px(60.0), LayoutDimension::Px(40.0))
+            .margin(LayoutEdges {
+                left: LayoutLength::Px(13.0),
+                top: LayoutLength::Px(17.0),
+                ..LayoutEdges::zero()
+            });
+        let middle = tree.append_layout(host, middle_style.clone(), 0).unwrap();
+        let mut absolute_style =
+            LayoutStyle::row().size(LayoutDimension::Px(10.0), LayoutDimension::Px(8.0));
+        absolute_style.position = layout::LayoutPosition::Absolute;
+        absolute_style.inset = LayoutEdges {
+            left: LayoutLength::Px(5.0),
+            top: LayoutLength::Px(6.0),
+            ..LayoutEdges::all(LayoutLength::Auto)
+        };
+        let absolute = tree
+            .append_layout(middle, absolute_style, 0xff0000ff)
+            .unwrap();
+        let mut nested_style =
+            LayoutStyle::row().size(LayoutDimension::Px(2.0), LayoutDimension::Px(2.0));
+        nested_style.position = layout::LayoutPosition::Absolute;
+        nested_style.inset = LayoutEdges {
+            left: LayoutLength::Px(2.0),
+            top: LayoutLength::Px(3.0),
+            ..LayoutEdges::all(LayoutLength::Auto)
+        };
+        let nested = tree
+            .append_layout(absolute, nested_style, 0x00ff00ff)
+            .unwrap();
+        (
+            tree,
+            [host, middle, absolute, nested],
+            host_style,
+            middle_style,
+        )
+    };
+    let (mut fast, ids, host_style, middle_style) = make();
+    let (mut full, other, _, _) = make();
+    full.set_frame_build_policy(FrameBuildPolicy::Full);
+    let original = fast.frame([300.0, 200.0]).unwrap();
+    equivalent(&original, &full.frame([300.0, 200.0]).unwrap());
+    assert_eq!(fast.layout_result(ids[2]).unwrap().location, [-8.0, -11.0]);
+    let bounds = |frame: &FramePacket, id| {
+        frame
+            .items
+            .iter()
+            .find(|item| item.node == id)
+            .unwrap()
+            .bounds
+    };
+    assert_eq!(
+        [bounds(&original, ids[2]).x, bounds(&original, ids[2]).y],
+        [25.0, 16.0]
+    );
+    assert_eq!(original.hit_test(27.5, 19.5), Some(ids[3]));
+    let old_local = fast.local_frame([300.0, 200.0]).unwrap();
+    for step in 0..4 {
+        for (tree, ids) in [(&mut fast, ids), (&mut full, other)] {
+            let mut tx = Transaction::default();
+            match step {
+                0 => {
+                    let mut moved = middle_style.clone();
+                    moved.margin.left = LayoutLength::Px(23.0);
+                    moved.margin.top = LayoutLength::Px(27.0);
+                    tx.layout_style(ids[1], moved);
+                }
+                1 => tx.layout_style(
+                    ids[0],
+                    host_style
+                        .clone()
+                        .container_type(LayoutContainerType::Normal),
+                ),
+                2 => tx.translation(ids[1], [2.0, 3.0]),
+                _ => tx.layout_style(ids[0], host_style.clone()),
+            }
+            let published = tree.layout_result(ids[2]).unwrap();
+            tree.commit(tx, BackendCapabilities::default()).unwrap();
+            assert_eq!(
+                tree.layout_result(ids[2]).unwrap(),
+                published,
+                "unpublished style cannot reinterpret old coordinates"
+            );
+        }
+        let a = fast.frame([300.0, 200.0]).unwrap();
+        let b = full.frame([300.0, 200.0]).unwrap();
+        equivalent(&a, &b);
+        let expected = match step {
+            0 | 3 => [25.0, 16.0],
+            1 => [5.0, 6.0],
+            _ => [7.0, 9.0],
+        };
+        let expected = if step == 3 { [27.0, 19.0] } else { expected };
+        let rect = bounds(&a, ids[2]);
+        assert_eq!([rect.x, rect.y], expected);
+        let pixels = raster(a.clone());
+        assert_eq!(pixels.pixels(), raster(b).pixels());
+        let offset = (expected[1] as usize * 300 + expected[0] as usize) * 4;
+        assert_eq!(&pixels.pixels()[offset..offset + 4], &[255, 0, 0, 255]);
+        let local = fast.local_frame([300.0, 200.0]).unwrap();
+        assert_eq!(bounds(&local.resolve(), ids[2]), rect);
+        assert_eq!(
+            local.hit_test(expected[0] + 2.5, expected[1] + 3.5),
+            Some(ids[3])
+        );
+        assert_eq!(a.recorded_chunks, 0);
+    }
+    assert_eq!(
+        bounds(&old_local.resolve(), ids[2]),
+        bounds(&original, ids[2])
+    );
+    // Topology edits also maintain the indexed out-of-flow set and normalize
+    // coordinates relative to the new render parent.
+    fast.edit(BackendCapabilities::default(), |edit| {
+        edit.reparent(ids[2], ids[0])?;
+        Ok(())
+    })
+    .unwrap();
+    let moved = fast.frame([300.0, 200.0]).unwrap();
+    assert_eq!(fast.layout_result(ids[2]).unwrap().location, [5.0, 6.0]);
+    assert_eq!(
+        [bounds(&moved, ids[2]).x, bounds(&moved, ids[2]).y],
+        [25.0, 16.0]
+    );
+    fast.remove(ids[2]).unwrap();
+    assert!(fast.out_of_flow.is_empty());
+    fast.edit(BackendCapabilities::default(), |edit| {
+        let mut style = LayoutStyle::row().size(LayoutDimension::Px(4.0), LayoutDimension::Px(4.0));
+        style.position = layout::LayoutPosition::Absolute;
+        edit.append_layout(ids[1], style, 3)?;
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(fast.out_of_flow.len(), 1);
+    fast.frame([300.0, 200.0]).unwrap();
+}

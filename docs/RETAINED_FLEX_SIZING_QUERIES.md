@@ -4,6 +4,13 @@ Updated 2026-11-16 on `codex/rendering-performance-research`. This stage extends
 the framework-owned layout contract and fixes algorithms in the project-owned
 Taffy fork. The full RFC remains partially implemented.
 
+Subsequent same-date [size containment and fluid queries](RETAINED_SIZE_CONTAINMENT.md)
+extend the fixed-inline proof below with explicit boundaries, fluid external
+allocation, safe auto-height column chains and sibling-allocation dependencies.
+The validation counts in this document describe the preceding sizing stage;
+the linked follow-up records current combined counts and API differences from
+browser `container-type`.
+
 ## Public dimensions and gap axes
 
 `LayoutDimension` now supports `MinContent`, `MaxContent`, `FitContent`,

@@ -254,6 +254,19 @@ pub enum LayoutDisplay {
     None,
 }
 
+/// Size-query boundary in horizontal writing mode. Both query types establish
+/// layout containment; Size also isolates both intrinsic axes. Paint/clip and
+/// scroll properties remain independently authored. This explicit layout
+/// containment is stronger than current browser `container-type` alone: it
+/// also establishes an absolute/fixed containing block and suppresses baseline.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ContainerType {
+    #[default]
+    Normal,
+    InlineSize,
+    Size,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LayoutDirection {
     Ltr,
@@ -443,6 +456,7 @@ pub struct LayoutStyle {
     /// Stable flex-item ordering. Equal values preserve logical child order.
     pub order: i32,
     pub display: LayoutDisplay,
+    pub container_type: ContainerType,
     pub direction: LayoutDirection,
     pub position: LayoutPosition,
     pub inset: Edges,
@@ -475,6 +489,7 @@ impl Default for LayoutStyle {
         Self {
             order: 0,
             display: LayoutDisplay::Flex,
+            container_type: ContainerType::Normal,
             direction: LayoutDirection::Ltr,
             position: LayoutPosition::Static,
             inset: Edges::all(Length::Auto),
@@ -515,6 +530,10 @@ impl LayoutStyle {
 
     pub fn display(mut self, display: LayoutDisplay) -> Self {
         self.display = display;
+        self
+    }
+    pub fn container_type(mut self, container_type: ContainerType) -> Self {
+        self.container_type = container_type;
         self
     }
     pub fn order(mut self, order: i32) -> Self {
@@ -650,6 +669,11 @@ impl LayoutStyle {
     pub(crate) fn to_taffy(&self) -> Result<taffy::Style, Error> {
         self.validate()?;
         Ok(taffy::Style {
+            contain: match self.container_type {
+                ContainerType::Normal => taffy::Contain::NONE,
+                ContainerType::InlineSize => taffy::Contain::LAYOUT | taffy::Contain::INLINE_SIZE,
+                ContainerType::Size => taffy::Contain::LAYOUT | taffy::Contain::SIZE,
+            },
             display: match self.display {
                 LayoutDisplay::Flex => taffy::Display::Flex,
                 LayoutDisplay::None => taffy::Display::None,
@@ -764,6 +788,8 @@ impl LayoutStyle {
 
 #[cfg(test)]
 mod baseline_tests;
+#[cfg(test)]
+mod containment_tests;
 #[cfg(test)]
 mod sizing_tests;
 

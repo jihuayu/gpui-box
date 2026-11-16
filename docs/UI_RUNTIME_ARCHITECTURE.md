@@ -112,8 +112,19 @@ host 若受其他 responsive rule 控制，该 producer 的当前 source 与每�
 规则和布局。安全嵌套与自动高度现已支持，不采用迭代收敛；最多初始布局加每个变化
 依赖层一次，所有阶段的布局计数累加。中间包可能发布，最终消费者仍需原有 base
 revision 恢复；多个阶段不是一次原子结构事务。构图每帧检查规则对和祖先关系，尚未
-索引化。shrink-wrap/弹性 inline 宽度、完整 CSS 条件、结构自适应与通用反馈仍未实现。
+索引化。完整 CSS 条件、结构自适应与通用反馈仍未实现。
 旧 `ResponsiveBindings` 保持原固定宽高、最多两阶段、拒绝嵌套依赖的迁移契约。
+
+公共 `LayoutContainerType::{Normal, InlineSize, Size}` 进一步提供显式尺寸隔离。
+项目内 Taffy 在 Flex/Grid/Block/叶子测量阶段忽略被隔离轴的内容贡献，仍正常布局
+和绘制后代。Size 支持外部 Flex 流式分配；InlineSize 在经过证明的无换行列链上
+支持宽度流式、内容自动增高，Row/wrap/aspect 反馈仍拒绝。依赖图加入可能改变
+兄弟分配的 producer，尺寸边界截断外部影响，不做迭代收敛。该 API 明确附带
+layout containment（基线隔离与定位包含块），比当前浏览器单独 container-type
+更强；clip/scroll 独立，完整 CSS stacking/OOF scroll attachment 尚未实现。
+布局发布把 Taffy 的包含块坐标转换成 render-parent 局部坐标，保存旧发布位置，
+并按 OOF 索引复验静态祖先移动后的补偿量。详见
+[尺寸隔离与流式查询](RETAINED_SIZE_CONTAINMENT.md)。这轮没有宣称帧率提升。
 
 公共 `Dimension` 现已提供 MinContent/MaxContent/FitContent/数值或百分比
 FitContent/Stretch，以及仅供 flex-basis 的 Content；min/max 字段仍使用 Length，

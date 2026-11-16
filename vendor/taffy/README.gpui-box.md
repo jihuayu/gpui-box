@@ -45,6 +45,16 @@ local test artifacts and ignored.
   changes, not only publication instrumentation. Focused regressions and a
   small independent Chromium reference accompany the framework
   [sizing/query contract](../../docs/RETAINED_FLEX_SIZING_QUERIES.md).
+- `Contain::INLINE_SIZE` / `SIZE` implement empty-content sizing in the declared
+  axes through the common leaf box model, integrated with Flex, Grid and Block.
+  Descendant layout remains normal; width-sensitive leaf measurement sees the
+  contained used width before measuring the other axis. Layout/paint containment
+  now claims both absolute and fixed positioning descendants. Clipping and
+  stacking remain renderer responsibilities. Framework query boundaries choose
+  layout containment explicitly, stronger than Chromium `container-type` alone.
+  See [size containment](../../docs/RETAINED_SIZE_CONTAINMENT.md) for semantics,
+  adapter coordinates, validation and limitations. Vertical writing and
+  contain-intrinsic-size fallback are not implemented.
 
 The framework publishes only the first horizontal baseline. Retaining Taffy's
 `Baselines.last` field does not implement last-baseline alignment, vertical

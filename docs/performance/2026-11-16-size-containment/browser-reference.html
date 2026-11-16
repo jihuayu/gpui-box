@@ -1,0 +1,93 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Size containment and fluid queries reference</title>
+<style>
+body { margin: 0; }
+#results { white-space: pre-wrap; }
+* { box-sizing: border-box; }
+.page { display: flex; width: 100%; flex-direction: column; }
+.query { display: flex; flex-direction: column; padding: 5px; }
+.query > .target { width: 10px; height: 10px; flex-shrink: 0; }
+@container (min-width: 200px) {
+    .query > .target { width: 1000px; height: 80px; }
+}
+</style>
+<div id="fixture"></div><pre id="results"></pre>
+<script>
+// Independent browser geometry, with no project/Taffy runtime. Values are
+// mirrored by retained/layout/containment_tests and responsive/layout_queries.
+window.referenceReady = (async () => {
+    const fixture = document.querySelector('#fixture');
+    const cases = [];
+    function node(css, parent = fixture) {
+        const element = document.createElement('div'); element.style.cssText = css;
+        parent.append(element); return element;
+    }
+    const size = element => { const r = element.getBoundingClientRect(); return [r.width, r.height]; };
+    function check(name, actual, expected) {
+        cases.push({name, actual, expected, pass: JSON.stringify(actual) === JSON.stringify(expected)});
+    }
+    for (const type of ['normal', 'inline-size', 'size']) {
+        for (const direction of ['row', 'column']) {
+            fixture.replaceChildren();
+            const root = node(`display:flex;width:300px;height:200px;flex-direction:${direction}`);
+            const host = node(`display:flex;flex-direction:column;padding:2px;container-type:${type}`, root);
+            const child = node('width:1000px;height:500px;flex-shrink:0', host);
+            const expected = direction === 'row'
+                ? [type === 'normal' ? 1004 : 4, 200]
+                : [300, type === 'size' ? 4 : 504];
+            check(`${type}/${direction}`, [size(host), size(child)], [expected, [1000,500]]);
+        }
+    }
+    for (const width of [209, 210, 400, 209]) {
+        fixture.replaceChildren(); fixture.style.width = width + 'px';
+        const root = node(''); root.className = 'page';
+        const host = node('container-type:inline-size', root); host.className = 'query';
+        const child = node('', host); child.className = 'target';
+        const wide = width >= 210;
+        check(`inline-fluid-${width}`, [size(root), size(host), size(child)],
+            [[width, wide ? 90 : 20], [width, wide ? 90 : 20], wide ? [1000,80] : [10,10]]);
+    }
+    for (const width of [269, 270, 350, 269]) {
+        fixture.replaceChildren();
+        const root = node(`display:flex;width:${width}px;height:120px`);
+        node('width:60px;height:20px;flex-shrink:0', root);
+        const host = node('container-type:size;flex-grow:1', root); host.className = 'query';
+        const child = node('', host); child.className = 'target';
+        const wide = width >= 270;
+        check(`size-fluid-${width}`, [size(host),size(child)],
+            [[width-60,120], wide ? [1000,80] : [10,10]]);
+    }
+    for (const type of ['normal', 'inline-size', 'size']) {
+        for (const ratio of ['auto', '2']) {
+            fixture.replaceChildren();
+            const image = new Image();
+            image.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"/>';
+            await image.decode(); image.style.cssText = `container-type:${type};width:100px;aspect-ratio:${ratio}`;
+            fixture.append(image);
+            check(`image-${type}-${ratio}`, size(image),
+                [100, ratio === '2' || type === 'normal' ? 50 : type === 'size' ? 0 : 40]);
+        }
+    }
+    fixture.replaceChildren(); fixture.style.width = '300px';
+    const root = node('display:flex;flex-direction:column;width:300px;height:200px');
+    const host = node('display:flex;flex-direction:column;width:100px;height:80px;margin:10px 0 0 20px;container-type:size', root);
+    const middle = node('display:flex;flex-direction:column;width:60px;height:40px;margin:17px 0 0 13px', host);
+    const absolute = node('position:absolute;left:5px;top:6px;width:10px;height:8px', middle);
+    // Current Chromium container-type alone does not establish a positioning
+    // containing block. The framework explicitly chooses layout containment
+    // as part of its query-boundary contract, so compare that combination.
+    check('browser-container-type-alone', [absolute.getBoundingClientRect().x,absolute.getBoundingClientRect().y], [5,6]);
+    host.style.contain = 'layout';
+    for (const offset of [13,23]) {
+        middle.style.marginLeft = offset + 'px';
+        const rect = absolute.getBoundingClientRect(), parent = middle.getBoundingClientRect();
+        check(`absolute-static-ancestor-${offset}`,
+            [[rect.x,rect.y],[rect.x-parent.x,rect.y-parent.y]], [[25,16],[5-offset,-11]]);
+    }
+    const result = {userAgent:navigator.userAgent, passed:cases.filter(x=>x.pass).length,
+        failed:cases.filter(x=>!x.pass).length,cases};
+    document.querySelector('#results').textContent = JSON.stringify(result,null,2);
+    return result;
+})();
+</script>

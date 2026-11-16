@@ -1,0 +1,507 @@
+{
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36",
+  "passed": 23,
+  "failed": 0,
+  "cases": [
+    {
+      "name": "normal/row",
+      "actual": [
+        [
+          1004,
+          200
+        ],
+        [
+          1000,
+          500
+        ]
+      ],
+      "expected": [
+        [
+          1004,
+          200
+        ],
+        [
+          1000,
+          500
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "normal/column",
+      "actual": [
+        [
+          300,
+          504
+        ],
+        [
+          1000,
+          500
+        ]
+      ],
+      "expected": [
+        [
+          300,
+          504
+        ],
+        [
+          1000,
+          500
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "inline-size/row",
+      "actual": [
+        [
+          4,
+          200
+        ],
+        [
+          1000,
+          500
+        ]
+      ],
+      "expected": [
+        [
+          4,
+          200
+        ],
+        [
+          1000,
+          500
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "inline-size/column",
+      "actual": [
+        [
+          300,
+          504
+        ],
+        [
+          1000,
+          500
+        ]
+      ],
+      "expected": [
+        [
+          300,
+          504
+        ],
+        [
+          1000,
+          500
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "size/row",
+      "actual": [
+        [
+          4,
+          200
+        ],
+        [
+          1000,
+          500
+        ]
+      ],
+      "expected": [
+        [
+          4,
+          200
+        ],
+        [
+          1000,
+          500
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "size/column",
+      "actual": [
+        [
+          300,
+          4
+        ],
+        [
+          1000,
+          500
+        ]
+      ],
+      "expected": [
+        [
+          300,
+          4
+        ],
+        [
+          1000,
+          500
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "inline-fluid-209",
+      "actual": [
+        [
+          209,
+          20
+        ],
+        [
+          209,
+          20
+        ],
+        [
+          10,
+          10
+        ]
+      ],
+      "expected": [
+        [
+          209,
+          20
+        ],
+        [
+          209,
+          20
+        ],
+        [
+          10,
+          10
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "inline-fluid-210",
+      "actual": [
+        [
+          210,
+          90
+        ],
+        [
+          210,
+          90
+        ],
+        [
+          1000,
+          80
+        ]
+      ],
+      "expected": [
+        [
+          210,
+          90
+        ],
+        [
+          210,
+          90
+        ],
+        [
+          1000,
+          80
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "inline-fluid-400",
+      "actual": [
+        [
+          400,
+          90
+        ],
+        [
+          400,
+          90
+        ],
+        [
+          1000,
+          80
+        ]
+      ],
+      "expected": [
+        [
+          400,
+          90
+        ],
+        [
+          400,
+          90
+        ],
+        [
+          1000,
+          80
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "inline-fluid-209",
+      "actual": [
+        [
+          209,
+          20
+        ],
+        [
+          209,
+          20
+        ],
+        [
+          10,
+          10
+        ]
+      ],
+      "expected": [
+        [
+          209,
+          20
+        ],
+        [
+          209,
+          20
+        ],
+        [
+          10,
+          10
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "size-fluid-269",
+      "actual": [
+        [
+          209,
+          120
+        ],
+        [
+          10,
+          10
+        ]
+      ],
+      "expected": [
+        [
+          209,
+          120
+        ],
+        [
+          10,
+          10
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "size-fluid-270",
+      "actual": [
+        [
+          210,
+          120
+        ],
+        [
+          1000,
+          80
+        ]
+      ],
+      "expected": [
+        [
+          210,
+          120
+        ],
+        [
+          1000,
+          80
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "size-fluid-350",
+      "actual": [
+        [
+          290,
+          120
+        ],
+        [
+          1000,
+          80
+        ]
+      ],
+      "expected": [
+        [
+          290,
+          120
+        ],
+        [
+          1000,
+          80
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "size-fluid-269",
+      "actual": [
+        [
+          209,
+          120
+        ],
+        [
+          10,
+          10
+        ]
+      ],
+      "expected": [
+        [
+          209,
+          120
+        ],
+        [
+          10,
+          10
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "image-normal-auto",
+      "actual": [
+        100,
+        50
+      ],
+      "expected": [
+        100,
+        50
+      ],
+      "pass": true
+    },
+    {
+      "name": "image-normal-2",
+      "actual": [
+        100,
+        50
+      ],
+      "expected": [
+        100,
+        50
+      ],
+      "pass": true
+    },
+    {
+      "name": "image-inline-size-auto",
+      "actual": [
+        100,
+        40
+      ],
+      "expected": [
+        100,
+        40
+      ],
+      "pass": true
+    },
+    {
+      "name": "image-inline-size-2",
+      "actual": [
+        100,
+        50
+      ],
+      "expected": [
+        100,
+        50
+      ],
+      "pass": true
+    },
+    {
+      "name": "image-size-auto",
+      "actual": [
+        100,
+        0
+      ],
+      "expected": [
+        100,
+        0
+      ],
+      "pass": true
+    },
+    {
+      "name": "image-size-2",
+      "actual": [
+        100,
+        50
+      ],
+      "expected": [
+        100,
+        50
+      ],
+      "pass": true
+    },
+    {
+      "name": "browser-container-type-alone",
+      "actual": [
+        5,
+        6
+      ],
+      "expected": [
+        5,
+        6
+      ],
+      "pass": true
+    },
+    {
+      "name": "absolute-static-ancestor-13",
+      "actual": [
+        [
+          25,
+          16
+        ],
+        [
+          -8,
+          -11
+        ]
+      ],
+      "expected": [
+        [
+          25,
+          16
+        ],
+        [
+          -8,
+          -11
+        ]
+      ],
+      "pass": true
+    },
+    {
+      "name": "absolute-static-ancestor-23",
+      "actual": [
+        [
+          25,
+          16
+        ],
+        [
+          -18,
+          -11
+        ]
+      ],
+      "expected": [
+        [
+          25,
+          16
+        ],
+        [
+          -18,
+          -11
+        ]
+      ],
+      "pass": true
+    }
+  ]
+}

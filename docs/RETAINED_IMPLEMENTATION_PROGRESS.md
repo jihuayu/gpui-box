@@ -61,6 +61,14 @@ preferred-size keywords, fixes physical gap axes, resolves root sizing keywords
 in the Taffy fork and separates final used-size wrapping from percentage
 definiteness. Public container queries prove fixed inline extents with auto
 heights and evaluate nested dependency stages. Full RFC acceptance remains open.
+The [size-containment stage](RETAINED_SIZE_CONTAINMENT.md) adds framework-owned
+Normal/InlineSize/Size boundaries and modifies the project-owned Taffy algorithms
+to ignore contained intrinsic axes while preserving child layout. Fluid queries
+support full-size external allocation and proven auto-height column chains;
+staged scheduling includes sibling allocation. Positioning coordinates are
+normalized from Taffy's containing block into render-parent space for full,
+selective and local publication, with CPU pixel and independent browser checks.
+General query graphs, complete CSS containment and full RFC acceptance remain open.
 The [validation-cache stage](RETAINED_VALIDATION_CACHE.md) reuses consumer checks
 for cache-owned immutable pages and stable node indices, with full fallback for
 identity/order/scale changes and complete effect-reference checks on effect-map edits.

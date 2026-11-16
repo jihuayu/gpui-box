@@ -228,8 +228,8 @@ pub enum LayoutQuery {
 }
 
 /// Responsive bindings using framework-owned layout types. Container queries
-/// use proven fixed inline extents, allow content-driven heights and resolve
-/// nested dependencies in bounded topological stages.
+/// use fixed inline extents or explicit size containment, allow proven
+/// content-driven heights and resolve nested allocation dependencies in stages.
 #[derive(Default)]
 pub struct LayoutResponsiveBindings {
     bindings: Vec<LayoutBinding>,
@@ -277,7 +277,7 @@ impl LayoutResponsiveBindings {
         Ok(())
     }
 
-    /// Binds to a fixed inline query extent. The target must be a strict render
+    /// Binds to an independent inline query extent. The target must be a strict render
     /// descendant. Nested rules are evaluated after rules that can affect their
     /// query host; auto height is allowed, inline feedback is rejected.
     pub fn bind_container(
@@ -324,8 +324,7 @@ impl LayoutResponsiveBindings {
         self.bindings.retain(|binding| {
             ui.read(binding.source).is_ok() && ui.reactive().tree().node(binding.target).is_ok()
         });
-        self.validate_layout_rules(ui, None)?;
-        let stages = self.layout_query_stages(ui.reactive().tree())?;
+        let stages = self.validate_layout_rules(ui, None)?;
         let values = self
             .bindings
             .iter()

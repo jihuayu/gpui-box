@@ -7,6 +7,11 @@ fixed-inline, auto-height nested queries. The `FlexStyle`/`ResponsiveBindings`
 restrictions and historical counts below describe the legacy adapter and its
 original acceptance. Its two-pass nested-query rejection remains unchanged;
 it is no longer the limit of the framework-owned public resolver.
+The subsequent [size-containment stage](RETAINED_SIZE_CONTAINMENT.md) supports
+fluid full-size query hosts and inline-contained auto-height column chains,
+including sibling-allocation dependency scheduling and explicit rejection of
+unproven feedback. Its query boundaries deliberately include layout containment,
+which is stronger than current browser `container-type` alone.
 
 `retained::responsive` adds validated Flex style values, configurable width
 thresholds and a bounded responsive resolver. The normal gallery prepaint path
@@ -98,5 +103,6 @@ claimed. Rule scanning currently examines all registered rules. Full environment
 subscriptions, constraint builders, responsive structural adaptation,
 shared-boundary device rounding, broad Flex conformance and the rest of the
 full RFC remain open. Auto-height and safe nested query graphs now have the
-separate public implementation linked above; flexible/content-dependent inline
-query extents remain open.
+separate public implementation linked above; selected fluid inline extents now
+have explicit containment proofs. General content-dependent Row/wrap/aspect
+feedback and complete query conformance remain open.

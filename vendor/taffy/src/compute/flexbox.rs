@@ -285,6 +285,8 @@ pub fn compute_flexbox_layout(
     // The size of the container should be floored by the padding and border
     let styled_based_known_dimensions =
         known_dimensions.or(min_max_definite_size.or(clamped_style_size).maybe_max(padding_border_sum));
+    let styled_based_known_dimensions = styled_based_known_dimensions
+        .or(super::common::size_containment::contained_size(inputs, &style, |value, basis| tree.calc(value, basis)));
 
     // Short-circuit layout if the container's size is fully determined by the container's size and the run mode
     // is ComputeSize (and thus the container's size is all that we're interested in)

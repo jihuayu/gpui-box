@@ -219,11 +219,14 @@ fn compute_container_constants<Tree: LayoutGridContainer>(
 pub fn compute_grid_layout<Tree: LayoutGridContainer>(
     tree: &mut Tree,
     node: NodeId,
-    inputs: LayoutInput,
+    mut inputs: LayoutInput,
 ) -> LayoutOutput {
-    let LayoutInput { known_dimensions, run_mode, .. } = inputs;
-
     let style = tree.get_grid_container_style(node);
+    inputs.known_dimensions =
+        inputs.known_dimensions.or(super::common::size_containment::contained_size(inputs, &style, |value, basis| {
+            tree.calc(value, basis)
+        }));
+    let LayoutInput { known_dimensions, run_mode, .. } = inputs;
     let constants = compute_container_constants(tree, &style, inputs);
     let GridContainerConstants {
         direction,

@@ -23,11 +23,11 @@ pub mod logical;
 pub use layout::{
     AlignContent as LayoutAlignContent, AlignItems as LayoutAlignItems,
     AlignSelf as LayoutAlignSelf, AvailableSpace as LayoutAvailableSpace,
-    BoxSizing as LayoutBoxSizing, Dimension as LayoutDimension, Edges as LayoutEdges,
-    FlexDirection as LayoutFlexDirection, FlexWrap as LayoutFlexWrap,
-    JustifyContent as LayoutJustifyContent, LayoutConstraints, LayoutDirection, LayoutDisplay,
-    LayoutPosition, LayoutResult, LayoutSize, LayoutStyle, Length as LayoutLength,
-    Overflow as LayoutOverflow,
+    BoxSizing as LayoutBoxSizing, ContainerType as LayoutContainerType,
+    Dimension as LayoutDimension, Edges as LayoutEdges, FlexDirection as LayoutFlexDirection,
+    FlexWrap as LayoutFlexWrap, JustifyContent as LayoutJustifyContent, LayoutConstraints,
+    LayoutDirection, LayoutDisplay, LayoutPosition, LayoutResult, LayoutSize, LayoutStyle,
+    Length as LayoutLength, Overflow as LayoutOverflow,
 };
 pub mod pacing;
 pub mod software;
@@ -350,6 +350,10 @@ impl From<taffy::TaffyError> for Error {
 struct Node {
     layout: taffy::NodeId,
     published_layout: taffy::Layout,
+    // Taffy's out-of-flow coordinates use the containing block. Keep the
+    // render-parent adapter and its published snapshot separate from raw data.
+    layout_origin: [f32; 2],
+    published_origin: [f32; 2],
     layout_order: i32,
     children: Vec<NodeId>,
     parent: Option<NodeId>,
@@ -386,6 +390,7 @@ pub struct UiTree {
     full_extract_required: bool,
     layout_nodes: std::collections::HashMap<taffy::NodeId, NodeId>,
     layout_written: std::collections::BTreeSet<NodeId>,
+    out_of_flow: std::collections::BTreeSet<NodeId>,
     geometry_dirty: std::collections::BTreeSet<NodeId>,
     property_dirty: dirty_nodes::DirtyNodes,
     local_dirty: dirty_nodes::DirtyNodes,
@@ -453,6 +458,11 @@ impl UiTree {
             slot: 0,
             generation: 0,
         };
+        let out_of_flow = if style.position.is_out_of_flow() {
+            [root].into()
+        } else {
+            Default::default()
+        };
         Ok(Self {
             identity,
             slots: vec![Slot {
@@ -460,6 +470,8 @@ impl UiTree {
                 node: Some(Node {
                     layout: id,
                     published_layout: taffy::Layout::new(),
+                    layout_origin: [0.0; 2],
+                    published_origin: [0.0; 2],
                     layout_order: 0,
                     children: vec![],
                     parent: None,
@@ -488,6 +500,7 @@ impl UiTree {
             full_extract_required: true,
             layout_nodes: [(id, root)].into(),
             layout_written: Default::default(),
+            out_of_flow,
             geometry_dirty: Default::default(),
             property_dirty: Default::default(),
             local_dirty: Default::default(),
@@ -530,7 +543,9 @@ impl UiTree {
             return Err(Error::InvalidFrame);
         }
         let node = self.node(id)?;
-        Ok(LayoutResult::from_taffy(&node.published_layout))
+        let mut result = LayoutResult::from_taffy(&node.published_layout);
+        result.location = node.published_origin;
+        Ok(result)
     }
 
     /// Measures the root under framework-owned intrinsic/definite constraints
@@ -598,10 +613,15 @@ impl UiTree {
             slot,
             generation,
         };
+        if style.position.is_out_of_flow() {
+            self.out_of_flow.insert(id);
+        }
         self.slots[slot].generation = generation;
         self.slots[slot].node = Some(Node {
             layout,
             published_layout: taffy::Layout::new(),
+            layout_origin: [0.0; 2],
+            published_origin: [0.0; 2],
             layout_order: 0,
             children: vec![],
             parent: Some(parent),
@@ -667,6 +687,7 @@ impl UiTree {
             self.layout.remove(layout)?;
             self.layout_nodes.remove(&layout);
             self.layout_written.remove(&removed);
+            self.out_of_flow.remove(&removed);
             let slot = &mut self.slots[removed.slot];
             slot.node = None;
             if let Some(next) = slot.generation.checked_add(1) {
@@ -1015,6 +1036,14 @@ impl UiTree {
                 self.layout
                     .set_style(layout, measure::effective_style(&style, snapshot.as_ref()))
                     .expect("prepared Taffy style");
+                if style.position.is_out_of_flow() {
+                    self.out_of_flow.insert(id);
+                } else {
+                    self.out_of_flow.remove(&id);
+                }
+                // A containing-block/position change may preserve raw Taffy
+                // geometry while changing its render-parent coordinate space.
+                self.layout_written.insert(id);
                 if measure_changed {
                     self.layout
                         .set_node_context(layout, snapshot.clone())

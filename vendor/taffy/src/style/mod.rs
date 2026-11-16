@@ -150,13 +150,15 @@ pub trait CoreStyle {
     /// out-of-flow boxes a node claims and lays out, and (for grid containers) whether the static
     /// position of an out-of-flow child is derived from its grid area.
     ///
-    /// The default matches plain CSS positioning: a node is the containing block for `absolute` boxes
-    /// when its own `position` is not `static`, and never for `fixed` boxes (which are claimed by the
-    /// root). Implementations may override this so that other style properties (such as `transform`,
+    /// A positioned node establishes the containing block for `absolute` boxes.
+    /// Layout or paint containment establishes it for both `absolute` and `fixed` boxes;
+    /// otherwise unclaimed fixed boxes reach the root. Implementations may override this
+    /// so that other style properties (such as `transform`,
     /// `filter` or `will-change` in a full CSS implementation) establish a containing block.
     #[inline(always)]
     fn is_containing_block(&self) -> ContainingBlockClaims {
-        ContainingBlockClaims { absolute: self.position().is_positioned(), fixed: false }
+        let contained = self.contain().intersects(Contain::LAYOUT | Contain::PAINT);
+        ContainingBlockClaims { absolute: self.position().is_positioned() || contained, fixed: contained }
     }
 
     // Size properies
@@ -527,12 +529,13 @@ crate::util::parse::impl_parse_for_keyword_enum!(Overflow,
 ///   - [`Contain::LAYOUT`]: the box establishes an independent formatting context, and is treated
 ///     as having no baseline for baseline-alignment purposes (layout containment).
 ///   - [`Contain::PAINT`]: the box establishes an independent formatting context. Paint
-///     containment's other effects (clipping, containing absolutely-positioned descendants,
-///     stacking context) are outside of Taffy's scope.
+///     containment also establishes a containing block for absolute/fixed descendants.
+///     Clipping and stacking contexts remain outside of Taffy's scope.
 ///
 /// The `style` containment type has no effect on layout and is therefore not represented
-/// (it is accepted and ignored when parsing). Size and inline-size containment are not
-/// currently implemented.
+/// (it is accepted and ignored when parsing). Size containment ignores content
+/// contributions in both axes; inline-size containment ignores them in the
+/// horizontal inline axis. Vertical writing modes are not implemented.
 ///
 /// <https://developer.mozilla.org/en-US/docs/Web/CSS/contain>
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]
@@ -546,10 +549,14 @@ impl Contain {
     /// as having no baseline for baseline-alignment purposes.
     /// <https://drafts.csswg.org/css-contain-2/#containment-layout>
     pub const LAYOUT: Contain = Contain(1 << 0);
-    /// Paint containment: the box establishes an independent formatting context. Its other
-    /// effects don't affect layout.
+    /// Paint containment: independent formatting context and absolute/fixed containing block.
+    /// Clipping and stacking remain the host renderer's responsibility.
     /// <https://drafts.csswg.org/css-contain-2/#containment-paint>
     pub const PAINT: Contain = Contain(1 << 1);
+    /// Ignore content contributions when sizing the horizontal inline axis.
+    pub const INLINE_SIZE: Contain = Contain(1 << 2);
+    /// Ignore content contributions when sizing either axis.
+    pub const SIZE: Contain = Contain((1 << 2) | (1 << 3));
     /// The containment implied by `contain: content` (`layout paint`, ignoring style containment)
     pub const CONTENT: Contain = Contain(Contain::LAYOUT.0 | Contain::PAINT.0);
 
@@ -586,6 +593,12 @@ impl Contain {
     #[inline(always)]
     pub const fn suppresses_baseline(self) -> bool {
         self.contains(Contain::LAYOUT)
+    }
+
+    /// Axes sized independently of the box's contents (horizontal writing).
+    #[inline(always)]
+    pub const fn size_containment(self) -> Size<bool> {
+        Size { width: self.intersects(Contain::INLINE_SIZE), height: self.contains(Contain::SIZE) }
     }
 
     /// Whether this containment prevents the box's overflowing content from contributing to an
@@ -639,6 +652,8 @@ impl crate::util::parse::FromCss for Contain {
                 },
                 "layout" => (Contain::LAYOUT, Contain::LAYOUT.0),
                 "paint" => (Contain::PAINT, Contain::PAINT.0),
+                "inline-size" => (Contain::INLINE_SIZE, Contain::SIZE.0),
+                "size" => (Contain::SIZE, Contain::SIZE.0),
                 // `style` containment has no layout effect: accept and ignore it so that real
                 // CSS values round-trip
                 "style" => (Contain::NONE, STYLE_BIT),
@@ -1725,6 +1740,10 @@ mod tests {
         assert_eq!(parse("paint layout"), Contain::LAYOUT | Contain::PAINT);
         assert_eq!(parse("layout paint style"), Contain::LAYOUT | Contain::PAINT);
         assert_eq!(parse("Paint LAYOUT"), Contain::LAYOUT | Contain::PAINT);
+        assert_eq!(parse("inline-size"), Contain::INLINE_SIZE);
+        assert_eq!(parse("size layout"), Contain::SIZE | Contain::LAYOUT);
+        assert!("size inline-size".parse::<Contain>().is_err());
+        assert!("inline-size size".parse::<Contain>().is_err());
         assert!("paint paint".parse::<Contain>().is_err());
 
         assert!("".parse::<Contain>().is_err());

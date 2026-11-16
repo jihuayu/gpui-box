@@ -211,6 +211,7 @@ impl UiTree {
             self.layout.remove(layout).expect("validated Taffy removal");
             self.layout_nodes.remove(&layout);
             self.layout_written.remove(id);
+            self.out_of_flow.remove(id);
             let slot = &mut self.slots[id.slot];
             slot.node = None;
             if let Some(next) = slot.generation.checked_add(1) {

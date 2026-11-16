@@ -38,7 +38,7 @@ where
 
     // Resolve node's preferred/min/max sizes (width/heights) against the available space (percentages resolve to pixel values)
     // For ContentSize mode, we pretend that the node has no size styles as these should be ignored.
-    let (node_size, node_min_size, node_max_size, aspect_ratio) = match sizing_mode {
+    let (mut node_size, node_min_size, node_max_size, aspect_ratio) = match sizing_mode {
         SizingMode::ContentSize => {
             let node_size = known_dimensions;
             let node_min_size = Size::NONE;
@@ -76,6 +76,22 @@ where
     let mut content_box_inset = padding_border;
     content_box_inset.right += scrollbar_gutter.x;
     content_box_inset.bottom += scrollbar_gutter.y;
+
+    // Contained auto axes use an empty content contribution before measuring
+    // the other axis. In particular, inline containment must wrap a paragraph
+    // against its actual used width rather than the ancestor's available width.
+    let contained = style.contain().size_containment();
+    if contained.width || contained.height {
+        let empty_size =
+            content_box_inset.sum_axes().maybe_clamp(node_min_size, node_max_size).maybe_max(pb_sum.map(Some));
+        node_size = node_size
+            .maybe_apply_aspect_ratio(aspect_ratio)
+            .or(Size {
+                width: contained.width.then_some(empty_size.width),
+                height: contained.height.then_some(empty_size.height),
+            })
+            .maybe_apply_aspect_ratio(aspect_ratio);
+    }
 
     let has_styles_preventing_being_collapsed_through = !style.is_block()
         || style.overflow().x.is_scroll_container()
@@ -145,9 +161,13 @@ where
         },
         available_space,
     );
+    let contribution = Size {
+        width: if contained.width { 0.0 } else { measured_size.width },
+        height: if contained.height { 0.0 } else { measured_size.height },
+    };
     let clamped_size = known_dimensions
         .or(node_size)
-        .unwrap_or(measured_size + content_box_inset.sum_axes())
+        .unwrap_or(contribution + content_box_inset.sum_axes())
         .maybe_clamp(node_min_size, node_max_size);
     let size = Size {
         width: clamped_size.width,

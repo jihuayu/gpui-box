@@ -148,8 +148,9 @@ impl UiTree {
                 continue;
             }
             let layout = *self.layout.layout(node.layout)?;
-            let x = origin[0] + layout.location.x + node.translation[0];
-            let y = origin[1] + layout.location.y + node.translation[1];
+            let layout_origin = node.layout_origin;
+            let x = origin[0] + layout_origin[0] + node.translation[0];
+            let y = origin[1] + layout_origin[1] + node.translation[1];
             let transform_property = (node.translation != [0.0; 2]).then_some(PropertyNode {
                 parent: state.transform,
                 value: node.translation,
@@ -203,7 +204,7 @@ impl UiTree {
             }
             let spatial = SpatialState {
                 parent: node.parent,
-                layout_origin: [layout.location.x, layout.location.y],
+                layout_origin,
                 translation: node.translation,
                 scroll,
                 clip: node.clip,

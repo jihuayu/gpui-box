@@ -1065,6 +1065,115 @@ mod tests {
     }
 
     #[test]
+    fn size_containment_preserves_descendant_layout_for_all_container_algorithms() {
+        for display in [Display::Flex, Display::Grid, Display::Block] {
+            for contain in [crate::Contain::INLINE_SIZE, crate::Contain::SIZE] {
+                let mut tree: TaffyTree<()> = TaffyTree::new();
+                tree.disable_rounding();
+                let child = tree
+                    .new_leaf(Style {
+                        size: Size { width: length(80.0), height: length(30.0) },
+                        flex_shrink: 0.0,
+                        ..Style::default()
+                    })
+                    .unwrap();
+                let root = tree
+                    .new_with_children(
+                        Style {
+                            display,
+                            contain,
+                            padding: crate::Rect {
+                                left: length(2.0),
+                                right: length(2.0),
+                                top: length(2.0),
+                                bottom: length(2.0),
+                            },
+                            ..Style::default()
+                        },
+                        &[child],
+                    )
+                    .unwrap();
+                tree.compute_layout(root, Size::MAX_CONTENT).unwrap();
+                assert_eq!(
+                    tree.layout(root).unwrap().size,
+                    Size { width: 4.0, height: if contain == crate::Contain::SIZE { 4.0 } else { 34.0 } },
+                    "{display:?}/{contain:?}"
+                );
+                assert_eq!(tree.layout(child).unwrap().size, Size { width: 80.0, height: 30.0 });
+                let before = *tree.layout(root).unwrap();
+                tree.compute_layout(root, Size::MAX_CONTENT).unwrap();
+                assert_eq!(*tree.layout(root).unwrap(), before);
+            }
+        }
+    }
+
+    #[test]
+    fn inline_contained_leaf_measures_uncontained_height_against_its_used_width() {
+        let mut tree: TaffyTree<()> = TaffyTree::new();
+        tree.disable_rounding();
+        let root = tree.new_leaf(Style { contain: crate::Contain::INLINE_SIZE, ..Style::default() }).unwrap();
+        tree.compute_layout_with_measure(
+            root,
+            Size { width: AvailableSpace::Definite(300.0), height: AvailableSpace::MaxContent },
+            |inputs, _, _, style| {
+                compute_leaf_layout(
+                    inputs,
+                    style,
+                    |_, _| 0.0,
+                    |_, available| {
+                        let width = available.width.into_option().unwrap_or(100.0);
+                        Size { width: 100.0, height: if width < 100.0 { 40.0 } else { 10.0 } }
+                    },
+                )
+            },
+        )
+        .unwrap();
+        assert_eq!(tree.layout(root).unwrap().size, Size { width: 0.0, height: 40.0 });
+    }
+
+    #[test]
+    fn layout_containment_establishes_absolute_and_fixed_containing_block() {
+        let mut tree: TaffyTree<()> = TaffyTree::new();
+        tree.disable_rounding();
+        let children = [crate::Position::Absolute, crate::Position::Fixed].map(|position| {
+            tree.new_leaf(Style {
+                position,
+                size: Size { width: percent(0.5), height: percent(0.5) },
+                inset: crate::Rect { left: length(5.0), right: auto(), top: length(6.0), bottom: auto() },
+                ..Style::default()
+            })
+            .unwrap()
+        });
+        let host = tree
+            .new_with_children(
+                Style {
+                    contain: crate::Contain::LAYOUT | crate::Contain::SIZE,
+                    size: Size { width: length(100.0), height: length(80.0) },
+                    margin: crate::Rect {
+                        left: length(20.0),
+                        right: length(0.0),
+                        top: length(10.0),
+                        bottom: length(0.0),
+                    },
+                    ..Style::default()
+                },
+                &children,
+            )
+            .unwrap();
+        let root = tree
+            .new_with_children(
+                Style { size: Size { width: length(300.0), height: length(200.0) }, ..Style::default() },
+                &[host],
+            )
+            .unwrap();
+        tree.compute_layout(root, Size::MAX_CONTENT).unwrap();
+        for child in children {
+            assert_eq!(tree.layout(child).unwrap().size, Size { width: 50.0, height: 40.0 });
+            assert_eq!(tree.layout(child).unwrap().location, crate::Point { x: 5.0, y: 6.0 });
+        }
+    }
+
+    #[test]
     fn new_should_allocate_default_capacity() {
         const DEFAULT_CAPACITY: usize = 16; // This is the capacity defined in the `impl Default`
         let taffy: TaffyTree<()> = TaffyTree::new();
