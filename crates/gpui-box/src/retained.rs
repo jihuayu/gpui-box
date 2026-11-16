@@ -48,8 +48,9 @@ pub mod paragraph;
 pub mod text;
 pub use measure::{CustomMeasureSnapshot, ImageIntrinsicSize, LayoutStats, MeasureSnapshot};
 pub use parent_layout::{
-    ChildLayoutInput, ChildLayoutResult, ParentLayout, ParentLayoutChildren, ParentLayoutInput,
-    ParentLayoutOutput, ParentLayoutSnapshot, ParentPlacement,
+    ChildInlineAllocation, ChildLayoutInput, ChildLayoutResult, ParentInlineInput,
+    ParentInlineLayout, ParentLayout, ParentLayoutChildren, ParentLayoutInput, ParentLayoutOutput,
+    ParentLayoutSnapshot, ParentPlacement,
 };
 mod primitive;
 mod properties;

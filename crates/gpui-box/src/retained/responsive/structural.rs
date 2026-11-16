@@ -48,6 +48,7 @@ pub(in crate::retained) struct Observation {
     rules: LayoutResponsiveBindings,
     stages: Vec<Vec<usize>>,
     widths: Vec<(NodeId, f32)>,
+    inline_dependencies: Vec<(NodeId, layout_dependencies::InlineDependencies)>,
     selected: Vec<(Signal<LayoutStyle>, LayoutStyle)>,
 }
 
@@ -159,6 +160,11 @@ impl FinalObservation {
                 return Err(Error::UnsafeContainerQuery);
             }
         }
+        for (host, dependencies) in &self.observation.inline_dependencies {
+            if !dependencies.matches(tree, *host)? {
+                return Err(Error::UnsafeContainerQuery);
+            }
+        }
         Ok(())
     }
 }
@@ -240,6 +246,7 @@ impl LayoutResponsiveBindings {
             ..Default::default()
         };
         let mut widths = vec![];
+        let mut inline_dependencies = vec![];
         for stage in &stages {
             preview.prepare_layout_environment(constraints, viewport)?;
             if preview.layout_dirty {
@@ -260,6 +267,10 @@ impl LayoutResponsiveBindings {
                 };
                 let width = inline_size(&preview, host)?;
                 widths.push((host, width));
+                inline_dependencies.push((
+                    host,
+                    layout_dependencies::InlineDependencies::capture(&preview, host)?,
+                ));
                 values.push((
                     binding.source,
                     binding.styles.select(width, environment.direction),
@@ -291,6 +302,7 @@ impl LayoutResponsiveBindings {
                 rules: self.clone(),
                 stages,
                 widths,
+                inline_dependencies,
                 selected,
             },
         ))

@@ -27,13 +27,19 @@ pub struct InlineConstraintBuilderInput {
 
 pub(super) enum Observation {
     Full(NodeId, ConstraintBuilderInput),
-    Inline(NodeId, InlineConstraintBuilderInput),
+    Inline(
+        NodeId,
+        InlineConstraintBuilderInput,
+        layout_dependencies::InlineDependencies,
+    ),
 }
 impl Observation {
     pub(super) fn validate(&self, tree: &UiTree) -> Result<(), Error> {
         let equal = match self {
             Self::Full(node, previous) => input(tree, *node)? == *previous,
-            Self::Inline(node, previous) => inline_input(tree, *node)? == *previous,
+            Self::Inline(node, previous, dependencies) => {
+                inline_input(tree, *node)? == *previous && dependencies.matches(tree, *node)?
+            }
         };
         if equal {
             Ok(())

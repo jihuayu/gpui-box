@@ -86,12 +86,16 @@ fn constraints(w: f32) -> LayoutConstraints {
         layout::AvailableSpace::Unbounded,
     )
 }
-fn install(tree: &mut UiTree, node: NodeId, delegate: Option<ParentLayoutSnapshot>) -> Commit {
+pub(super) fn install(
+    tree: &mut UiTree,
+    node: NodeId,
+    delegate: Option<ParentLayoutSnapshot>,
+) -> Commit {
     let mut tx = Transaction::default();
     tx.parent_layout(node, delegate);
     tree.commit(tx, BackendCapabilities::default()).unwrap()
 }
-fn pixels(frame: FramePacket) -> Vec<u8> {
+pub(super) fn pixels(frame: FramePacket) -> Vec<u8> {
     let mut job = software::SoftwareJob::new(
         frame,
         software::SoftwareOptions {

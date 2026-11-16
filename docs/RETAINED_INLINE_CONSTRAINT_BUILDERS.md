@@ -148,3 +148,9 @@ presentation, input-to-visible tails and CPU smoothness remain unqualified.
 
 [Scope-owned responsive declarations](RETAINED_SCOPED_RESPONSIVE_RULES.md) add
 draft registration/update/removal and rule retirement with keyed scopes.
+
+[Independent custom-parent width phases](RETAINED_PARENT_INLINE_ALLOCATION.md)
+now allow this proof to cross enforced width-only allocation edges. The parent's
+own inline independence is still proven; atomic input observations additionally
+retain custom snapshot and layout-ordered child identities. Arbitrary custom
+parents remain unproven, and this is not a full-axis/general builder scheduler.

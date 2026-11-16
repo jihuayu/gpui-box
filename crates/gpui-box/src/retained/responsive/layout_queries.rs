@@ -187,6 +187,16 @@ fn affects_query(
     if LayoutResponsiveBindings::is_ancestor(tree, target, host)? {
         return Ok(true);
     }
+    // Width phases address children in layout order. A sibling style sink can
+    // change order and therefore which enforced slot reaches this host.
+    let mut cursor = tree.node(host)?.parent;
+    while let Some(parent) = cursor {
+        let node = tree.node(parent)?;
+        if node.parent_layout.is_some() && tree.node(target)?.parent == Some(parent) {
+            return Ok(true);
+        }
+        cursor = node.parent;
+    }
     let mut fluid = !external_inline_extent(ui, rules, host, &tree.node(host)?.style)?;
     for (source, _, _, styles) in rules.iter().filter(|(_, target, _, _)| *target == host) {
         fluid |= !external_inline_extent(ui, rules, host, &ui.style(*source)?.to_taffy()?)?;
@@ -233,12 +243,22 @@ fn validate_query_host(
     host: NodeId,
     style: &Style,
 ) -> Result<(), Error> {
-    // A custom allocator may couple either axis or siblings arbitrarily. CSS
-    // fixed-width/containment proofs do not establish its dependency contract.
+    // Custom parent hard constraints override ordinary fixed-width limits.
+    // Require the shared proof across independent width-allocation phases;
+    // never trust containment/fixed CSS size alone below an arbitrary allocator.
     let mut ancestor = Some(host);
     while let Some(node) = ancestor {
         if ui.tree().node(node)?.parent_layout.is_some() {
-            return Err(Error::UnsafeContainerQuery);
+            return if column_inline_chain(ui, rules, host, style)?
+                && (validate_inline_extent(style).is_ok()
+                    || style
+                        .contain
+                        .contains(taffy::Contain::INLINE_SIZE | taffy::Contain::LAYOUT))
+            {
+                Ok(())
+            } else {
+                Err(Error::UnsafeContainerQuery)
+            };
         }
         ancestor = ui.tree().node(node)?.parent;
     }

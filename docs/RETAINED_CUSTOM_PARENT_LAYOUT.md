@@ -83,11 +83,14 @@ roll back sources, lifecycle, layout and frame together. Panic, external side
 effects and warming a shared paragraph cache are not rollback guarantees.
 Delegates must be pure even though Rust cannot enforce that with `&self` alone.
 
-ContainerQuery rejects a host with a custom allocator anywhere in its ancestor
-chain. Inline dependency proofs stop at custom parents. The existing CSS
-fixed-size/Column/containment proofs cannot authorize arbitrary sibling and
-cross-axis dependencies. ParentLayout sinks join responsive computed-sink
-dependency checking. Automatic query/delegate dependency declarations are open.
+Arbitrary custom edges still stop ContainerQuery/inline dependency proofs. The
+[independent inline allocation stage](RETAINED_PARENT_INLINE_ALLOCATION.md) adds
+an optional separate width-only phase with enforced tight child assignments,
+allowing the shared proof to cross those edges when the host's own width is
+proven. Atomic observations also recheck custom snapshot/child-order identities.
+CSS containment alone cannot authorize arbitrary sibling/cross-axis dependencies.
+ParentLayout sinks join responsive computed-sink dependency checking. General
+allocation/automatic scheduling and complete query dependencies remain open.
 
 ## ADR: keep Taffy as an owned algorithm kernel, extend its parent protocol
 

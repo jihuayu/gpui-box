@@ -16,6 +16,33 @@ impl InlineContext for UiTree {
     }
 }
 
+/// Custom width plans observe child count/order and owned snapshot data. A
+/// structural builder cannot change those dependencies after consuming a slot,
+/// even if its numeric allocation happens to remain equal in this execution.
+#[derive(Clone)]
+pub(super) struct InlineDependencies(Vec<(NodeId, ParentLayoutSnapshot, Vec<NodeId>)>);
+impl InlineDependencies {
+    pub(super) fn capture(tree: &UiTree, node: NodeId) -> Result<Self, Error> {
+        let mut result = vec![];
+        let mut parent = tree.node(node)?.parent;
+        while let Some(id) = parent {
+            let node = tree.node(id)?;
+            if let Some(snapshot) = &node.parent_layout {
+                result.push((
+                    id,
+                    snapshot.clone(),
+                    tree.ordered_children_for(id, &node.children)?,
+                ));
+            }
+            parent = node.parent;
+        }
+        Ok(Self(result))
+    }
+    pub(super) fn matches(&self, tree: &UiTree, node: NodeId) -> Result<bool, Error> {
+        Ok(self.0 == Self::capture(tree, node)?.0)
+    }
+}
+
 /// A column's stretched/definite inline size is independent of content height.
 /// A Tight constraint-box edge also assigns inline size from its own allocation.
 /// The proof walks every ancestor and every reachable authored alternative;
@@ -35,11 +62,7 @@ fn prove(
     memo: &mut std::collections::HashMap<NodeId, bool>,
 ) -> Result<bool, Error> {
     use taffy::style::{ExpandedDimension as D, ExpandedLengthPercentageAuto as A};
-    if context.tree().node(node)?.parent_layout.is_some()
-        || style.aspect_ratio.is_some()
-        || style.position.is_out_of_flow()
-        || style.min_size.width.is_sizing_keyword()
-        || style.max_size.width.is_sizing_keyword()
+    if style.position.is_out_of_flow()
         || !matches!(
             style.display,
             taffy::Display::Flex | taffy::Display::ConstraintBox { .. } | taffy::Display::None
@@ -47,16 +70,32 @@ fn prove(
     {
         return Ok(false);
     }
+    let parent = context.tree().node(node)?.parent;
+    if let Some(parent) = parent
+        && let Some(delegate) = &context.tree().node(parent)?.parent_layout
+    {
+        // The independent phase cannot see block dimensions/measurements. Its
+        // tight child width overrides authored width limits/aspect coupling;
+        // its independent percentage basis also fixes percentage insets.
+        // The parent's own width must still be independent of content height.
+        if !delegate.has_inline_layout() {
+            return Ok(false);
+        }
+        return prove_alternatives(context, parent, memo);
+    }
+    if style.aspect_ratio.is_some()
+        || style.min_size.width.is_sizing_keyword()
+        || style.max_size.width.is_sizing_keyword()
+    {
+        return Ok(false);
+    }
     let definite = matches!(
         style.size.width.expand(),
         D::Length(_) | D::Percent(_) | D::Stretch
     );
-    let Some(parent) = context.tree().node(node)?.parent else {
+    let Some(parent) = parent else {
         return Ok(definite);
     };
-    if context.tree().node(parent)?.parent_layout.is_some() {
-        return Ok(false);
-    }
     let parents = context.styles(parent)?;
     // CSS Flex cannot grow/shrink an item's exact min=max border-box width.
     // With numeric inline insets its content width is independent of parent
@@ -101,10 +140,18 @@ fn prove(
             _ => return Ok(false),
         }
     }
+    prove_alternatives(context, parent, memo)
+}
+
+fn prove_alternatives(
+    context: &impl InlineContext,
+    parent: NodeId,
+    memo: &mut std::collections::HashMap<NodeId, bool>,
+) -> Result<bool, Error> {
     if let Some(valid) = memo.get(&parent) {
         return Ok(*valid);
     }
-    for parent_style in &parents {
+    for parent_style in &context.styles(parent)? {
         if !prove(context, parent, parent_style, memo)? {
             memo.insert(parent, false);
             return Ok(false);

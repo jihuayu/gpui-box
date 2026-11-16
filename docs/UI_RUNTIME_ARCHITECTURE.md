@@ -193,7 +193,8 @@ min/max/available/percentage basis；InlineSize 约束盒在共享依赖证明�
 九条，仅访问到的测量节点创建附表，Arc 写时复制使 preview 共享未修改记录。
 普通树沿用紧凑尺寸缓存，完整布局缓存继续复用。dirty custom layout 用私有 Taffy clone 保证
 失败不污染已发布布局；普通树仍原地布局。已有 CSS ContainerQuery/inline proof
-不能证明任意策略的依赖，因此查询祖先含 custom allocator 时明确拒绝。通用
+不能证明任意策略的依赖；后续独立 inline allocation 协议允许证明穿过受内核
+强制的宽度分配边，任意 allocator 仍拒绝。通用
 结构构建、自动依赖、测量缓存全局字节预算/计时验收和增量回滚仍开放；这是父布局原语，不是完整
 RenderBox。详见 [自定义父布局契约与 ADR](RETAINED_CUSTOM_PARENT_LAYOUT.md)。
 精确测量缓存按两轴百分比基准、known/definiteness、available modes、requested
@@ -261,6 +262,18 @@ clone 的最终布局读取同一字段，不改写已发布状态。Grid 在未
 自动 DPI 集成、增量投影和广泛取整一致性仍开放。详见
 [像素输出契约与 ADR](RETAINED_PIXEL_SNAPPING.md)。完整 affine 变换、last-baseline
 对齐、竖排文字、复杂 intrinsic、公共 Grid 和 `calc()` 仍未完成。
+
+自定义父布局现另有可选 `ParentInlineLayout` 阶段，通过
+`ParentLayoutSnapshot::with_inline_layout` 安装。它只能读取已知宽度、inline
+available space、percentage basis 和子节点数量，返回每个子节点的有限 tight
+border-box width 与独立 percentage basis；adapter 对实际测量和最终 placement
+都强制应用这些值。这样 shared inline proof 可在证明父自身宽度后穿过自定义
+边，组合 ContainerQuery 和 inline keyed builder。原子观察还保存算法身份及
+layout-order 子列表，后续替换/增删重排即使等宽也拒绝；sibling order 参与查询
+阶段依赖。任意父算法仍不能只靠声明绕过测量反馈。协议/成本与 ADR 见
+[父布局独立 inline 分配](RETAINED_PARENT_INLINE_ALLOCATION.md)。这增加了 slot
+分配、祖先扫描和结构快照成本，通用 interval/full-axis、自动调度、完整 RenderBox
+及广泛 Flex 一致性仍开放；没有性能收益声明。
 
 UI IR 的最小数据集合：
 

@@ -84,9 +84,14 @@ impl LogicalEdit<'_, '_, '_> {
     ) -> Result<R, Error> {
         let preview = self.constraint_preview(host, true)?;
         let input = super::constraint_builder::inline_input(&preview, host)?;
+        let dependencies = layout_dependencies::InlineDependencies::capture(&preview, host)?;
         drop(preview);
         self.constraint_inputs
-            .push(super::constraint_builder::Observation::Inline(host, input));
+            .push(super::constraint_builder::Observation::Inline(
+                host,
+                input,
+                dependencies,
+            ));
         build(input, self)
     }
 
