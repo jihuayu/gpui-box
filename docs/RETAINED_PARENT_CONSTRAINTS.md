@@ -131,10 +131,12 @@ Flex, Grid, Block, ContentBox and out-of-flow roots and check cache separation.
 The public Grid API remains absent even though the compatibility kernel is
 tested.
 
-This stage provides root/isolated-subtree host bounds. Nested parent-to-child
-constraint builder hooks, ConstraintBuilder, conditional structural adaptation,
-general custom layout and a full Flutter BoxConstraints/RenderBox API remain
-open. ContainerQuery still means actual size, not the supplied max width.
+This stage provides root/isolated-subtree host bounds. The subsequent
+[nested constraint-box stage](RETAINED_NESTED_CONSTRAINT_BOX.md) adds an explicit
+single-child parent protocol with tight/loose content allocation. ConstraintBuilder,
+conditional structural adaptation, general custom layout and a full Flutter
+BoxConstraints/RenderBox API remain open. ContainerQuery still means actual
+size, not the supplied max width.
 Broader Flex/percentage/baseline conformance, native rounding, effects,
 sustained 60/120Hz, full-chain tail latency, newer desktop GPU qualification
 and CPU rendering smoothness are not established by these correctness checks.

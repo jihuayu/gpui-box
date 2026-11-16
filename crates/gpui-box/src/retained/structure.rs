@@ -149,6 +149,14 @@ impl UiTree {
             }
             live += 1;
             let children = lists[id.slot].unwrap_or(&node.children);
+            validate_constraint_box(&node.style, children.len(), node.measure.is_some())?;
+            if matches!(node.style.display, taffy::Display::ConstraintBox { .. }) {
+                for child in children {
+                    if node_for(*child)?.style.position.is_out_of_flow() {
+                        return Err(Error::InvalidConstraintBox);
+                    }
+                }
+            }
             if node.measure.is_some() && !children.is_empty() {
                 return Err(Error::MeasuredNodeHasChildren);
             }

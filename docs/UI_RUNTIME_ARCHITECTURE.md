@@ -165,7 +165,13 @@ border-box min/max 区间，接入真实布局根和独立子树测量。父硬�
 preferred/min/max、宽高比与 padding floor；tight 轴为确定分配，loose max 不
 自动成为百分比高度基准。约束参与换行、grow/shrink 和最终宽度文字测量，不在
 绘制包上事后 clamp。每个布局 invocation 的根读取该区间，子代仍由正常算法分配；
-尚无嵌套 ConstraintBuilder 或结构分支构建。缓存新增每节点四个 float 的约束
+嵌套场景新增 `LayoutStyle::constraint_box(width_fit,height_fit)`，以单子节点协议
+将实际 content 空间转为 tight/loose 硬分配，padding/border/gutter 向内收缩；
+它可以放进 Flex 分配，再向内部 Flex 树传递约束。普通 CSS Flex 语义保持；
+边界直接子节点的 margin/Flex 对齐/relative inset 不参与该父级摆放协议，
+直接 OOF 子节点拒绝。ConstraintBuilder 与条件结构构建仍未实现，不能把该节点
+称为完整 Flutter RenderBox。详见 [嵌套协议与代价](RETAINED_NESTED_CONSTRAINT_BOX.md)。
+缓存新增每节点四个 float 的约束
 mode，变化时拒绝旧结果。详见 [父约束契约](RETAINED_PARENT_CONSTRAINTS.md)
 与 [无上限布局契约](RETAINED_UNBOUNDED_LAYOUT.md)。
 独立的 `measure_with_constraints` 查询仍不发布绘制 frame；

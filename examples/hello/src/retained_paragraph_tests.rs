@@ -21,6 +21,61 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 }
 
 #[test]
+fn nested_parent_constraint_boxes_reflow_real_paragraphs_at_allocated_width() {
+    let paragraph = shape(&text_system(), "one two three four five six 中文段落");
+    let mut tree = UiTree::new_layout(
+        LayoutStyle::column().align_items(LayoutAlignItems::Start),
+        0,
+    )
+    .unwrap();
+    let boundary = tree
+        .append_layout(
+            tree.root(),
+            LayoutStyle::constraint_box(ConstraintFit::Tight, ConstraintFit::Loose)
+                .padding(LayoutEdges::all(LayoutLength::Px(5.0))),
+            0,
+        )
+        .unwrap();
+    let leaf = tree
+        .append_layout(boundary, LayoutStyle::row(), 0xffffffff)
+        .unwrap();
+    let mut tx = Transaction::default();
+    tx.measure(leaf, Some(MeasureSnapshot::Paragraph(paragraph.clone())));
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    for width in [50.0, 90.0, 140.0, 50.0] {
+        let mut tx = Transaction::default();
+        tx.layout_style(
+            boundary,
+            LayoutStyle::constraint_box(ConstraintFit::Tight, ConstraintFit::Loose)
+                .size(LayoutDimension::Px(width + 10.0), LayoutDimension::Auto)
+                .padding(LayoutEdges::all(LayoutLength::Px(5.0))),
+        );
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+        tree.frame_in_viewport(
+            LayoutConstraints::new(
+                LayoutAvailableSpace::Definite(300.0),
+                LayoutAvailableSpace::Unbounded,
+            ),
+            [300.0, 500.0],
+        )
+        .unwrap();
+        let expected = paragraph.layout(Some(width)).unwrap();
+        assert_eq!(
+            tree.layout_result(leaf).unwrap().size,
+            [width, expected.size[1]]
+        );
+        assert_eq!(
+            tree.layout_result(boundary).unwrap().size,
+            [width + 10.0, expected.size[1] + 10.0]
+        );
+        assert_eq!(
+            tree.layout_result(boundary).unwrap().baseline,
+            Some(paragraph.first_baseline() + 5.0)
+        );
+    }
+}
+
+#[test]
 fn parent_box_width_reflows_real_paragraph_and_intrinsic_height_without_rewriting_style() {
     let paragraph = shape(&text_system(), "one two three four five six seven 中文段落");
     for intrinsic_height in 0..3 {

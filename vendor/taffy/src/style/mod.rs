@@ -251,6 +251,15 @@ pub trait OofItemStyle: CoreStyle {
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Display {
+    /// Framework single-child box protocol. This is not a CSS display value.
+    /// Finite content space becomes hard child bounds; Tight also assigns the
+    /// axis exactly. An unbounded axis remains loose, including in Tight mode.
+    ConstraintBox {
+        /// Horizontal content constraint policy.
+        width: ConstraintFit,
+        /// Vertical content constraint policy.
+        height: ConstraintFit,
+    },
     /// The children will follow the block layout algorithm
     #[cfg(feature = "block_layout")]
     Block,
@@ -307,6 +316,7 @@ crate::util::parse::impl_parse_for_keyword_enum!(Display,
 impl core::fmt::Display for Display {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            Display::ConstraintBox { .. } => write!(f, "CONSTRAINT-BOX"),
             Display::None => write!(f, "NONE"),
             #[cfg(feature = "block_layout")]
             Display::Block => write!(f, "BLOCK"),
@@ -318,6 +328,16 @@ impl core::fmt::Display for Display {
             Display::Grid => write!(f, "GRID"),
         }
     }
+}
+
+/// How a single-child constraint box passes each content axis to its child.
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum ConstraintFit {
+    /// A zero minimum and the finite available maximum.
+    Loose,
+    /// An exact finite assignment. Falls back to loose when unbounded.
+    Tight,
 }
 
 /// An abstracted version of the CSS `display` property where any value other than "none" is represented by "normal"
@@ -1781,7 +1801,8 @@ mod tests {
         }
 
         // Display and Position
-        assert_type_size::<Display>(1);
+        // The owned non-CSS box protocol carries two per-axis fit choices.
+        assert_type_size::<Display>(2);
         assert_type_size::<BoxSizing>(1);
         assert_type_size::<Position>(1);
         assert_type_size::<Overflow>(1);
@@ -1824,13 +1845,14 @@ mod tests {
         assert_type_size::<GridTemplateComponent<String>>(56);
         assert_type_size::<GridPlacement<String>>(32);
         assert_type_size::<Line<GridPlacement<String>>>(64);
-        // flexbox_balance adds flex_line_count to Style.
-        assert_type_size::<Style<String>>(if cfg!(feature = "flexbox_balance") { 560 } else { 552 });
+        // ConstraintBox's payload consumes the old padding; both configurations
+        // now use 560 bytes (the non-balance configuration previously used 552).
+        assert_type_size::<Style<String>>(560);
 
         // String-type dependent (Arc<str>)
         assert_type_size::<GridTemplateComponent<Arc<str>>>(56);
         assert_type_size::<GridPlacement<Arc<str>>>(24);
         assert_type_size::<Line<GridPlacement<Arc<str>>>>(48);
-        assert_type_size::<Style<Arc<str>>>(if cfg!(feature = "flexbox_balance") { 528 } else { 520 });
+        assert_type_size::<Style<Arc<str>>>(528);
     }
 }

@@ -12,6 +12,16 @@ local test artifacts and ignored.
 
 ## Local changes
 
+- Explicit non-CSS `Display::ConstraintBox` selects a single-child parent
+  protocol with per-axis Tight/Loose content allocation. It composes with CSS
+  parents/children while applying hard child bounds inside real measurement,
+  baseline, overflow and OOF publication. A sparse index validates queried
+  subtree box arity/direct OOF children before layout writes. Display grows
+  from 1 to 2 bytes in the tested build; String/Arc-str Style without balance
+  grows by 8 bytes to 560/528. Balance-enabled sizes remain unchanged.
+  CSS parsing adds no keyword. See the
+  [nested contract and remaining ConstraintBuilder work](../../docs/RETAINED_NESTED_CONSTRAINT_BOX.md).
+
 - Host/parent border-box `SizeBounds` is independent of authored min/max and
   soft AvailableSpace. `LayoutInput::size_bounds` participates in real root,
   leaf/Flex/Grid/Block/OOF sizing; child calls reset it, and exact parent sizes

@@ -183,6 +183,20 @@ impl LogicalEdit<'_, '_, '_> {
         self.inserted.insert(node, owner);
         Ok(node)
     }
+    /// Construct output with the framework-owned layout protocol, including
+    /// single-child constraint boundaries, under the same logical draft.
+    pub fn append_layout(
+        &mut self,
+        owner: ScopeId,
+        parent: NodeId,
+        style: LayoutStyle,
+        color: u32,
+    ) -> Result<NodeId, Error> {
+        self.scope(owner)?;
+        let node = self.render.tree().append_layout(parent, style, color)?;
+        self.inserted.insert(node, owner);
+        Ok(node)
+    }
     pub fn reparent(&mut self, node: NodeId, host: NodeId) -> Result<(), Error> {
         self.render.tree().reparent(node, host)
     }

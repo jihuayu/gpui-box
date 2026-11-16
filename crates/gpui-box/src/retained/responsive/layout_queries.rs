@@ -221,7 +221,10 @@ fn full_size_boundary(style: &Style) -> bool {
     style
         .contain
         .contains(taffy::Contain::SIZE | taffy::Contain::LAYOUT)
-        && matches!(style.display, taffy::Display::Flex | taffy::Display::None)
+        && matches!(
+            style.display,
+            taffy::Display::Flex | taffy::Display::ConstraintBox { .. } | taffy::Display::None
+        )
 }
 
 fn fixed_inline_extent(style: &Style) -> bool {
@@ -313,6 +316,9 @@ fn column_inline_style(
     let parents = possible_styles(ui, rules, parent)?;
     for parent_style in &parents {
         if !matches!(
+            parent_style.display,
+            taffy::Display::Flex | taffy::Display::None
+        ) || !matches!(
             parent_style.flex_direction,
             taffy::FlexDirection::Column | taffy::FlexDirection::ColumnReverse
         ) || parent_style.flex_wrap != taffy::FlexWrap::NoWrap
@@ -362,7 +368,10 @@ fn validate_inline_extent(style: &Style) -> Result<(), Error> {
         || width != min
         || width != max
         || style.box_sizing != taffy::BoxSizing::BorderBox
-        || !matches!(style.display, taffy::Display::Flex | taffy::Display::None)
+        || !matches!(
+            style.display,
+            taffy::Display::Flex | taffy::Display::ConstraintBox { .. } | taffy::Display::None
+        )
         || !style.scrollbar_width.is_finite()
         || style.scrollbar_width < 0.0
     {

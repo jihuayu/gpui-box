@@ -23,7 +23,7 @@ pub mod logical;
 pub use layout::{
     AlignContent as LayoutAlignContent, AlignItems as LayoutAlignItems,
     AlignSelf as LayoutAlignSelf, AvailableSpace as LayoutAvailableSpace, BoxConstraints,
-    BoxSizing as LayoutBoxSizing, ContainerType as LayoutContainerType,
+    BoxSizing as LayoutBoxSizing, ConstraintFit, ContainerType as LayoutContainerType,
     Dimension as LayoutDimension, Edges as LayoutEdges, FlexDirection as LayoutFlexDirection,
     FlexWrap as LayoutFlexWrap, JustifyContent as LayoutJustifyContent, LayoutConstraints,
     LayoutDirection, LayoutDisplay, LayoutPosition, LayoutResult, LayoutSize, LayoutStyle,
@@ -323,6 +323,7 @@ pub enum Error {
     ScopeInUse,
     InvalidMeasure,
     MeasuredNodeHasChildren,
+    InvalidConstraintBox,
     InvalidEnvironment,
     InvalidStyle,
     UnsupportedLayout,
@@ -596,6 +597,18 @@ impl UiTree {
     pub fn append(&mut self, parent: NodeId, style: Style, rgba: u32) -> Result<NodeId, Error> {
         if self.node(parent)?.measure.is_some() {
             return Err(Error::MeasuredNodeHasChildren);
+        }
+        validate_constraint_box(
+            &self.node(parent)?.style,
+            self.node(parent)?.children.len() + 1,
+            false,
+        )?;
+        if matches!(
+            self.node(parent)?.style.display,
+            taffy::Display::ConstraintBox { .. }
+        ) && style.position.is_out_of_flow()
+        {
+            return Err(Error::InvalidConstraintBox);
         }
         let parent_layout = self.node(parent)?.layout;
         let next = self
@@ -908,6 +921,12 @@ impl UiTree {
                 .style
                 .as_ref()
                 .is_some_and(|style| **style != node.style);
+            let final_style = entry.style.as_deref().unwrap_or(&node.style);
+            validate_constraint_box(
+                final_style,
+                node.children.len(),
+                entry.measure.as_ref().unwrap_or(&node.measure).is_some(),
+            )?;
             let order_changed = entry
                 .layout_order
                 .is_some_and(|order| order != node.layout_order);
@@ -956,6 +975,41 @@ impl UiTree {
                     image_changed,
                     text_changed,
                 ));
+            }
+        }
+        let final_style = |id| -> Result<&Style, Error> {
+            if let Ok(index) = changed.binary_search_by_key(&id, |change| change.0)
+                && let Some(style) = changed[index].1.style.as_deref()
+            {
+                return Ok(style);
+            }
+            Ok(&node_for(id)?.style)
+        };
+        // Layout protocol changes validate the complete coalesced batch.
+        // This also permits switching parent and child protocols atomically.
+        for (id, _, style_changed, ..) in &changed {
+            if !style_changed {
+                continue;
+            }
+            let node = node_for(*id)?;
+            if matches!(
+                final_style(*id)?.display,
+                taffy::Display::ConstraintBox { .. }
+            ) {
+                for child in &node.children {
+                    if final_style(*child)?.position.is_out_of_flow() {
+                        return Err(Error::InvalidConstraintBox);
+                    }
+                }
+            }
+            if let Some(parent) = node.parent
+                && matches!(
+                    final_style(parent)?.display,
+                    taffy::Display::ConstraintBox { .. }
+                )
+                && final_style(*id)?.position.is_out_of_flow()
+            {
+                return Err(Error::InvalidConstraintBox);
             }
         }
         Ok(changed)
@@ -1350,6 +1404,13 @@ impl UiTree {
         self.frame = Some(frame.clone());
         Ok(frame)
     }
+}
+
+fn validate_constraint_box(style: &Style, children: usize, measured: bool) -> Result<(), Error> {
+    if matches!(style.display, taffy::Display::ConstraintBox { .. }) && (children > 1 || measured) {
+        return Err(Error::InvalidConstraintBox);
+    }
+    Ok(())
 }
 
 #[cfg(test)]

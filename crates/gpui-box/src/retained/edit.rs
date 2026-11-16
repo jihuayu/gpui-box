@@ -282,6 +282,9 @@ impl TreeEdit<'_> {
             if let Some(measure) = &entry.measure {
                 self.node_mut(*id)?.measure = measure.clone();
             }
+            if let Some(style) = &entry.style {
+                self.node_mut(*id)?.style = (**style).clone();
+            }
         }
         let tx = StructureTransaction {
             removed: self.removed.clone(),

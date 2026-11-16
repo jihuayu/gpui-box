@@ -41,6 +41,8 @@ pub type TaffyResult<T> = Result<T, TaffyError>;
 pub enum TaffyError {
     /// Hard host bounds must be ordered, nonnegative and have finite minima.
     InvalidSizeBounds,
+    /// A ConstraintBox must have at most one direct, in-flow child.
+    InvalidConstraintBox,
     /// The parent node does not have a child at `child_index`. It only has `child_count` children
     ChildIndexOutOfBounds {
         /// The parent node whose child was being looked up
@@ -62,6 +64,7 @@ impl core::fmt::Display for TaffyError {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         match self {
             TaffyError::InvalidSizeBounds => write!(f, "Invalid host size bounds"),
+            TaffyError::InvalidConstraintBox => write!(f, "Invalid single-child constraint box"),
             TaffyError::ChildIndexOutOfBounds { parent, child_index, child_count } => {
                 write!(f, "Index (is {child_index}) should be < child_count ({child_count}) for parent node {parent:?}")
             }
@@ -160,6 +163,10 @@ pub struct TaffyTree<NodeContext = ()> {
     /// Functions/closures that compute the intrinsic size of leaf nodes
     node_context_data: SecondaryMap<DefaultKey, NodeContext>,
 
+    /// Sparse index of non-CSS parent constraint protocols. Validation happens
+    /// at layout entry, allowing valid multi-node edits in arbitrary order.
+    constraint_boxes: SecondaryMap<DefaultKey, ()>,
+
     /// The children of each node
     ///
     /// The indexes in the outer vector correspond to the position of the parent [`NodeData`]
@@ -242,6 +249,7 @@ impl<NodeContext> PrintTree for TaffyTree<NodeContext> {
 
         match (num_children, display) {
             (_, Display::None) => "NONE",
+            (_, Display::ConstraintBox { .. }) => "CONSTRAINT-BOX",
             (0, _) => "LEAF",
             #[cfg(feature = "block_layout")]
             (_, Display::Block) => "BLOCK",
@@ -322,6 +330,9 @@ where
             // Dispatch to a layout algorithm based on the node's display style and whether the node has children or not.
             let mut output = match (display_mode, has_children) {
                 (Display::None, _) => compute_hidden_layout(tree, node_id),
+                (Display::ConstraintBox { width, height }, _) => {
+                    crate::compute::compute_constraint_box_layout(tree, node_id, inputs, Size { width, height })
+                }
                 #[cfg(feature = "block_layout")]
                 (Display::Block, true) => compute_block_layout(tree, node_id, inputs, block_ctx),
                 #[cfg(feature = "block_layout")]
@@ -623,6 +634,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
             children: SlotMap::with_capacity(capacity),
             parents: SlotMap::with_capacity(capacity),
             node_context_data: SecondaryMap::with_capacity(capacity),
+            constraint_boxes: SecondaryMap::new(),
             config: TaffyConfig::default(),
         }
     }
@@ -639,7 +651,9 @@ impl<NodeContext> TaffyTree<NodeContext> {
 
     /// Creates and adds a new unattached leaf node to the tree, and returns the node of the new node
     pub fn new_leaf(&mut self, layout: Style) -> TaffyResult<NodeId> {
+        let constraint_box = matches!(layout.display, Display::ConstraintBox { .. });
         let id = self.nodes.insert(NodeData::new(layout));
+        if constraint_box { self.constraint_boxes.insert(id, ()); }
         let _ = self.children.insert(new_vec_with_capacity(0));
         let _ = self.parents.insert(None);
 
@@ -650,10 +664,12 @@ impl<NodeContext> TaffyTree<NodeContext> {
     ///
     /// Creates and adds a new leaf node with a supplied context
     pub fn new_leaf_with_context(&mut self, layout: Style, context: NodeContext) -> TaffyResult<NodeId> {
+        let constraint_box = matches!(layout.display, Display::ConstraintBox { .. });
         let mut data = NodeData::new(layout);
         data.has_context = true;
 
         let id = self.nodes.insert(data);
+        if constraint_box { self.constraint_boxes.insert(id, ()); }
         self.node_context_data.insert(id, context);
 
         let _ = self.children.insert(new_vec_with_capacity(0));
@@ -664,7 +680,9 @@ impl<NodeContext> TaffyTree<NodeContext> {
 
     /// Creates and adds a new node, which may have any number of `children`
     pub fn new_with_children(&mut self, layout: Style, children: &[NodeId]) -> TaffyResult<NodeId> {
+        let constraint_box = matches!(layout.display, Display::ConstraintBox { .. });
         let id = NodeId::from(self.nodes.insert(NodeData::new(layout)));
+        if constraint_box { self.constraint_boxes.insert(id.into(), ()); }
 
         for child in children {
             self.parents[(*child).into()] = Some(id);
@@ -685,6 +703,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
         // user data -- for a measure function, a boxed closure and everything it
         // captures -- alive after the node it belonged to is gone.
         self.node_context_data.clear();
+        self.constraint_boxes.clear();
     }
 
     /// Remove a specific node from the tree and drop it
@@ -710,6 +729,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
         let _ = self.parents.remove(key);
         let _ = self.nodes.remove(key);
         let _ = self.node_context_data.remove(key);
+        let _ = self.constraint_boxes.remove(key);
 
         Ok(node)
     }
@@ -916,8 +936,21 @@ impl<NodeContext> TaffyTree<NodeContext> {
     /// Sets the [`Style`] of the provided `node`
     #[inline]
     pub fn set_style(&mut self, node: NodeId, style: Style) -> TaffyResult<()> {
+        if matches!(style.display, Display::ConstraintBox { .. }) {
+            self.constraint_boxes.insert(node.into(), ());
+        } else {
+            self.constraint_boxes.remove(node.into());
+        }
         self.nodes[node.into()].style = style;
         self.mark_dirty(node)?;
+        Ok(())
+    }
+
+    fn validate_constraint_children(&self, style: &Style, children: &[NodeId]) -> TaffyResult<()> {
+        if matches!(style.display, Display::ConstraintBox { .. })
+            && (children.len() > 1 || children.iter().any(|id| self.nodes[(*id).into()].style.position.is_out_of_flow())) {
+            return Err(TaffyError::InvalidConstraintBox);
+        }
         Ok(())
     }
 
@@ -1042,6 +1075,18 @@ impl<NodeContext> TaffyTree<NodeContext> {
         }
         if !self.nodes.contains_key(node_id.into()) {
             return Err(TaffyError::InvalidInputNode(node_id));
+        }
+        // Validate only indexed boxes in this invocation's subtree, before
+        // observer writes. Unrelated detached draft trees do not block layout.
+        for (key, ()) in &self.constraint_boxes {
+            let mut ancestor = Some(NodeId::from(key));
+            while let Some(id) = ancestor {
+                if id == node_id {
+                    self.validate_constraint_children(&self.nodes[key].style, &self.children[key])?;
+                    break;
+                }
+                ancestor = self.parents[id.into()];
+            }
         }
         let use_rounding = self.config.use_rounding;
         let mut taffy_view = TaffyView { taffy: self, measure_function, layout_observer };

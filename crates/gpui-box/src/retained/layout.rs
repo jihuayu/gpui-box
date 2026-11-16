@@ -261,7 +261,22 @@ pub enum LayoutPosition {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LayoutDisplay {
     Flex,
+    /// A single-child parent constraint protocol. Child margins, flex item
+    /// placement and relative insets are outside this protocol. Use a Flex
+    /// child when CSS placement is needed within the allocated content box.
+    ConstraintBox {
+        width: ConstraintFit,
+        height: ConstraintFit,
+    },
     None,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ConstraintFit {
+    /// Pass zero minimum and the finite content maximum to the child.
+    Loose,
+    /// Assign the finite content axis exactly; unbounded axes stay loose.
+    Tight,
 }
 
 /// Size-query boundary in horizontal writing mode. Both query types establish
@@ -611,6 +626,15 @@ impl Default for LayoutStyle {
 }
 
 impl LayoutStyle {
+    /// A parent-owned boundary, independent of CSS Flex allocation. Zero or
+    /// one direct in-flow child is accepted. Padding/border/gutters deflate
+    /// the passed content constraints, with a zero floor.
+    pub fn constraint_box(width: ConstraintFit, height: ConstraintFit) -> Self {
+        Self {
+            display: LayoutDisplay::ConstraintBox { width, height },
+            ..Self::default()
+        }
+    }
     pub fn row() -> Self {
         Self::default()
     }
@@ -776,6 +800,16 @@ impl LayoutStyle {
             },
             display: match self.display {
                 LayoutDisplay::Flex => taffy::Display::Flex,
+                LayoutDisplay::ConstraintBox { width, height } => {
+                    let lower = |fit| match fit {
+                        ConstraintFit::Loose => taffy::ConstraintFit::Loose,
+                        ConstraintFit::Tight => taffy::ConstraintFit::Tight,
+                    };
+                    taffy::Display::ConstraintBox {
+                        width: lower(width),
+                        height: lower(height),
+                    }
+                }
                 LayoutDisplay::None => taffy::Display::None,
             },
             direction: match self.direction {
@@ -890,6 +924,8 @@ impl LayoutStyle {
 mod baseline_tests;
 #[cfg(test)]
 mod box_constraints_tests;
+#[cfg(test)]
+mod constraint_box_tests;
 #[cfg(test)]
 mod containment_tests;
 #[cfg(test)]
