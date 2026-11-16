@@ -189,6 +189,11 @@ impl ParentLayout for ParagraphParent {
             percentage_basis: input.percentage_basis,
         };
         let measured = children.measure(0, slot)?;
+        // Repeated identical actual paragraph queries must retain the baseline
+        // and wrapped size when the owned kernel uses its exact measure cache.
+        for _ in 0..8 {
+            assert_eq!(children.measure(0, slot)?, measured);
+        }
         Ok(ParentLayoutOutput {
             size: [
                 input.known_size.width.unwrap_or(measured.size[0]),

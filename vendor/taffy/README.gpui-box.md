@@ -12,6 +12,17 @@ local test artifacts and ignored.
 
 ## Local changes
 
+- Owned custom invocations use a sparse exact measurement side table rather
+  than the ordinary size-only cache or an unconditional ComputeSize bypass.
+  Each visited node stores at most nine full LayoutInput/LayoutOutput records;
+  full percentage/axis/definiteness/bounds and baseline/margin/overflow metadata
+  are preserved. Arc copy-on-write shares unchanged stores across private
+  previews. Dirty propagation, hidden/cache clear, remove and tree clear retire
+  entries, including exact-only measured nodes. Ordinary per-node cache payload
+  and public APIs stay unchanged. Per-tree selection, extra record/map memory,
+  clone/write costs and global byte budgets remain explicit limitations. See
+  [contract and validation](../../docs/RETAINED_EXACT_PARENT_MEASURE_CACHE.md).
+
 - Constraint boxes record their final child-slot `LayoutInput` in a separate
   map, including empty boxes. Intrinsic probes do not overwrite it; ancestor
   cache hits retain it; hidden/style/remove/clear retire it. A default trait

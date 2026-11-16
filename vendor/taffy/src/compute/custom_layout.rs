@@ -156,6 +156,58 @@ mod tests {
         assert_eq!(writes, 0);
         assert!(tree.set_custom_layout(crate::NodeId::from(u64::MAX), None).is_err());
     }
+
+    #[derive(Debug)]
+    struct RepeatedMeasurements;
+    impl CustomLayout for RepeatedMeasurements {
+        fn layout(
+            &self,
+            input: CustomLayoutInput,
+            children: &mut dyn CustomLayoutChildren,
+        ) -> Result<CustomLayoutOutput, TaffyError> {
+            let mut slot = LayoutInput::HIDDEN;
+            slot.run_mode = RunMode::ComputeSize;
+            slot.available_space = Size { width: crate::AvailableSpace::Definite(80.0), height: crate::AvailableSpace::Unbounded };
+            let mut final_slot = slot;
+            for height in [20.0, 40.0, 20.0] {
+                slot.parent_size = Size { width: Some(80.0), height: Some(height) };
+                let first = children.measure(0, slot)?;
+                let again = children.measure(0, slot)?;
+                assert_eq!(again, first, "complete metadata survives the exact hit");
+                assert_eq!(first.size.height, height * 0.5);
+                assert_eq!(first.baselines.first, Some(first.size.height * 0.75));
+                final_slot = slot;
+            }
+            let child = children.measure(0, final_slot)?;
+            Ok(CustomLayoutOutput {
+                size: input.known_size.unwrap_or(child.size),
+                baselines: child.baselines,
+                placements: vec![CustomPlacement { child: 0, input: final_slot, origin: Point::ZERO }],
+            })
+        }
+    }
+
+    #[test]
+    fn exact_child_measurements_reuse_complete_outputs_and_recompute_changed_percentage_bases() {
+        let mut tree = TaffyTree::<()>::new();
+        tree.disable_rounding();
+        let child = tree.new_leaf(Style {
+            size: Size { width: Dimension::length(30.0), height: Dimension::percent(0.5) },
+            ..Style::DEFAULT
+        }).unwrap();
+        let root = tree.new_with_children(Style::DEFAULT, &[child]).unwrap();
+        tree.set_custom_layout(root, Some(Arc::new(RepeatedMeasurements))).unwrap();
+        let mut measures = 0;
+        tree.compute_layout_with_measure(root, Size::MAX_CONTENT, |input, _, _, style| {
+            if input.run_mode == RunMode::ComputeSize { measures += 1; }
+            let mut output = crate::compute_leaf_layout(input, style, |_, _| 0.0, |_, _| Size::ZERO);
+            output.baselines = Baselines::from_first(Some(output.size.height * 0.75));
+            output
+        }).unwrap();
+        assert_eq!(measures, 2, "only the two distinct vertical bases reach the leaf");
+        assert_eq!(tree.layout(child).unwrap().size, Size { width: 30.0, height: 10.0 });
+        assert_eq!(tree.layout(root).unwrap().baselines.first, Some(7.5));
+    }
 }
 
 /// Apply an owned algorithm inside the host's standard sizing/inset model.

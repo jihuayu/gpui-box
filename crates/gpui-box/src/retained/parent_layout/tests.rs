@@ -527,6 +527,154 @@ fn direct_child_measurement_preserves_vertical_percentage_bases() {
         .unwrap();
 }
 
+#[derive(Debug)]
+struct RepeatedStack {
+    repeats: usize,
+}
+impl ParentLayout for RepeatedStack {
+    fn layout(
+        &self,
+        input: ParentLayoutInput,
+        children: &mut dyn ParentLayoutChildren,
+    ) -> Result<ParentLayoutOutput, Error> {
+        let width = input.known_size.width.unwrap_or(80.0);
+        let slot = ChildLayoutInput {
+            constraints: constraints(width)
+                .with_bounds(BoxConstraints::new([width, 0.0], [width, f32::INFINITY])),
+            percentage_basis: LayoutSize::new(Some(width), None),
+        };
+        let result = children.measure(0, slot)?;
+        for _ in 1..self.repeats {
+            assert_eq!(children.measure(0, slot)?, result);
+        }
+        Ok(ParentLayoutOutput {
+            size: [width, input.known_size.height.unwrap_or(result.size[1])],
+            baseline: result.baseline,
+            placements: vec![ParentPlacement {
+                child: 0,
+                input: slot,
+                origin: [0.0; 2],
+            }],
+        })
+    }
+}
+
+#[test]
+fn repeated_custom_child_measurements_reuse_real_flex_work_with_complete_baselines() {
+    fn make(repeats: usize) -> (UiTree, NodeId, NodeId) {
+        let mut tree = UiTree::new_layout(column(), 0).unwrap();
+        let root = tree.root();
+        let flex = tree
+            .append_layout(root, LayoutStyle::row().flex_wrap(LayoutFlexWrap::Wrap), 0)
+            .unwrap();
+        let leaf = tree
+            .append_layout(flex, LayoutStyle::row(), 0xff0000ff)
+            .unwrap();
+        tree.append_layout(flex, fixed(40.0, 12.0), 0x0000ffff)
+            .unwrap();
+        let mut tx = Transaction::default();
+        tx.measure(
+            leaf,
+            Some(MeasureSnapshot::Fixed(CustomMeasureSnapshot {
+                width: 35.0,
+                height: 10.0,
+                baseline: Some(7.0),
+            })),
+        );
+        tx.parent_layout(
+            root,
+            Some(ParentLayoutSnapshot::new(RepeatedStack { repeats })),
+        );
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+        (tree, flex, leaf)
+    }
+    let (mut once, once_flex, once_leaf) = make(1);
+    let (mut many, many_flex, many_leaf) = make(12);
+    let mut old = None;
+    for width in [80.0, 45.0, 100.0, 80.0] {
+        let a = once
+            .frame_in_viewport(constraints(width), [180.0; 2])
+            .unwrap();
+        let b = many
+            .frame_in_viewport(constraints(width), [180.0; 2])
+            .unwrap();
+        assert_eq!(a.layout_stats.leaf_layouts, b.layout_stats.leaf_layouts);
+        assert_eq!(a.layout_stats.measure_calls, b.layout_stats.measure_calls);
+        assert_eq!(
+            once.layout_result(once_flex).unwrap(),
+            many.layout_result(many_flex).unwrap()
+        );
+        assert_eq!(
+            once.layout_result(once_leaf).unwrap(),
+            many.layout_result(many_leaf).unwrap()
+        );
+        assert_eq!(many.layout_result(many_leaf).unwrap().baseline, Some(7.0));
+        assert_eq!(
+            many.layout_result(many.root()).unwrap().baseline,
+            once.layout_result(once.root()).unwrap().baseline
+        );
+        assert_eq!(pixels(a), pixels(b.clone()));
+        assert_eq!(b.hit_test(1.0, 1.0), Some(many_leaf));
+        if old.is_none() {
+            old = Some(b);
+        }
+    }
+    // Replace the intrinsic resource: cached descendants and parents must change.
+    for (tree, leaf) in [(&mut once, once_leaf), (&mut many, many_leaf)] {
+        let mut tx = Transaction::default();
+        tx.measure(
+            leaf,
+            Some(MeasureSnapshot::Fixed(CustomMeasureSnapshot {
+                width: 35.0,
+                height: 20.0,
+                baseline: Some(16.0),
+            })),
+        );
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+    }
+    let a = once
+        .frame_in_viewport(constraints(80.0), [180.0; 2])
+        .unwrap();
+    let b = many
+        .local_frame_in_viewport(constraints(80.0), [180.0; 2])
+        .unwrap();
+    assert_eq!(many.layout_result(many_leaf).unwrap().baseline, Some(16.0));
+    assert_eq!(pixels(a), pixels(b.resolve()));
+    assert_eq!(old.unwrap().hit_test(1.0, 1.0), Some(many_leaf));
+}
+
+#[test]
+fn repeated_direct_leaf_measurements_keep_baseline_after_exact_hits_and_resource_replacement() {
+    let mut tree = UiTree::new_layout(column(), 0).unwrap();
+    let root = tree.root();
+    let leaf = tree
+        .append_layout(root, LayoutStyle::row(), 0xff0000ff)
+        .unwrap();
+    install(
+        &mut tree,
+        root,
+        Some(ParentLayoutSnapshot::new(RepeatedStack { repeats: 12 })),
+    );
+    for baseline in [7.0, 16.0, 7.0] {
+        let mut tx = Transaction::default();
+        tx.measure(
+            leaf,
+            Some(MeasureSnapshot::Fixed(CustomMeasureSnapshot {
+                width: 35.0,
+                height: 20.0,
+                baseline: Some(baseline),
+            })),
+        );
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+        let frame = tree
+            .frame_in_viewport(constraints(80.0), [180.0; 2])
+            .unwrap();
+        assert_eq!(tree.layout_result(root).unwrap().baseline, Some(baseline));
+        assert_eq!(tree.layout_result(leaf).unwrap().baseline, Some(baseline));
+        assert_eq!(frame.hit_test(1.0, 1.0), Some(leaf));
+    }
+}
+
 #[test]
 fn nested_custom_parents_apply_hard_bounds_and_publish_overflow_for_scrolling() {
     let mut tree = UiTree::new_layout(column(), 0).unwrap();

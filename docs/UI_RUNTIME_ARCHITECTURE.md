@@ -188,12 +188,20 @@ min/max/available/percentage basis；InlineSize 约束盒在共享依赖证明�
 直接子树并返回完整 child constraints/placement。子代可以继续使用真实 Flex、文字
 或其他自定义父布局，content height、baseline、overflow 和后续兄弟进入同一发布
 链路。已知维度、完整摆放、有限几何和非法直接 OOF/leaf 冲突均校验。项目内 Taffy
-新增稀疏 delegate dispatch；自定义 invocation 禁用丢失 baseline/vertical basis 的
-ComputeSize cache，保留完整布局缓存。dirty custom layout 用私有 Taffy clone 保证
+新增稀疏 delegate dispatch；自定义 invocation 使用完整 LayoutInput/LayoutOutput 的
+有界测量缓存，避免普通 ComputeSize cache 丢失 baseline/vertical basis；每节点最多
+九条，仅访问到的测量节点创建附表，Arc 写时复制使 preview 共享未修改记录。
+普通树沿用紧凑尺寸缓存，完整布局缓存继续复用。dirty custom layout 用私有 Taffy clone 保证
 失败不污染已发布布局；普通树仍原地布局。已有 CSS ContainerQuery/inline proof
 不能证明任意策略的依赖，因此查询祖先含 custom allocator 时明确拒绝。通用
-结构构建、自动依赖、精确测量缓存和增量回滚仍开放；这是父布局原语，不是完整
+结构构建、自动依赖、测量缓存全局字节预算/计时验收和增量回滚仍开放；这是父布局原语，不是完整
 RenderBox。详见 [自定义父布局契约与 ADR](RETAINED_CUSTOM_PARENT_LAYOUT.md)。
+精确测量缓存按两轴百分比基准、known/definiteness、available modes、requested
+axis、sizing/margin mode 与硬 bounds 全部匹配，保留基线/overflow 等完整结果。
+失效必须同时清理两类缓存：即使子节点仅有测量结果，也要使祖先重新计算；
+移除最后一个 delegate 后保留尚未失效的记录以维持该证明链。附表/Arc/完整记录
+及候选副本仍有内存与 lookup 成本，不能从 callback 次数下降推导尾延迟收益。
+详见 [精确测量缓存契约与成本](RETAINED_EXACT_PARENT_MEASURE_CACHE.md)。
 新增 `LogicalUi::edit_local_frame`，复用 `edit_frame` 的 source、keyed 生命周期、
 最终布局和 builder 观察值复验边界，直接发布 LocalFrame；full/inline builder
 和纯 ParentLayout 使用同一入口。稳定属性/材质变更保留稀疏前驱关系，不为验证

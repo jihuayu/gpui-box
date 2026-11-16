@@ -10,6 +10,42 @@ use crate::RequestedAxis;
 /// The number of cache entries for each node in the tree
 const CACHE_SIZE: usize = 9;
 
+/// Full-input/full-result measurements for owned parent algorithms. Kept in a
+/// sparse tree side table rather than enlarging every ordinary node's cache.
+/// Unlike the CSS size cache, no axis, percentage or output metadata is lost.
+#[derive(Debug, Clone)]
+#[cfg(feature = "taffy_tree")]
+pub(crate) struct ExactMeasureCache {
+    entries: crate::util::sys::Vec<(LayoutInput, LayoutOutput)>,
+    next_entry: usize,
+}
+
+#[cfg(feature = "taffy_tree")]
+impl Default for ExactMeasureCache {
+    fn default() -> Self {
+        Self { entries: crate::util::sys::Vec::with_capacity(CACHE_SIZE), next_entry: 0 }
+    }
+}
+
+#[cfg(feature = "taffy_tree")]
+impl ExactMeasureCache {
+    pub(crate) fn get(&self, input: &LayoutInput) -> Option<LayoutOutput> {
+        self.entries.iter().find(|(key, _)| key == input).map(|(_, output)| output.clone())
+    }
+
+    pub(crate) fn store(&mut self, input: &LayoutInput, output: LayoutOutput) {
+        debug_assert_eq!(input.run_mode, RunMode::ComputeSize);
+        if let Some((_, previous)) = self.entries.iter_mut().find(|(key, _)| key == input) {
+            *previous = output;
+        } else if self.entries.len() < CACHE_SIZE {
+            self.entries.push((*input, output));
+        } else {
+            self.entries[self.next_entry] = (*input, output);
+            self.next_entry = (self.next_entry + 1) % CACHE_SIZE;
+        }
+    }
+}
+
 // Manually written-out results of float to u32 bit casts because
 // `f32::to_bits` is not yet const at our MSRV.
 
@@ -382,6 +418,68 @@ mod tests {
     use super::*;
     use crate::geometry::Line;
     use crate::tree::SizingMode;
+
+    #[test]
+    #[cfg(feature = "taffy_tree")]
+    fn exact_measurements_preserve_all_inputs_and_complete_output_metadata() {
+        let original = input(100.0);
+        let mut result = output(40.0);
+        result.baselines = crate::Baselines { first: Some(7.0), last: Some(17.0) };
+        result.top_margin = CollapsibleMarginSet::from_margin(3.0);
+        result.bottom_margin = CollapsibleMarginSet::from_margin(-2.0);
+        result.margins_can_collapse_through = true;
+        #[cfg(feature = "content_size")]
+        { result.scrollable_overflow_rect = crate::Rect { left: -2.0, right: 90.0, top: 3.0, bottom: 120.0 }; }
+        let mut cache = ExactMeasureCache::default();
+        cache.store(&original, result.clone());
+        assert_eq!(cache.get(&original), Some(result.clone()));
+        let mut alternatives = crate::util::sys::Vec::new();
+        macro_rules! changed {
+            ($field:ident, $value:expr) => {{ let mut value = original; value.$field = $value; alternatives.push(value); }};
+        }
+        changed!(parent_size, Size { width: Some(30.0), height: Some(40.0) });
+        changed!(parent_size, Size { height: Some(80.0), ..original.parent_size });
+        changed!(known_dimensions, Size { width: Some(30.0), height: Some(40.0) });
+        changed!(known_dimensions_are_definite, Size { width: false, height: false });
+        changed!(available_space, Size { width: AvailableSpace::Unbounded, ..original.available_space });
+        changed!(available_space, Size { height: AvailableSpace::MinContent, ..original.available_space });
+        changed!(axis, RequestedAxis::Vertical);
+        changed!(sizing_mode, SizingMode::ContentSize);
+        changed!(vertical_margins_are_collapsible, Line { start: true, end: false });
+        changed!(size_bounds, crate::SizeBounds { min: Size::ZERO, max: Size { width: 50.0, height: 100.0 } });
+        changed!(run_mode, RunMode::PerformLayout);
+        for value in alternatives {
+            assert_ne!(value, original);
+            assert_eq!(cache.get(&value), None, "{value:?}");
+        }
+        assert_eq!(cache.get(&original), Some(result));
+    }
+
+    #[test]
+    #[cfg(feature = "taffy_tree")]
+    fn exact_measurements_are_bounded_replace_equal_keys_and_clone_independently() {
+        eprintln!("exact measure sizes: input={} output={} record={} cache_header={} capacity={CACHE_SIZE}",
+            core::mem::size_of::<LayoutInput>(), core::mem::size_of::<LayoutOutput>(),
+            core::mem::size_of::<(LayoutInput, LayoutOutput)>(), core::mem::size_of::<ExactMeasureCache>());
+        let mut cache = ExactMeasureCache::default();
+        for index in 0..CACHE_SIZE {
+            cache.store(&input(index as f32), output(index as f32));
+        }
+        let original = cache.clone();
+        cache.store(&input(0.0), output(50.0));
+        assert_eq!(cache.entries.len(), CACHE_SIZE);
+        assert_eq!(cache.get(&input(0.0)), Some(output(50.0)));
+        assert_eq!(original.get(&input(0.0)), Some(output(0.0)));
+        for index in CACHE_SIZE..3 * CACHE_SIZE {
+            cache.store(&input(index as f32), output(index as f32));
+            assert_eq!(cache.entries.len(), CACHE_SIZE);
+        }
+        assert_eq!(cache.get(&input(0.0)), None);
+        assert_eq!(original.get(&input(0.0)), Some(output(0.0)));
+        for index in 2 * CACHE_SIZE..3 * CACHE_SIZE {
+            assert_eq!(cache.get(&input(index as f32)), Some(output(index as f32)));
+        }
+    }
 
     #[test]
     fn hard_bounds_changes_cannot_reuse_old_layout_or_measure_entries() {

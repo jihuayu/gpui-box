@@ -107,9 +107,12 @@ both that basis and baseline metadata. Invocations with any custom allocator
 therefore bypass both reads and writes of lossy ComputeSize caches throughout
 the invocation, including ordinary ancestors. Exact PerformLayout entries are
 still reused. This avoids incorrect child baselines and stale dimensions without
-enlarging every ordinary node's ten cache entries. A future exact measurement
-cache should be separately designed/profiled, including requested-axis and
-size-definiteness semantics. There is no measured speedup claim here.
+enlarging every ordinary node's ten cache entries. The subsequent
+[exact measurement cache stage](RETAINED_EXACT_PARENT_MEASURE_CACHE.md) replaces
+that bypass with sparse bounded complete-input/complete-result records, including
+requested-axis and size-definiteness semantics. Its copy-on-write values share
+unchanged records across private previews; memory/timing qualification remains
+open. The bypass above describes this initial stage, not current behavior.
 
 **Costs:** sparse Arc delegate entry per custom host, one Option handle per
 retained node and pending patch, a custom-host index, map lookup per cache miss,
@@ -132,6 +135,6 @@ Flutter RenderBox. Atomic LocalFrame edit output is implemented in the
 [subsequent stage](RETAINED_ATOMIC_LOCAL_EDITS.md). General full-axis
 content-sized structural builders, automatic dependency scheduling, query +
 structural plans, intrinsic/percentage/cyclic/baseline conformance, device rounding,
-incremental rollback and exact measurement caching remain open. No new modern
+incremental rollback and measurement-cache byte-budget/timing qualification remain open. No new modern
 GPU effects, sustained 60/120Hz, visible presentation, input-to-visible tail or
 CPU smooth-delivery qualification is claimed.

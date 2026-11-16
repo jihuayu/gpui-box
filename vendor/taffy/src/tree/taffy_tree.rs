@@ -25,6 +25,7 @@ use crate::compute::{
     compute_cached_layout, compute_hidden_layout, compute_leaf_layout, compute_oof_layout, round_layout,
 };
 use crate::CacheTree;
+use crate::tree::cache::ExactMeasureCache;
 
 #[cfg(feature = "block_layout")]
 use crate::{compute::compute_block_layout, LayoutBlockContainer};
@@ -180,6 +181,10 @@ pub struct TaffyTree<NodeContext = ()> {
     /// Owned immutable parent algorithms; ordinary nodes carry no delegate slot.
     custom_layouts: SecondaryMap<DefaultKey, Arc<dyn crate::tree::CustomLayout>>,
 
+    /// Lazily allocated, bounded full-result measurement caches. Only visited
+    /// nodes in exact-measure invocations have entries; ordinary nodes stay compact.
+    exact_measure_caches: SecondaryMap<DefaultKey, Arc<ExactMeasureCache>>,
+
     /// The children of each node
     ///
     /// The indexes in the outer vector correspond to the position of the parent [`NodeData`]
@@ -240,15 +245,16 @@ impl<NodeContext> TraverseTree for TaffyTree<NodeContext> {}
 // CacheTree impl for TaffyTree
 impl<NodeContext> CacheTree for TaffyTree<NodeContext> {
     fn cache_get(&mut self, node_id: NodeId, input: &LayoutInput) -> Option<LayoutOutput> {
-        self.nodes[node_id.into()].cache.get(input)
+        self.cached_layout(node_id, input, !self.custom_layouts.is_empty())
     }
 
     fn cache_store(&mut self, node_id: NodeId, input: &LayoutInput, layout_output: LayoutOutput) {
-        self.nodes[node_id.into()].cache.store(input, layout_output)
+        self.store_cached_layout(node_id, input, layout_output, !self.custom_layouts.is_empty())
     }
 
     fn cache_clear(&mut self, node_id: NodeId) {
         self.nodes[node_id.into()].cache.clear();
+        self.exact_measure_caches.remove(node_id.into());
     }
 }
 
@@ -517,23 +523,18 @@ where
     LayoutObserver: FnMut(NodeId, &Layout, &Layout),
 {
     fn cache_get(&mut self, node_id: NodeId, input: &LayoutInput) -> Option<LayoutOutput> {
-        // The ordinary size cache drops baselines and vertical percentage bases.
-        // Arbitrary parent policies may observe both; final-layout cache is exact.
-        if input.run_mode == RunMode::ComputeSize && (self.exact_measure || self.taffy.custom_layouts.contains_key(node_id.into())) {
-            return None;
-        }
-        self.taffy.nodes[node_id.into()].cache.get(input)
+        self.taffy.cached_layout(node_id, input, self.exact_measure)
     }
 
     fn cache_store(&mut self, node_id: NodeId, input: &LayoutInput, layout_output: LayoutOutput) {
-        if self.layout_error.is_none()
-            && !(input.run_mode == RunMode::ComputeSize && (self.exact_measure || self.taffy.custom_layouts.contains_key(node_id.into()))) {
-            self.taffy.nodes[node_id.into()].cache.store(input, layout_output);
+        if self.layout_error.is_none() {
+            self.taffy.store_cached_layout(node_id, input, layout_output, self.exact_measure);
         }
     }
 
     fn cache_clear(&mut self, node_id: NodeId) {
         self.taffy.nodes[node_id.into()].cache.clear();
+        self.taffy.exact_measure_caches.remove(node_id.into());
     }
 }
 
@@ -665,6 +666,22 @@ where
 
 #[allow(clippy::iter_cloned_collect)] // due to no-std support, we need to use `iter_cloned` instead of `collect`
 impl<NodeContext> TaffyTree<NodeContext> {
+    fn cached_layout(&mut self, node: NodeId, input: &LayoutInput, exact: bool) -> Option<LayoutOutput> {
+        if exact && input.run_mode == RunMode::ComputeSize {
+            return self.exact_measure_caches.get(node.into()).and_then(|cache| cache.get(input));
+        }
+        self.nodes[node.into()].cache.get(input)
+    }
+
+    fn store_cached_layout(&mut self, node: NodeId, input: &LayoutInput, output: LayoutOutput, exact: bool) {
+        if exact && input.run_mode == RunMode::ComputeSize {
+            let cache = self.exact_measure_caches.entry(node.into()).unwrap().or_default();
+            Arc::make_mut(cache).store(input, output);
+        } else {
+            self.nodes[node.into()].cache.store(input, output);
+        }
+    }
+
     /// Creates a new [`TaffyTree`]
     ///
     /// The default capacity of a [`TaffyTree`] is 16 nodes.
@@ -686,6 +703,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
             constraint_boxes: SecondaryMap::new(),
             constraint_box_inputs: SecondaryMap::new(),
             custom_layouts: SecondaryMap::new(),
+            exact_measure_caches: SecondaryMap::new(),
             config: TaffyConfig::default(),
         }
     }
@@ -789,6 +807,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
         self.constraint_boxes.clear();
         self.constraint_box_inputs.clear();
         self.custom_layouts.clear();
+        self.exact_measure_caches.clear();
     }
 
     /// Remove a specific node from the tree and drop it
@@ -817,6 +836,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
         let _ = self.constraint_boxes.remove(key);
         let _ = self.constraint_box_inputs.remove(key);
         let _ = self.custom_layouts.remove(key);
+        let _ = self.exact_measure_caches.remove(key);
 
         Ok(node)
     }
@@ -1078,23 +1098,21 @@ impl<NodeContext> TaffyTree<NodeContext> {
         fn mark_dirty_recursive(
             nodes: &mut SlotMap<DefaultKey, NodeData>,
             parents: &SlotMap<DefaultKey, Option<NodeId>>,
+            exact: &mut SecondaryMap<DefaultKey, Arc<ExactMeasureCache>>,
             node_key: DefaultKey,
         ) {
-            match nodes[node_key].mark_dirty() {
-                ClearState::AlreadyEmpty => {
-                    // Node was already marked as dirty.
-                    // No need to visit ancestors
-                    // as they should be marked as dirty already.
-                }
-                ClearState::Cleared => {
-                    if let Some(Some(node)) = parents.get(node_key) {
-                        mark_dirty_recursive(nodes, parents, (*node).into());
-                    }
+            let had_exact = exact.remove(node_key).is_some();
+            let ordinary = nodes[node_key].mark_dirty();
+            // An exact-only measured child still invalidates cached ancestors.
+            // Stop only if both stores were already empty.
+            if had_exact || matches!(ordinary, ClearState::Cleared) {
+                if let Some(Some(node)) = parents.get(node_key) {
+                    mark_dirty_recursive(nodes, parents, exact, (*node).into());
                 }
             }
         }
 
-        mark_dirty_recursive(&mut self.nodes, &self.parents, node.into());
+        mark_dirty_recursive(&mut self.nodes, &self.parents, &mut self.exact_measure_caches, node.into());
 
         Ok(())
     }
@@ -1102,7 +1120,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
     /// Indicates whether the layout of this node needs to be recomputed
     #[inline]
     pub fn dirty(&self, node: NodeId) -> TaffyResult<bool> {
-        Ok(self.nodes[node.into()].cache.is_empty())
+        Ok(self.nodes[node.into()].cache.is_empty() && !self.exact_measure_caches.contains_key(node.into()))
     }
 
     /// Updates the stored layout of the provided `node` and its children
@@ -1191,8 +1209,8 @@ impl<NodeContext> TaffyTree<NodeContext> {
         let use_rounding = self.config.use_rounding;
         // Custom descendants can observe vertical percentage bases and baseline
         // metadata omitted by ordinary CSS size caches, including through a
-        // cached Flex ancestor. Keep final-layout reuse but disable lossy size
-        // entries throughout invocations containing custom algorithms.
+        // cached Flex ancestor. Keep final-layout reuse and use sparse exact
+        // measurement entries throughout invocations containing custom algorithms.
         let exact_measure = !self.custom_layouts.is_empty();
         let mut taffy_view = TaffyView { taffy: self, measure_function, layout_observer, layout_error: None, exact_measure };
         crate::compute::compute_root_layout_with_bounds(&mut taffy_view, node_id, available_space, bounds);
@@ -1236,6 +1254,93 @@ mod tests {
     use crate::style::{Dimension, Display, FlexDirection};
     use crate::style_helpers::*;
     use crate::util::sys;
+
+    #[test]
+    fn exact_only_dirty_nodes_invalidate_ancestors_without_discarding_sibling_cache() {
+        let mut tree = TaffyTree::<()>::new();
+        let child = tree.new_leaf(Style::DEFAULT).unwrap();
+        let sibling = tree.new_leaf(Style::DEFAULT).unwrap();
+        let parent = tree.new_with_children(Style::DEFAULT, &[child, sibling]).unwrap();
+        let query = LayoutInput { run_mode: RunMode::ComputeSize, ..LayoutInput::HIDDEN };
+        let final_query = LayoutInput { run_mode: RunMode::PerformLayout, ..query };
+        let output = LayoutOutput::from_outer_size(Size { width: 20.0, height: 10.0 });
+        tree.store_cached_layout(child, &query, output.clone(), true);
+        tree.store_cached_layout(sibling, &query, output.clone(), true);
+        tree.store_cached_layout(parent, &query, output.clone(), true);
+        tree.store_cached_layout(parent, &final_query, output.clone(), true);
+        assert!(tree.nodes[child.into()].cache.is_empty());
+        assert!(!tree.dirty(child).unwrap());
+        let old = tree.clone();
+        assert!(Arc::ptr_eq(tree.exact_measure_caches.get(child.into()).unwrap(), old.exact_measure_caches.get(child.into()).unwrap()));
+        // A private preview that adds a query copies only that node's cache.
+        let different = LayoutInput { parent_size: Size { width: Some(90.0), height: None }, ..query };
+        tree.store_cached_layout(sibling, &different, output.clone(), true);
+        assert!(!Arc::ptr_eq(tree.exact_measure_caches.get(sibling.into()).unwrap(), old.exact_measure_caches.get(sibling.into()).unwrap()));
+        assert_eq!(old.exact_measure_caches.get(sibling.into()).unwrap().get(&different), None);
+        tree.set_style(child, Style { size: Size { width: Dimension::length(50.0), height: Dimension::AUTO }, ..Style::DEFAULT }).unwrap();
+        assert!(tree.dirty(child).unwrap());
+        assert!(tree.dirty(parent).unwrap());
+        assert_eq!(tree.cached_layout(child, &query, true), None);
+        assert_eq!(tree.cached_layout(parent, &query, true), None);
+        assert_eq!(tree.cached_layout(parent, &final_query, true), None);
+        assert_eq!(tree.cached_layout(sibling, &query, true), Some(output.clone()));
+        assert_eq!(old.exact_measure_caches.get(child.into()).unwrap().get(&query), Some(output.clone()));
+        // Measurement resource/context epochs use the same invalidation path.
+        tree.store_cached_layout(child, &query, output.clone(), true);
+        tree.store_cached_layout(parent, &final_query, output, true);
+        tree.set_node_context(child, Some(())).unwrap();
+        assert!(tree.dirty(child).unwrap());
+        assert!(tree.dirty(parent).unwrap());
+    }
+
+    #[test]
+    fn exact_measure_side_tables_are_lazy_and_follow_hidden_clear_and_node_generations() {
+        let mut tree = TaffyTree::<()>::new();
+        let node = tree.new_leaf(Style::DEFAULT).unwrap();
+        tree.compute_layout(node, Size::MAX_CONTENT).unwrap();
+        assert!(tree.exact_measure_caches.is_empty(), "ordinary layout allocates no exact entries");
+        let query = LayoutInput { run_mode: RunMode::ComputeSize, ..LayoutInput::HIDDEN };
+        tree.store_cached_layout(node, &query, LayoutOutput::HIDDEN, true);
+        CacheTree::cache_clear(&mut tree, node);
+        assert!(tree.exact_measure_caches.is_empty());
+        tree.store_cached_layout(node, &query, LayoutOutput::HIDDEN, true);
+        tree.set_style(node, Style { display: Display::None, ..Style::DEFAULT }).unwrap();
+        tree.compute_layout(node, Size::MAX_CONTENT).unwrap();
+        assert!(tree.exact_measure_caches.is_empty());
+        tree.store_cached_layout(node, &query, LayoutOutput::HIDDEN, true);
+        tree.remove(node).unwrap();
+        assert!(tree.exact_measure_caches.is_empty());
+        let next = tree.new_leaf(Style::DEFAULT).unwrap();
+        assert_ne!(node, next);
+        assert_eq!(tree.cached_layout(next, &query, true), None);
+        tree.store_cached_layout(next, &query, LayoutOutput::HIDDEN, true);
+        tree.clear();
+        assert!(tree.exact_measure_caches.is_empty());
+    }
+
+    #[test]
+    fn switching_back_to_ordinary_layout_keeps_exact_only_invalidation_provenance() {
+        #[derive(Debug)]
+        struct Unused;
+        impl crate::tree::CustomLayout for Unused {
+            fn layout(&self, _: crate::tree::CustomLayoutInput, _: &mut dyn crate::tree::CustomLayoutChildren) -> Result<crate::tree::CustomLayoutOutput, TaffyError> {
+                unreachable!("this test exercises cache lifetime, not algorithm dispatch")
+            }
+        }
+        let mut tree = TaffyTree::<()>::new();
+        let child = tree.new_leaf(Style::DEFAULT).unwrap();
+        let root = tree.new_with_children(Style::DEFAULT, &[child]).unwrap();
+        tree.set_custom_layout(root, Some(Arc::new(Unused))).unwrap();
+        let query = LayoutInput { run_mode: RunMode::ComputeSize, ..LayoutInput::HIDDEN };
+        tree.store_cached_layout(child, &query, LayoutOutput::HIDDEN, true);
+        tree.set_custom_layout(root, None).unwrap();
+        assert!(!tree.dirty(child).unwrap());
+        let final_query = LayoutInput { run_mode: RunMode::PerformLayout, ..query };
+        tree.store_cached_layout(root, &final_query, LayoutOutput::HIDDEN, false);
+        tree.mark_dirty(child).unwrap();
+        assert!(tree.dirty(root).unwrap(), "removing the delegate cannot break later ancestor invalidation");
+        assert!(tree.exact_measure_caches.is_empty());
+    }
 
     fn size_measure_function(
         inputs: LayoutInput,
