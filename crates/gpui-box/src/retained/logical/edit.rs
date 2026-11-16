@@ -22,12 +22,35 @@ pub struct LogicalEdit<'a, 'draft, 'tree> {
     next_scope_generation: &'a mut u64,
     capabilities: BackendCapabilities,
     frame_environment: Option<(LayoutConstraints, [f32; 2])>,
+    automatic_environment: Option<responsive::LayoutEnvironment>,
     constraint_inputs: Vec<super::constraint_builder::Observation>,
     responsive_inputs: Vec<responsive::structural::Observation>,
     live_responsive_rules: &'a BTreeMap<(ScopeId, u64), responsive::LayoutBinding>,
     responsive_rules: Option<BTreeMap<(ScopeId, u64), responsive::LayoutBinding>>,
 }
 impl LogicalEdit<'_, '_, '_> {
+    /// Capture host inputs in this atomic frame edit and enable automatic
+    /// settlement of scope-owned rules before builders and final publication.
+    /// Ordinary source reads still see the current draft; use
+    /// `responsive_registered` for an explicit selection/read checkpoint.
+    pub fn layout_environment(
+        &mut self,
+        environment: &responsive::LayoutEnvironment,
+    ) -> Result<(), Error> {
+        if self.frame_environment.is_none() {
+            return Err(Error::UnsafeContainerQuery);
+        }
+        environment.validate()?;
+        self.automatic_environment = Some(environment.clone());
+        Ok(())
+    }
+
+    /// Stop automatic settlement after this edit. Already observed builder or
+    /// responsive inputs still require final validation. Last styles remain.
+    pub fn clear_layout_environment(&mut self) {
+        self.automatic_environment = None;
+    }
+
     /// Settle viewport/container rules against the current keyed/source draft.
     /// Rules must already be registered. Call within `edit_frame` or
     /// `edit_local_frame`, after prerequisite structure and before dependent
@@ -65,6 +88,7 @@ impl LogicalEdit<'_, '_, '_> {
         host: NodeId,
         build: impl FnOnce(ConstraintBuilderInput, &mut Self) -> Result<R, Error>,
     ) -> Result<R, Error> {
+        self.settle_automatic_rules()?;
         let preview = self.constraint_preview(host, false)?;
         let input = super::constraint_builder::input(&preview, host)?;
         drop(preview);
@@ -84,6 +108,7 @@ impl LogicalEdit<'_, '_, '_> {
         host: NodeId,
         build: impl FnOnce(ConstraintBuilderInput, &mut Self) -> Result<R, Error>,
     ) -> Result<R, Error> {
+        self.settle_automatic_rules()?;
         let (constraints, viewport) = self
             .frame_environment
             .ok_or(Error::UnsafeConstraintBuilder)?;
@@ -113,6 +138,7 @@ impl LogicalEdit<'_, '_, '_> {
         host: NodeId,
         build: impl FnOnce(InlineConstraintBuilderInput, &mut Self) -> Result<R, Error>,
     ) -> Result<R, Error> {
+        self.settle_automatic_rules()?;
         let preview = self.constraint_preview(host, true)?;
         let input = super::constraint_builder::inline_input(&preview, host)?;
         let dependencies = layout_dependencies::InlineDependencies::capture(&preview, host)?;
@@ -485,6 +511,12 @@ impl LogicalUi {
         frame_environment: Option<(LayoutConstraints, [f32; 2])>,
         validate: Option<impl FnOnce(&mut UiTree) -> Result<(), Error>>,
     ) -> Result<ReactiveEditCommit<R>, Error> {
+        let frame_environment = frame_environment.or_else(|| {
+            self.layout_session
+                .as_ref()
+                .map(|s| (s.constraints, s.viewport))
+        });
+        let mut layout_session = self.layout_session.clone();
         let mut inserted = BTreeMap::new();
         let mut inserted_order = vec![];
         let mut created_scopes = BTreeMap::new();
@@ -520,6 +552,10 @@ impl LogicalUi {
                     next_scope_generation: &mut self.next_scope_generation,
                     capabilities,
                     frame_environment,
+                    automatic_environment: self
+                        .layout_session
+                        .as_ref()
+                        .map(|s| s.environment.clone()),
                     constraint_inputs: vec![],
                     responsive_inputs: vec![],
                     live_responsive_rules: &self.responsive_rules,
@@ -652,6 +688,15 @@ impl LogicalUi {
                     }
                 }
                 draft.validate_responsive_rules()?;
+                draft.settle_automatic_rules()?;
+                layout_session = draft.automatic_environment.take().map(|environment| {
+                    let (constraints, viewport) = frame_environment.expect("captured frame input");
+                    LayoutSession {
+                        environment,
+                        constraints,
+                        viewport,
+                    }
+                });
                 responsive_rules = draft.responsive_rules.take();
                 *responsive_inputs.borrow_mut() = draft
                     .responsive_inputs
@@ -668,9 +713,16 @@ impl LogicalUi {
                 *constraint_inputs.borrow_mut() = draft.constraint_inputs;
                 Ok(value)
             },
-            validate.map(|validate| {
+            (validate.is_some() || frame_environment.is_some()).then_some({
                 |tree: &mut UiTree| {
-                    validate(tree)?;
+                    if let Some(validate) = validate {
+                        validate(tree)?;
+                    } else if let Some((constraints, viewport)) = frame_environment {
+                        // Ordinary edits in an active session publish complete
+                        // local output before effects, without resolving a packet.
+                        tree.local_frame_in_viewport(constraints, viewport)?
+                            .validate_geometry()?;
+                    }
                     for input in constraint_inputs.borrow().iter() {
                         input.validate(tree)?;
                     }
@@ -737,6 +789,7 @@ impl LogicalUi {
         if let Some(rules) = responsive_rules {
             self.responsive_rules = rules;
         }
+        self.layout_session = layout_session;
         let live_inserted: BTreeSet<_> = result.inserted.iter().copied().collect();
         for node in inserted_order {
             if live_inserted.contains(&node) {

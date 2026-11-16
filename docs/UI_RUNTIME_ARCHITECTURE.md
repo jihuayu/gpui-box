@@ -305,6 +305,14 @@ modifier-only 修改经原样式/source 布局链路，同值不产新帧。项�
 仍消费同一布局。竖排、baseline content distribution 和广泛一致性仍开放；
 增加结果字段、临时 FlexItem float、组扫描和段落 memo lookup，没有性能收益声明。
 
+后续 [自动响应式 session](RETAINED_AUTOMATIC_RESPONSIVE.md) 把 host environment、
+实际布局约束、有限绘制 viewport 作为三个独立输入原子捕获。启用后普通 source
+事务、后台 inbox、key 生命周期/重排/reparent 与取帧自动结算 scope-owned rules；
+三种 builder 在读约束前结算，final draft 再结算并复验之前的观察，不重放用户回调。
+普通事务发布完整 LocalFrame 后才交付 effects；失败保留旧环境/source/树/帧。
+只承诺显式 host 输入捕获，没有自动 OS DPI/font 订阅或任意跨 builder 依赖调度。
+现有整树候选、重复预览、source savepoint 和全量 proof 扫描成本继续；无性能收益声明。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

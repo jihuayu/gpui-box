@@ -211,6 +211,51 @@ pub struct UpdateBatch {
     pub applied: usize,
     pub retired: usize,
 }
+
+/// One consumed inbox batch. Both ReactiveUi and LogicalUi publish it through
+/// their own transaction boundary; queue ownership/lifetimes remain identical.
+pub(in crate::retained) struct PendingUpdates {
+    live: Vec<Entry>,
+    retired: usize,
+}
+impl PendingUpdates {
+    pub(in crate::retained) fn stage(self, tx: &mut ReactiveTransaction<'_>) -> Result<(), Error> {
+        for entry in self.live {
+            entry.write.stage(tx)?;
+        }
+        Ok(())
+    }
+
+    pub(in crate::retained) fn publish(
+        self,
+        receiver: &UpdateReceiver,
+        publish: impl FnOnce(Self) -> Result<ReactiveCommit<()>, Error>,
+    ) -> Result<UpdateBatch, Error> {
+        let applied = self.live.len();
+        let retired = self.retired;
+        let result = if applied == 0 {
+            Ok(None)
+        } else {
+            publish(self).map(Some)
+        };
+        let mut state = receiver
+            .shared
+            .state
+            .lock()
+            .map_err(|_| Error::UpdateQueuePoisoned)?;
+        state.stats.retired += retired as u64;
+        if result.is_ok() {
+            state.stats.applied += applied as u64;
+        } else {
+            state.stats.rejected += applied as u64;
+        }
+        result.map(|commit| UpdateBatch {
+            commit,
+            applied,
+            retired,
+        })
+    }
+}
 impl ReactiveUi {
     /// Open one live inbox per runtime. Capacity bounds distinct pending source
     /// values, not payload bytes. A replacement never needs an extra slot.
@@ -258,6 +303,14 @@ impl ReactiveUi {
     /// generations are dropped, never rebound. Invalid compute/sink batches are
     /// rejected atomically and consumed (no automatic busy-loop retry).
     pub fn apply_updates(&mut self, receiver: &mut UpdateReceiver) -> Result<UpdateBatch, Error> {
+        let draft = self.drain_updates(receiver)?;
+        draft.publish(receiver, |draft| self.transaction(|tx| draft.stage(tx)))
+    }
+
+    pub(in crate::retained) fn drain_updates(
+        &self,
+        receiver: &mut UpdateReceiver,
+    ) -> Result<PendingUpdates, Error> {
         if receiver.shared.owner != self.identity {
             return Err(Error::InvalidUpdateQueue);
         }
@@ -271,9 +324,8 @@ impl ReactiveUi {
                 return Err(Error::UpdateQueueClosed);
             }
             if state.pending.is_empty() {
-                return Ok(UpdateBatch {
-                    commit: None,
-                    applied: 0,
+                return Ok(PendingUpdates {
+                    live: vec![],
                     retired: 0,
                 });
             }
@@ -284,34 +336,9 @@ impl ReactiveUi {
         let (live, dead): (Vec<_>, Vec<_>) = pending
             .into_iter()
             .partition(|(id, entry)| entry.lifetime.strong_count() > 0 && self.source(*id).is_ok());
-        let applied = live.len();
-        let retired = dead.len();
-        let result = if live.is_empty() {
-            Ok(None)
-        } else {
-            self.transaction(|tx| {
-                for (_, entry) in live {
-                    entry.write.stage(tx)?;
-                }
-                Ok(())
-            })
-            .map(Some)
-        };
-        let mut state = receiver
-            .shared
-            .state
-            .lock()
-            .map_err(|_| Error::UpdateQueuePoisoned)?;
-        state.stats.retired += retired as u64;
-        if result.is_ok() {
-            state.stats.applied += applied as u64;
-        } else {
-            state.stats.rejected += applied as u64;
-        }
-        result.map(|commit| UpdateBatch {
-            commit,
-            applied,
-            retired,
+        Ok(PendingUpdates {
+            live: live.into_iter().map(|(_, entry)| entry).collect(),
+            retired: dead.len(),
         })
     }
 }

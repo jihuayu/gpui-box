@@ -19,7 +19,8 @@ impl LogicalEdit<'_, '_, '_> {
     /// Declare or update a rule owned by `(scope, key)`. Its target must be
     /// render output of that scope. Equal declarations retain writer identity.
     /// Changing source/target requires explicit removal before redeclaration.
-    /// Declaration does not evaluate breakpoints; call `responsive_registered`.
+    /// Automatic sessions select before builders/final publication. Otherwise
+    /// call `responsive_registered` explicitly to evaluate breakpoints.
     pub fn responsive_rule(
         &mut self,
         scope: ScopeId,
@@ -106,8 +107,9 @@ impl LogicalEdit<'_, '_, '_> {
         Ok(())
     }
 
-    /// Evaluate all surviving scope-owned rules. Prerequisite declarations and
-    /// structure are explicit; no environment subscription or builder replay.
+    /// Evaluate all surviving scope-owned rules at an explicit checkpoint.
+    /// Does not replace an active captured environment. Prerequisite structure
+    /// remains explicit; no native subscription or builder replay.
     pub fn responsive_registered(
         &mut self,
         environment: &responsive::LayoutEnvironment,
@@ -121,6 +123,15 @@ impl LogicalEdit<'_, '_, '_> {
             bindings: self.rules().values().cloned().collect(),
         };
         self.responsive(&rules, environment)
+    }
+
+    pub(super) fn settle_automatic_rules(&mut self) -> Result<(), Error> {
+        if !self.rules().is_empty()
+            && let Some(environment) = self.automatic_environment.clone()
+        {
+            self.responsive_registered(&environment)?;
+        }
+        Ok(())
     }
 
     pub(super) fn retire_responsive_rules(&mut self) -> Result<(), Error> {

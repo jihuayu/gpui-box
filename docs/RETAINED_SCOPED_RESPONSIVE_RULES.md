@@ -2,6 +2,12 @@
 
 Date: 2026-11-16. Implemented public subset; the full RFC remains in progress.
 
+2026-11-17 follow-up: [captured automatic sessions](RETAINED_AUTOMATIC_RESPONSIVE.md)
+extend these declarations to ordinary transactions/inbox drains/frames and
+pre-builder settlement. The explicit no-session APIs described below retain
+their contract. Automatic native event subscription and general cross-builder
+scheduling remain open.
+
 `LogicalEdit` can now declare, update and remove responsive rules in the same
 atomic edit that creates their keyed scopes, sources and render nodes. A sparse
 registry on `LogicalUi` owns rules by `(ScopeId, key)`; scope retirement detaches

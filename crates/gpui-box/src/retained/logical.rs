@@ -11,6 +11,14 @@ mod edit;
 pub use edit::LogicalEdit;
 mod constraint_builder;
 pub use constraint_builder::{ConstraintBuilderInput, InlineConstraintBuilderInput};
+mod environment;
+
+#[derive(Clone)]
+struct LayoutSession {
+    environment: responsive::LayoutEnvironment,
+    constraints: LayoutConstraints,
+    viewport: [f32; 2],
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ScopeId {
@@ -67,6 +75,7 @@ pub struct LogicalUi {
     render_owners: BTreeMap<NodeId, ScopeId>,
     next_scope_generation: u64,
     responsive_rules: BTreeMap<(ScopeId, u64), responsive::LayoutBinding>,
+    layout_session: Option<LayoutSession>,
 }
 
 impl LogicalUi {
@@ -84,7 +93,8 @@ impl LogicalUi {
         &mut self,
         receiver: &mut reactive::UpdateReceiver,
     ) -> Result<reactive::UpdateBatch, Error> {
-        self.ui.apply_updates(receiver)
+        let draft = self.ui.drain_updates(receiver)?;
+        draft.publish(receiver, |draft| self.transaction(|tx| draft.stage(tx)))
     }
 
     pub fn new(style: Style, color: u32, capabilities: BackendCapabilities) -> Result<Self, Error> {
@@ -148,6 +158,7 @@ impl LogicalUi {
             render_owners,
             next_scope_generation: 1,
             responsive_rules: BTreeMap::new(),
+            layout_session: None,
         })
     }
 
@@ -179,27 +190,58 @@ impl LogicalUi {
         self.ui.set_capabilities(capabilities);
     }
     pub fn frame(&mut self, viewport: [f32; 2]) -> Result<FramePacket, Error> {
-        self.ui.frame(viewport)
+        if let Some(session) = &self.layout_session {
+            let mut environment = session.environment.clone();
+            environment.layout_viewport = viewport;
+            self.frame_with_environment(
+                &environment,
+                LayoutConstraints::viewport(viewport[0], viewport[1]),
+                viewport,
+            )
+        } else {
+            self.ui.frame(viewport)
+        }
     }
     pub fn frame_with_constraints(
         &mut self,
         constraints: LayoutConstraints,
     ) -> Result<FramePacket, Error> {
-        self.ui.frame_with_constraints(constraints)
+        if self.layout_session.is_some() {
+            constraints.validate()?;
+            let viewport = [
+                constraints.width.resolve_definite()?,
+                constraints.height.resolve_definite()?,
+            ];
+            let mut environment = self.layout_session.as_ref().unwrap().environment.clone();
+            environment.layout_viewport = viewport;
+            self.frame_with_environment(&environment, constraints, viewport)
+        } else {
+            self.ui.frame_with_constraints(constraints)
+        }
     }
     pub fn frame_in_viewport(
         &mut self,
         constraints: LayoutConstraints,
         viewport: [f32; 2],
     ) -> Result<FramePacket, Error> {
-        self.ui.frame_in_viewport(constraints, viewport)
+        if self.layout_session.is_some() {
+            self.edit_frame(constraints, viewport, |_| Ok(()), |(), _| Ok(()))
+                .map(|(_, frame)| frame)
+        } else {
+            self.ui.frame_in_viewport(constraints, viewport)
+        }
     }
     pub fn local_frame_in_viewport(
         &mut self,
         constraints: LayoutConstraints,
         viewport: [f32; 2],
     ) -> Result<local::LocalFrame, Error> {
-        self.ui.local_frame_in_viewport(constraints, viewport)
+        if self.layout_session.is_some() {
+            self.edit_local_frame(constraints, viewport, |_| Ok(()), |(), _| Ok(()))
+                .map(|(_, frame)| frame)
+        } else {
+            self.ui.local_frame_in_viewport(constraints, viewport)
+        }
     }
     pub fn layout_result(&self, node: NodeId) -> Result<LayoutResult, Error> {
         self.ui.layout_result(node)
@@ -218,7 +260,17 @@ impl LogicalUi {
         self.ui.measure_node_with_constraints(node, constraints)
     }
     pub fn local_frame(&mut self, viewport: [f32; 2]) -> Result<local::LocalFrame, Error> {
-        self.ui.local_frame(viewport)
+        if let Some(session) = &self.layout_session {
+            let mut environment = session.environment.clone();
+            environment.layout_viewport = viewport;
+            self.local_frame_with_environment(
+                &environment,
+                LayoutConstraints::viewport(viewport[0], viewport[1]),
+                viewport,
+            )
+        } else {
+            self.ui.local_frame(viewport)
+        }
     }
     pub fn children(&self, scope: ScopeId) -> Result<&[ScopeId], Error> {
         Ok(&self.scope(scope)?.children)
@@ -321,13 +373,23 @@ impl LogicalUi {
         source: Signal<T>,
         property: Property<T>,
     ) -> Result<(BindingId, Commit), Error> {
-        self.ui.bind(source, property)
+        if self.layout_session.is_some() {
+            self.edit(|_| Ok(()), |(), edit| edit.bind(source, property))
+                .map(|result| (result.result.value, result.result.commit))
+        } else {
+            self.ui.bind(source, property)
+        }
     }
     pub fn transaction<R>(
         &mut self,
         update: impl FnOnce(&mut ReactiveTransaction<'_>) -> Result<R, Error>,
     ) -> Result<ReactiveCommit<R>, Error> {
-        self.ui.transaction(update)
+        if self.layout_session.is_some() {
+            self.edit(update, |value, _| Ok(value))
+                .map(|edit| edit.result)
+        } else {
+            self.ui.transaction(update)
+        }
     }
 
     pub fn append_render(
@@ -337,6 +399,14 @@ impl LogicalUi {
         style: Style,
         color: u32,
     ) -> Result<NodeId, Error> {
+        if self.layout_session.is_some() {
+            return self
+                .edit(
+                    |_| Ok(()),
+                    |(), edit| edit.append(owner, parent, style, color),
+                )
+                .map(|result| result.result.value);
+        }
         self.scope(owner)?;
         let node = self.ui.append(parent, style, color)?;
         self.scope_mut(owner).renders.push(node);
@@ -352,6 +422,14 @@ impl LogicalUi {
         style: LayoutStyle,
         color: u32,
     ) -> Result<NodeId, Error> {
+        if self.layout_session.is_some() {
+            return self
+                .edit(
+                    |_| Ok(()),
+                    |(), edit| edit.append_layout(owner, parent, style, color),
+                )
+                .map(|result| result.result.value);
+        }
         self.scope(owner)?;
         let node = self.ui.append_layout(parent, style, color)?;
         self.scope_mut(owner).renders.push(node);
@@ -380,6 +458,26 @@ impl LogicalUi {
             .iter()
             .map(|id| (self.scope(*id).unwrap().key, *id))
             .collect();
+        if self.layout_session.is_some() {
+            let mut removed = BTreeSet::new();
+            for (key, id) in &old {
+                if !unique.contains(key) {
+                    self.subtree(*id, &mut removed)?;
+                }
+            }
+            let result = self.edit(|_| Ok(()), |(), edit| edit.reconcile_keys(parent, keys))?;
+            let order = result.result.value;
+            return Ok(ScopeChanges {
+                inserted: order
+                    .iter()
+                    .copied()
+                    .filter(|id| !children.contains(id))
+                    .collect(),
+                order,
+                removed: removed.into_iter().collect(),
+                request_frame: result.result.commit.request_frame,
+            });
+        }
         if old.len() == keys.len() && keys.iter().all(|key| old.contains_key(key)) {
             let order: Vec<_> = keys.iter().map(|key| old[key]).collect();
             let mut tx = LogicalStructureTransaction::default();
@@ -621,6 +719,44 @@ impl LogicalUi {
             if a != b {
                 return Err(Error::InvalidChildren);
             }
+        }
+        if self.layout_session.is_some() {
+            let root = self.root;
+            let root_keys = self
+                .children(root)?
+                .iter()
+                .map(|id| self.key(*id))
+                .collect::<Result<Vec<_>, _>>()?;
+            let scopes = tx
+                .scopes
+                .iter()
+                .map(|(parent, children)| {
+                    Ok((
+                        *parent,
+                        children
+                            .iter()
+                            .map(|id| self.key(*id))
+                            .collect::<Result<Vec<_>, _>>()?,
+                    ))
+                })
+                .collect::<Result<Vec<_>, Error>>()?;
+            return self
+                .edit(
+                    |_| Ok(()),
+                    |(), edit| {
+                        // Even a host-only or sync-only request sorts final siblings
+                        // using the complete logical preorder, as the legacy path does.
+                        edit.reconcile_keys(root, &root_keys)?;
+                        for (parent, keys) in scopes {
+                            edit.reconcile_keys(parent, &keys)?;
+                        }
+                        for (node, host) in tx.hosts {
+                            edit.reparent(node, host)?;
+                        }
+                        Ok(())
+                    },
+                )
+                .map(|result| result.result.commit);
         }
         let mut ranks = BTreeMap::new();
         let mut stack = vec![self.root];

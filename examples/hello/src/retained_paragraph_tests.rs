@@ -21,6 +21,137 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 }
 
 #[test]
+fn automatic_environment_updates_rewrap_real_text_and_preserve_full_cpu_pixels() {
+    use gpui_box::retained::{logical::LogicalUi, responsive::*};
+    let system = text_system();
+    let paragraph = shape(&system, "one two three four five six 中文段落");
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let paint = TextPaint {
+        resource: raster.prepare(paragraph.clone(), 1.0).unwrap(),
+        color: 0x00ffffff,
+    };
+    let root_style = LayoutStyle::column().size(LayoutDimension::Px(200.0), LayoutDimension::Auto);
+    let mut ui =
+        LogicalUi::new_layout(root_style.clone(), 0, BackendCapabilities::default()).unwrap();
+    let scope = ui.root_scope();
+    let base = LayoutStyle::column().fixed_inline_size(60.0);
+    let host = ui
+        .append_render_layout(scope, ui.root_render(), base.clone(), 0)
+        .unwrap();
+    let leaf_style = LayoutStyle::row();
+    let leaf = ui
+        .append_render_layout(scope, host, leaf_style.clone(), 0)
+        .unwrap();
+    let host_source = ui.state(scope, 1, || base.clone()).unwrap();
+    let text_style = ui.state(scope, 2, || leaf_style.clone()).unwrap();
+    let padding = LayoutEdges::all(LayoutLength::Px(5.0));
+    ui.edit(
+        |_| Ok(()),
+        |(), edit| {
+            edit.properties().text(leaf, Some(paint.clone()));
+            edit.responsive_rule(
+                scope,
+                1,
+                host_source,
+                host,
+                LayoutQuery::ViewportInline,
+                LayoutBreakpointStyles::new(
+                    base.clone(),
+                    vec![(150.0, base.fixed_inline_size(140.0))],
+                )?,
+            )?;
+            edit.responsive_rule(
+                scope,
+                2,
+                text_style,
+                leaf,
+                LayoutQuery::ContainerInline(host),
+                LayoutBreakpointStyles::new(
+                    leaf_style.clone(),
+                    vec![(100.0, leaf_style.clone().padding(padding))],
+                )?,
+            )
+        },
+    )
+    .unwrap();
+    fn pixels(frame: FramePacket) -> Vec<u8> {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [200, 400],
+                scale: 1.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(8192).unwrap() {}
+        job.into_frame().unwrap().pixels().to_vec()
+    }
+    let constraints = LayoutConstraints::new(
+        LayoutAvailableSpace::Definite(200.0),
+        LayoutAvailableSpace::Unbounded,
+    );
+    let mut old = None;
+    let mut heights = vec![];
+    for (i, width) in [100.0, 200.0, 100.0, 200.0].into_iter().enumerate() {
+        if i == 0 {
+            ui.local_frame_with_environment(
+                &LayoutEnvironment::new([width, 400.0]),
+                constraints,
+                [200.0, 400.0],
+            )
+            .unwrap();
+        } else {
+            ui.edit(
+                |_| Ok(()),
+                |(), edit| edit.layout_environment(&LayoutEnvironment::new([width, 400.0])),
+            )
+            .unwrap();
+        }
+        let wide = width >= 150.0;
+        let frame = ui.published_local_frame().unwrap().clone();
+        let actual = pixels(frame.resolve());
+        assert!(actual.chunks_exact(4).any(|p| p[1] > 0));
+        let content_width = if wide { 130.0 } else { 60.0 };
+        let layout = paragraph.layout(Some(content_width)).unwrap();
+        heights.push(layout.size[1]);
+        assert_eq!(
+            ui.layout_result(leaf).unwrap().size[1],
+            layout.size[1] + if wide { 10.0 } else { 0.0 }
+        );
+        let mut full = UiTree::new_layout(root_style.clone(), 0).unwrap();
+        full.set_frame_build_policy(FrameBuildPolicy::Full);
+        let h = full
+            .append_layout(
+                full.root(),
+                LayoutStyle::column().fixed_inline_size(if wide { 140.0 } else { 60.0 }),
+                0,
+            )
+            .unwrap();
+        let style = if wide {
+            leaf_style.clone().padding(padding)
+        } else {
+            leaf_style.clone()
+        };
+        let t = full.append_layout(h, style, 0).unwrap();
+        let mut tx = Transaction::default();
+        tx.text(t, Some(paint.clone()));
+        full.commit(tx, BackendCapabilities::default()).unwrap();
+        assert_eq!(
+            actual,
+            pixels(full.frame_in_viewport(constraints, [200.0, 400.0]).unwrap())
+        );
+        old.get_or_insert((frame, actual));
+    }
+    assert!(heights.windows(2).any(|h| h[0] != h[1]));
+    drop((ui, system, raster, paragraph, paint));
+    let (frame, expected) = old.unwrap();
+    assert_eq!(pixels(frame.resolve()), expected);
+}
+
+#[test]
 fn last_baseline_real_paragraphs_rewrap_align_and_keep_complete_frame_lifetimes() {
     let system = text_system();
     let paragraph = shape(&system, "one two three four five six 中文段落");
