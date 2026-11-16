@@ -296,6 +296,15 @@ modifier-only 修改经原样式/source 布局链路，同值不产新帧。项�
 字段、校验和复制成本，没有性能提升声明；last-baseline、竖排与广泛对齐/布局
 一致性仍开放。
 
+后续 [末基线阶段](RETAINED_LAST_BASELINE.md) 增加 `LastBaseline` item/self 对齐，
+以及贯穿 leaf、真实段落、custom parent、ConstraintBox/Block/Flex 和
+`LayoutResult` 的独立首/末水平基线。原单基线测量入口保留，两组分享基线
+分别决定行高和对齐；单项、wrap-reverse 与负 margin 均走通用规则。
+新增字段会影响公共结果/父算法 struct literal，段落末基线按最终绘制宽度的真实
+换行计算。浏览器 marker 与外层 Flex 探测分别检查子项几何和容器发布值，CPU/GPU
+仍消费同一布局。竖排、baseline content distribution 和广泛一致性仍开放；
+增加结果字段、临时 FlexItem float、组扫描和段落 memo lookup，没有性能收益声明。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

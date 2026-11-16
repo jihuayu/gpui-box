@@ -1,5 +1,7 @@
 # Owned custom parent layout
 
+Follow-up 2026-11-17: [first/last baseline sets](RETAINED_LAST_BASELINE.md) adds `last_baseline` to ChildLayoutResult and ParentLayoutOutput. Existing parent output literals must supply None or an explicit content-box metric; both sets are validated and transported.
+
 Status: implemented subset, 2026-11-16. The complete RFC goal stays active.
 This stage follows [inline constraint builders](RETAINED_INLINE_CONSTRAINT_BUILDERS.md).
 

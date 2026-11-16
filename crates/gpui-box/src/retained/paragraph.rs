@@ -36,6 +36,7 @@ pub struct ParagraphLayout {
     pub lines: Vec<gpui::WrappedLine>,
     pub size: [f32; 2],
     pub first_baseline: f32,
+    pub last_baseline: f32,
 }
 
 impl ParagraphSnapshot {
@@ -193,10 +194,16 @@ impl ParagraphSnapshot {
             .map(|line| f32::from(line.size(px(self.0.line_height)).height))
             .sum::<f32>();
         let actual_width = width.map_or(self.0.max_width, |width| width.min(self.0.max_width));
+        let last_line = self.0.lines.last().expect("at least one hard line");
+        let last_line_baseline =
+            (self.0.line_height - f32::from(last_line.ascent) - f32::from(last_line.descent)) * 0.5
+                + f32::from(last_line.ascent);
+        let last_baseline = height - self.0.line_height + last_line_baseline;
         let result = Arc::new(ParagraphLayout {
             lines,
             size: [actual_width, height],
             first_baseline: self.0.baseline,
+            last_baseline,
         });
         if cache.len() == 4 {
             cache.pop_front();

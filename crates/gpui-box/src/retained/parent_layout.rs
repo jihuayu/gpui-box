@@ -70,7 +70,10 @@ impl ChildLayoutInput {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ChildLayoutResult {
     pub size: [f32; 2],
+    /// First horizontal baseline from the child's border-box top.
     pub baseline: Option<f32>,
+    /// Last horizontal baseline from the child's border-box top.
+    pub last_baseline: Option<f32>,
 }
 
 /// Only direct children are addressable. Measurements never publish geometry.
@@ -108,7 +111,10 @@ pub struct ParentPlacement {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ParentLayoutOutput {
     pub size: [f32; 2],
+    /// First horizontal baseline from the host's content-box top.
     pub baseline: Option<f32>,
+    /// Last horizontal baseline from the host's content-box top.
+    pub last_baseline: Option<f32>,
     /// Every child, including hidden nodes, must occur exactly once.
     pub placements: Vec<ParentPlacement>,
 }
@@ -310,6 +316,7 @@ impl ParentLayoutChildren for Children<'_> {
         Ok(ChildLayoutResult {
             size: [result.size.width, result.size.height],
             baseline: result.baselines.first,
+            last_baseline: result.baselines.last,
         })
     }
 }
@@ -393,7 +400,10 @@ impl taffy::tree::CustomLayout for Adapter {
                 width: output.size[0],
                 height: output.size[1],
             },
-            baselines: taffy::Baselines::from_first(output.baseline),
+            baselines: taffy::Baselines {
+                first: output.baseline,
+                last: output.last_baseline,
+            },
             placements: output
                 .placements
                 .into_iter()

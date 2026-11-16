@@ -48,7 +48,10 @@ pub use paint_store::{FrameBuildPolicy, FrameBuildStats, HitTestStats, PaintItem
 pub mod paragraph;
 #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
 pub mod text;
-pub use measure::{CustomMeasureSnapshot, ImageIntrinsicSize, LayoutStats, MeasureSnapshot};
+pub use measure::{
+    BaselineMeasureSnapshot, CustomMeasureSnapshot, ImageIntrinsicSize, LayoutStats,
+    MeasureSnapshot,
+};
 pub use parent_layout::{
     ChildInlineAllocation, ChildLayoutInput, ChildLayoutResult, ParentAllocationInput,
     ParentAllocationLayout, ParentInlineInput, ParentInlineLayout, ParentLayout,

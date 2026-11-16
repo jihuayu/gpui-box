@@ -1,5 +1,7 @@
 # Published layout baselines
 
+Follow-up 2026-11-17: [first/last baseline sets](RETAINED_LAST_BASELINE.md) adds last-baseline publication, dual-metric leaves/parents and public Flex LastBaseline alignment. The first-only limits below describe the original stage.
+
 Updated 2026-11-16 on `codex/rendering-performance-research`. This completes
 first-horizontal-baseline publication for the current layout adapter. The
 [complete-runtime goal](RETAINED_IMPLEMENTATION_PROGRESS.md) remains open.

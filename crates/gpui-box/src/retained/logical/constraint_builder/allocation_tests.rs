@@ -60,6 +60,7 @@ impl ParentLayout for Stack {
                 input.known_size.height.unwrap_or(height),
             ],
             baseline: None,
+            last_baseline: None,
             placements,
         })
     }

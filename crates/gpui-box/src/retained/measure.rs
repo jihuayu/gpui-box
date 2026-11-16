@@ -17,12 +17,24 @@ pub struct CustomMeasureSnapshot {
     pub baseline: Option<f32>,
 }
 
+/// Fixed content metrics with independent first and last horizontal baselines.
+/// Offsets are from the content-box top, before padding/border. The legacy
+/// CustomMeasureSnapshot represents one baseline used for both sets.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BaselineMeasureSnapshot {
+    pub width: f32,
+    pub height: f32,
+    pub first_baseline: Option<f32>,
+    pub last_baseline: Option<f32>,
+}
+
 /// Sizing inputs only: changing image pixels at the same intrinsic size must
 /// use the resource channel, not invent a new intrinsic measurement revision.
 #[derive(Clone, Debug, PartialEq)]
 pub enum MeasureSnapshot {
     Image(ImageIntrinsicSize),
     Fixed(CustomMeasureSnapshot),
+    FixedBaselines(BaselineMeasureSnapshot),
     #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
     Paragraph(paragraph::ParagraphSnapshot),
 }
@@ -42,20 +54,28 @@ pub struct LayoutStats {
 
 impl MeasureSnapshot {
     pub(super) fn validate(&self) -> Result<(), Error> {
-        let (width, height, baseline) = match self {
-            Self::Image(image) => (image.width, image.height, None),
-            Self::Fixed(value) => (value.width, value.height, value.baseline),
+        let (width, height, baselines) = match self {
+            Self::Image(image) => (image.width, image.height, [None, None]),
+            Self::Fixed(value) => (value.width, value.height, [value.baseline, value.baseline]),
+            Self::FixedBaselines(value) => (
+                value.width,
+                value.height,
+                [value.first_baseline, value.last_baseline],
+            ),
             #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
             Self::Paragraph(value) => (
                 value.max_content_width(),
                 value.line_height() * value.hard_line_count() as f32,
-                Some(value.first_baseline()),
+                [Some(value.first_baseline()), None],
             ),
         };
         if [width, height]
             .iter()
             .any(|value| !value.is_finite() || *value < 0.0)
-            || baseline.is_some_and(|value| !value.is_finite() || value < 0.0 || value > height)
+            || baselines
+                .into_iter()
+                .flatten()
+                .any(|value| !value.is_finite() || value < 0.0 || value > height)
         {
             return Err(Error::InvalidMeasure);
         }
@@ -83,17 +103,34 @@ impl MeasureSnapshot {
                 width: known.width.unwrap_or(value.width),
                 height: known.height.unwrap_or(value.height),
             },
+            Self::FixedBaselines(value) => Size {
+                width: known.width.unwrap_or(value.width),
+                height: known.height.unwrap_or(value.height),
+            },
             #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
             Self::Paragraph(value) => value.measure(_available.width),
         }
     }
 
-    pub(super) fn baseline(&self) -> Option<f32> {
+    fn baselines(&self, _width: f32) -> taffy::Baselines {
         match self {
-            Self::Fixed(value) => value.baseline,
-            Self::Image(_) => None,
+            Self::Fixed(value) => taffy::Baselines {
+                first: value.baseline,
+                last: value.baseline,
+            },
+            Self::FixedBaselines(value) => taffy::Baselines {
+                first: value.first_baseline,
+                last: value.last_baseline,
+            },
+            Self::Image(_) => taffy::Baselines::NONE,
             #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
-            Self::Paragraph(value) => Some(value.first_baseline()),
+            Self::Paragraph(value) => {
+                let layout = value.layout(Some(_width)).expect("validated content width");
+                taffy::Baselines {
+                    first: Some(layout.first_baseline),
+                    last: Some(layout.last_baseline),
+                }
+            }
         }
     }
 }
@@ -164,14 +201,19 @@ pub(super) fn layout_leaf(
             .max(0.0),
         };
     }
-    if let Some(baseline) = snapshot.and_then(MeasureSnapshot::baseline)
+    if let Some(snapshot) = snapshot
         && !style.contain.suppresses_baseline()
     {
-        // Resolve percentage top padding/border against containing inline size,
-        // as the leaf algorithm does. Baseline output remains in border-box space.
-        output.baselines = taffy::tree::Baselines::from_first(Some(
-            baseline + resolve(style.padding.top) + resolve(style.border.top),
-        ));
+        let padding = style.padding.map(resolve);
+        let border = style.border.map(resolve);
+        let width = (output.size.width - padding.left - padding.right - border.left - border.right)
+            .max(0.0);
+        let baselines = snapshot.baselines(width);
+        let inset = padding.top + border.top;
+        output.baselines = taffy::Baselines {
+            first: baselines.first.map(|v| v + inset),
+            last: baselines.last.map(|v| v + inset),
+        };
     }
     output
 }

@@ -1,0 +1,30 @@
+{
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36",
+  "cases": 1440,
+  "rootFields": [
+    "direction",
+    "rtl",
+    "wrap",
+    "mode",
+    "extent",
+    "variant",
+    "width",
+    "height",
+    "actualWidth",
+    "actualHeight"
+  ],
+  "itemFields": [
+    "alignment",
+    "marginTop",
+    "marginBottom",
+    "marginLeft",
+    "marginRight",
+    "firstBaseline",
+    "lastBaseline",
+    "x",
+    "y",
+    "width",
+    "height"
+  ],
+  "items": 4
+}

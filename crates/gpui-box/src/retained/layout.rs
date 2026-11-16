@@ -221,6 +221,7 @@ pub enum AlignItems {
     Center,
     Stretch,
     Baseline,
+    LastBaseline,
 }
 
 /// Per-item cross-axis alignment. `Auto` inherits the flex container's
@@ -238,6 +239,7 @@ pub enum AlignSelf {
     Center,
     Stretch,
     Baseline,
+    LastBaseline,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -578,6 +580,8 @@ pub struct LayoutResult {
     /// Containers expose the baseline selected by their layout algorithm;
     /// a leaf with no baseline or a hidden subtree returns `None`.
     pub baseline: Option<f32>,
+    /// Last horizontal baseline, from the border-box top.
+    pub last_baseline: Option<f32>,
 }
 
 impl LayoutResult {
@@ -624,6 +628,7 @@ impl LayoutResult {
                 layout.scrollable_overflow_rect.bottom,
             ],
             baseline: layout.baselines.first,
+            last_baseline: layout.baselines.last,
         }
     }
 }
@@ -987,6 +992,7 @@ impl LayoutStyle {
                 AlignItems::Center => taffy::AlignItems::CENTER,
                 AlignItems::Stretch => taffy::AlignItems::STRETCH,
                 AlignItems::Baseline => taffy::AlignItems::BASELINE,
+                AlignItems::LastBaseline => taffy::AlignItems::LAST_BASELINE,
             })
             .with_safety(alignment_safety(self.align_items.overflow)),
             align_self: match self.align_self.position {
@@ -1001,6 +1007,7 @@ impl LayoutStyle {
                 AlignSelf::Center => Some(taffy::AlignSelf::CENTER),
                 AlignSelf::Stretch => Some(taffy::AlignSelf::STRETCH),
                 AlignSelf::Baseline => Some(taffy::AlignSelf::BASELINE),
+                AlignSelf::LastBaseline => Some(taffy::AlignSelf::LAST_BASELINE),
             }
             .map(|value| value.with_safety(alignment_safety(self.align_self.overflow))),
             align_content: (match self.align_content.position {

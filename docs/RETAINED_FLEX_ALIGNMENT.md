@@ -1,5 +1,10 @@
 # Flex alignment keywords and overflow position
 
+Follow-up (2026-11-17): [first/last baseline sets](RETAINED_LAST_BASELINE.md)
+adds LastBaseline item/self alignment and dual-metric measurement/parent/result
+flow. The earlier open last-baseline item below describes this stage's original
+boundary; content-baseline distribution and vertical writing remain open.
+
 Status: experimental public contract, 2026-11-17. This extends the framework-owned
 LayoutStyle, not the legacy FlexStyle adapter. Complete CSS alignment, baseline,
 writing-mode/Flex conformance and the full RFC remain open.

@@ -421,6 +421,7 @@ impl ParentLayout for Parent {
         Ok(ParentLayoutOutput {
             size: [width, input.known_size.height.unwrap_or(measured.size[1])],
             baseline: measured.baseline,
+            last_baseline: None,
             placements: vec![ParentPlacement {
                 child: 0,
                 input: slot,

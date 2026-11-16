@@ -1,0 +1,44 @@
+<!doctype html><meta charset="utf-8"><title>Flex first/last baseline reference</title>
+<style>body{margin:0}#fixture{position:absolute;left:200px;top:200px}.line{font-size:0}.marker{display:inline-block;width:0;height:0}</style>
+<div id="fixture"></div><pre id="result"></pre>
+<script>
+window.referenceReady = (() => {
+  const fixture=document.querySelector('#fixture'),cases=[];
+  for(const dir of ['row','row-reverse','column','column-reverse'])
+  for(const rtl of [false,true]) for(const wrap of ['nowrap','wrap','wrap-reverse'])
+  for(const mode of ['first','last','mixed','single','auto-margin','auto-bottom','auto-both','auto-left','auto-right','auto-horizontal'])
+  for(const extent of ['auto','positive','overflow']) for(const variant of [0,1]) {
+    fixture.replaceChildren(); const root=document.createElement('div');
+    const width=dir.startsWith('row')?(wrap==='nowrap'?180:75):120;
+    const height=extent==='auto'?'auto':(extent==='positive'?140:32)+'px';
+    root.style.cssText=`display:flex;box-sizing:border-box;width:${width}px;height:${height};flex-direction:${dir};direction:${rtl?'rtl':'ltr'};flex-wrap:${wrap};justify-content:start;align-content:start;align-items:${mode==='last'?'last baseline':'baseline'}`;
+    fixture.append(root); const children=[];
+    for(let i=0;i<4;i++) {
+      const item=document.createElement('div');const lines=[2,3,1,2][i],lineHeight=[14,18,12,16][i];
+      const h=variant?[47,65,34,52][i]:lines*lineHeight;
+      const horizontalAuto=mode==='auto-left'||mode==='auto-right'||mode==='auto-horizontal';
+      const itemWidth=horizontalAuto&&variant&&i===0?150:30;
+      const ml=horizontalAuto&&i===0&&(mode==='auto-left'||mode==='auto-horizontal')?'auto':'0px';
+      const mr=horizontalAuto&&i===0&&(mode==='auto-right'||mode==='auto-horizontal')?'auto':'0px';
+      const align=mode==='mixed'?(i%2?'last baseline':'baseline'):mode==='single'?(i===2?'last baseline':'start'):(mode==='last'?'last baseline':'baseline');
+      const mt=variant?[3,-2,1,4][i]:0, mb=variant?[2,4,-1,3][i]:0;
+      const auto=(mode==='auto-margin'||mode==='auto-both')&&i===0;const autoBottom=(mode==='auto-bottom'||mode==='auto-both')&&i===0;
+      item.style.cssText=`box-sizing:border-box;width:${itemWidth}px;height:${h}px;flex-shrink:0;direction:${i%2?'rtl':'ltr'};align-self:${align};margin-left:${ml};margin-right:${mr};margin-top:${auto?'auto':mt+'px'};margin-bottom:${autoBottom?'auto':mb+'px'};padding:${variant?2:0}px;border:${variant?1:0}px solid transparent;`;
+      const markers=[];
+      for(let n=0;n<lines;n++){const line=document.createElement('div');line.className='line';line.style.lineHeight=lineHeight+'px';const marker=document.createElement('span');marker.className='marker';line.append(marker);item.append(line);markers.push(marker);}
+      root.append(item);children.push({item,markers,align,mt: auto?'auto':mt,mb:autoBottom?'auto':mb,ml:ml==='auto'?'auto':0,mr:mr==='auto'?'auto':0});
+    }
+    const r=root.getBoundingClientRect();
+    const items=children.map(({item,markers,align,mt,mb,ml,mr})=>{const b=item.getBoundingClientRect();return {align,mt,mb,ml,mr,first:markers[0].getBoundingClientRect().bottom-b.y,last:markers.at(-1).getBoundingClientRect().bottom-b.y,actual:[b.x-r.x,b.y-r.y,b.width,b.height]};});
+    const exported=[];
+    for(const alignment of ['baseline','last baseline']) {
+      const outer=document.createElement('div');outer.style.cssText=`display:flex;align-items:${alignment};width:1000px;`;
+      const probe=document.createElement('div');probe.style.cssText='width:0;height:0;flex-shrink:0;';
+      fixture.append(outer);outer.append(root,probe);
+      exported.push(probe.getBoundingClientRect().y-root.getBoundingClientRect().y);
+    }
+    cases.push({exported,dir,rtl,wrap,mode,extent,variant,width,height:extent==='auto'?null:extent==='positive'?140:32,actual:[r.width,r.height],items});
+  }
+  const result={userAgent:navigator.userAgent,cases};document.querySelector('#result').textContent=JSON.stringify({userAgent:result.userAgent,cases:cases.length});return result;
+})();
+</script>

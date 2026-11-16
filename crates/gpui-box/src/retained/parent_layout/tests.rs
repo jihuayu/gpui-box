@@ -58,6 +58,7 @@ impl ParentLayout for Stack {
                 input.known_size.height.unwrap_or(y),
             ],
             baseline: baseline.filter(|v| *v <= input.known_size.height.unwrap_or(y)),
+            last_baseline: None,
             placements,
         })
     }
@@ -508,6 +509,7 @@ impl ParentLayout for HeightBasis {
                 input.known_size.height.unwrap_or(10.0),
             ],
             baseline: None,
+            last_baseline: None,
             placements,
         })
     }
@@ -554,6 +556,7 @@ impl ParentLayout for RepeatedStack {
         Ok(ParentLayoutOutput {
             size: [width, input.known_size.height.unwrap_or(result.size[1])],
             baseline: result.baseline,
+            last_baseline: None,
             placements: vec![ParentPlacement {
                 child: 0,
                 input: slot,

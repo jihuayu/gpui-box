@@ -1,5 +1,7 @@
 # Owned shaped paragraph measurement
 
+Follow-up 2026-11-17: [first/last baseline sets](RETAINED_LAST_BASELINE.md) adds ParagraphLayout::last_baseline using actual final-width wrapping. This metric participates in normal Flex alignment and complete CPU/GPU frame publication; the original measurement-only scope below is historical.
+
 This stage adds `retained-text` and `MeasureSnapshot::Paragraph` to the
 [RFC runtime](RETAINED_IMPLEMENTATION_PROGRESS.md). It implements owned
 constraint-dependent measurement, not retained glyph rendering.

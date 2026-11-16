@@ -21,6 +21,103 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 }
 
 #[test]
+fn last_baseline_real_paragraphs_rewrap_align_and_keep_complete_frame_lifetimes() {
+    let system = text_system();
+    let paragraph = shape(&system, "one two three four five six 中文段落");
+    let peer_paragraph = shape(&system, "peer");
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let paint = TextPaint {
+        resource: raster.prepare(paragraph.clone(), 1.0).unwrap(),
+        color: 0x00ffffff,
+    };
+    let peer = TextPaint {
+        resource: raster.prepare(peer_paragraph.clone(), 1.0).unwrap(),
+        color: 0xff0000ff,
+    };
+    let root = LayoutStyle::row()
+        .size(LayoutDimension::Px(300.0), LayoutDimension::Px(400.0))
+        .align_items(LayoutAlignItems::LastBaseline);
+    let mut tree = UiTree::new_layout(root.clone(), 0).unwrap();
+    let a = tree
+        .append_layout(tree.root(), LayoutStyle::row(), 0)
+        .unwrap();
+    let b = tree
+        .append_layout(tree.root(), LayoutStyle::row(), 0)
+        .unwrap();
+    fn pixels(frame: FramePacket) -> Vec<u8> {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [300, 400],
+                scale: 1.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(8192).unwrap() {}
+        job.into_frame().unwrap().pixels().to_vec()
+    }
+    let mut old = None;
+    let mut heights = vec![];
+    for width in [60.0, 140.0, 90.0, 60.0] {
+        let style = LayoutStyle::row()
+            .size(LayoutDimension::Px(width), LayoutDimension::Auto)
+            .flex_shrink(0.0);
+        let peer_style = LayoutStyle::row()
+            .size(LayoutDimension::Px(80.0), LayoutDimension::Auto)
+            .flex_shrink(0.0);
+        let mut tx = Transaction::default();
+        tx.layout_style(a, style.clone());
+        tx.layout_style(b, peer_style.clone());
+        tx.text(a, Some(paint.clone()));
+        tx.text(b, Some(peer.clone()));
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+        let frame = tree.local_frame([300.0, 400.0]).unwrap();
+        let layout = paragraph.layout(Some(width)).unwrap();
+        let other = peer_paragraph.layout(Some(80.0)).unwrap();
+        heights.push(layout.size[1]);
+        assert_eq!(
+            layout.last_baseline,
+            layout.first_baseline + layout.size[1] - paragraph.line_height()
+        );
+        let baseline = 400.0
+            - (layout.size[1] - layout.last_baseline).max(other.size[1] - other.last_baseline);
+        for (id, text) in [(a, &layout), (b, &other)] {
+            let r = tree.layout_result(id).unwrap();
+            assert_eq!(r.size[1], text.size[1]);
+            // Authored inline extent is preserved even when the shaped text is shorter.
+            assert_eq!(r.last_baseline, Some(text.last_baseline));
+            assert_eq!(r.location[1] + r.last_baseline.unwrap(), baseline);
+        }
+        let mut reference =
+            UiTree::new_layout(root.clone().align_items(LayoutAlignItems::Start), 0).unwrap();
+        reference.set_frame_build_policy(FrameBuildPolicy::Full);
+        let ra = reference.append_layout(reference.root(), style, 0).unwrap();
+        let rb = reference
+            .append_layout(reference.root(), peer_style, 0)
+            .unwrap();
+        let mut tx = Transaction::default();
+        tx.text(ra, Some(paint.clone()));
+        tx.text(rb, Some(peer.clone()));
+        tx.translation(ra, [0.0, baseline - layout.last_baseline]);
+        tx.translation(rb, [0.0, baseline - other.last_baseline]);
+        reference
+            .commit(tx, BackendCapabilities::default())
+            .unwrap();
+        let actual = pixels(frame.resolve());
+        assert!(actual.chunks_exact(4).any(|p| p[1] > 0));
+        assert_eq!(actual, pixels(reference.frame([300.0, 400.0]).unwrap()));
+        old.get_or_insert((frame, actual));
+    }
+    assert!(heights.windows(2).any(|h| h[0] != h[1]));
+    drop((tree, system, raster, paint, peer, paragraph, peer_paragraph));
+    let (old, expected) = old.unwrap();
+    assert_eq!(pixels(old.resolve()), expected);
+}
+
+#[test]
 fn safe_alignment_preserves_real_glyph_wrapping_and_complete_cpu_pixels() {
     use gpui_box::retained::logical::LogicalUi;
     let system = text_system();
@@ -644,6 +741,7 @@ impl ParentLayout for ParagraphParent {
                 input.known_size.height.unwrap_or(measured.size[1]),
             ],
             baseline: measured.baseline,
+            last_baseline: None,
             placements: vec![ParentPlacement {
                 child: 0,
                 input: slot,

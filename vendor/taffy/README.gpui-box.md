@@ -12,6 +12,17 @@ local test artifacts and ignored.
 
 ## Local changes
 
+- First/last horizontal baseline sharing groups in Flex, separate final item
+  metrics and container exports; singleton groups, wrap-reverse and RTL column
+  fallback follow the corresponding edge. Cross-axis auto margins overflow at
+  logical end instead of becoming negative at logical start. Block transports
+  its last eligible child's baseline; ConstraintBox/custom LayoutOutput already
+  carry both. AlignItems/AlignSelf add LAST_BASELINE and parse/serde support;
+  raw Grid retains End fallback, not last-baseline sharing. Existing Baselines
+  and persistent cache/layout formats suffice; transient FlexItem gains one f32
+  and baseline group/measurement work increases. See the public
+  [contract and evidence](../../docs/RETAINED_LAST_BASELINE.md).
+
 - Owned custom invocations use a sparse exact measurement side table rather
   than the ordinary size-only cache or an unconditional ComputeSize bypass.
   Each visited node stores at most nine full LayoutInput/LayoutOutput records;
