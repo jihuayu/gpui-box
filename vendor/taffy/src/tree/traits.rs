@@ -213,6 +213,10 @@ pub trait LayoutPartialTree: TraversePartialTree {
     /// This is not an intrinsic probe or a child layout result. `None` retires
     /// the observation when the box is hidden. Other tree adapters may ignore it.
     fn record_constraint_box_input(&mut self, _node_id: NodeId, _input: Option<LayoutInput>) {}
+
+    /// Independent custom-parent slots from the final PerformLayout invocation.
+    /// Intrinsic/ComputeSize probes must not replace these observations.
+    fn record_custom_child_inputs(&mut self, _node: NodeId, _inputs: Option<crate::util::sys::Vec<LayoutInput>>) {}
 }
 
 /// Extends [`LayoutPartialTree`] with the operations needed by the out-of-flow positioning pass

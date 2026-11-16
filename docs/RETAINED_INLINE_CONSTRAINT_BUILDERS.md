@@ -17,6 +17,11 @@ height and following sibling positions without invalidating a height dependency
 that was never read. `constraint_builder` retains its full two-axis input and
 continues to require Size containment.
 
+The subsequent [incoming allocation builder](RETAINED_PARENT_ALLOCATION_BUILDERS.md)
+supports content-derived size in both axes along independent custom allocation
+chains. It observes the host's incoming interval rather than this box's outgoing
+child slot. This inline API retains its own contained/CSS proof domain.
+
 ```rust,ignore
 let page = LayoutStyle::column()
     .size(LayoutDimension::Percent(1.0), LayoutDimension::Auto);

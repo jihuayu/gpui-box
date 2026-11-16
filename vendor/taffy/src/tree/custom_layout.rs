@@ -21,6 +21,10 @@ pub trait CustomLayoutChildren {
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
+    /// A separate phase's enforced full assignment, when installed.
+    fn allocation(&self, _child: usize) -> Result<Option<LayoutInput>, TaffyError> {
+        Ok(None)
+    }
     /// The engine forces ComputeSize and disables collapsing margins.
     fn measure(&mut self, child: usize, input: LayoutInput) -> Result<LayoutOutput, TaffyError>;
 }
@@ -50,6 +54,13 @@ pub struct CustomLayoutOutput {
 /// Immutable, repeatable layout snapshot. The engine may invoke this multiple
 /// times for intrinsic queries and final allocation, or skip it on cache hits.
 pub trait CustomLayout: core::fmt::Debug + Send + Sync {
+    /// Independent assignments from the incoming border-box input, before host
+    /// measurement/sizing. No child styles or measurement capability is given.
+    /// Slots are enforced throughout this invocation, including intrinsic
+    /// probes and final placement. None preserves the measured-parent protocol.
+    fn allocate(&self, _input: LayoutInput, _children: usize) -> Result<Option<Vec<LayoutInput>>, TaffyError> {
+        Ok(None)
+    }
     /// Must depend only on owned snapshot data, inputs and child measurements.
     fn layout(
         &self,

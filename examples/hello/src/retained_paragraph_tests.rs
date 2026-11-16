@@ -564,6 +564,143 @@ impl ParentInlineLayout for HalfInline {
     }
 }
 
+#[derive(Debug)]
+struct LooseParagraphInput;
+impl ParentAllocationLayout for LooseParagraphInput {
+    fn allocate(
+        &self,
+        input: ParentAllocationInput,
+        children: usize,
+    ) -> Result<Vec<ChildLayoutInput>, Error> {
+        let width = match input.constraints.width {
+            LayoutAvailableSpace::Definite(w) => w,
+            _ => 80.0,
+        };
+        Ok(vec![
+            ChildLayoutInput {
+                constraints: LayoutConstraints::new(
+                    LayoutAvailableSpace::Definite(width),
+                    LayoutAvailableSpace::Unbounded
+                )
+                .with_bounds(BoxConstraints::new([0.0; 2], [width, f32::INFINITY])),
+                percentage_basis: LayoutSize::new(Some(width), None),
+            };
+            children
+        ])
+    }
+}
+
+#[test]
+fn full_allocation_builder_uses_real_paragraph_height_without_size_containment() {
+    use gpui_box::retained::logical::LogicalUi;
+    let system = text_system();
+    let paragraph = shape(&system, "one two three four five six 中文段落");
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let text = TextPaint {
+        resource: raster.prepare(paragraph.clone(), 1.0).unwrap(),
+        color: 0x00ffffff,
+    };
+    let column = LayoutStyle::column().size(LayoutDimension::Percent(1.0), LayoutDimension::Auto);
+    let footer_style = LayoutStyle::row()
+        .size(LayoutDimension::Px(20.0), LayoutDimension::Px(10.0))
+        .flex_shrink(0.0);
+    let mut ui = LogicalUi::new_layout(column.clone(), 0, BackendCapabilities::default()).unwrap();
+    let root = ui.root_render();
+    let scope = ui.root_scope();
+    let host = ui
+        .append_render_layout(scope, root, column.clone(), 0)
+        .unwrap();
+    ui.edit(
+        |_| Ok(()),
+        |(), edit| {
+            edit.properties().parent_layout(
+                root,
+                Some(
+                    ParentLayoutSnapshot::new(ParagraphParent)
+                        .with_allocation_layout(LooseParagraphInput),
+                ),
+            );
+            Ok(())
+        },
+    )
+    .unwrap();
+    fn pixels(frame: FramePacket) -> Vec<u8> {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [300, 700],
+                scale: 1.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 4 * 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(8192).unwrap() {}
+        job.into_frame().unwrap().pixels().to_vec()
+    }
+    let mut first = None;
+    for width in [60.0, 140.0, 90.0, 60.0] {
+        let constraints = LayoutConstraints::new(
+            LayoutAvailableSpace::Definite(width),
+            LayoutAvailableSpace::Unbounded,
+        );
+        let (commit, frame) = ui
+            .edit_local_frame(
+                constraints,
+                [300.0, 700.0],
+                |_| Ok(()),
+                |(), edit| {
+                    edit.allocation_builder(host, |input, edit| {
+                        assert_eq!(
+                            input.constraints.bounds,
+                            BoxConstraints::new([0.0; 2], [width, f32::INFINITY])
+                        );
+                        assert_eq!(input.percentage_basis.height, None);
+                        let branch = edit.reconcile_keys(scope, &[u64::from(width >= 100.0)])?[0];
+                        let renders = edit.renders(branch)?;
+                        let (leaf, footer) = if renders.is_empty() {
+                            let leaf = edit.append_layout(branch, host, LayoutStyle::row(), 0)?;
+                            let footer =
+                                edit.append_layout(branch, host, footer_style.clone(), 0xff0000ff)?;
+                            (leaf, footer)
+                        } else {
+                            (renders[0], renders[1])
+                        };
+                        edit.properties().text(leaf, Some(text.clone()));
+                        Ok((leaf, footer))
+                    })
+                },
+            )
+            .unwrap();
+        let height = paragraph.layout(Some(width)).unwrap().size[1];
+        assert_eq!(ui.layout_result(root).unwrap().size, [width, height + 10.0]);
+        assert_eq!(ui.layout_result(host).unwrap().size, [width, height + 10.0]);
+        let (leaf, footer) = commit.result.value;
+        assert_eq!(ui.layout_result(footer).unwrap().location[1], height);
+        assert_eq!(frame.hit_test(1.0, 1.0), Some(leaf));
+        let mut full = UiTree::new_layout(column.clone(), 0).unwrap();
+        full.set_frame_build_policy(FrameBuildPolicy::Full);
+        let host = full.append_layout(full.root(), column.clone(), 0).unwrap();
+        let leaf = full.append_layout(host, LayoutStyle::row(), 0).unwrap();
+        full.append_layout(host, footer_style.clone(), 0xff0000ff)
+            .unwrap();
+        let mut tx = Transaction::default();
+        tx.text(leaf, Some(text.clone()));
+        full.commit(tx, BackendCapabilities::default()).unwrap();
+        let actual = pixels(frame.resolve());
+        assert!(actual.chunks_exact(4).any(|p| p[1] > 0 && p[2] > 0));
+        assert_eq!(
+            actual,
+            pixels(full.frame_in_viewport(constraints, [300.0, 700.0]).unwrap())
+        );
+        first.get_or_insert((frame, actual));
+    }
+    drop((ui, system, raster, text, paragraph));
+    let (old, expected) = first.unwrap();
+    assert_eq!(pixels(old.resolve()), expected);
+}
+
 #[test]
 fn independent_parent_width_queries_and_keyed_builder_reflow_real_paragraphs() {
     use gpui_box::retained::{logical::LogicalUi, responsive::*};

@@ -132,6 +132,11 @@ even beyond a fixed proof boundary. Query dependency checks walk custom ancestry
 per target/host. Existing complete candidate/per-stage preview costs remain.
 There is no frame-time, allocation reduction or p99 improvement claim.
 
+The subsequent [incoming allocation stage](RETAINED_PARENT_ALLOCATION_BUILDERS.md)
+adds a separate full-axis loose/tight interval phase from incoming border-box
+inputs and content-sized builders along independently allocated chains. It does
+not broaden this inline phase's proof or make loose maximums into query widths.
+
 ## Evidence and remaining scope
 
 See [validation record](performance/2026-11-16-parent-inline-allocation/README.md).
@@ -140,8 +145,8 @@ height changes through custom width allocation. Bundled Noto output exercises
 width allocation → ContainerQuery padding → keyed inline text → footer geometry,
 with independent full Flex glyph pixels and retained old frames.
 
-Still open: loose/general allocation intervals, independent full-axis/child-style
-dependency declarations, general content-sized structural builders, automatic
+Still open beyond the subsequent incoming-allocation subset: general mixed-edge
+full-axis/child-style dependency proofs, general content-sized structural builders, automatic
 cross-builder/query scheduling and environment subscriptions, complete RenderBox,
 incremental planning/proof dispatch/rollback and cache byte budgets. Broad Flex,
 intrinsic, percentage/cyclic/baseline conformance and optional pixel-projection

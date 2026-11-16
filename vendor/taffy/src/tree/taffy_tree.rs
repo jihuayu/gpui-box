@@ -177,6 +177,12 @@ pub struct TaffyTree<NodeContext = ()> {
 
     /// Last final child-slot inputs, retained across ancestor cache hits.
     constraint_box_inputs: SecondaryMap<DefaultKey, LayoutInput>,
+    /// Sparse independent parent allocations, shared by private tree clones.
+    custom_child_inputs: SecondaryMap<DefaultKey, Arc<[LayoutInput]>>,
+    /// Final CSS keys may hide soft space behind a known dimension. Arbitrary
+    /// independent allocators can observe both, so exact invocations gate the
+    /// existing final result with the complete incoming input.
+    exact_layout_inputs: SecondaryMap<DefaultKey, LayoutInput>,
 
     /// Owned immutable parent algorithms; ordinary nodes carry no delegate slot.
     custom_layouts: SecondaryMap<DefaultKey, Arc<dyn crate::tree::CustomLayout>>,
@@ -255,6 +261,7 @@ impl<NodeContext> CacheTree for TaffyTree<NodeContext> {
     fn cache_clear(&mut self, node_id: NodeId) {
         self.nodes[node_id.into()].cache.clear();
         self.exact_measure_caches.remove(node_id.into());
+        self.exact_layout_inputs.remove(node_id.into());
     }
 }
 
@@ -443,6 +450,13 @@ where
             self.taffy.constraint_box_inputs.remove(node.into());
         }
     }
+    fn record_custom_child_inputs(&mut self, node: NodeId, inputs: Option<Vec<LayoutInput>>) {
+        if let Some(inputs) = inputs {
+            self.taffy.custom_child_inputs.insert(node.into(), inputs.into());
+        } else {
+            self.taffy.custom_child_inputs.remove(node.into());
+        }
+    }
     type CoreContainerStyle<'a>
         = &'a Style
     where
@@ -535,6 +549,7 @@ where
     fn cache_clear(&mut self, node_id: NodeId) {
         self.taffy.nodes[node_id.into()].cache.clear();
         self.taffy.exact_measure_caches.remove(node_id.into());
+        self.taffy.exact_layout_inputs.remove(node_id.into());
     }
 }
 
@@ -670,6 +685,10 @@ impl<NodeContext> TaffyTree<NodeContext> {
         if exact && input.run_mode == RunMode::ComputeSize {
             return self.exact_measure_caches.get(node.into()).and_then(|cache| cache.get(input));
         }
+        if exact && input.run_mode == RunMode::PerformLayout
+            && self.exact_layout_inputs.get(node.into()) != Some(input) {
+            return None;
+        }
         self.nodes[node.into()].cache.get(input)
     }
 
@@ -679,6 +698,13 @@ impl<NodeContext> TaffyTree<NodeContext> {
             Arc::make_mut(cache).store(input, output);
         } else {
             self.nodes[node.into()].cache.store(input, output);
+            if input.run_mode == RunMode::PerformLayout {
+                if exact {
+                    self.exact_layout_inputs.insert(node.into(), *input);
+                } else {
+                    self.exact_layout_inputs.remove(node.into());
+                }
+            }
         }
     }
 
@@ -702,6 +728,8 @@ impl<NodeContext> TaffyTree<NodeContext> {
             node_context_data: SecondaryMap::with_capacity(capacity),
             constraint_boxes: SecondaryMap::new(),
             constraint_box_inputs: SecondaryMap::new(),
+            custom_child_inputs: SecondaryMap::new(),
+            exact_layout_inputs: SecondaryMap::new(),
             custom_layouts: SecondaryMap::new(),
             exact_measure_caches: SecondaryMap::new(),
             config: TaffyConfig::default(),
@@ -719,6 +747,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
         if !self.nodes.contains_key(node.into()) {
             return Err(TaffyError::InvalidInputNode(node));
         }
+        self.custom_child_inputs.remove(node.into());
         if let Some(delegate) = delegate {
             self.custom_layouts.insert(node.into(), delegate);
         } else {
@@ -748,6 +777,16 @@ impl<NodeContext> TaffyTree<NodeContext> {
         } else {
             None
         })
+    }
+
+    /// Last final independent assignment in direct-child layout order. Layout
+    /// must run before reading a dirty tree. Cached ancestors retain records.
+    pub fn custom_child_input(&self, parent: NodeId, child: usize) -> TaffyResult<Option<LayoutInput>> {
+        let key = parent.into();
+        if !self.nodes.contains_key(key) {
+            return Err(TaffyError::InvalidInputNode(parent));
+        }
+        Ok(self.custom_child_inputs.get(key).and_then(|inputs| inputs.get(child)).copied())
     }
 
     /// Creates and adds a new unattached leaf node to the tree, and returns the node of the new node
@@ -806,6 +845,8 @@ impl<NodeContext> TaffyTree<NodeContext> {
         self.node_context_data.clear();
         self.constraint_boxes.clear();
         self.constraint_box_inputs.clear();
+        self.custom_child_inputs.clear();
+        self.exact_layout_inputs.clear();
         self.custom_layouts.clear();
         self.exact_measure_caches.clear();
     }
@@ -835,6 +876,8 @@ impl<NodeContext> TaffyTree<NodeContext> {
         let _ = self.node_context_data.remove(key);
         let _ = self.constraint_boxes.remove(key);
         let _ = self.constraint_box_inputs.remove(key);
+        let _ = self.custom_child_inputs.remove(key);
+        let _ = self.exact_layout_inputs.remove(key);
         let _ = self.custom_layouts.remove(key);
         let _ = self.exact_measure_caches.remove(key);
 
@@ -1099,20 +1142,22 @@ impl<NodeContext> TaffyTree<NodeContext> {
             nodes: &mut SlotMap<DefaultKey, NodeData>,
             parents: &SlotMap<DefaultKey, Option<NodeId>>,
             exact: &mut SecondaryMap<DefaultKey, Arc<ExactMeasureCache>>,
+            final_inputs: &mut SecondaryMap<DefaultKey, LayoutInput>,
             node_key: DefaultKey,
         ) {
+            final_inputs.remove(node_key);
             let had_exact = exact.remove(node_key).is_some();
             let ordinary = nodes[node_key].mark_dirty();
             // An exact-only measured child still invalidates cached ancestors.
             // Stop only if both stores were already empty.
             if had_exact || matches!(ordinary, ClearState::Cleared) {
                 if let Some(Some(node)) = parents.get(node_key) {
-                    mark_dirty_recursive(nodes, parents, exact, (*node).into());
+                    mark_dirty_recursive(nodes, parents, exact, final_inputs, (*node).into());
                 }
             }
         }
 
-        mark_dirty_recursive(&mut self.nodes, &self.parents, &mut self.exact_measure_caches, node.into());
+        mark_dirty_recursive(&mut self.nodes, &self.parents, &mut self.exact_measure_caches, &mut self.exact_layout_inputs, node.into());
 
         Ok(())
     }
@@ -1316,6 +1361,38 @@ mod tests {
         tree.store_cached_layout(next, &query, LayoutOutput::HIDDEN, true);
         tree.clear();
         assert!(tree.exact_measure_caches.is_empty());
+    }
+
+    #[test]
+    fn exact_final_input_guard_preserves_soft_space_and_follows_invalidation() {
+        let mut tree = TaffyTree::<()>::new();
+        let node = tree.new_leaf(Style::DEFAULT).unwrap();
+        tree.compute_layout(node, Size::MAX_CONTENT).unwrap();
+        assert!(tree.exact_layout_inputs.is_empty());
+        let input = LayoutInput {
+            run_mode: RunMode::PerformLayout,
+            known_dimensions: Size { width: Some(80.0), height: Some(10.0) },
+            available_space: Size { width: AvailableSpace::Definite(40.0), height: AvailableSpace::Unbounded },
+            ..LayoutInput::HIDDEN
+        };
+        tree.store_cached_layout(node, &input, LayoutOutput::HIDDEN, true);
+        assert!(tree.cached_layout(node, &input, true).is_some());
+        let changed = LayoutInput { available_space: Size { width: AvailableSpace::Definite(70.0), ..input.available_space }, ..input };
+        assert!(tree.cached_layout(node, &changed, true).is_none());
+        let old = tree.clone();
+        tree.mark_dirty(node).unwrap();
+        assert!(tree.exact_layout_inputs.is_empty());
+        assert_eq!(old.exact_layout_inputs.get(node.into()), Some(&input));
+        tree.store_cached_layout(node, &input, LayoutOutput::HIDDEN, true);
+        CacheTree::cache_clear(&mut tree, node);
+        assert!(tree.exact_layout_inputs.is_empty());
+        tree.store_cached_layout(node, &input, LayoutOutput::HIDDEN, true);
+        tree.remove(node).unwrap();
+        assert!(tree.exact_layout_inputs.is_empty());
+        let next = tree.new_leaf(Style::DEFAULT).unwrap();
+        tree.store_cached_layout(next, &input, LayoutOutput::HIDDEN, true);
+        tree.clear();
+        assert!(tree.exact_layout_inputs.is_empty());
     }
 
     #[test]

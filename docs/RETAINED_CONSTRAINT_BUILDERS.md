@@ -7,6 +7,11 @@ subset and conditional keyed construction. The subsequent
 content-derived block height with an inline-only public input and shared
 dependency proof. General full-axis content-sized builders and RenderBox remain open.
 
+The later [incoming allocation builder](RETAINED_PARENT_ALLOCATION_BUILDERS.md)
+permits two-axis content-derived size along independently allocated parent chains.
+It reads the host's incoming border-box slot, unlike this API's outgoing child
+slot. General ordinary-Flex/full-axis dependency proofs and RenderBox stay open.
+
 ## Public contract
 
 `LogicalUi::edit_frame(constraints, viewport, sources, render)` combines source

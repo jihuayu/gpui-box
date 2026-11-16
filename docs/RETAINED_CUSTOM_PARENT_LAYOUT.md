@@ -92,6 +92,12 @@ CSS containment alone cannot authorize arbitrary sibling/cross-axis dependencies
 ParentLayout sinks join responsive computed-sink dependency checking. General
 allocation/automatic scheduling and complete query dependencies remain open.
 
+The later [incoming allocation protocol](RETAINED_PARENT_ALLOCATION_BUILDERS.md)
+adds enforced complete loose/tight child inputs from pre-measurement border-box
+constraints and content-sized structural construction along independent chains.
+Its complete-input final-cache guard prevents known dimensions from hiding
+observable soft-space changes. General mixed-edge/query proofs remain open.
+
 ## ADR: keep Taffy as an owned algorithm kernel, extend its parent protocol
 
 **Decision:** retain the vendored Taffy Flex/Grid/Block/leaf algorithms and add

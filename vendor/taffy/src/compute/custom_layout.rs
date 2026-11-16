@@ -9,12 +9,20 @@ use crate::{
 struct Children<'a, T> {
     tree: &'a mut T,
     parent: NodeId,
+    allocations: Option<&'a [LayoutInput]>,
 }
 impl<T: LayoutPartialTree> CustomLayoutChildren for Children<'_, T> {
     fn len(&self) -> usize {
         self.tree.child_count(self.parent)
     }
+    fn allocation(&self, child: usize) -> Result<Option<LayoutInput>, TaffyError> {
+        if child >= self.len() {
+            return Err(TaffyError::InvalidCustomLayout);
+        }
+        Ok(self.allocations.map(|slots| slots[child]))
+    }
     fn measure(&mut self, child: usize, mut input: LayoutInput) -> Result<LayoutOutput, TaffyError> {
+        input = self.allocation(child)?.unwrap_or(input);
         if child >= self.len() || !valid_input(&input) {
             return Err(TaffyError::InvalidCustomLayout);
         }
@@ -46,9 +54,10 @@ fn plan(
     node: NodeId,
     delegate: &dyn CustomLayout,
     input: CustomLayoutInput,
+    allocations: Option<&[LayoutInput]>,
 ) -> Result<CustomLayoutOutput, TaffyError> {
     let count = tree.child_count(node);
-    let output = delegate.layout(input, &mut Children { tree, parent: node })?;
+    let mut output = delegate.layout(input, &mut Children { tree, parent: node, allocations })?;
     if ![output.size.width, output.size.height].iter().all(|v| v.is_finite() && *v >= 0.0)
         || input.known_size.width.is_some_and(|v| v != output.size.width)
         || input.known_size.height.is_some_and(|v| v != output.size.height)
@@ -62,13 +71,18 @@ fn plan(
     }
     let mut seen = crate::util::sys::Vec::with_capacity(count);
     seen.resize(count, false);
-    for placement in &output.placements {
+    for placement in &mut output.placements {
         if placement.child >= count
             || core::mem::replace(&mut seen[placement.child], true)
             || !placement.origin.x.is_finite()
             || !placement.origin.y.is_finite()
-            || !valid_input(&placement.input)
         {
+            return Err(TaffyError::InvalidCustomLayout);
+        }
+        if let Some(slots) = allocations {
+            placement.input = slots[placement.child];
+        }
+        if !valid_input(&placement.input) {
             return Err(TaffyError::InvalidCustomLayout);
         }
     }
@@ -208,6 +222,67 @@ mod tests {
         assert_eq!(tree.layout(child).unwrap().size, Size { width: 30.0, height: 10.0 });
         assert_eq!(tree.layout(root).unwrap().baselines.first, Some(7.5));
     }
+
+    #[derive(Debug)]
+    struct Independent;
+    impl CustomLayout for Independent {
+        fn allocate(&self, input: LayoutInput, children: usize) -> Result<Option<crate::util::sys::Vec<LayoutInput>>, TaffyError> {
+            let width = input.available_space.width.into_option().unwrap_or(80.0);
+            let mut slot = LayoutInput::HIDDEN;
+            slot.run_mode = RunMode::ComputeSize;
+            slot.available_space = Size { width: crate::AvailableSpace::Definite(width), height: crate::AvailableSpace::Unbounded };
+            slot.size_bounds = SizeBounds { min: Size::ZERO, max: Size { width, height: f32::INFINITY } };
+            slot.parent_size = Size { width: Some(width), height: None };
+            Ok(Some(vec![slot; children]))
+        }
+        fn layout(&self, input: CustomLayoutInput, children: &mut dyn CustomLayoutChildren) -> Result<CustomLayoutOutput, TaffyError> {
+            let slot = children.allocation(0)?.unwrap();
+            let child = children.measure(0, LayoutInput::HIDDEN)?;
+            assert!(child.size.width <= slot.size_bounds.max.width);
+            Ok(CustomLayoutOutput {
+                size: input.known_size.unwrap_or(child.size), baselines: Baselines::NONE,
+                placements: vec![CustomPlacement { child: 0, input: LayoutInput::HIDDEN, origin: Point::ZERO }],
+            })
+        }
+    }
+
+    #[test]
+    fn independent_records_follow_final_layout_cache_hidden_and_node_lifetime() {
+        let mut tree = TaffyTree::<()>::new();
+        tree.disable_rounding();
+        let child = tree.new_leaf(Style { size: Size { width: Dimension::length(999.0), height: Dimension::length(10.0) }, ..Style::DEFAULT }).unwrap();
+        let root = tree.new_with_children(Style::DEFAULT, &[child]).unwrap();
+        tree.set_custom_layout(root, Some(Arc::new(Independent))).unwrap();
+        let available = Size { width: crate::AvailableSpace::Definite(80.0), height: crate::AvailableSpace::Unbounded };
+        tree.compute_layout(root, available).unwrap();
+        let slot = tree.custom_child_input(root, 0).unwrap().unwrap();
+        assert_eq!(slot.size_bounds.max.width, 80.0);
+        assert_eq!(slot.available_space.height, crate::AvailableSpace::Unbounded);
+        assert_eq!(tree.layout(child).unwrap().size, Size { width: 80.0, height: 10.0 });
+        tree.compute_layout(root, available).unwrap();
+        assert_eq!(tree.custom_child_input(root, 0).unwrap(), Some(slot));
+        let old = tree.clone();
+        tree.compute_layout(root, Size { width: crate::AvailableSpace::Definite(120.0), ..available }).unwrap();
+        assert_eq!(tree.custom_child_input(root, 0).unwrap().unwrap().size_bounds.max.width, 120.0);
+        assert_eq!(old.custom_child_input(root, 0).unwrap(), Some(slot));
+        tree.set_style(root, Style { display: Display::None, ..Style::DEFAULT }).unwrap();
+        tree.compute_layout(root, available).unwrap();
+        assert_eq!(tree.custom_child_input(root, 0).unwrap(), None);
+        tree.set_style(root, Style::DEFAULT).unwrap();
+        tree.compute_layout(root, available).unwrap();
+        tree.set_custom_layout(root, None).unwrap();
+        assert_eq!(tree.custom_child_input(root, 0).unwrap(), None);
+        tree.set_custom_layout(root, Some(Arc::new(Independent))).unwrap();
+        tree.compute_layout(root, available).unwrap();
+        tree.remove(root).unwrap();
+        assert!(tree.custom_child_input(root, 0).is_err());
+        let replacement = tree.new_with_children(Style::DEFAULT, &[child]).unwrap();
+        assert_eq!(tree.custom_child_input(replacement, 0).unwrap(), None);
+        tree.set_custom_layout(replacement, Some(Arc::new(Independent))).unwrap();
+        tree.compute_layout(replacement, available).unwrap();
+        tree.clear();
+        assert!(tree.custom_child_input(replacement, 0).is_err());
+    }
 }
 
 /// Apply an owned algorithm inside the host's standard sizing/inset model.
@@ -219,6 +294,14 @@ pub fn compute_custom_layout(
     mut inputs: LayoutInput,
     delegate: &dyn CustomLayout,
 ) -> Result<LayoutOutput, TaffyError> {
+    // Use the incoming input, never the measured/selected host size. Keeping
+    // this phase outside plan() prevents auto-height feedback into assignments.
+    let allocations = delegate.allocate(inputs, tree.child_count(node))?;
+    if let Some(slots) = &allocations {
+        if slots.len() != tree.child_count(node) || slots.iter().any(|slot| !valid_input(slot)) {
+            return Err(TaffyError::InvalidCustomLayout);
+        }
+    }
     let style = tree.get_core_container_style(node);
     let padding = style.padding().resolve_or_zero(inputs.parent_size.width, |v, b| tree.resolve_calc_value(v, b));
     let border = style.border().resolve_or_zero(inputs.parent_size.width, |v, b| tree.resolve_calc_value(v, b));
@@ -320,7 +403,7 @@ pub fn compute_custom_layout(
                     .zip_map(inputs.known_dimensions_are_definite, |v, definite| if definite { v } else { None })
                     .maybe_sub(inset_size)
                     .maybe_max(Size::ZERO);
-                match plan(tree, node, delegate, CustomLayoutInput { known_size, available, percentage_basis }) {
+                match plan(tree, node, delegate, CustomLayoutInput { known_size, available, percentage_basis }, allocations.as_deref()) {
                     Ok(plan) => plan.size,
                     Err(value) => {
                         error = Some(value);
@@ -356,6 +439,7 @@ pub fn compute_custom_layout(
             available: inner.map(crate::AvailableSpace::Definite),
             percentage_basis,
         },
+        allocations.as_deref(),
     )?;
     output.baselines = if common.contain.suppresses_baseline() {
         Baselines::NONE
@@ -441,5 +525,6 @@ pub fn compute_custom_layout(
         size: (output.size - border.sum_axes() - gutter).map(|v| v.max(0.0)),
         offset: Point { x: border.left + if rtl { gutter.width } else { 0.0 }, y: border.top },
     });
+    tree.record_custom_child_inputs(node, allocations);
     Ok(output)
 }

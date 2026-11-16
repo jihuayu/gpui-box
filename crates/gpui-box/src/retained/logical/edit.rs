@@ -73,6 +73,37 @@ impl LogicalEdit<'_, '_, '_> {
         build(input, self)
     }
 
+    /// Observe the host's incoming border-box allocation before selecting its
+    /// descendants. Unlike constraint_builder, this needs no size containment
+    /// and allows content-derived size in both axes. Every parent edge up to
+    /// the root must install ParentAllocationLayout; intrinsic style resolution
+    /// and ordinary Flex edges are conservatively rejected. Prerequisite child
+    /// lists/algorithm snapshots must be complete before observation.
+    pub fn allocation_builder<R>(
+        &mut self,
+        host: NodeId,
+        build: impl FnOnce(ConstraintBuilderInput, &mut Self) -> Result<R, Error>,
+    ) -> Result<R, Error> {
+        let (constraints, viewport) = self
+            .frame_environment
+            .ok_or(Error::UnsafeConstraintBuilder)?;
+        let removed = self.retired_outputs()?;
+        let mut preview = self.render.preview(self.capabilities, &removed)?;
+        let dependencies =
+            super::constraint_builder::AllocationDependencies::capture(&preview, host)?;
+        preview.prepare_layout_environment(constraints, viewport)?;
+        preview.compute_layout(constraints)?;
+        let input = super::constraint_builder::allocation_input(&preview, host)?;
+        drop(preview);
+        self.constraint_inputs
+            .push(super::constraint_builder::Observation::Allocation(
+                host,
+                input,
+                dependencies,
+            ));
+        build(input, self)
+    }
+
     /// Reads only the inline assignment. InlineSize containment and a proven
     /// column/Tight-box chain or exact fixed-width CSS boundary permit
     /// content-derived block height.

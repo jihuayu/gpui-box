@@ -2,7 +2,7 @@
 
 状态：设计草案，已开始落地框架层；Rust 优先，预留 JS、Go。当前实现已新增与 Taffy 解耦的 `LayoutStyle` Flex 契约、建树入口、动态布局属性事务和布局方向类型；其余拟议 UI IR、Store/Command、组件宏、独立呈现仍未实现，也没有改变原有总目标的验收状态。
 
-更新日期：2026-11-16。实现对照取自 `codex/rendering-performance-research`。本文是架构映射与实现状态记录；实验能力与正式承诺仍分别列出。
+更新日期：2026-11-17。实现对照取自 `codex/rendering-performance-research`。本文是架构映射与实现状态记录；实验能力与正式承诺仍分别列出。
 
 ## 1. 要解决的问题
 
@@ -274,6 +274,15 @@ layout-order 子列表，后续替换/增删重排即使等宽也拒绝；siblin
 [父布局独立 inline 分配](RETAINED_PARENT_INLINE_ALLOCATION.md)。这增加了 slot
 分配、祖先扫描和结构快照成本，通用 interval/full-axis、自动调度、完整 RenderBox
 及广泛 Flex 一致性仍开放；没有性能收益声明。
+
+后续新增 `ParentAllocationLayout`，以测量前的 incoming border-box constraints
+独立分配完整两轴 loose/tight intervals、soft space 和 percentage bases。内核在
+所有测量和最终摆放时强制同一输入，不使用最终内容高度反推分配。
+`LogicalEdit::allocation_builder` 读取 host 自己收到的 slot，可在全链路独立分配
+的父链下按内容决定两轴尺寸，无需 Size containment；普通 Flex 混合边仍保守
+拒绝。最终复验 style/algorithm/ancestry/order 与输入，完整最终 cache guard
+防止已知尺寸遮蔽 soft space 变化。详见 [契约和 ADR](RETAINED_PARENT_ALLOCATION_BUILDERS.md)。
+仍有完整 preview、slot 与稀疏记录成本，没有新增性能结论。
 
 UI IR 的最小数据集合：
 
