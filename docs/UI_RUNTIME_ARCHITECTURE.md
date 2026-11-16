@@ -313,6 +313,14 @@ modifier-only 修改经原样式/source 布局链路，同值不产新帧。项�
 只承诺显式 host 输入捕获，没有自动 OS DPI/font 订阅或任意跨 builder 依赖调度。
 现有整树候选、重复预览、source savepoint 和全量 proof 扫描成本继续；无性能收益声明。
 
+后续 [混合 Flex 分配 builder](RETAINED_MIXED_ALLOCATION_BUILDERS.md) 用显式
+Size+Layout containment 切断构建内容对外层尺寸/baseline/overflow 的反馈；普通
+Flex 外壳可连接内部独立分配链、两轴内容尺寸 host 和真实文字。Size-contained
+ConstraintBox 也可交付其实际 loose/tight outgoing slot。输入新增 known dimensions
+及百分比 definiteness，保留与 hard bounds/soft space/bases 的区别。内核记录真实
+final incoming input，complete-input cache guard 防止祖先缓存掩盖输入变化。无隔离
+边界的普通反馈边、child-style 分配与完整 RenderBox 仍未完成，成本与限制见 ADR。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

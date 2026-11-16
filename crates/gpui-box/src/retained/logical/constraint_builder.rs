@@ -9,6 +9,11 @@ use super::*;
 /// these fields is the child's used size, a paint viewport, or a CSS media query.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ConstraintBuilderInput {
+    /// Parent-selected border-box dimensions, independent of hard intervals.
+    /// Flex's final known size is not represented by SizeBounds alone.
+    pub known_size: LayoutSize<Option<f32>>,
+    /// A known used size need not establish a percentage basis.
+    pub known_size_is_definite: LayoutSize<bool>,
     pub constraints: LayoutConstraints,
     pub percentage_basis: LayoutSize<Option<f32>>,
 }
@@ -56,8 +61,8 @@ impl Observation {
     }
 }
 
-/// The proof domain is deliberately structural: only independent allocation
-/// edges from the root. Numeric preview equality alone cannot prove absence of
+/// Independent allocation edges reach either the external root or a full-size
+/// containment cut under ordinary Flex. Numeric equality cannot prove absence of
 /// content -> parent -> builder feedback. Styles and ordered child lists remain
 /// dependencies even when a replacement happens to return equal numbers.
 #[derive(PartialEq)]
@@ -68,33 +73,55 @@ impl AllocationDependencies {
     pub(super) fn capture(tree: &UiTree, host: NodeId) -> Result<Self, Error> {
         let mut records = vec![];
         let mut next = Some(host);
+        let mut cut = false;
         while let Some(id) = next {
             let node = tree.node(id)?;
             let style = &node.style;
-            // Preferred/min/max intrinsic resolution may measure descendants
-            // before the parent-owned entry. No dependency is silently ignored.
+            // Below the isolation cut intrinsic resolution can feed descendants
+            // into a subsequent assignment. Above it, contained size/baseline/
+            // overflow no longer depend on this builder's constructed content.
             if style.position.is_out_of_flow()
-                || style.size.width.is_sizing_keyword()
-                || style.size.height.is_sizing_keyword()
-                || style.min_size.width.is_sizing_keyword()
-                || style.min_size.height.is_sizing_keyword()
-                || style.max_size.width.is_sizing_keyword()
-                || style.max_size.height.is_sizing_keyword()
-                || !matches!(style.display, taffy::Display::Flex)
+                || (cut && node.parent_layout.is_some())
+                || !matches!(
+                    style.display,
+                    taffy::Display::Flex | taffy::Display::ConstraintBox { .. }
+                )
+                || (!cut
+                    && (style.size.width.is_sizing_keyword()
+                        || style.size.height.is_sizing_keyword()
+                        || style.min_size.width.is_sizing_keyword()
+                        || style.min_size.height.is_sizing_keyword()
+                        || style.max_size.width.is_sizing_keyword()
+                        || style.max_size.height.is_sizing_keyword()))
             {
                 return Err(Error::UnsafeConstraintBuilder);
             }
-            if let Some(parent) = node.parent {
-                if !tree
-                    .node(parent)?
-                    .parent_layout
-                    .as_ref()
-                    .is_some_and(ParentLayoutSnapshot::has_allocation_layout)
-                {
+            if !cut {
+                if let Some(parent) = node.parent {
+                    let parent = tree.node(parent)?;
+                    if parent
+                        .parent_layout
+                        .as_ref()
+                        .is_some_and(ParentLayoutSnapshot::has_allocation_layout)
+                    {
+                        // Enforced pre-measurement assignments preserve the cut.
+                    } else if parent.parent_layout.is_none()
+                        && matches!(parent.style.display, taffy::Display::ConstraintBox { .. })
+                        && full_containment(&parent.style)
+                    {
+                        // Its final outgoing slot depends on its empty-content
+                        // size, never on this child's constructed content.
+                    } else if parent.parent_layout.is_none()
+                        && matches!(parent.style.display, taffy::Display::Flex)
+                        && full_containment(style)
+                    {
+                        cut = true;
+                    } else {
+                        return Err(Error::UnsafeConstraintBuilder);
+                    }
+                } else if id != tree.root || (id == host && !full_containment(style)) {
                     return Err(Error::UnsafeConstraintBuilder);
                 }
-            } else if id != tree.root || id == host {
-                return Err(Error::UnsafeConstraintBuilder);
             }
             records.push((
                 id,
@@ -116,10 +143,21 @@ pub(super) fn allocation_input(
     tree: &UiTree,
     host: NodeId,
 ) -> Result<ConstraintBuilderInput, Error> {
-    let parent = tree
-        .node(host)?
-        .parent
-        .ok_or(Error::UnsafeConstraintBuilder)?;
+    let node = tree.node(host)?;
+    let Some(parent) = node.parent else {
+        return contained_input(tree, host);
+    };
+    let parent_node = tree.node(parent)?;
+    if parent_node.parent_layout.is_none() {
+        if matches!(
+            parent_node.style.display,
+            taffy::Display::ConstraintBox { .. }
+        ) && full_containment(&parent_node.style)
+        {
+            return read_input(tree, parent);
+        }
+        return contained_input(tree, host);
+    }
     let children = tree.ordered_children_for(parent, &tree.node(parent)?.children)?;
     let index = children
         .iter()
@@ -129,11 +167,37 @@ pub(super) fn allocation_input(
         .layout
         .custom_child_input(tree.node(parent)?.layout, index)?
         .ok_or(Error::UnsafeConstraintBuilder)?;
-    let input = parent_layout::ChildLayoutInput::from_taffy(input);
-    Ok(ConstraintBuilderInput {
-        constraints: input.constraints,
-        percentage_basis: input.percentage_basis,
-    })
+    Ok(builder_input(input))
+}
+
+fn full_containment(style: &Style) -> bool {
+    style
+        .contain
+        .contains(taffy::Contain::SIZE | taffy::Contain::LAYOUT)
+}
+
+fn contained_input(tree: &UiTree, host: NodeId) -> Result<ConstraintBuilderInput, Error> {
+    if !full_containment(&tree.node(host)?.style) {
+        return Err(Error::UnsafeConstraintBuilder);
+    }
+    let input = tree
+        .layout
+        .contained_layout_input(tree.node(host)?.layout)?
+        .ok_or(Error::UnsafeConstraintBuilder)?;
+    Ok(builder_input(input))
+}
+
+fn builder_input(input: taffy::LayoutInput) -> ConstraintBuilderInput {
+    let child = parent_layout::ChildLayoutInput::from_taffy(input);
+    ConstraintBuilderInput {
+        known_size: LayoutSize::new(input.known_dimensions.width, input.known_dimensions.height),
+        known_size_is_definite: LayoutSize::new(
+            input.known_dimensions_are_definite.width,
+            input.known_dimensions_are_definite.height,
+        ),
+        constraints: child.constraints,
+        percentage_basis: child.percentage_basis,
+    }
 }
 
 pub(super) fn validate_host(tree: &UiTree, host: NodeId) -> Result<(), Error> {
@@ -193,32 +257,16 @@ fn read_input(tree: &UiTree, host: NodeId) -> Result<ConstraintBuilderInput, Err
         .layout
         .constraint_box_input(tree.node(host)?.layout)?
         .ok_or(Error::UnsafeConstraintBuilder)?;
-    fn space(value: taffy::AvailableSpace) -> layout::AvailableSpace {
-        match value {
-            taffy::AvailableSpace::Definite(value) => layout::AvailableSpace::Definite(value),
-            taffy::AvailableSpace::Unbounded => layout::AvailableSpace::Unbounded,
-            taffy::AvailableSpace::MinContent => layout::AvailableSpace::MinContent,
-            taffy::AvailableSpace::MaxContent => layout::AvailableSpace::MaxContent,
-        }
-    }
-    let constraints = LayoutConstraints::new(
-        space(input.available_space.width),
-        space(input.available_space.height),
-    )
-    .with_bounds(BoxConstraints::new(
-        [input.size_bounds.min.width, input.size_bounds.min.height],
-        [input.size_bounds.max.width, input.size_bounds.max.height],
-    ));
-    constraints.validate()?;
-    Ok(ConstraintBuilderInput {
-        constraints,
-        percentage_basis: LayoutSize::new(input.parent_size.width, input.parent_size.height),
-    })
+    let input = builder_input(input);
+    input.constraints.validate()?;
+    Ok(input)
 }
 
 #[cfg(test)]
 mod allocation_tests;
 #[cfg(test)]
 mod inline_tests;
+#[cfg(test)]
+mod mixed_allocation_tests;
 #[cfg(test)]
 mod tests;

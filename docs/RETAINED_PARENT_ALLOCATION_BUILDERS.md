@@ -5,6 +5,13 @@ Status: experimental framework contract, 2026-11-17. This extends
 RFC, general RenderBox, automatic scheduling and performance acceptance remain
 open. This stage adds capability and correctness; no speedup is claimed.
 
+2026-11-17 follow-up: [mixed Flex allocation builders](RETAINED_MIXED_ALLOCATION_BUILDERS.md)
+extend the ancestry proof across explicit full Size+Layout containment cuts and
+Size-contained ConstraintBox slots. ConstraintBuilderInput now also preserves
+real incoming known dimensions and their percentage definiteness. The strict
+allocator-only domain described below is the earlier subset; ordinary feedback
+edges without a proven cut and complete RenderBox remain open.
+
 ## Public protocol
 
 ```rust,ignore

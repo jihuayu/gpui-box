@@ -12,6 +12,14 @@ local test artifacts and ignored.
 
 ## Local changes
 
+- Full size-contained nodes record real incoming final LayoutInput in sparse
+  storage; intrinsic probes do not replace final observations, cached ancestors
+  preserve them and hidden/style/remove/reuse/clear retire them. A sparse node
+  index enables the existing complete-input cache mode before first layout,
+  preventing known-size/soft-space cache aliasing from hiding observable builder
+  inputs. No NodeData/GPU payload growth or performance gain is claimed. See
+  [mixed Flex allocation builders](../../docs/RETAINED_MIXED_ALLOCATION_BUILDERS.md).
+
 - First/last horizontal baseline sharing groups in Flex, separate final item
   metrics and container exports; singleton groups, wrap-reverse and RTL column
   fallback follow the corresponding edge. Cross-axis auto margins overflow at
@@ -132,10 +140,10 @@ local test artifacts and ignored.
   adapter coordinates, validation and limitations. Vertical writing and
   contain-intrinsic-size fallback are not implemented.
 
-The framework publishes only the first horizontal baseline. Retaining Taffy's
-`Baselines.last` field does not implement last-baseline alignment, vertical
-writing modes or full CSS baseline conformance. See the
-[framework contract and limits](../../docs/RETAINED_LAYOUT_BASELINES.md).
+The framework now publishes independent first/last horizontal baselines and
+implements the documented Flex item/self sharing subset. Vertical writing and
+full CSS baseline conformance remain open. See the
+[current contract and limits](../../docs/RETAINED_LAST_BASELINE.md).
 
 ## Verification
 

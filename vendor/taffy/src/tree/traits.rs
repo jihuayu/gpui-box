@@ -217,6 +217,10 @@ pub trait LayoutPartialTree: TraversePartialTree {
     /// Independent custom-parent slots from the final PerformLayout invocation.
     /// Intrinsic/ComputeSize probes must not replace these observations.
     fn record_custom_child_inputs(&mut self, _node: NodeId, _inputs: Option<crate::util::sys::Vec<LayoutInput>>) {}
+
+    /// Retire incoming final observations when a size-contained node is hidden.
+    /// Other tree adapters need not store these optional diagnostics.
+    fn clear_contained_layout_input(&mut self, _node: NodeId) {}
 }
 
 /// Extends [`LayoutPartialTree`] with the operations needed by the out-of-flow positioning pass

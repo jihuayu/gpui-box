@@ -41,6 +41,10 @@ use crate::tree::layout::DetailedLayoutInfo;
 /// The error Taffy generates on invalid operations
 pub type TaffyResult<T> = Result<T, TaffyError>;
 
+#[cfg(all(test, feature = "flexbox"))]
+#[path = "contained_input_tests.rs"]
+mod contained_input_tests;
+
 /// An error that occurs while trying to access or modify a node's children by index.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TaffyError {
@@ -179,6 +183,11 @@ pub struct TaffyTree<NodeContext = ()> {
     constraint_box_inputs: SecondaryMap<DefaultKey, LayoutInput>,
     /// Sparse independent parent allocations, shared by private tree clones.
     custom_child_inputs: SecondaryMap<DefaultKey, Arc<[LayoutInput]>>,
+    /// Incoming final inputs for size-contained boundaries. These are parent
+    /// assignments, not the measured box size, and survive cached ancestors.
+    contained_layout_inputs: SecondaryMap<DefaultKey, LayoutInput>,
+    /// Index needed before the first layout, including hidden boundaries.
+    size_contained_nodes: SecondaryMap<DefaultKey, ()>,
     /// Final CSS keys may hide soft space behind a known dimension. Arbitrary
     /// independent allocators can observe both, so exact invocations gate the
     /// existing final result with the complete incoming input.
@@ -348,7 +357,7 @@ where
         //   - Else call the passed closure (below) to compute the result
         //
         // If there was no cache match and a new result needs to be computed then that result will be added to the cache
-        compute_cached_layout(self, node_id, inputs, |tree, node_id, inputs| {
+        let output = compute_cached_layout(self, node_id, inputs, |tree, node_id, inputs| {
             let display_mode = tree.taffy.nodes[node_id.into()].style.display;
             let has_children = tree.child_count(node_id) > 0;
 
@@ -399,7 +408,16 @@ where
             }
 
             output
-        })
+        });
+        if inputs.run_mode == RunMode::PerformLayout {
+            let style = &self.taffy.nodes[node_id.into()].style;
+            if style.display != Display::None && style.contain.size_containment() == (Size { width: true, height: true }) {
+                self.taffy.contained_layout_inputs.insert(node_id.into(), inputs);
+            } else {
+                self.taffy.contained_layout_inputs.remove(node_id.into());
+            }
+        }
+        output
     }
 }
 
@@ -456,6 +474,9 @@ where
         } else {
             self.taffy.custom_child_inputs.remove(node.into());
         }
+    }
+    fn clear_contained_layout_input(&mut self, node: NodeId) {
+        self.taffy.contained_layout_inputs.remove(node.into());
     }
     type CoreContainerStyle<'a>
         = &'a Style
@@ -729,6 +750,8 @@ impl<NodeContext> TaffyTree<NodeContext> {
             constraint_boxes: SecondaryMap::new(),
             constraint_box_inputs: SecondaryMap::new(),
             custom_child_inputs: SecondaryMap::new(),
+            contained_layout_inputs: SecondaryMap::new(),
+            size_contained_nodes: SecondaryMap::new(),
             exact_layout_inputs: SecondaryMap::new(),
             custom_layouts: SecondaryMap::new(),
             exact_measure_caches: SecondaryMap::new(),
@@ -789,10 +812,25 @@ impl<NodeContext> TaffyTree<NodeContext> {
         Ok(self.custom_child_inputs.get(key).and_then(|inputs| inputs.get(child)).copied())
     }
 
+    /// Incoming LayoutInput of a size-contained node's last final invocation.
+    /// Intrinsic/ComputeSize probes do not replace it. Cached ancestor layouts
+    /// preserve it; dirty trees may expose the previous observation. Full size
+    /// containment cuts descendant size/baseline feedback, but callers must
+    /// still prove parent protocol, ancestry and style dependencies separately.
+    pub fn contained_layout_input(&self, node: NodeId) -> TaffyResult<Option<LayoutInput>> {
+        let key = node.into();
+        if !self.nodes.contains_key(key) {
+            return Err(TaffyError::InvalidInputNode(node));
+        }
+        Ok(self.contained_layout_inputs.get(key).copied())
+    }
+
     /// Creates and adds a new unattached leaf node to the tree, and returns the node of the new node
     pub fn new_leaf(&mut self, layout: Style) -> TaffyResult<NodeId> {
         let constraint_box = matches!(layout.display, Display::ConstraintBox { .. });
+        let contained = layout.contain.size_containment() == (Size { width: true, height: true });
         let id = self.nodes.insert(NodeData::new(layout));
+        if contained { self.size_contained_nodes.insert(id, ()); }
         if constraint_box { self.constraint_boxes.insert(id, ()); }
         let _ = self.children.insert(new_vec_with_capacity(0));
         let _ = self.parents.insert(None);
@@ -805,10 +843,12 @@ impl<NodeContext> TaffyTree<NodeContext> {
     /// Creates and adds a new leaf node with a supplied context
     pub fn new_leaf_with_context(&mut self, layout: Style, context: NodeContext) -> TaffyResult<NodeId> {
         let constraint_box = matches!(layout.display, Display::ConstraintBox { .. });
+        let contained = layout.contain.size_containment() == (Size { width: true, height: true });
         let mut data = NodeData::new(layout);
         data.has_context = true;
 
         let id = self.nodes.insert(data);
+        if contained { self.size_contained_nodes.insert(id, ()); }
         if constraint_box { self.constraint_boxes.insert(id, ()); }
         self.node_context_data.insert(id, context);
 
@@ -821,7 +861,9 @@ impl<NodeContext> TaffyTree<NodeContext> {
     /// Creates and adds a new node, which may have any number of `children`
     pub fn new_with_children(&mut self, layout: Style, children: &[NodeId]) -> TaffyResult<NodeId> {
         let constraint_box = matches!(layout.display, Display::ConstraintBox { .. });
+        let contained = layout.contain.size_containment() == (Size { width: true, height: true });
         let id = NodeId::from(self.nodes.insert(NodeData::new(layout)));
+        if contained { self.size_contained_nodes.insert(id.into(), ()); }
         if constraint_box { self.constraint_boxes.insert(id.into(), ()); }
 
         for child in children {
@@ -846,6 +888,8 @@ impl<NodeContext> TaffyTree<NodeContext> {
         self.constraint_boxes.clear();
         self.constraint_box_inputs.clear();
         self.custom_child_inputs.clear();
+        self.contained_layout_inputs.clear();
+        self.size_contained_nodes.clear();
         self.exact_layout_inputs.clear();
         self.custom_layouts.clear();
         self.exact_measure_caches.clear();
@@ -877,6 +921,8 @@ impl<NodeContext> TaffyTree<NodeContext> {
         let _ = self.constraint_boxes.remove(key);
         let _ = self.constraint_box_inputs.remove(key);
         let _ = self.custom_child_inputs.remove(key);
+        let _ = self.contained_layout_inputs.remove(key);
+        let _ = self.size_contained_nodes.remove(key);
         let _ = self.exact_layout_inputs.remove(key);
         let _ = self.custom_layouts.remove(key);
         let _ = self.exact_measure_caches.remove(key);
@@ -1086,6 +1132,14 @@ impl<NodeContext> TaffyTree<NodeContext> {
     /// Sets the [`Style`] of the provided `node`
     #[inline]
     pub fn set_style(&mut self, node: NodeId, style: Style) -> TaffyResult<()> {
+        if style.contain.size_containment() == (Size { width: true, height: true }) {
+            self.size_contained_nodes.insert(node.into(), ());
+        } else {
+            self.size_contained_nodes.remove(node.into());
+        }
+        if style.display == Display::None || style.contain.size_containment() != (Size { width: true, height: true }) {
+            self.contained_layout_inputs.remove(node.into());
+        }
         if matches!(style.display, Display::ConstraintBox { .. }) {
             self.constraint_boxes.insert(node.into(), ());
         } else {
@@ -1252,11 +1306,10 @@ impl<NodeContext> TaffyTree<NodeContext> {
             }
         }
         let use_rounding = self.config.use_rounding;
-        // Custom descendants can observe vertical percentage bases and baseline
+        // Custom descendants and contained structural boundaries observe input
         // metadata omitted by ordinary CSS size caches, including through a
-        // cached Flex ancestor. Keep final-layout reuse and use sparse exact
-        // measurement entries throughout invocations containing custom algorithms.
-        let exact_measure = !self.custom_layouts.is_empty();
+        // cached Flex ancestor. Keep exact keys throughout those invocations.
+        let exact_measure = !self.custom_layouts.is_empty() || !self.size_contained_nodes.is_empty();
         let mut taffy_view = TaffyView { taffy: self, measure_function, layout_observer, layout_error: None, exact_measure };
         crate::compute::compute_root_layout_with_bounds(&mut taffy_view, node_id, available_space, bounds);
         if let Some(error) = taffy_view.layout_error { return Err(error); }

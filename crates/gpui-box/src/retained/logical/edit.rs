@@ -99,10 +99,11 @@ impl LogicalEdit<'_, '_, '_> {
 
     /// Observe the host's incoming border-box allocation before selecting its
     /// descendants. Unlike constraint_builder, this needs no size containment
-    /// and allows content-derived size in both axes. Every parent edge up to
-    /// the root must install ParentAllocationLayout; intrinsic style resolution
-    /// and ordinary Flex edges are conservatively rejected. Prerequisite child
-    /// lists/algorithm snapshots must be complete before observation.
+    /// and allows content-derived size in both axes. Independent parent edges
+    /// must reach the external root or a full Size containment boundary under
+    /// ordinary Flex. Size-contained ConstraintBox outgoing slots also qualify.
+    /// Intrinsic resolution below the cut and arbitrary feedback edges reject.
+    /// Prerequisite child lists/algorithms must precede observation.
     pub fn allocation_builder<R>(
         &mut self,
         host: NodeId,

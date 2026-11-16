@@ -12,6 +12,13 @@ permits two-axis content-derived size along independently allocated parent chain
 It reads the host's incoming border-box slot, unlike this API's outgoing child
 slot. General ordinary-Flex/full-axis dependency proofs and RenderBox stay open.
 
+The [mixed allocation follow-up](RETAINED_MIXED_ALLOCATION_BUILDERS.md) admits
+ordinary Flex ancestry across explicit full Size+Layout containment cuts and
+adds `known_size` / `known_size_is_definite` to ConstraintBuilderInput. These
+preserve real known dimensions separately from intervals and percentage bases;
+full constraint_builder returns the same extra fields for its outgoing slot.
+Uncontained feedback edges and complete RenderBox remain open.
+
 ## Public contract
 
 `LogicalUi::edit_frame(constraints, viewport, sources, render)` combines source
@@ -29,6 +36,8 @@ Within `edit_frame` or `edit_local_frame`, use `LogicalEdit::constraint_builder(
 choosing the host child's structure. It passes `ConstraintBuilderInput`:
 
 - `constraints`: actual hard child-slot bounds and soft available-space modes.
+- `known_size` and `known_size_is_definite`: parent-selected dimensions and
+  their percentage definiteness, distinct from the actual measured child size.
 - `percentage_basis`: independently defined percentage bases, including None
   for an indefinite axis. A loose maximum is not a definite height basis.
 
