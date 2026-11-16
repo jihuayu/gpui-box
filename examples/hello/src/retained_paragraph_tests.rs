@@ -21,6 +21,88 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 }
 
 #[test]
+fn constraint_builder_branches_measure_real_paragraphs_at_final_flex_width() {
+    use gpui_box::retained::logical::LogicalUi;
+    let paragraph = shape(&text_system(), "one two three four five six 中文段落");
+    let mut ui = LogicalUi::new_layout(
+        LayoutStyle::row().size(LayoutDimension::Percent(1.0), LayoutDimension::Percent(1.0)),
+        0,
+        BackendCapabilities::default(),
+    )
+    .unwrap();
+    let root = ui.root_scope();
+    let render_root = ui.root_render();
+    let host = ui
+        .edit(
+            |_| Ok(()),
+            |(), edit| {
+                edit.append_layout(
+                    root,
+                    render_root,
+                    LayoutStyle::constraint_box(ConstraintFit::Tight, ConstraintFit::Loose)
+                        .container_type(LayoutContainerType::Size)
+                        .flex_grow(1.0)
+                        .flex_basis(LayoutDimension::Px(0.0))
+                        .padding(LayoutEdges::all(LayoutLength::Px(5.0))),
+                    0,
+                )
+            },
+        )
+        .unwrap()
+        .result
+        .value;
+    let mut old = None;
+    for width in [50.0, 90.0, 140.0, 50.0] {
+        let (commit, frame) = ui
+            .edit_frame(
+                LayoutConstraints::viewport(width + 10.0, 300.0),
+                [200.0, 300.0],
+                |_| Ok(()),
+                |(), edit| {
+                    edit.constraint_builder(host, |input, edit| {
+                        assert_eq!(input.constraints.bounds.max.width, width);
+                        let branch = edit.reconcile_keys(root, &[u64::from(width >= 100.0)])?[0];
+                        let renders = edit.renders(branch)?;
+                        if let Some(leaf) = renders.first() {
+                            return Ok(*leaf);
+                        }
+                        let leaf =
+                            edit.append_layout(branch, host, LayoutStyle::row(), 0xffffffff)?;
+                        edit.properties()
+                            .measure(leaf, Some(MeasureSnapshot::Paragraph(paragraph.clone())));
+                        Ok(leaf)
+                    })
+                },
+            )
+            .unwrap();
+        let leaf = commit.result.value;
+        let expected = paragraph.layout(Some(width)).unwrap();
+        assert_eq!(
+            ui.layout_result(leaf).unwrap().size,
+            [width, expected.size[1]]
+        );
+        assert_eq!(
+            ui.layout_result(leaf).unwrap().baseline,
+            Some(paragraph.first_baseline())
+        );
+        if old.is_none() {
+            old = Some((frame, leaf));
+        }
+    }
+    let (frame, leaf) = old.unwrap();
+    assert_eq!(
+        frame
+            .items
+            .iter()
+            .find(|item| item.node == leaf)
+            .unwrap()
+            .bounds
+            .width,
+        50.0
+    );
+}
+
+#[test]
 fn nested_parent_constraint_boxes_reflow_real_paragraphs_at_allocated_width() {
     let paragraph = shape(&text_system(), "one two three four five six 中文段落");
     let mut tree = UiTree::new_layout(

@@ -12,6 +12,15 @@ local test artifacts and ignored.
 
 ## Local changes
 
+- Constraint boxes record their final child-slot `LayoutInput` in a separate
+  map, including empty boxes. Intrinsic probes do not overwrite it; ancestor
+  cache hits retain it; hidden/style/remove/clear retire it. A default trait
+  hook keeps custom layout adapters compatible. Framework construction runs
+  outside the layout stack and requires size/layout containment plus final
+  input revalidation. One input record per laid-out box adds memory/map cost;
+  no Style size increase or speedup claim. no_std retains the existing
+  SecondaryMap fallback. See [builder contract](../../docs/RETAINED_CONSTRAINT_BUILDERS.md).
+
 - Explicit non-CSS `Display::ConstraintBox` selects a single-child parent
   protocol with per-axis Tight/Loose content allocation. It composes with CSS
   parents/children while applying hard child bounds inside real measurement,
@@ -20,7 +29,7 @@ local test artifacts and ignored.
   from 1 to 2 bytes in the tested build; String/Arc-str Style without balance
   grows by 8 bytes to 560/528. Balance-enabled sizes remain unchanged.
   CSS parsing adds no keyword. See the
-  [nested contract and remaining ConstraintBuilder work](../../docs/RETAINED_NESTED_CONSTRAINT_BOX.md).
+  [nested contract](../../docs/RETAINED_NESTED_CONSTRAINT_BOX.md).
 
 - Host/parent border-box `SizeBounds` is independent of authored min/max and
   soft AvailableSpace. `LayoutInput::size_bounds` participates in real root,

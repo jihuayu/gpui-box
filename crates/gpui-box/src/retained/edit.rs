@@ -23,6 +23,35 @@ pub struct TreeEdit<'a> {
     slots: usize,
 }
 impl TreeEdit<'_> {
+    /// Disposable projection of the current draft, including final properties.
+    /// It must never escape as another writable owner with the same identity.
+    pub(in crate::retained) fn preview(
+        &self,
+        capabilities: BackendCapabilities,
+        removed: &[NodeId],
+        properties: Transaction,
+    ) -> Result<UiTree, Error> {
+        let mut tree = self.tree.clone_for_layout_plan();
+        let mut draft = TreeEdit {
+            tree: &mut tree,
+            nodes: self.nodes.clone(),
+            created: self.created.clone(),
+            removed: self.removed.iter().chain(removed).copied().collect(),
+            properties: self.properties.clone(),
+            free: self.free.clone(),
+            slots: self.slots,
+        };
+        let dead = draft.removed_ids()?;
+        draft.properties.patches.extend(
+            properties
+                .patches
+                .into_iter()
+                .filter(|patch| !dead.contains(&patch.node())),
+        );
+        draft.publish((), capabilities)?;
+        Ok(tree)
+    }
+
     pub fn root(&self) -> NodeId {
         self.tree.root
     }
@@ -194,6 +223,27 @@ impl TreeEdit<'_> {
     }
 }
 impl UiTree {
+    /// A fallible layout/frame preflight joins the same publication boundary.
+    /// Even on failure, reservations remain consumed on the owning tree.
+    pub(in crate::retained) fn edit_validated<R>(
+        &mut self,
+        capabilities: BackendCapabilities,
+        update: impl FnOnce(&mut TreeEdit<'_>) -> Result<R, Error>,
+        validate: impl FnOnce(&mut UiTree) -> Result<(), Error>,
+    ) -> Result<TreeEditCommit<R>, Error> {
+        let mut candidate = self.clone_for_layout_plan();
+        let result = candidate.edit(capabilities, update).and_then(|mut result| {
+            validate(&mut candidate)?;
+            result.commit.request_frame |= result.commit.revision != candidate.revision;
+            result.commit.revision = candidate.revision;
+            Ok(result)
+        });
+        self.next_generation = candidate.next_generation;
+        let result = result?;
+        *self = candidate;
+        Ok(result)
+    }
+
     pub fn edit<R>(
         &mut self,
         capabilities: BackendCapabilities,

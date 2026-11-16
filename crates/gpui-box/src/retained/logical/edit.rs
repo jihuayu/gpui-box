@@ -8,6 +8,7 @@ pub struct LogicalEdit<'a, 'draft, 'tree> {
     scopes: &'a [Slot],
     owners: &'a BTreeMap<NodeId, ScopeId>,
     inserted: BTreeMap<NodeId, ScopeId>,
+    inserted_order: Vec<NodeId>,
     removals: BTreeSet<NodeId>,
     created_scopes: BTreeMap<ScopeId, Scope>,
     child_lists: BTreeMap<ScopeId, Vec<ScopeId>>,
@@ -18,8 +19,66 @@ pub struct LogicalEdit<'a, 'draft, 'tree> {
     available_scopes: &'a [usize],
     scope_slots: usize,
     next_scope_generation: &'a mut u64,
+    capabilities: BackendCapabilities,
+    frame_environment: Option<(LayoutConstraints, [f32; 2])>,
+    constraint_inputs: Vec<(NodeId, ConstraintBuilderInput)>,
 }
 impl LogicalEdit<'_, '_, '_> {
+    /// Reads the final child-slot input of a size-contained constraint box,
+    /// before choosing/building that child's keyed structure. Call within
+    /// `edit_frame`. Nested calls observe earlier staged sources and structure.
+    /// The callback must be side-effect free apart from edits to this draft.
+    pub fn constraint_builder<R>(
+        &mut self,
+        host: NodeId,
+        build: impl FnOnce(ConstraintBuilderInput, &mut Self) -> Result<R, Error>,
+    ) -> Result<R, Error> {
+        let (constraints, viewport) = self
+            .frame_environment
+            .ok_or(Error::UnsafeConstraintBuilder)?;
+        let mut dead = BTreeSet::new();
+        let mut stack: Vec<_> = self.removed_scopes.iter().copied().collect();
+        while let Some(id) = stack.pop() {
+            if dead.insert(id) {
+                stack.extend(self.children(id)?);
+            }
+        }
+        let removed = self
+            .owners
+            .iter()
+            .chain(self.inserted.iter())
+            .filter(|(_, owner)| dead.contains(owner))
+            .map(|(node, _)| *node)
+            .collect::<Vec<_>>();
+        let mut preview = self.render.preview(self.capabilities, &removed)?;
+        super::constraint_builder::validate_host(&preview, host)?;
+        preview.prepare_layout_environment(constraints, viewport)?;
+        preview.compute_layout(constraints)?;
+        let input = super::constraint_builder::input(&preview, host)?;
+        self.constraint_inputs.push((host, input));
+        build(input, self)
+    }
+
+    /// Surviving output of a scope in append order. Use it with keyed state to
+    /// retain render handles rather than appending replacement nodes on every build.
+    pub fn renders(&mut self, scope: ScopeId) -> Result<Vec<NodeId>, Error> {
+        self.scope(scope)?;
+        let dead = self.render.tree().removed_ids()?;
+        Ok(self
+            .scope(scope)?
+            .renders
+            .iter()
+            .copied()
+            .chain(
+                self.inserted_order
+                    .iter()
+                    .copied()
+                    .filter(|node| self.inserted[node] == scope),
+            )
+            .filter(|node| !dead.contains(node))
+            .collect())
+    }
+
     fn scope(&self, id: ScopeId) -> Result<&Scope, Error> {
         if id.owner != self.identity {
             return Err(Error::InvalidScope);
@@ -181,6 +240,7 @@ impl LogicalEdit<'_, '_, '_> {
         self.scope(owner)?;
         let node = self.render.tree().append(parent, style, color)?;
         self.inserted.insert(node, owner);
+        self.inserted_order.push(node);
         Ok(node)
     }
     /// Construct output with the framework-owned layout protocol, including
@@ -195,6 +255,7 @@ impl LogicalEdit<'_, '_, '_> {
         self.scope(owner)?;
         let node = self.render.tree().append_layout(parent, style, color)?;
         self.inserted.insert(node, owner);
+        self.inserted_order.push(node);
         Ok(node)
     }
     pub fn reparent(&mut self, node: NodeId, host: NodeId) -> Result<(), Error> {
@@ -238,163 +299,249 @@ impl LogicalUi {
         sources: impl FnOnce(&mut ReactiveTransaction<'_>) -> Result<S, Error>,
         render: impl FnOnce(S, &mut LogicalEdit<'_, '_, '_>) -> Result<R, Error>,
     ) -> Result<ReactiveEditCommit<R>, Error> {
+        self.edit_validated(
+            sources,
+            render,
+            None,
+            None::<fn(&mut UiTree) -> Result<(), Error>>,
+        )
+    }
+
+    /// Keyed construction and final layout/extraction publish together. Effects
+    /// run only after the logical maps and complete owned frame are installed.
+    pub fn edit_frame<S, R>(
+        &mut self,
+        constraints: LayoutConstraints,
+        viewport: [f32; 2],
+        sources: impl FnOnce(&mut ReactiveTransaction<'_>) -> Result<S, Error>,
+        render: impl FnOnce(S, &mut LogicalEdit<'_, '_, '_>) -> Result<R, Error>,
+    ) -> Result<(ReactiveEditCommit<R>, FramePacket), Error> {
+        constraints.validate()?;
+        let mut frame = None;
+        let commit = self.edit_validated(
+            sources,
+            render,
+            Some((constraints, viewport)),
+            Some(|tree: &mut UiTree| {
+                let candidate = tree.frame_in_viewport(constraints, viewport)?;
+                // Finite authored values can still overflow when composed. Reject
+                // before publishing state; backend validation happens much later.
+                for item in candidate.items.iter() {
+                    for rect in [Some(item.bounds), Some(item.content_bounds), item.clip]
+                        .into_iter()
+                        .flatten()
+                    {
+                        if [
+                            rect.x,
+                            rect.y,
+                            rect.width,
+                            rect.height,
+                            rect.x + rect.width,
+                            rect.y + rect.height,
+                        ]
+                        .iter()
+                        .any(|v| !v.is_finite())
+                            || rect.width < 0.0
+                            || rect.height < 0.0
+                        {
+                            return Err(Error::InvalidFrame);
+                        }
+                    }
+                }
+                frame = Some(candidate);
+                Ok(())
+            }),
+        )?;
+        Ok((commit, frame.expect("validated complete frame")))
+    }
+
+    fn edit_validated<S, R>(
+        &mut self,
+        sources: impl FnOnce(&mut ReactiveTransaction<'_>) -> Result<S, Error>,
+        render: impl FnOnce(S, &mut LogicalEdit<'_, '_, '_>) -> Result<R, Error>,
+        frame_environment: Option<(LayoutConstraints, [f32; 2])>,
+        validate: Option<impl FnOnce(&mut UiTree) -> Result<(), Error>>,
+    ) -> Result<ReactiveEditCommit<R>, Error> {
         let mut inserted = BTreeMap::new();
+        let mut inserted_order = vec![];
         let mut created_scopes = BTreeMap::new();
         let mut child_lists = BTreeMap::new();
         let mut removed_scopes = BTreeSet::new();
         let mut added_sources = BTreeMap::new();
         let mut added_effects = BTreeMap::new();
-        let pending = self.ui.edit_deferred(sources, |value, render_draft| {
-            let mut draft = LogicalEdit {
-                render: render_draft,
-                identity: self.identity,
-                scopes: &self.scopes,
-                owners: &self.render_owners,
-                inserted: BTreeMap::new(),
-                removals: BTreeSet::new(),
-                created_scopes: BTreeMap::new(),
-                child_lists: BTreeMap::new(),
-                removed_scopes: BTreeSet::new(),
-                added_sources: BTreeMap::new(),
-                added_effects: BTreeMap::new(),
-                free_scopes: None,
-                available_scopes: &self.free,
-                scope_slots: self.scopes.len(),
-                next_scope_generation: &mut self.next_scope_generation,
-            };
-            let value = render(value, &mut draft)?;
-            let mut dead = BTreeSet::new();
-            let mut stack: Vec<_> = draft.removed_scopes.iter().copied().collect();
-            while let Some(id) = stack.pop() {
-                if dead.insert(id) {
-                    stack.extend(draft.children(id)?);
-                }
-            }
-            // Retire whole logical subtrees as a set. Dependency validation is
-            // deferred to the reactive preflight, before cleanup or publication.
-            for id in &dead {
-                let dependencies: Vec<_> = draft
-                    .scope(*id)?
-                    .sources
-                    .values()
-                    .map(|s| s.dependency())
-                    .chain(
-                        draft
-                            .added_sources
-                            .range((*id, 0)..=(*id, u64::MAX))
-                            .map(|(_, s)| s.dependency()),
-                    )
-                    .collect();
-                let effects: Vec<_> = draft
-                    .scope(*id)?
-                    .effects
-                    .values()
-                    .copied()
-                    .chain(
-                        draft
-                            .added_effects
-                            .range((*id, 0)..=(*id, u64::MAX))
-                            .map(|(_, e)| *e),
-                    )
-                    .collect();
-                for effect in effects {
-                    draft.render.dispose_effect(effect)?;
-                }
-                for dependency in dependencies {
-                    draft.render.dispose_dependency(dependency)?;
-                }
-            }
-            let output: Vec<_> = draft
-                .owners
-                .iter()
-                .chain(draft.inserted.iter())
-                .filter(|(_, owner)| dead.contains(owner))
-                .map(|(node, _)| *node)
-                .collect();
-            draft
-                .render
-                .retire_output_bindings(&output.iter().copied().collect());
-            for node in output {
-                draft.removals.insert(node);
-                draft.render.tree().remove(node)?;
-            }
-            draft.render.tree().removed_ids()?; // settle pending property child lists
-            for root in &draft.removals {
-                let owner = draft
-                    .inserted
-                    .get(root)
-                    .or_else(|| draft.owners.get(root))
-                    .unwrap();
-                let mut visited = BTreeSet::new();
-                let mut stack = vec![*root];
-                while let Some(node) = stack.pop() {
-                    if !visited.insert(node) {
-                        continue;
-                    }
-                    if node != *root && draft.removals.contains(&node) {
-                        continue;
-                    }
-                    if draft
-                        .inserted
-                        .get(&node)
-                        .or_else(|| draft.owners.get(&node))
-                        != Some(owner)
-                    {
-                        return Err(Error::ScopeInUse);
-                    }
-                    stack.extend(draft.render.tree().children(node)?);
-                }
-            }
-            // Key changes sort all final surviving sibling outputs by logical
-            // preorder, retaining same-owner insertion order and portal hosts.
-            if !draft.child_lists.is_empty() {
-                let mut ranks = BTreeMap::new();
-                let mut stack = vec![self.root];
+        let constraint_inputs = std::cell::RefCell::new(vec![]);
+        let capabilities = self.ui.capabilities();
+        let pending = self.ui.edit_deferred_validated(
+            sources,
+            |value, render_draft| {
+                let mut draft = LogicalEdit {
+                    render: render_draft,
+                    identity: self.identity,
+                    scopes: &self.scopes,
+                    owners: &self.render_owners,
+                    inserted: BTreeMap::new(),
+                    inserted_order: vec![],
+                    removals: BTreeSet::new(),
+                    created_scopes: BTreeMap::new(),
+                    child_lists: BTreeMap::new(),
+                    removed_scopes: BTreeSet::new(),
+                    added_sources: BTreeMap::new(),
+                    added_effects: BTreeMap::new(),
+                    free_scopes: None,
+                    available_scopes: &self.free,
+                    scope_slots: self.scopes.len(),
+                    next_scope_generation: &mut self.next_scope_generation,
+                    capabilities,
+                    frame_environment,
+                    constraint_inputs: vec![],
+                };
+                let value = render(value, &mut draft)?;
+                let mut dead = BTreeSet::new();
+                let mut stack: Vec<_> = draft.removed_scopes.iter().copied().collect();
                 while let Some(id) = stack.pop() {
-                    if dead.contains(&id) {
-                        continue;
+                    if dead.insert(id) {
+                        stack.extend(draft.children(id)?);
                     }
-                    ranks.insert(id, ranks.len());
-                    stack.extend(draft.children(id)?.iter().rev());
                 }
-                let dead_nodes = draft.render.tree().removed_ids()?;
-                let parents: Vec<_> = draft
-                    .owners
-                    .keys()
-                    .chain(draft.inserted.keys())
-                    .copied()
-                    .filter(|id| !dead_nodes.contains(id))
-                    .collect();
-                for parent in parents {
-                    let mut children: Vec<_> = draft
-                        .render
-                        .tree()
-                        .children(parent)?
-                        .iter()
-                        .filter(|id| !dead_nodes.contains(id))
-                        .copied()
+                // Retire whole logical subtrees as a set. Dependency validation is
+                // deferred to the reactive preflight, before cleanup or publication.
+                for id in &dead {
+                    let dependencies: Vec<_> = draft
+                        .scope(*id)?
+                        .sources
+                        .values()
+                        .map(|s| s.dependency())
+                        .chain(
+                            draft
+                                .added_sources
+                                .range((*id, 0)..=(*id, u64::MAX))
+                                .map(|(_, s)| s.dependency()),
+                        )
                         .collect();
-                    let before = children.clone();
-                    children.sort_by_key(|node| {
-                        ranks[draft
-                            .inserted
-                            .get(node)
-                            .or_else(|| draft.owners.get(node))
-                            .unwrap()]
-                    });
-                    if children != before {
-                        draft.render.tree().set_children(parent, children)?;
+                    let effects: Vec<_> = draft
+                        .scope(*id)?
+                        .effects
+                        .values()
+                        .copied()
+                        .chain(
+                            draft
+                                .added_effects
+                                .range((*id, 0)..=(*id, u64::MAX))
+                                .map(|(_, e)| *e),
+                        )
+                        .collect();
+                    for effect in effects {
+                        draft.render.dispose_effect(effect)?;
+                    }
+                    for dependency in dependencies {
+                        draft.render.dispose_dependency(dependency)?;
                     }
                 }
-            }
-            inserted = draft.inserted;
-            created_scopes = draft.created_scopes;
-            child_lists = draft.child_lists;
-            removed_scopes = dead;
-            added_sources = draft.added_sources;
-            added_effects = draft.added_effects;
-            Ok(value)
-        })?;
+                let output: Vec<_> = draft
+                    .owners
+                    .iter()
+                    .chain(draft.inserted.iter())
+                    .filter(|(_, owner)| dead.contains(owner))
+                    .map(|(node, _)| *node)
+                    .collect();
+                draft
+                    .render
+                    .retire_output_bindings(&output.iter().copied().collect());
+                for node in output {
+                    draft.removals.insert(node);
+                    draft.render.tree().remove(node)?;
+                }
+                draft.render.tree().removed_ids()?; // settle pending property child lists
+                for root in &draft.removals {
+                    let owner = draft
+                        .inserted
+                        .get(root)
+                        .or_else(|| draft.owners.get(root))
+                        .unwrap();
+                    let mut visited = BTreeSet::new();
+                    let mut stack = vec![*root];
+                    while let Some(node) = stack.pop() {
+                        if !visited.insert(node) {
+                            continue;
+                        }
+                        if node != *root && draft.removals.contains(&node) {
+                            continue;
+                        }
+                        if draft
+                            .inserted
+                            .get(&node)
+                            .or_else(|| draft.owners.get(&node))
+                            != Some(owner)
+                        {
+                            return Err(Error::ScopeInUse);
+                        }
+                        stack.extend(draft.render.tree().children(node)?);
+                    }
+                }
+                // Key changes sort all final surviving sibling outputs by logical
+                // preorder, retaining same-owner insertion order and portal hosts.
+                if !draft.child_lists.is_empty() {
+                    let mut ranks = BTreeMap::new();
+                    let mut stack = vec![self.root];
+                    while let Some(id) = stack.pop() {
+                        if dead.contains(&id) {
+                            continue;
+                        }
+                        ranks.insert(id, ranks.len());
+                        stack.extend(draft.children(id)?.iter().rev());
+                    }
+                    let dead_nodes = draft.render.tree().removed_ids()?;
+                    let parents: Vec<_> = draft
+                        .owners
+                        .keys()
+                        .chain(draft.inserted.keys())
+                        .copied()
+                        .filter(|id| !dead_nodes.contains(id))
+                        .collect();
+                    for parent in parents {
+                        let mut children: Vec<_> = draft
+                            .render
+                            .tree()
+                            .children(parent)?
+                            .iter()
+                            .filter(|id| !dead_nodes.contains(id))
+                            .copied()
+                            .collect();
+                        let before = children.clone();
+                        children.sort_by_key(|node| {
+                            ranks[draft
+                                .inserted
+                                .get(node)
+                                .or_else(|| draft.owners.get(node))
+                                .unwrap()]
+                        });
+                        if children != before {
+                            draft.render.tree().set_children(parent, children)?;
+                        }
+                    }
+                }
+                inserted = draft.inserted;
+                inserted_order = draft.inserted_order;
+                created_scopes = draft.created_scopes;
+                child_lists = draft.child_lists;
+                removed_scopes = dead;
+                added_sources = draft.added_sources;
+                added_effects = draft.added_effects;
+                *constraint_inputs.borrow_mut() = draft.constraint_inputs;
+                Ok(value)
+            },
+            validate.map(|validate| {
+                |tree: &mut UiTree| {
+                    validate(tree)?;
+                    for (node, input) in constraint_inputs.borrow().iter() {
+                        if super::constraint_builder::input(tree, *node)? != *input {
+                            return Err(Error::UnsafeConstraintBuilder);
+                        }
+                    }
+                    Ok(())
+                }
+            }),
+        )?;
         let result = &pending.output;
         let dead: BTreeSet<_> = result.removed.iter().copied().collect();
         let owners: BTreeSet<_> = result
@@ -448,10 +595,13 @@ impl LogicalUi {
                 self.scope_mut(id).effects.insert(key, effect);
             }
         }
-        for node in &result.inserted {
-            let owner = inserted[node];
-            self.scope_mut(owner).renders.push(*node);
-            self.render_owners.insert(*node, owner);
+        let live_inserted: BTreeSet<_> = result.inserted.iter().copied().collect();
+        for node in inserted_order {
+            if live_inserted.contains(&node) {
+                let owner = inserted[&node];
+                self.scope_mut(owner).renders.push(node);
+                self.render_owners.insert(node, owner);
+            }
         }
         Ok(self.ui.finish_edit(pending))
     }

@@ -234,7 +234,7 @@ impl Patch {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct Transaction {
     patches: Vec<Patch>,
     topology_pending: bool,
@@ -324,6 +324,7 @@ pub enum Error {
     InvalidMeasure,
     MeasuredNodeHasChildren,
     InvalidConstraintBox,
+    UnsafeConstraintBuilder,
     InvalidEnvironment,
     InvalidStyle,
     UnsupportedLayout,

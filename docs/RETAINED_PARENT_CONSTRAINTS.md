@@ -133,9 +133,10 @@ tested.
 
 This stage provides root/isolated-subtree host bounds. The subsequent
 [nested constraint-box stage](RETAINED_NESTED_CONSTRAINT_BOX.md) adds an explicit
-single-child parent protocol with tight/loose content allocation. ConstraintBuilder,
-conditional structural adaptation, general custom layout and a full Flutter
-BoxConstraints/RenderBox API remain open. ContainerQuery still means actual
+single-child parent protocol with tight/loose content allocation. The subsequent
+[builder stage](RETAINED_CONSTRAINT_BUILDERS.md) adds Size-contained parent-input
+construction and atomic keyed frames. General content-sized builders/custom
+layout and a full Flutter RenderBox API remain open. ContainerQuery still means actual
 size, not the supplied max width.
 Broader Flex/percentage/baseline conformance, native rounding, effects,
 sustained 60/120Hz, full-chain tail latency, newer desktop GPU qualification

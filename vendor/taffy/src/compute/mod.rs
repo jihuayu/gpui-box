@@ -625,6 +625,7 @@ pub fn round_layout(tree: &mut impl RoundTree, node_id: NodeId) {
 /// Creates a layout for this node and its children, recursively.
 /// Each hidden node has zero size and is placed at the origin
 pub fn compute_hidden_layout(tree: &mut (impl LayoutPartialTree + CacheTree), node: NodeId) -> LayoutOutput {
+    tree.record_constraint_box_input(node, None);
     // Clear cache and set zeroed-out layout for the node
     tree.cache_clear(node);
     tree.set_unrounded_layout(node, &Layout::with_order(0));

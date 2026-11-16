@@ -167,6 +167,9 @@ pub struct TaffyTree<NodeContext = ()> {
     /// at layout entry, allowing valid multi-node edits in arbitrary order.
     constraint_boxes: SecondaryMap<DefaultKey, ()>,
 
+    /// Last final child-slot inputs, retained across ancestor cache hits.
+    constraint_box_inputs: SecondaryMap<DefaultKey, LayoutInput>,
+
     /// The children of each node
     ///
     /// The indexes in the outer vector correspond to the position of the parent [`NodeData`]
@@ -404,6 +407,13 @@ where
     MeasureFunction: FnMut(LayoutInput, NodeId, Option<&mut NodeContext>, &Style) -> LayoutOutput,
     LayoutObserver: FnMut(NodeId, &Layout, &Layout),
 {
+    fn record_constraint_box_input(&mut self, node: NodeId, input: Option<LayoutInput>) {
+        if let Some(input) = input {
+            self.taffy.constraint_box_inputs.insert(node.into(), input);
+        } else {
+            self.taffy.constraint_box_inputs.remove(node.into());
+        }
+    }
     type CoreContainerStyle<'a>
         = &'a Style
     where
@@ -635,6 +645,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
             parents: SlotMap::with_capacity(capacity),
             node_context_data: SecondaryMap::with_capacity(capacity),
             constraint_boxes: SecondaryMap::new(),
+            constraint_box_inputs: SecondaryMap::new(),
             config: TaffyConfig::default(),
         }
     }
@@ -647,6 +658,19 @@ impl<NodeContext> TaffyTree<NodeContext> {
     /// Disable rounding of layout values. Rounding is enabled by default.
     pub fn disable_rounding(&mut self) {
         self.config.use_rounding = false;
+    }
+
+    /// Final child-slot inputs recorded by the last successful layout. Cached
+    /// ancestors retain the observation. Call layout before reading; a dirty
+    /// tree may still contain observations from an earlier layout.
+    pub fn constraint_box_input(&self, node: NodeId) -> TaffyResult<Option<LayoutInput>> {
+        let key = node.into();
+        let data = self.nodes.get(key).ok_or(TaffyError::InvalidInputNode(node))?;
+        Ok(if matches!(data.style.display, Display::ConstraintBox { .. }) {
+            self.constraint_box_inputs.get(key).copied()
+        } else {
+            None
+        })
     }
 
     /// Creates and adds a new unattached leaf node to the tree, and returns the node of the new node
@@ -704,6 +728,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
         // captures -- alive after the node it belonged to is gone.
         self.node_context_data.clear();
         self.constraint_boxes.clear();
+        self.constraint_box_inputs.clear();
     }
 
     /// Remove a specific node from the tree and drop it
@@ -730,6 +755,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
         let _ = self.nodes.remove(key);
         let _ = self.node_context_data.remove(key);
         let _ = self.constraint_boxes.remove(key);
+        let _ = self.constraint_box_inputs.remove(key);
 
         Ok(node)
     }
@@ -940,6 +966,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
             self.constraint_boxes.insert(node.into(), ());
         } else {
             self.constraint_boxes.remove(node.into());
+            self.constraint_box_inputs.remove(node.into());
         }
         self.nodes[node.into()].style = style;
         self.mark_dirty(node)?;

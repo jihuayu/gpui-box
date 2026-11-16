@@ -2,8 +2,9 @@
 
 Updated 2026-11-16 on `codex/rendering-performance-research`. This builds on
 [hard root bounds](RETAINED_PARENT_CONSTRAINTS.md). The full RFC goal remains
-active. ConstraintBuilder and layout-dependent structural construction are
-still separate, unfinished capabilities.
+active. The subsequent [constraint-builder stage](RETAINED_CONSTRAINT_BUILDERS.md)
+adds size-contained parent-input construction and atomic keyed frames. General
+content-sized construction remains unfinished.
 
 ## Public protocol
 
@@ -142,8 +143,9 @@ property/topology failure isolation, logical typed bindings, responsive query
 proofs, independent measurement, old snapshots and complete CPU pixels.
 A real bundled Noto paragraph wraps at allocated widths 50/90/140/50.
 
-Still open: ConstraintBuilder receiving pre-layout parent inputs, conditional
-keyed structural adaptation within one atomic frame plan, general custom
+The subsequent [builder stage](RETAINED_CONSTRAINT_BUILDERS.md) implements
+parent-input conditional keyed adaptation and final-frame atomicity for
+Size-contained boxes. Still open: general content-sized builders/custom
 layout, broader percentage/cyclic sizing and Flex conformance, device rounding,
 general query proofs and incremental planning. This protocol is not a complete
 Flutter RenderBox implementation. Full native/GPU/CPU acceptance, effects,

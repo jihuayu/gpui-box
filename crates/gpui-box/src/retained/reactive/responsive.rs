@@ -306,7 +306,7 @@ impl UiTree {
     /// Private identity-preserving draft; it can only replace this owner after
     /// successful validation. Exposing Clone would allow two writers with the
     /// same tree identity/generation namespace, so no public Clone is provided.
-    fn clone_for_layout_plan(&self) -> Self {
+    pub(in crate::retained) fn clone_for_layout_plan(&self) -> Self {
         Self {
             identity: self.identity,
             slots: self.slots.clone(),

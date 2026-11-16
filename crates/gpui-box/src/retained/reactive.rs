@@ -385,6 +385,9 @@ impl ReactiveUi {
     pub fn set_capabilities(&mut self, capabilities: BackendCapabilities) {
         self.capabilities = capabilities;
     }
+    pub(in crate::retained) fn capabilities(&self) -> BackendCapabilities {
+        self.capabilities
+    }
     pub fn binding_count(&self) -> usize {
         self.bindings.len()
     }

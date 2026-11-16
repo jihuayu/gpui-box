@@ -9,6 +9,8 @@ use super::{
 use std::collections::BTreeSet;
 mod edit;
 pub use edit::LogicalEdit;
+mod constraint_builder;
+pub use constraint_builder::ConstraintBuilderInput;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ScopeId {

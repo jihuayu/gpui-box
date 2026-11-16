@@ -132,9 +132,6 @@ pub fn compute_constraint_box_layout(
         return output;
     }
     let inner = (output.size - inset_size).map(|v| v.max(0.0));
-    let Some(child) = child else {
-        return output;
-    };
     let available = inputs
         .available_space
         .zip_map(inputs.known_dimensions, |space, known| {
@@ -149,30 +146,31 @@ pub fn compute_constraint_box_layout(
             other => other,
         });
     let bounds = child_bounds(available, fit);
-    let mut child_output = layout_child(
-        tree,
-        child,
-        LayoutInput {
-            size_bounds: bounds,
-            known_dimensions: tight_dimensions(bounds),
-            known_dimensions_are_definite: Size { width: true, height: true },
-            // Actual inline size is a percentage basis. A content-derived height
-            // remains indefinite unless Tight explicitly assigns it to the child.
-            parent_size: Size {
-                width: Some(inner.width),
-                height: inputs
-                    .known_dimensions
-                    .height
-                    .filter(|_| inputs.known_dimensions_are_definite.height)
-                    .map(|h| (h - inset_size.height).max(0.0)),
-            },
-            available_space: available,
-            run_mode: RunMode::PerformLayout,
-            sizing_mode: SizingMode::InherentSize,
-            axis: crate::RequestedAxis::Both,
-            vertical_margins_are_collapsible: Line::FALSE,
+    let child_input = LayoutInput {
+        size_bounds: bounds,
+        known_dimensions: tight_dimensions(bounds),
+        known_dimensions_are_definite: Size { width: true, height: true },
+        // Actual inline size is a percentage basis. A content-derived height
+        // remains indefinite unless Tight explicitly assigns it to the child.
+        parent_size: Size {
+            width: Some(inner.width),
+            height: inputs
+                .known_dimensions
+                .height
+                .filter(|_| inputs.known_dimensions_are_definite.height)
+                .map(|h| (h - inset_size.height).max(0.0)),
         },
-    );
+        available_space: available,
+        run_mode: RunMode::PerformLayout,
+        sizing_mode: SizingMode::InherentSize,
+        axis: crate::RequestedAxis::Both,
+        vertical_margins_are_collapsible: Line::FALSE,
+    };
+    tree.record_constraint_box_input(node, Some(child_input));
+    let Some(child) = child else {
+        return output;
+    };
+    let mut child_output = layout_child(tree, child, child_input);
     let child_style = tree.get_core_container_style(child);
     let hidden = child_style.box_generation_mode() == crate::BoxGenerationMode::None;
     let child_padding = child_style.padding().resolve_or_zero(Some(inner.width), |v, b| tree.resolve_calc_value(v, b));
@@ -468,5 +466,36 @@ mod tests {
             assert_eq!(tree.layout(root).unwrap().size, Size { width: expected + 10.0, height: 20.0 });
             assert_eq!(tree.layout(child).unwrap().size.width, expected);
         }
+    }
+
+    #[test]
+    fn final_child_slot_observations_survive_cache_hits_and_retire_with_hidden_or_removed_boxes() {
+        let mut tree = TaffyTree::<()>::new();
+        tree.disable_rounding();
+        let box_node = tree.new_leaf(boundary()).unwrap();
+        let root = tree.new_with_children(Style::DEFAULT, &[box_node]).unwrap();
+        tree.compute_layout(root, Size::MAX_CONTENT).unwrap();
+        let input = tree.constraint_box_input(box_node).unwrap().unwrap();
+        assert_eq!(input.run_mode, RunMode::PerformLayout);
+        assert_eq!(input.size_bounds.min.width, 70.0);
+        assert_eq!(input.size_bounds.max.width, 70.0);
+        assert_eq!(input.parent_size.width, Some(70.0));
+        tree.compute_layout(root, Size::MAX_CONTENT).unwrap();
+        assert_eq!(tree.constraint_box_input(box_node).unwrap(), Some(input));
+        tree.set_style(root, Style { display: Display::None, ..Style::DEFAULT }).unwrap();
+        tree.compute_layout(root, Size::MAX_CONTENT).unwrap();
+        assert_eq!(tree.constraint_box_input(box_node).unwrap(), None);
+        tree.set_style(root, Style::DEFAULT).unwrap();
+        tree.compute_layout(root, Size::MAX_CONTENT).unwrap();
+        assert!(tree.constraint_box_input(box_node).unwrap().is_some());
+        tree.set_style(box_node, Style::DEFAULT).unwrap();
+        assert_eq!(tree.constraint_box_input(box_node).unwrap(), None);
+        tree.set_style(box_node, boundary()).unwrap();
+        tree.compute_layout(root, Size::MAX_CONTENT).unwrap();
+        tree.remove(box_node).unwrap();
+        assert!(tree.constraint_box_input(box_node).is_err());
+        tree.clear();
+        let replacement = tree.new_leaf(boundary()).unwrap();
+        assert_eq!(tree.constraint_box_input(replacement).unwrap(), None);
     }
 }

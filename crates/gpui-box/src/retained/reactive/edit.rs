@@ -58,6 +58,32 @@ pub struct ReactiveEdit<'a, 'tree> {
     next_effect: &'a mut u64,
 }
 impl<'tree> ReactiveEdit<'_, 'tree> {
+    pub(in crate::retained) fn preview(
+        &self,
+        capabilities: BackendCapabilities,
+        removed: &[NodeId],
+    ) -> Result<UiTree, Error> {
+        let mut tx = Transaction::default();
+        for (_, binding) in &self.bindings {
+            if !self.removed_sources.contains(&binding.source) {
+                let value = self
+                    .values
+                    .get(&binding.source)
+                    .unwrap_or(&self.source(binding.source)?.value);
+                (binding.write)(value.as_ref(), &mut tx);
+            }
+        }
+        for (id, binding) in self.live_bindings {
+            if !self.unbound.contains(id)
+                && !self.removed_sources.contains(&binding.source)
+                && let Some(value) = self.values.get(&binding.source)
+            {
+                (binding.write)(value.as_ref(), &mut tx);
+            }
+        }
+        self.tree.preview(capabilities, removed, tx)
+    }
+
     pub fn tree(&mut self) -> &mut TreeEdit<'tree> {
         self.tree
     }
@@ -429,6 +455,18 @@ impl ReactiveUi {
         sources: impl FnOnce(&mut ReactiveTransaction<'_>) -> Result<S, Error>,
         render: impl FnOnce(S, &mut ReactiveEdit<'_, '_>) -> Result<R, Error>,
     ) -> Result<PendingReactiveEdit<R>, Error> {
+        self.edit_deferred_validated(
+            sources,
+            render,
+            None::<fn(&mut UiTree) -> Result<(), Error>>,
+        )
+    }
+    pub(in crate::retained) fn edit_deferred_validated<S, R>(
+        &mut self,
+        sources: impl FnOnce(&mut ReactiveTransaction<'_>) -> Result<S, Error>,
+        render: impl FnOnce(S, &mut ReactiveEdit<'_, '_>) -> Result<R, Error>,
+        validate: Option<impl FnOnce(&mut UiTree) -> Result<(), Error>>,
+    ) -> Result<PendingReactiveEdit<R>, Error> {
         let (source_result, mut prepared) = self.prepare_update(sources)?;
         // Capture each endpoint separately so deletions can skip its whole write.
         let mut sinks = vec![];
@@ -451,7 +489,7 @@ impl ReactiveUi {
         let mut removed_effects = BTreeSet::new();
         let mut sink_writes = 0;
         let identity = self.identity;
-        let result = self.tree.edit(self.capabilities, |tree| {
+        let render_tree = |tree: &mut TreeEdit<'_>| {
             let mut edit = ReactiveEdit {
                 tree,
                 identity,
@@ -540,7 +578,13 @@ impl ReactiveUi {
             created_effects = edit.effects;
             removed_effects = edit.removed_effects;
             Ok(value)
-        })?;
+        };
+        let result = if let Some(validate) = validate {
+            self.tree
+                .edit_validated(self.capabilities, render_tree, validate)
+        } else {
+            self.tree.edit(self.capabilities, render_tree)
+        }?;
         let mut cleanups = vec![];
         for id in &removed_effects {
             if let Some(cleanup) = self.detach_effect(*id).expect("validated effect disposal") {

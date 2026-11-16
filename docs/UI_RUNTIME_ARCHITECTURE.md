@@ -169,8 +169,16 @@ preferred/min/max、宽高比与 padding floor；tight 轴为确定分配，loos
 将实际 content 空间转为 tight/loose 硬分配，padding/border/gutter 向内收缩；
 它可以放进 Flex 分配，再向内部 Flex 树传递约束。普通 CSS Flex 语义保持；
 边界直接子节点的 margin/Flex 对齐/relative inset 不参与该父级摆放协议，
-直接 OOF 子节点拒绝。ConstraintBuilder 与条件结构构建仍未实现，不能把该节点
-称为完整 Flutter RenderBox。详见 [嵌套协议与代价](RETAINED_NESTED_CONSTRAINT_BOX.md)。
+直接 OOF 子节点拒绝。新增 `LogicalUi::edit_frame` 和
+`LogicalEdit::constraint_builder`，仅在 Size-contained 约束盒上读取父协议最终
+分配给 child slot 的硬区间、软空间模式和独立百分比基准；在布局算法栈外构建
+keyed 分支，并把生命周期、最终布局和完整 FramePacket 一起原子发布。嵌套
+调用读取当前草稿；最终再验证已读输入，后续父/兄弟变动使输入改变则拒绝发布，
+不反复迭代。临时 intrinsic probe 不调用用户 builder。私有完整树副本、每个
+builder 的全量 preview 和最终几何校验增加成本；普通 content-sized builder、
+自动依赖调度和增量规划仍未实现，不能称为完整 Flutter RenderBox。
+详见 [嵌套协议](RETAINED_NESTED_CONSTRAINT_BOX.md) 与
+[构建器契约和决策](RETAINED_CONSTRAINT_BUILDERS.md)。
 缓存新增每节点四个 float 的约束
 mode，变化时拒绝旧结果。详见 [父约束契约](RETAINED_PARENT_CONSTRAINTS.md)
 与 [无上限布局契约](RETAINED_UNBOUNDED_LAYOUT.md)。
