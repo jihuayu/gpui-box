@@ -144,6 +144,22 @@ remain open. Validation: retained 271 passed; text/WGPU 304 passed, 3 ignored;
 hello 18 passed, 1 ignored; explicit hardware case 1 passed; Taffy default 195 /
 project-config 189 passed; Clippy -D warnings passed. This stage provides
 capability, without a speedup claim.
+The [atomic local edit stage](RETAINED_ATOMIC_LOCAL_EDITS.md) adds
+`LogicalUi::edit_local_frame` and non-resolving `published_local_frame` queries.
+It reuses the keyed source/lifecycle/final-builder-validation boundary, publishing
+full/inline builders and pure custom parents directly as LocalFrame snapshots.
+Stable property/material edits retain sparse predecessor identity and avoid
+resolved item/property-map construction; a shared finite-geometry check covers
+translated own clips even when an inherited clip hides overflow. Failure leaves
+owner state, effects and the old local snapshot intact. Final geometry checking
+is O(N) with O(depth) temporary storage; whole-tree atomic candidates and builder
+previews remain. Validation: retained 279 passed; text/WGPU 312 passed, 4 ignored;
+hello 19 passed, 1 ignored; explicit hardware case 1 passed; Clippy -D warnings
+passed. Real glyph CPU output and consecutive/skipped-predecessor GPU output
+match independent full references. This closes atomic local edit output only;
+incremental planning, general structural builders/query scheduling, complete
+RenderBox and broad Flex/performance acceptance remain open. No timing or
+sustained-presentation qualification follows.
 The [validation-cache stage](RETAINED_VALIDATION_CACHE.md) reuses consumer checks
 for cache-owned immutable pages and stable node indices, with full fallback for
 identity/order/scale changes and complete effect-reference checks on effect-map edits.
@@ -629,6 +645,7 @@ the original checked binding table; no source/sink API policy is added.
 
 | Requested area | Current implementation | Remaining acceptance work |
 | --- | --- | --- |
+| Atomic keyed frame output | `LogicalUi::edit_frame` and `edit_local_frame` share source/keyed lifetime/final layout/builder observation validation; direct sparse local output avoids resolved item/property-map construction; non-resolving published local queries; source/effect/geometry rollback, real glyph CPU and consecutive/skipped-base GPU full-reference equality | Whole-tree private candidates and per-builder previews remain; final local geometry validation is O(N); incremental planning/rollback, combined query structural plans, automatic scheduling and end-to-end performance acceptance |
 | Normal UI update chain | Desktop click → signal → typed property sink → transaction → layout → FramePacket → persistent WGPU; Windows shared GPU snapshots in the native D3D11 scene, preserving normal UI ordering/clipping; the normal `submit_for_window` path detects native device replacement, advances a new consumer epoch and restores from a complete frame, with matching-DX12 construction falling back to the readback bridge | Native visible presentation qualification, driver-induced TDR/device-removed qualification, other platforms and complete general routing |
 | P0 equality and transactions | Source equality before fanout, final-value coalescing, explicit computed DAG with ordered propagation/equality cutoff, transaction-consistent reads, atomic source/derived/sink validation, nested savepoints, keyed dependency lifetime checks, synchronous post-commit effects with deduplication and replacement/scope/drop cleanup; bounded background last-value source inbox with executor wake, owner drain and stale-source cleanup; one outer frame intent, real normal-click/worker computed/effect route and idle-render assertions | General asynchronous/reentrant effect scheduling, dynamic dependency tracking, dense graph scheduling costs, generalized producer priority/backpressure/byte budgets and visible-window automatic wake/OS idle-wakeup/energy measurements |
 | P0–P5 routing | Solid/decorated-quad color, immutable rounded-box shadow paint with typed shared-list sinks, property, layout, reorder and decoded-image resource intents; reason records; P1 reuses commands with 0 layout/recording and stable instance dispatch; indexed producer patches and immutable-page consumer validation reuse | General primitive/material capabilities, semantic channels, general asynchronous resource invalidation and eliminate remaining full resource/order scanning |

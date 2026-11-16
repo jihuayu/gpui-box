@@ -558,6 +558,11 @@ impl UiTree {
         }
         self.frame.as_ref()
     }
+    /// Last local snapshot, without materializing resolved world geometry.
+    /// Inspect its revision when alternating resolved and local consumers.
+    pub fn published_local_frame(&self) -> Option<&local::LocalFrame> {
+        self.local_frame.as_ref()
+    }
     pub fn style(&self, id: NodeId) -> Result<&Style, Error> {
         Ok(&self.node(id)?.style)
     }

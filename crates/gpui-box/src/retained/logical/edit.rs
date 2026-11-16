@@ -26,7 +26,8 @@ pub struct LogicalEdit<'a, 'draft, 'tree> {
 impl LogicalEdit<'_, '_, '_> {
     /// Reads the final child-slot input of a size-contained constraint box,
     /// before choosing/building that child's keyed structure. Call within
-    /// `edit_frame`. Nested calls observe earlier staged sources and structure.
+    /// `edit_frame` or `edit_local_frame`. Nested calls observe earlier staged
+    /// sources and structure.
     /// The callback must be side-effect free apart from edits to this draft.
     pub fn constraint_builder<R>(
         &mut self,
@@ -355,32 +356,45 @@ impl LogicalUi {
                 // Finite authored values can still overflow when composed. Reject
                 // before publishing state; backend validation happens much later.
                 for item in candidate.items.iter() {
-                    for rect in [Some(item.bounds), Some(item.content_bounds), item.clip]
-                        .into_iter()
-                        .flatten()
-                    {
-                        if [
-                            rect.x,
-                            rect.y,
-                            rect.width,
-                            rect.height,
-                            rect.x + rect.width,
-                            rect.y + rect.height,
-                        ]
-                        .iter()
-                        .any(|v| !v.is_finite())
-                            || rect.width < 0.0
-                            || rect.height < 0.0
-                        {
-                            return Err(Error::InvalidFrame);
-                        }
-                    }
+                    spatial::validate_geometry(
+                        item.bounds,
+                        item.content_bounds,
+                        item.clip,
+                        &item.spatial,
+                    )?;
                 }
                 frame = Some(candidate);
                 Ok(())
             }),
         )?;
         Ok((commit, frame.expect("validated complete frame")))
+    }
+
+    /// Local-placement counterpart to `edit_frame`, with the same atomic
+    /// sources/keyed lifecycle/layout publication and constraint builders.
+    /// Property/material-only edits retain sparse local snapshots; validation
+    /// checks composed geometry without resolving a full FramePacket.
+    pub fn edit_local_frame<S, R>(
+        &mut self,
+        constraints: LayoutConstraints,
+        viewport: [f32; 2],
+        sources: impl FnOnce(&mut ReactiveTransaction<'_>) -> Result<S, Error>,
+        render: impl FnOnce(S, &mut LogicalEdit<'_, '_, '_>) -> Result<R, Error>,
+    ) -> Result<(ReactiveEditCommit<R>, local::LocalFrame), Error> {
+        constraints.validate()?;
+        let mut frame = None;
+        let commit = self.edit_validated(
+            sources,
+            render,
+            Some((constraints, viewport)),
+            Some(|tree: &mut UiTree| {
+                let candidate = tree.local_frame_in_viewport(constraints, viewport)?;
+                candidate.validate_geometry()?;
+                frame = Some(candidate);
+                Ok(())
+            }),
+        )?;
+        Ok((commit, frame.expect("validated complete local frame")))
     }
 
     fn edit_validated<S, R>(

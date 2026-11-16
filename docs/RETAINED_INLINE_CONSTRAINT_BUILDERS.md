@@ -8,7 +8,8 @@ Flutter LayoutBuilder/RenderBox or a performance qualification.
 ## API and layout behavior
 
 `LogicalEdit::inline_constraint_builder(host, build)` runs within
-`LogicalUi::edit_frame`. Its public `InlineConstraintBuilderInput` exposes only
+`LogicalUi::edit_frame` or the later
+[`edit_local_frame`](RETAINED_ATOMIC_LOCAL_EDITS.md). Its public `InlineConstraintBuilderInput` exposes only
 the child slot's horizontal `min`, `max`, `available` and `percentage_basis`.
 It exposes no height or block-axis available space. Branch construction can
 therefore change the child's height, the host's auto height, ancestor Column
@@ -135,9 +136,10 @@ their pixels after UI/font-owner destruction. An explicit NVIDIA/Vulkan test
 compares every GPU pixel against a fresh full reference through repeated branch
 retirement and resize, with explicit red content and green footer checks.
 
-Still open: general content-sized/full-axis builders, automatic dependency
-scheduling, arbitrary parent custom layout/RenderBox, combined ContainerQuery
-structural plans, atomic local edit output, incremental planning, broad Flex/
+Subsequent stages add [pure custom parent measurement/placement](RETAINED_CUSTOM_PARENT_LAYOUT.md)
+and [atomic local edit output](RETAINED_ATOMIC_LOCAL_EDITS.md). Still open:
+general content-sized/full-axis builders, automatic dependency scheduling,
+complete RenderBox, combined ContainerQuery structural plans, incremental planning, broad Flex/
 percentage/cyclic/baseline and device-rounding conformance. The actual GPU test
 uses GTX 1650 Ti; newer desktop GPU/effect workloads, sustained 60/120Hz, visible
 presentation, input-to-visible tails and CPU smoothness remain unqualified.

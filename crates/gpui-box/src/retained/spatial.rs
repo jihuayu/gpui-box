@@ -14,6 +14,43 @@ pub struct SpatialState {
     pub root_clip: Option<Rect>,
 }
 
+/// Shared producer check for both resolved and local atomic publications.
+/// Validate composed geometry even when an inherited clip hides overflow.
+pub(super) fn validate_geometry(
+    bounds: Rect,
+    content_bounds: Rect,
+    clip: Option<Rect>,
+    spatial: &SpatialState,
+) -> Result<(), Error> {
+    let origin = [bounds.x, bounds.y];
+    for rect in [
+        Some(bounds),
+        Some(content_bounds),
+        clip,
+        spatial.clip.map(|rect| rect.translated(origin)),
+        spatial.root_clip,
+    ]
+    .into_iter()
+    .flatten()
+    {
+        if !rect.valid() {
+            return Err(Error::InvalidFrame);
+        }
+    }
+    if spatial
+        .layout_origin
+        .iter()
+        .chain(&spatial.translation)
+        .chain(&spatial.scroll)
+        .any(|value| !value.is_finite())
+        || !(bounds.x - spatial.scroll[0]).is_finite()
+        || !(bounds.y - spatial.scroll[1]).is_finite()
+    {
+        return Err(Error::InvalidFrame);
+    }
+    Ok(())
+}
+
 #[cfg(all(feature = "retained-wgpu", not(target_family = "wasm")))]
 impl SpatialState {
     pub(super) fn resolve(&self, parent: Option<&PaintItem>) -> ([f32; 2], Option<Rect>) {

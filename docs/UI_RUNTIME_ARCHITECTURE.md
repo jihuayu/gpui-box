@@ -194,6 +194,16 @@ ComputeSize cache，保留完整布局缓存。dirty custom layout 用私有 Taf
 不能证明任意策略的依赖，因此查询祖先含 custom allocator 时明确拒绝。通用
 结构构建、自动依赖、精确测量缓存和增量回滚仍开放；这是父布局原语，不是完整
 RenderBox。详见 [自定义父布局契约与 ADR](RETAINED_CUSTOM_PARENT_LAYOUT.md)。
+新增 `LogicalUi::edit_local_frame`，复用 `edit_frame` 的 source、keyed 生命周期、
+最终布局和 builder 观察值复验边界，直接发布 LocalFrame；full/inline builder
+和纯 ParentLayout 使用同一入口。稳定属性/材质变更保留稀疏前驱关系，不为验证
+而构造完整 world items/property maps；`published_local_frame` 在三层 owner 上
+读取最后的局部快照，不触发 resolve，交替消费者须检查其自身 revision。最终
+几何按 preorder 检查，以 O(depth) 栈验证所有可见节点，包括被继承裁剪掩盖的
+自身 clip 溢出；失败保留 source、effect、布局和旧快照。完整候选树 clone、
+每个 builder 的 preview 以及 O(N) 最终检查仍存在，不能称为整个事务的次线性
+更新。真实文字 CPU 像素和连续/跳帧后的 GPU 恢复与独立完整路径一致；这轮没有
+时延或持续帧率结论。详见 [原子局部帧契约与成本](RETAINED_ATOMIC_LOCAL_EDITS.md)。
 详见 [嵌套协议](RETAINED_NESTED_CONSTRAINT_BOX.md) 与
 [构建器契约和决策](RETAINED_CONSTRAINT_BUILDERS.md)。
 缓存新增每节点四个 float 的约束

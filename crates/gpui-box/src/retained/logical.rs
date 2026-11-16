@@ -164,6 +164,9 @@ impl LogicalUi {
     pub fn published_frame(&self) -> Option<&FramePacket> {
         self.ui.published_frame()
     }
+    pub fn published_local_frame(&self) -> Option<&local::LocalFrame> {
+        self.ui.published_local_frame()
+    }
     pub fn stats(&self) -> reactive::ReactiveStats {
         self.ui.stats()
     }

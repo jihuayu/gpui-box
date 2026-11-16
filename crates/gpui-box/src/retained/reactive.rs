@@ -344,6 +344,9 @@ impl ReactiveUi {
     pub fn published_frame(&self) -> Option<&FramePacket> {
         self.tree.published_frame()
     }
+    pub fn published_local_frame(&self) -> Option<&local::LocalFrame> {
+        self.tree.published_local_frame()
+    }
     pub fn frame(&mut self, viewport: [f32; 2]) -> Result<FramePacket, Error> {
         self.tree.frame(viewport)
     }

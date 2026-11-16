@@ -4,6 +4,8 @@ use super::*;
 use std::collections::HashMap;
 use std::sync::Weak;
 #[cfg(test)]
+mod atomic_edit_tests;
+#[cfg(test)]
 mod tests;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -293,6 +295,47 @@ impl LocalFrame {
             retained_items: self.len(),
             full_publication: self.0.full_publication,
         }
+    }
+    /// Check composed world geometry without cloning paint items, building
+    /// property maps or filling the optional resolved compatibility cache.
+    /// Preorder traversal retains one geometry context per open ancestor.
+    pub(in crate::retained) fn validate_geometry(&self) -> Result<(), Error> {
+        let mut stack: Vec<(usize, [f32; 2], Option<Rect>)> = vec![];
+        for i in 0..self.len() {
+            let parent = self.0.topology.parents[i];
+            while stack.last().map(|entry| entry.0) != parent {
+                stack.pop().ok_or(Error::InvalidFrame)?;
+            }
+            let item = &self.0.template.items[i];
+            let spatial = self
+                .0
+                .placements
+                .get(i)
+                .map_or(&item.spatial, |value| &value.spatial);
+            let (origin, inherited_clip) = stack
+                .last()
+                .map_or(([0.0; 2], spatial.root_clip), |entry| (entry.1, entry.2));
+            let x = origin[0] + spatial.layout_origin[0] + spatial.translation[0];
+            let y = origin[1] + spatial.layout_origin[1] + spatial.translation[1];
+            let own_clip = spatial.clip.map(|clip| clip.translated([x, y]));
+            let clip = match (inherited_clip, own_clip) {
+                (Some(a), Some(b)) => Some(a.intersect(b)),
+                (a, b) => a.or(b),
+            };
+            let bounds = Rect {
+                x,
+                y,
+                ..item.bounds
+            };
+            let content_bounds = Rect {
+                x: (x + item.content_offsets[0]) + item.content_offsets[2],
+                y: (y + item.content_offsets[1]) + item.content_offsets[3],
+                ..item.content_bounds
+            };
+            spatial::validate_geometry(bounds, content_bounds, clip, spatial)?;
+            stack.push((i, [x - spatial.scroll[0], y - spatial.scroll[1]], clip));
+        }
+        Ok(())
     }
     fn placement(&self, index: usize) -> Placement {
         let item = &self.0.template.items[index];

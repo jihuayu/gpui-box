@@ -128,9 +128,10 @@ Flex trees. Real Noto glyphs and an explicit WGPU readback test cover actual
 consumers, rather than only checking callback return values.
 
 This is the general pure parent measurement/placement primitive, not complete
-Flutter RenderBox. General full-axis content-sized structural builders,
-automatic dependency scheduling, query + structural plans, atomic LocalFrame
-edit output, intrinsic/percentage/cyclic/baseline conformance, device rounding,
+Flutter RenderBox. Atomic LocalFrame edit output is implemented in the
+[subsequent stage](RETAINED_ATOMIC_LOCAL_EDITS.md). General full-axis
+content-sized structural builders, automatic dependency scheduling, query +
+structural plans, intrinsic/percentage/cyclic/baseline conformance, device rounding,
 incremental rollback and exact measurement caching remain open. No new modern
 GPU effects, sustained 60/120Hz, visible presentation, input-to-visible tail or
 CPU smooth-delivery qualification is claimed.

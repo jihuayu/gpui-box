@@ -16,8 +16,11 @@ It returns `(ReactiveEditCommit<R>, FramePacket)`. All fallible validation runs
 before replacing the owner, retiring old sources, running cleanup, or observing
 new effects. Final effects see installed logical maps and the complete frame.
 `edit` retains its existing cheaper source/render-only publication contract.
+The later `edit_local_frame` API offers the same atomic boundary with direct
+LocalFrame output and non-resolving geometry validation; see
+[its contract and remaining costs](RETAINED_ATOMIC_LOCAL_EDITS.md).
 
-Within `edit_frame`, use `LogicalEdit::constraint_builder(host, build)` before
+Within `edit_frame` or `edit_local_frame`, use `LogicalEdit::constraint_builder(host, build)` before
 choosing the host child's structure. It passes `ConstraintBuilderInput`:
 
 - `constraints`: actual hard child-slot bounds and soft available-space modes.
@@ -76,7 +79,7 @@ again against the final candidate: a later sibling/ancestor edit or logical
 reorder that changes any observed bounds/mode/percentage basis returns
 `UnsafeConstraintBuilder`. No retry-to-convergence or transient frame is used.
 An out-of-order plan must be reordered by its author. Hidden/non-box/non-size-
-contained hosts and calls outside `edit_frame` reject before invoking `build`.
+contained hosts and calls outside `edit_frame`/`edit_local_frame` reject before invoking `build`.
 Removing a queried host later also rejects the plan.
 
 ## Implementation and lifecycle
@@ -173,11 +176,13 @@ CPU pixel reference. Bundled Noto paragraphs wrap at 50/90/140/50 content widths
 after branch selection. Vendor tests cover cached/empty/hidden/retired inputs.
 
 Inline-only construction with content-derived block height is implemented in
-the [subsequent stage](RETAINED_INLINE_CONSTRAINT_BUILDERS.md). Still open:
-general full-axis content-sized builders, general custom parent
-policies/RenderBox, automatic builder dependency scheduling and indexed/incremental
+the [subsequent stage](RETAINED_INLINE_CONSTRAINT_BUILDERS.md). Subsequent stages
+also add [pure custom parent measurement/placement](RETAINED_CUSTOM_PARENT_LAYOUT.md)
+and [atomic LocalFrame edit output](RETAINED_ATOMIC_LOCAL_EDITS.md). Still open:
+general full-axis content-sized builders, complete RenderBox,
+automatic builder dependency scheduling and indexed/incremental
 planning, structural plans combined with existing multi-stage ContainerQuery
-bindings, public atomic LocalFrame edit output, broader Flex/percentage/cyclic
+bindings, broader Flex/percentage/cyclic
 sizing and device rounding. Modern desktop GPU/effects, CPU smooth delivery,
 sustained 60/120Hz and input-to-visible tail latency remain unqualified by this
 stage. No new GPU readback, browser comparison, or timing benchmark was run.

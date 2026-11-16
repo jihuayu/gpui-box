@@ -20,6 +20,150 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
     ParagraphSnapshot::shape(system, text, font("Noto Sans CJK SC"), 16.0, 32.0).unwrap()
 }
 
+#[test]
+fn atomic_local_builder_and_sparse_text_material_match_full_glyph_pixels() {
+    use gpui_box::retained::logical::LogicalUi;
+    let system = text_system();
+    let paragraph = shape(&system, "one two three four five six 中文段落");
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let resource = raster.prepare(paragraph.clone(), 1.0).unwrap();
+    let column = LayoutStyle::column().size(LayoutDimension::Percent(1.0), LayoutDimension::Auto);
+    let boundary = LayoutStyle::constraint_box(ConstraintFit::Tight, ConstraintFit::Loose)
+        .container_type(LayoutContainerType::InlineSize)
+        .padding(LayoutEdges::all(LayoutLength::Px(5.0)));
+    let footer_style = LayoutStyle::row()
+        .size(LayoutDimension::Px(20.0), LayoutDimension::Px(10.0))
+        .flex_shrink(0.0);
+    let mut ui = LogicalUi::new_layout(column.clone(), 0, BackendCapabilities::default()).unwrap();
+    let scope = ui.root_scope();
+    let root = ui.root_render();
+    let host = ui
+        .append_render_layout(scope, root, boundary.clone(), 0)
+        .unwrap();
+    let footer = ui
+        .append_render_layout(scope, root, footer_style.clone(), 0xff0000ff)
+        .unwrap();
+    fn pixels(frame: FramePacket) -> Vec<u8> {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [200, 700],
+                scale: 1.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 4 * 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(4096).unwrap() {}
+        job.into_frame().unwrap().pixels().to_vec()
+    }
+    let mut old = None;
+    for width in [50.0, 90.0, 140.0, 50.0] {
+        let constraints = LayoutConstraints::new(
+            LayoutAvailableSpace::Definite(width + 10.0),
+            LayoutAvailableSpace::Unbounded,
+        );
+        let (commit, first) = ui
+            .edit_local_frame(
+                constraints,
+                [200.0, 700.0],
+                |_| Ok(()),
+                |(), edit| {
+                    edit.properties().translation(host, [0.0; 2]);
+                    edit.inline_constraint_builder(host, |input, edit| {
+                        assert_eq!(input.max, width);
+                        let branch = edit.reconcile_keys(scope, &[u64::from(width >= 100.0)])?[0];
+                        let renders = edit.renders(branch)?;
+                        let leaf = match renders.first() {
+                            Some(leaf) => *leaf,
+                            None => edit.append_layout(branch, host, LayoutStyle::row(), 0)?,
+                        };
+                        edit.properties().text(
+                            leaf,
+                            Some(TextPaint {
+                                resource: resource.clone(),
+                                color: 0xffffffff,
+                            }),
+                        );
+                        Ok(leaf)
+                    })
+                },
+            )
+            .unwrap();
+        let leaf = commit.result.value;
+        let expected = paragraph.layout(Some(width)).unwrap();
+        assert_eq!(
+            ui.layout_result(leaf).unwrap().size,
+            [width, expected.size[1]]
+        );
+        assert_eq!(
+            ui.layout_result(footer).unwrap().location,
+            [0.0, expected.size[1] + 10.0]
+        );
+        let (_, next) = ui
+            .edit_local_frame(
+                constraints,
+                [200.0, 700.0],
+                |_| Ok(()),
+                |(), edit| {
+                    edit.properties().translation(host, [2.0, 0.0]);
+                    edit.properties().text(
+                        leaf,
+                        Some(TextPaint {
+                            resource: resource.clone(),
+                            color: 0x00ffffff,
+                        }),
+                    );
+                    Ok(())
+                },
+            )
+            .unwrap();
+        assert!(!next.stats().full_publication);
+        assert_eq!(next.stats().changed_nodes, 1);
+        assert_eq!(next.stats().material_nodes, 1);
+        let actual = pixels(next.resolve());
+        let mut full = UiTree::new_layout(column.clone(), 0).unwrap();
+        full.set_frame_build_policy(FrameBuildPolicy::Full);
+        let full_host = full
+            .append_layout(full.root(), boundary.clone(), 0)
+            .unwrap();
+        let full_leaf = full
+            .append_layout(full_host, LayoutStyle::row(), 0)
+            .unwrap();
+        full.append_layout(full.root(), footer_style.clone(), 0xff0000ff)
+            .unwrap();
+        let mut tx = Transaction::default();
+        tx.translation(full_host, [2.0, 0.0]);
+        tx.text(
+            full_leaf,
+            Some(TextPaint {
+                resource: resource.clone(),
+                color: 0x00ffffff,
+            }),
+        );
+        full.commit(tx, BackendCapabilities::default()).unwrap();
+        assert_eq!(
+            actual,
+            pixels(full.frame_in_viewport(constraints, [200.0, 700.0]).unwrap())
+        );
+        assert!(
+            actual
+                .chunks_exact(4)
+                .any(|p| p[0] == 0 && p[1] > 0 && p[2] > 0 && p[3] > 0)
+        );
+        assert_eq!(next.resolve_geometry(leaf).unwrap().bounds.x, 7.0);
+        if old.is_none() {
+            old = Some((first.clone(), pixels(first.resolve())));
+        }
+    }
+    let (old, original) = old.unwrap();
+    drop(ui);
+    drop(system);
+    drop(raster);
+    assert_eq!(pixels(old.resolve()), original);
+}
+
 #[derive(Debug)]
 struct ParagraphParent;
 impl ParentLayout for ParagraphParent {
