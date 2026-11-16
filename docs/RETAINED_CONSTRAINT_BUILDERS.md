@@ -184,7 +184,10 @@ existing multi-stage ContainerQuery bindings with construction in one edit.
 Still open:
 general full-axis content-sized builders, complete RenderBox,
 automatic builder dependency scheduling and indexed/incremental
-planning, draft responsive registration/retirement, broader Flex/percentage/cyclic
+planning and broader Flex/percentage/cyclic
 sizing and device rounding. Modern desktop GPU/effects, CPU smooth delivery,
 sustained 60/120Hz and input-to-visible tail latency remain unqualified by this
 stage. No new GPU readback, browser comparison, or timing benchmark was run.
+
+[Scope-owned responsive declarations](RETAINED_SCOPED_RESPONSIVE_RULES.md) now
+add rule registration/update/removal and keyed retirement in the same edit.

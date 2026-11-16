@@ -141,7 +141,10 @@ and [atomic local edit output](RETAINED_ATOMIC_LOCAL_EDITS.md).
 [Explicit responsive stages](RETAINED_STRUCTURAL_RESPONSIVE.md) combine existing
 ContainerQuery rules and keyed inline builders in that atomic edit. Still open:
 general content-sized/full-axis builders, automatic dependency scheduling,
-complete RenderBox, draft rule registration/retirement, incremental planning, broad Flex/
+complete RenderBox, incremental planning, broad Flex/
 percentage/cyclic/baseline and device-rounding conformance. The actual GPU test
 uses GTX 1650 Ti; newer desktop GPU/effect workloads, sustained 60/120Hz, visible
 presentation, input-to-visible tails and CPU smoothness remain unqualified.
+
+[Scope-owned responsive declarations](RETAINED_SCOPED_RESPONSIVE_RULES.md) add
+draft registration/update/removal and rule retirement with keyed scopes.

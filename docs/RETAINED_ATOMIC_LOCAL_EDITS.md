@@ -101,7 +101,8 @@ full-reference pixel equality.
 
 The subsequent [structural responsive stage](RETAINED_STRUCTURAL_RESPONSIVE.md)
 combines existing ContainerQuery rules and explicit structural builders in this
-atomic edit. Still open: draft rule registration/retirement, automatic
+atomic edit. [Scope-owned declarations](RETAINED_SCOPED_RESPONSIVE_RULES.md)
+also add draft rule registration/retirement. Still open: automatic
 dependency scheduling, full-axis content-sized structural builders, incremental
 planner/rollback, general RenderBox and wider Flex conformance. This stage does
 not change GPU queue or resource lease semantics, qualify modern GPU effects,

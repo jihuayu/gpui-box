@@ -1,6 +1,7 @@
 //! Render construction retains independent, validated scope ownership.
 use super::*;
 use crate::retained::reactive::{ReactiveEdit, ReactiveEditCommit};
+mod responsive_rules;
 
 pub struct LogicalEdit<'a, 'draft, 'tree> {
     render: &'a mut ReactiveEdit<'draft, 'tree>,
@@ -23,6 +24,8 @@ pub struct LogicalEdit<'a, 'draft, 'tree> {
     frame_environment: Option<(LayoutConstraints, [f32; 2])>,
     constraint_inputs: Vec<super::constraint_builder::Observation>,
     responsive_inputs: Vec<responsive::structural::Observation>,
+    live_responsive_rules: &'a BTreeMap<(ScopeId, u64), responsive::LayoutBinding>,
+    responsive_rules: Option<BTreeMap<(ScopeId, u64), responsive::LayoutBinding>>,
 }
 impl LogicalEdit<'_, '_, '_> {
     /// Settle viewport/container rules against the current keyed/source draft.
@@ -103,7 +106,7 @@ impl LogicalEdit<'_, '_, '_> {
         Ok(preview)
     }
 
-    fn retired_outputs(&self) -> Result<Vec<NodeId>, Error> {
+    fn retired_scopes(&self) -> Result<BTreeSet<ScopeId>, Error> {
         let mut dead = BTreeSet::new();
         let mut stack: Vec<_> = self.removed_scopes.iter().copied().collect();
         while let Some(id) = stack.pop() {
@@ -111,6 +114,11 @@ impl LogicalEdit<'_, '_, '_> {
                 stack.extend(self.children(id)?);
             }
         }
+        Ok(dead)
+    }
+
+    fn retired_outputs(&self) -> Result<Vec<NodeId>, Error> {
+        let dead = self.retired_scopes()?;
         Ok(self
             .owners
             .iter()
@@ -443,6 +451,7 @@ impl LogicalUi {
         let mut removed_scopes = BTreeSet::new();
         let mut added_sources = BTreeMap::new();
         let mut added_effects = BTreeMap::new();
+        let mut responsive_rules = None;
         let constraint_inputs: std::cell::RefCell<Vec<super::constraint_builder::Observation>> =
             std::cell::RefCell::new(vec![]);
         let responsive_inputs: std::cell::RefCell<Vec<responsive::structural::FinalObservation>> =
@@ -472,8 +481,11 @@ impl LogicalUi {
                     frame_environment,
                     constraint_inputs: vec![],
                     responsive_inputs: vec![],
+                    live_responsive_rules: &self.responsive_rules,
+                    responsive_rules: None,
                 };
                 let value = render(value, &mut draft)?;
+                draft.retire_responsive_rules()?;
                 let mut dead = BTreeSet::new();
                 let mut stack: Vec<_> = draft.removed_scopes.iter().copied().collect();
                 while let Some(id) = stack.pop() {
@@ -598,6 +610,8 @@ impl LogicalUi {
                         }
                     }
                 }
+                draft.validate_responsive_rules()?;
+                responsive_rules = draft.responsive_rules.take();
                 *responsive_inputs.borrow_mut() = draft
                     .responsive_inputs
                     .into_iter()
@@ -678,6 +692,9 @@ impl LogicalUi {
             if !removed_scopes.contains(&id) {
                 self.scope_mut(id).effects.insert(key, effect);
             }
+        }
+        if let Some(rules) = responsive_rules {
+            self.responsive_rules = rules;
         }
         let live_inserted: BTreeSet<_> = result.inserted.iter().copied().collect();
         for node in inserted_order {

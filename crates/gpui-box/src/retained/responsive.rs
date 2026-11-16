@@ -176,7 +176,7 @@ pub struct BreakpointStyles {
 
 /// Engine-independent breakpoint rules. Unlike `BreakpointStyles`, this type
 /// does not expose a Taffy `Style` in either its inputs or outputs.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct LayoutBreakpointStyles {
     thresholds: Vec<f32>,
     styles: Vec<LayoutStyle>,
@@ -212,12 +212,12 @@ impl LayoutBreakpointStyles {
 }
 
 #[derive(Clone)]
-struct LayoutBinding {
-    binding: reactive::BindingId,
-    source: Signal<LayoutStyle>,
-    target: NodeId,
-    styles: LayoutBreakpointStyles,
-    query: LayoutQuery,
+pub(in crate::retained) struct LayoutBinding {
+    pub(in crate::retained) binding: reactive::BindingId,
+    pub(in crate::retained) source: Signal<LayoutStyle>,
+    pub(in crate::retained) target: NodeId,
+    pub(in crate::retained) styles: LayoutBreakpointStyles,
+    pub(in crate::retained) query: LayoutQuery,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -234,7 +234,7 @@ pub enum LayoutQuery {
 /// may copy the owned tree and repeat layout during final publication.
 #[derive(Clone, Default)]
 pub struct LayoutResponsiveBindings {
-    bindings: Vec<LayoutBinding>,
+    pub(in crate::retained) bindings: Vec<LayoutBinding>,
 }
 
 impl LayoutResponsiveBindings {

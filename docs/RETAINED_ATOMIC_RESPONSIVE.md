@@ -157,8 +157,9 @@ asserts a red pixel after the breakpoint and verifies idle submit suppression.
 Subsequent stages add [parent BoxConstraints](RETAINED_PARENT_CONSTRAINTS.md),
 [full/inline builders](RETAINED_INLINE_CONSTRAINT_BUILDERS.md) and
 [explicit ContainerQuery/keyed construction composition](RETAINED_STRUCTURAL_RESPONSIVE.md).
-Still open: general full-axis content-sized structural builders, draft responsive
-rule registration/retirement and automatic dependency scheduling;
+[Scope-owned declarations](RETAINED_SCOPED_RESPONSIVE_RULES.md) add draft rule
+registration/retirement. Still open: general full-axis content-sized structural
+builders and automatic dependency scheduling;
 broader Flex/percentage/baseline and query proofs;
 cached/indexed dispatch and reducing planning copies; sustained 60/120Hz,
 full-chain tail latency, modern desktop GPU effects and CPU smoothness

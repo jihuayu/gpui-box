@@ -176,8 +176,9 @@ CPU full references, real Noto shaping/rasterization and explicit hardware
 readback cover viewport → ContainerQuery → keyed inline construction, content
 height, footer geometry/hit testing, repeated retirement and old snapshots.
 
-Still open: registering/retiring responsive rules inside a draft; automatic
-cross-builder/query scheduling; general full-axis content-sized structural
+The subsequent [scope-owned rule lifecycle](RETAINED_SCOPED_RESPONSIVE_RULES.md)
+adds draft registration/update/removal and retirement with keyed scopes.
+Still open: automatic cross-builder/query scheduling; general full-axis content-sized structural
 construction and complete RenderBox; custom-policy dependency declarations;
 incremental planning/rollback and indexed dispatch; broad Flex/percentage/cyclic/
 baseline/device-rounding conformance; modern desktop GPU effects, CPU smooth

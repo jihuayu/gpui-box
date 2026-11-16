@@ -164,6 +164,29 @@ impl FinalObservation {
 }
 
 impl LayoutResponsiveBindings {
+    pub(in crate::retained) fn validate_edit(
+        &self,
+        edit: &reactive::ReactiveEdit<'_, '_>,
+        capabilities: BackendCapabilities,
+        removed: &[NodeId],
+        candidate: Option<(
+            Signal<LayoutStyle>,
+            NodeId,
+            LayoutQuery,
+            &LayoutBreakpointStyles,
+        )>,
+    ) -> Result<(), Error> {
+        let preview = edit.preview(capabilities, removed)?;
+        self.validate_layout_rules(
+            &Context {
+                tree: &preview,
+                edit,
+            },
+            candidate,
+        )?;
+        Ok(())
+    }
+
     pub(in crate::retained) fn resolve_edit(
         &self,
         edit: &mut reactive::ReactiveEdit<'_, '_>,

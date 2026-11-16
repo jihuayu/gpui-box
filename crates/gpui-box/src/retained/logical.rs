@@ -66,6 +66,7 @@ pub struct LogicalUi {
     root: ScopeId,
     render_owners: BTreeMap<NodeId, ScopeId>,
     next_scope_generation: u64,
+    responsive_rules: BTreeMap<(ScopeId, u64), responsive::LayoutBinding>,
 }
 
 impl LogicalUi {
@@ -146,6 +147,7 @@ impl LogicalUi {
             root,
             render_owners,
             next_scope_generation: 1,
+            responsive_rules: BTreeMap::new(),
         })
     }
 
@@ -409,6 +411,20 @@ impl LogicalUi {
             .collect();
         self.ui
             .validate_scope_disposal(&dead_sources, &dead_effects)?;
+        // A surviving declaration must not retain a retired source or query
+        // host. Scope-owned rules retire with their owner; cross-scope inputs
+        // are otherwise ordinary live dependencies, not dangling metadata.
+        for ((owner, _), rule) in &self.responsive_rules {
+            if removed.contains(owner) {
+                continue;
+            }
+            if dead_sources.contains(&rule.source.dependency())
+                || matches!(rule.query, responsive::LayoutQuery::ContainerInline(host)
+                    if self.render_owners.get(&host).is_some_and(|owner| removed.contains(owner)))
+            {
+                return Err(Error::UnsafeContainerQuery);
+            }
+        }
         // A surviving portal cannot retain a host which is about to be destroyed.
         // Reject before modifying logical state, bindings or render topology.
         for (node, owner) in &self.render_owners {
@@ -492,6 +508,23 @@ impl LogicalUi {
             .checked_add(count)
             .ok_or(Error::RevisionExhausted)?;
         let prepared = self.ui.prepare_structure(render_tx)?;
+        let retired_rules: Vec<_> = self
+            .responsive_rules
+            .iter()
+            .filter(|((owner, _), _)| removed.contains(owner))
+            .map(|(id, rule)| (*id, rule.binding))
+            .collect();
+        for (id, _) in &retired_rules {
+            let rule = &self.responsive_rules[id];
+            self.ui
+                .validate_responsive_writer(rule.source, rule.target, rule.binding)?;
+        }
+        for (id, binding) in retired_rules {
+            self.ui
+                .unbind(binding)
+                .expect("prevalidated responsive retirement");
+            self.responsive_rules.remove(&id);
+        }
         // Cleanup observers before retiring any of their dependencies, including
         // inputs owned by other scopes in the same removal set.
         for effect in dead_effects.iter().rev() {

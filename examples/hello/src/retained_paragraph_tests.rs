@@ -22,6 +22,15 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 
 #[test]
 fn responsive_rules_and_keyed_paragraph_builder_share_atomic_local_output() {
+    responsive_paragraph_builder_frames(false);
+}
+
+#[test]
+fn scoped_rules_and_real_paragraph_share_atomic_local_output() {
+    responsive_paragraph_builder_frames(true);
+}
+
+fn responsive_paragraph_builder_frames(scoped: bool) {
     use gpui_box::retained::{logical::LogicalUi, responsive::*};
     let system = text_system();
     let paragraph = shape(&system, "one two three four five six 中文段落");
@@ -52,36 +61,38 @@ fn responsive_rules_and_keyed_paragraph_builder_share_atomic_local_output() {
     let size_source = ui.state(scope, 20, || container_style.clone()).unwrap();
     let box_source = ui.state(scope, 21, || boundary.clone()).unwrap();
     let mut responsive = LayoutResponsiveBindings::new();
-    responsive
-        .bind(
-            &mut ui,
-            size_source,
-            container,
-            LayoutBreakpointStyles::new(
-                container_style.clone(),
-                vec![(100.0, LayoutStyle::column().fixed_inline_size(150.0))],
+    if !scoped {
+        responsive
+            .bind(
+                &mut ui,
+                size_source,
+                container,
+                LayoutBreakpointStyles::new(
+                    container_style.clone(),
+                    vec![(100.0, LayoutStyle::column().fixed_inline_size(150.0))],
+                )
+                .unwrap(),
             )
-            .unwrap(),
-        )
-        .unwrap();
-    responsive
-        .bind_container(
-            &mut ui,
-            box_source,
-            host,
-            container,
-            LayoutBreakpointStyles::new(
-                boundary.clone(),
-                vec![(
-                    100.0,
-                    boundary
-                        .clone()
-                        .padding(LayoutEdges::all(LayoutLength::Px(5.0))),
-                )],
+            .unwrap();
+        responsive
+            .bind_container(
+                &mut ui,
+                box_source,
+                host,
+                container,
+                LayoutBreakpointStyles::new(
+                    boundary.clone(),
+                    vec![(
+                        100.0,
+                        boundary
+                            .clone()
+                            .padding(LayoutEdges::all(LayoutLength::Px(5.0))),
+                    )],
+                )
+                .unwrap(),
             )
-            .unwrap(),
-        )
-        .unwrap();
+            .unwrap();
+    }
     fn pixels(frame: FramePacket) -> Vec<u8> {
         let mut job = software::SoftwareJob::new(
             frame,
@@ -111,7 +122,38 @@ fn responsive_rules_and_keyed_paragraph_builder_share_atomic_local_output() {
                 [200.0, 700.0],
                 |_| Ok(()),
                 |(), edit| {
-                    edit.responsive(&responsive, &LayoutEnvironment::new([env_width, 700.0]))?;
+                    if scoped {
+                        edit.responsive_rule(
+                            scope,
+                            20,
+                            size_source,
+                            container,
+                            LayoutQuery::ViewportInline,
+                            LayoutBreakpointStyles::new(
+                                container_style.clone(),
+                                vec![(100.0, LayoutStyle::column().fixed_inline_size(150.0))],
+                            )?,
+                        )?;
+                        edit.responsive_rule(
+                            scope,
+                            21,
+                            box_source,
+                            host,
+                            LayoutQuery::ContainerInline(container),
+                            LayoutBreakpointStyles::new(
+                                boundary.clone(),
+                                vec![(
+                                    100.0,
+                                    boundary
+                                        .clone()
+                                        .padding(LayoutEdges::all(LayoutLength::Px(5.0))),
+                                )],
+                            )?,
+                        )?;
+                        edit.responsive_registered(&LayoutEnvironment::new([env_width, 700.0]))?;
+                    } else {
+                        edit.responsive(&responsive, &LayoutEnvironment::new([env_width, 700.0]))?;
+                    }
                     edit.inline_constraint_builder(host, |input, edit| {
                         assert_eq!(input.max, width);
                         let branch = edit.reconcile_keys(scope, &[u64::from(wide)])?[0];

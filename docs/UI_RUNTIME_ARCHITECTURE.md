@@ -218,10 +218,18 @@ axis、sizing/margin mode 与硬 bounds 全部匹配，保留基线/overflow 等
 binding 和 effect 参与同一次结算；sink/effect 只接收最终值。最终发布复验每次
 调用观察的 content width、选中 source、精确 writer 和依赖证明，新加 layout
 sink 也纳入检查；错误回滚，调用者捕获规则错误时仍恢复该次 source savepoint。
-这使已注册规则与结构构建可以在同一原子编辑中显式编排。规则的草稿内注册/退休、
-跨 builder 自动依赖调度仍未实现。完整 preview、source map clone、computed 扫描
+这使已注册规则与结构构建可以在同一原子编辑中显式编排。跨 builder 自动依赖调度
+仍未实现。完整 preview、source map clone、computed 扫描
 排序及证明/DAG 复验仍增加成本，不能据此宣称端到端性能提高。详见
 [响应式结构构建契约与 ADR](RETAINED_STRUCTURAL_RESPONSIVE.md)。
+新增 `(ScopeId, key)` 归属的 `responsive_rule` / `remove_responsive_rule` 与
+`responsive_registered`，允许新 scope/source/node 和规则在同一草稿构建并原子发布。
+同值声明保留 writer，更新断点/query 保留身份，source/target 改变需显式移除后重建。
+scope 退休自动解绑所属规则；存活规则不能留下已退休的 source/query host，portal
+移动也不能绕过此依赖检查。声明不自动求值，已观察规则不能通过移除抹去最终校验。
+注册表在首个元数据修改时整体 clone；声明和最终 preflight 仍生成完整 preview，
+没有自动 scheduler 或性能收益结论。详见
+[作用域响应式规则生命周期](RETAINED_SCOPED_RESPONSIVE_RULES.md)。
 详见 [嵌套协议](RETAINED_NESTED_CONSTRAINT_BOX.md) 与
 [构建器契约和决策](RETAINED_CONSTRAINT_BUILDERS.md)。
 缓存新增每节点四个 float 的约束
