@@ -346,7 +346,9 @@ impl OofAxis {
 /// [`CoreStyle::is_containing_block`]. `position: fixed` boxes unclaimed by every ancestor are
 /// claimed by the final root positioning pass in [`compute_root_layout`](crate::compute_root_layout).
 pub fn compute_oof_layout(tree: &mut impl LayoutContainingBlock, node_id: NodeId, output: &mut LayoutOutput) {
-    let Some(area) = output.oof_positioning_area else { return };
+    let Some(area) = output.oof_positioning_area else {
+        return;
+    };
 
     let style = tree.get_core_container_style(node_id);
     let direction = style.direction();
@@ -450,6 +452,7 @@ pub(crate) fn layout_oof_box<Tree: LayoutContainingBlock>(
     direction: Direction,
     container_overflow: Point<Overflow>,
     #[cfg(feature = "grid")] grid_owner: Option<NodeId>,
+    bounds: crate::tree::SizeBounds,
     before_layout: impl FnOnce(&mut Tree, &LayoutInput),
 ) -> OofBoxLayout {
     let child_style = tree.get_oof_item_style(candidate.node);
@@ -590,6 +593,7 @@ pub(crate) fn layout_oof_box<Tree: LayoutContainingBlock>(
         min_style,
         max_style,
         LayoutInput {
+            size_bounds: bounds,
             known_dimensions: style_size,
             parent_size: area_size.map(Some),
             available_space: available_space.map(AvailableSpace::Definite),
@@ -600,7 +604,9 @@ pub(crate) fn layout_oof_box<Tree: LayoutContainingBlock>(
     );
     min_size = intrinsic_min.or(min_size);
     max_size = intrinsic_max.or(max_size);
-    let mut known_dimensions = style_size.maybe_clamp(min_size, max_size);
+    (min_size, max_size) = bounds.limits(min_size, max_size);
+    let tight_dimensions = bounds.min.zip_map(bounds.max, |min, max| (min == max).then_some(min));
+    let mut known_dimensions = tight_dimensions.or(style_size).maybe_clamp(min_size, max_size);
     let available_space = available_space.maybe_clamp(min_size, max_size).map(AvailableSpace::Definite);
 
     // Resolve any sizing keywords (min-content, max-content, fit-content, fit-content(...),
@@ -672,6 +678,7 @@ pub(crate) fn layout_oof_box<Tree: LayoutContainingBlock>(
     .maybe_clamp(min_size, max_size);
 
     let layout_input = LayoutInput {
+        size_bounds: bounds,
         known_dimensions: final_size.map(Some),
         known_dimensions_are_definite: Size { width: true, height: true },
         parent_size: area_size.map(Some),
@@ -813,6 +820,7 @@ pub(crate) fn perform_oof_layout(
             container_overflow,
             #[cfg(feature = "grid")]
             Some(node_id),
+            crate::tree::SizeBounds::NONE,
             |_, _| {},
         );
         let location = layout.location;

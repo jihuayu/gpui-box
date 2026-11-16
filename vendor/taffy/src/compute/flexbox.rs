@@ -143,6 +143,8 @@ struct FlexLine<'a> {
 
 /// Values that can be cached during the flexbox algorithm
 struct AlgoConstants {
+    /// External border-box bounds for this container only.
+    size_bounds: crate::tree::SizeBounds,
     /// The direction of the current segment being laid out
     dir: FlexDirection,
     /// The layout direction of the current segment being laid out
@@ -273,6 +275,7 @@ pub fn compute_flexbox_layout(
         min_size = Size::NONE;
         max_size = Size::NONE;
     }
+    (min_size, max_size) = inputs.size_bounds.limits(min_size, max_size);
     let clamped_style_size = if inputs.sizing_mode == SizingMode::InherentSize {
         style
             .size()
@@ -291,10 +294,14 @@ pub fn compute_flexbox_layout(
     });
 
     // The size of the container should be floored by the padding and border
-    let styled_based_known_dimensions =
-        known_dimensions.or(min_max_definite_size.or(clamped_style_size).maybe_max(padding_border_sum));
+    let styled_based_known_dimensions = known_dimensions
+        .or(min_max_definite_size.or(clamped_style_size).maybe_max(inputs.size_bounds.floor(padding_border_sum)));
     let styled_based_known_dimensions = styled_based_known_dimensions
         .or(super::common::size_containment::contained_size(inputs, &style, |value, basis| tree.calc(value, basis)));
+    let styled_based_known_dimensions = styled_based_known_dimensions
+        .zip_map(inputs.size_bounds.min.zip_map(inputs.size_bounds.max, |min, max| (min, max)), |known, (min, max)| {
+            known.map(|value| value.clamp(min, max))
+        });
 
     // Short-circuit layout if the container's size is fully determined by the container's size and the run mode
     // is ComputeSize (and thus the container's size is all that we're interested in)
@@ -375,6 +382,7 @@ fn compute_preliminary(
 
     constants.min_size = min_size;
     constants.max_size = max_size;
+    constants.size_bounds = inputs.size_bounds;
 
     // 9. Flex Layout Algorithm
 
@@ -423,7 +431,8 @@ fn compute_preliminary(
     // and then re-resolve gaps based on newly determined size
     debug_log!("determine_container_main_size");
     if let Some(inner_main_size) = constants.node_inner_size.main(constants.dir) {
-        let outer_main_size = inner_main_size + constants.content_box_inset.main_axis_sum(constants.dir);
+        let outer_main_size = (inner_main_size + constants.content_box_inset.main_axis_sum(constants.dir))
+            .min(constants.size_bounds.max.main(constants.dir));
         constants.inner_container_size.set_main(constants.dir, inner_main_size);
         constants.container_size.set_main(constants.dir, outer_main_size);
     } else {
@@ -549,7 +558,8 @@ fn compute_preliminary(
             top: 0.0,
             bottom: constants.scrollbar_gutter.y,
         };
-    let absolute_position_area = constants.container_size - absolute_position_inset.sum_axes();
+    let absolute_position_area =
+        (constants.container_size - absolute_position_inset.sum_axes()).map(|value| value.max(0.0));
     let absolute_position_offset = Point { x: absolute_position_inset.left, y: absolute_position_inset.top };
 
     debug_log!("hidden_layout");
@@ -677,7 +687,7 @@ fn compute_constants(
     };
 
     let node_outer_size = known_dimensions;
-    let node_inner_size = node_outer_size.maybe_sub(content_box_inset.sum_axes());
+    let node_inner_size = node_outer_size.maybe_sub(content_box_inset.sum_axes()).maybe_max(Size::ZERO);
     let known_main_size_is_definite = known_dimensions_are_definite.main(dir);
     let has_definite_main_size = known_main_size_is_definite && known_dimensions.main(dir).is_some();
     let has_definite_cross_size = known_dimensions_are_definite.cross(dir) && known_dimensions.cross(dir).is_some();
@@ -689,6 +699,7 @@ fn compute_constants(
     let inner_container_size = Size::zero();
 
     AlgoConstants {
+        size_bounds: crate::tree::SizeBounds::NONE,
         dir,
         layout_direction,
         is_row,
@@ -1775,7 +1786,10 @@ fn determine_container_main_size(
 
     let outer_main_size = outer_main_size
         .maybe_clamp(constants.min_size.main(constants.dir), constants.max_size.main(constants.dir))
-        .max(main_content_box_inset - constants.scrollbar_gutter.main(constants.dir));
+        .max(
+            (main_content_box_inset - constants.scrollbar_gutter.main(constants.dir))
+                .min(constants.size_bounds.max.main(constants.dir)),
+        );
 
     // let outer_main_size = inner_main_size + constants.padding_border.main_axis_sum(constants.dir);
     let inner_main_size = f32_max(outer_main_size - main_content_box_inset, 0.0);
@@ -2070,6 +2084,7 @@ fn determine_hypothetical_cross_size(
             tree.compute_child_layout(
                 child.node,
                 LayoutInput {
+                    size_bounds: crate::tree::SizeBounds::NONE,
                     run_mode: RunMode::ComputeSize,
                     sizing_mode: SizingMode::ContentSize,
                     axis: constants.dir.cross_axis().into(),
@@ -2131,6 +2146,7 @@ fn calculate_children_base_lines(
             let measured_size_and_baselines = tree.compute_child_layout(
                 child.node,
                 LayoutInput {
+                    size_bounds: crate::tree::SizeBounds::NONE,
                     run_mode: RunMode::PerformLayout,
                     sizing_mode: SizingMode::ContentSize,
                     axis: RequestedAxis::Both,
@@ -2565,7 +2581,9 @@ fn align_flex_items_along_cross_axis(
         }
         // Normal is resolved to Stretch, and SelfStart/SelfEnd are resolved to Start/End
         // against the item's own direction when flex items are generated.
-        AlignItemsKeyword::Normal | AlignItemsKeyword::SelfStart | AlignItemsKeyword::SelfEnd => unreachable!(),
+        AlignItemsKeyword::Normal | AlignItemsKeyword::SelfStart | AlignItemsKeyword::SelfEnd => {
+            unreachable!()
+        }
     }
 }
 
@@ -2596,7 +2614,7 @@ fn determine_container_cross_size(
         .cross(constants.dir)
         .unwrap_or(total_line_cross_size + total_cross_axis_gap + padding_border_sum)
         .maybe_clamp(min_cross_size, max_cross_size)
-        .max(padding_border_sum - cross_scrollbar_gutter);
+        .max((padding_border_sum - cross_scrollbar_gutter).min(constants.size_bounds.max.cross(constants.dir)));
     let inner_container_size = f32_max(outer_container_size - padding_border_sum, 0.0);
 
     constants.container_size.set_cross(constants.dir, outer_container_size);
@@ -2651,6 +2669,7 @@ fn calculate_flex_item(
     let mut layout_output = tree.compute_child_layout(
         item.node,
         LayoutInput {
+            size_bounds: crate::tree::SizeBounds::NONE,
             run_mode: RunMode::PerformLayout,
             sizing_mode: SizingMode::ContentSize,
             axis: RequestedAxis::Both,

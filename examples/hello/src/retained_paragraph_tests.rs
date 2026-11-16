@@ -21,6 +21,67 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 }
 
 #[test]
+fn parent_box_width_reflows_real_paragraph_and_intrinsic_height_without_rewriting_style() {
+    let paragraph = shape(&text_system(), "one two three four five six seven 中文段落");
+    for intrinsic_height in 0..3 {
+        let mut style = LayoutStyle::row().size(
+            LayoutDimension::Px(500.0),
+            if intrinsic_height == 1 {
+                LayoutDimension::MinContent
+            } else {
+                LayoutDimension::Auto
+            },
+        );
+        if intrinsic_height == 2 {
+            style = style.min_size(LayoutDimension::Px(200.0), LayoutDimension::MinContent);
+        }
+        let mut tree = UiTree::new_layout(style.clone(), 0xffffffff).unwrap();
+        let mut tx = Transaction::default();
+        tx.measure(
+            tree.root(),
+            Some(MeasureSnapshot::Paragraph(paragraph.clone())),
+        );
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+        let available = LayoutConstraints::new(
+            LayoutAvailableSpace::Unbounded,
+            LayoutAvailableSpace::Unbounded,
+        );
+        let mut old = None;
+        for width in [50.0, 90.0, 140.0, 50.0] {
+            let input =
+                available.with_bounds(BoxConstraints::new([width, 0.0], [width, f32::INFINITY]));
+            let frame = tree
+                .local_frame_in_viewport(input, [500.0, 1000.0])
+                .unwrap();
+            let result = tree.layout_result(tree.root()).unwrap();
+            assert_eq!(
+                result.size,
+                paragraph.layout(Some(width)).unwrap().size,
+                "{intrinsic_height}/{width}"
+            );
+            assert_eq!(result.baseline, Some(paragraph.first_baseline()));
+            assert_eq!(
+                tree.local_frame_in_viewport(input, [500.0, 1000.0])
+                    .unwrap()
+                    .revision(),
+                frame.revision()
+            );
+            if old.is_none() {
+                old = Some(frame);
+            }
+        }
+        assert_eq!(
+            old.unwrap()
+                .resolve_geometry(tree.root())
+                .unwrap()
+                .bounds
+                .width,
+            50.0
+        );
+    }
+}
+
+#[test]
 fn unbounded_paragraph_measurement_and_finite_viewport_remain_independent() {
     let system = text_system();
     let paragraph = shape(&system, "one two three four five six seven 中文段落");

@@ -160,8 +160,14 @@ hypothetical outer size、margin/gap/inset 决定自然尺寸，不运行 MaxCon
 的 intrinsic flex-fraction 算法。百分比基准来自布局，不借用呈现窗口；OOF
 初始包含块在不确定轴回退根 padding box。仅 viewport 改变会更新完整裁剪
 输出，但布局次数为零。显式 intrinsic 样式和尺寸隔离仍保留各自语义。
-这仍不是 Flutter min/max BoxConstraints 或 ConstraintBuilder，结构自适应
-也未完成。详见 [无上限布局契约](RETAINED_UNBOUNDED_LAYOUT.md)。
+新增 `BoxConstraints` 和 `LayoutConstraints::with_bounds` 提供独立的父级硬
+border-box min/max 区间，接入真实布局根和独立子树测量。父硬约束优先于样式
+preferred/min/max、宽高比与 padding floor；tight 轴为确定分配，loose max 不
+自动成为百分比高度基准。约束参与换行、grow/shrink 和最终宽度文字测量，不在
+绘制包上事后 clamp。每个布局 invocation 的根读取该区间，子代仍由正常算法分配；
+尚无嵌套 ConstraintBuilder 或结构分支构建。缓存新增每节点四个 float 的约束
+mode，变化时拒绝旧结果。详见 [父约束契约](RETAINED_PARENT_CONSTRAINTS.md)
+与 [无上限布局契约](RETAINED_UNBOUNDED_LAYOUT.md)。
 独立的 `measure_with_constraints` 查询仍不发布绘制 frame；
 `measure_node_with_constraints(node, constraints)` 可以对任意活跃子树执行
 同样的 measure-only 查询；结果局部于被查询节点，不发布 frame，也不把子树

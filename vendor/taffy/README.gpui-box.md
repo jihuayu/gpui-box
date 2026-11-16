@@ -12,6 +12,18 @@ local test artifacts and ignored.
 
 ## Local changes
 
+- Host/parent border-box `SizeBounds` is independent of authored min/max and
+  soft AvailableSpace. `LayoutInput::size_bounds` participates in real root,
+  leaf/Flex/Grid/Block/OOF sizing; child calls reset it, and exact parent sizes
+  establish definite assignments. Host maxima can override padding floors;
+  negative inner/positioning sizes floor to zero. One bounds mode per node
+  cache rejects stale results without growing each entry key. High-level
+  `compute_layout_with_bounds_and_measure_and_observer` validates inputs;
+  existing entry points pass NONE. Complete LayoutInput literals and exhaustive
+  TaffyError matches need migration. See the framework's
+  [parent-constraint contract](../../docs/RETAINED_PARENT_CONSTRAINTS.md), including
+  memory costs and the remaining nested ConstraintBuilder/structure work.
+
 - `AvailableSpace::Unbounded` represents normal indefinite layout, separate
   from intrinsic MinContent/MaxContent. Flex uses hypothetical outer sizes for
   normal unbounded main sizing; real bounds constrain wrapping/growth. Grid

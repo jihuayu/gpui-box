@@ -361,15 +361,99 @@ impl AvailableSpace {
     }
 }
 
+/// Parent-supplied hard border-box bounds. These take precedence over authored
+/// sizes, style min/max, aspect ratio and padding floors. They apply only to the
+/// root of a layout/measurement invocation; child Flex allocation remains the
+/// layout algorithm's responsibility. Hidden roots remain zero-sized.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BoxConstraints {
+    pub min: LayoutSize<f32>,
+    /// Positive infinity denotes an unbounded maximum. Minima must be finite.
+    pub max: LayoutSize<f32>,
+}
+
+impl BoxConstraints {
+    pub const UNBOUNDED: Self = Self::new([0.0, 0.0], [f32::INFINITY, f32::INFINITY]);
+
+    pub const fn new(min: [f32; 2], max: [f32; 2]) -> Self {
+        Self {
+            min: LayoutSize::new(min[0], min[1]),
+            max: LayoutSize::new(max[0], max[1]),
+        }
+    }
+    pub const fn tight(size: [f32; 2]) -> Self {
+        Self::new(size, size)
+    }
+    pub const fn loose(max: [f32; 2]) -> Self {
+        Self::new([0.0, 0.0], max)
+    }
+
+    pub fn validate(self) -> Result<(), Error> {
+        for (min, max) in [
+            (self.min.width, self.max.width),
+            (self.min.height, self.max.height),
+        ] {
+            if !min.is_finite() || min < 0.0 || max.is_nan() || max < min {
+                return Err(Error::InvalidConstraints);
+            }
+        }
+        Ok(())
+    }
+
+    /// Validate before clamping; invalid constraints/sizes never reach layout.
+    pub fn constrain(self, size: [f32; 2]) -> Result<[f32; 2], Error> {
+        self.validate()?;
+        if size.iter().any(|value| !value.is_finite() || *value < 0.0) {
+            return Err(Error::InvalidConstraints);
+        }
+        Ok([
+            size[0].clamp(self.min.width, self.max.width),
+            size[1].clamp(self.min.height, self.max.height),
+        ])
+    }
+
+    pub(crate) fn to_taffy(self) -> Result<taffy::SizeBounds, Error> {
+        self.validate()?;
+        Ok(taffy::SizeBounds {
+            min: taffy::Size {
+                width: self.min.width,
+                height: self.min.height,
+            },
+            max: taffy::Size {
+                width: self.max.width,
+                height: self.max.height,
+            },
+        })
+    }
+}
+
+impl Default for BoxConstraints {
+    fn default() -> Self {
+        Self::UNBOUNDED
+    }
+}
+
+/// Soft available space, percentage basis and independent hard border-box
+/// bounds for the layout root (or the root of a measure-only subtree query).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LayoutConstraints {
     pub width: AvailableSpace,
     pub height: AvailableSpace,
+    pub bounds: BoxConstraints,
 }
 
 impl LayoutConstraints {
     pub const fn new(width: AvailableSpace, height: AvailableSpace) -> Self {
-        Self { width, height }
+        Self {
+            width,
+            height,
+            bounds: BoxConstraints::UNBOUNDED,
+        }
+    }
+
+    pub const fn with_bounds(mut self, bounds: BoxConstraints) -> Self {
+        self.bounds = bounds;
+        self
     }
 
     pub const fn viewport(width: f32, height: f32) -> Self {
@@ -382,6 +466,7 @@ impl LayoutConstraints {
     pub fn validate(self) -> Result<(), Error> {
         self.width.validate()?;
         self.height.validate()?;
+        self.bounds.validate()?;
         Ok(())
     }
 }
@@ -803,6 +888,8 @@ impl LayoutStyle {
 
 #[cfg(test)]
 mod baseline_tests;
+#[cfg(test)]
+mod box_constraints_tests;
 #[cfg(test)]
 mod containment_tests;
 #[cfg(test)]

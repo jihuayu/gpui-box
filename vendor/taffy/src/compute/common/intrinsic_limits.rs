@@ -27,6 +27,10 @@ pub(crate) fn resolve_intrinsic_limits(
     if inputs.sizing_mode == SizingMode::ContentSize {
         return (Size::NONE, Size::NONE);
     }
+    // Intrinsic contributions remain uncapped; the caller applies host bounds
+    // to the chosen used size after resolving the authored intrinsic limits.
+    let bounds = inputs.size_bounds;
+    let inputs = LayoutInput { size_bounds: crate::tree::SizeBounds::NONE, ..inputs };
     if ![min.width, min.height, max.width, max.height].into_iter().any(Dimension::is_sizing_keyword) {
         return (Size::NONE, Size::NONE);
     }
@@ -38,14 +42,16 @@ pub(crate) fn resolve_intrinsic_limits(
     let aspect_ratio = style.aspect_ratio();
     let numeric_min = min.maybe_resolve(inputs.parent_size, |v, b| tree.calc(v, b)).maybe_add(adjustment);
     let numeric_max = max.maybe_resolve(inputs.parent_size, |v, b| tree.calc(v, b)).maybe_add(adjustment);
-    let mut known = inputs
-        .known_dimensions
-        .or(style
-            .size()
-            .maybe_resolve(inputs.parent_size, |v, b| tree.calc(v, b))
-            .maybe_apply_aspect_ratio(style.aspect_ratio())
-            .maybe_add(adjustment))
-        .maybe_clamp(numeric_min, numeric_max);
+    let mut known = bounds.known(
+        inputs
+            .known_dimensions
+            .or(style
+                .size()
+                .maybe_resolve(inputs.parent_size, |v, b| tree.calc(v, b))
+                .maybe_apply_aspect_ratio(style.aspect_ratio())
+                .maybe_add(adjustment))
+            .maybe_clamp(numeric_min, numeric_max),
+    );
     drop(style);
     let mut resolved = [Size::NONE, Size::NONE];
     for axis in [AbsoluteAxis::Horizontal, AbsoluteAxis::Vertical] {
@@ -82,7 +88,7 @@ pub(crate) fn resolve_intrinsic_limits(
         }
         // Width-dependent block-axis intrinsic limits use the constrained used
         // inline size when one is known, including newly resolved width limits.
-        known = known.maybe_clamp(resolved[0].or(numeric_min), resolved[1].or(numeric_max));
+        known = bounds.known(known.maybe_clamp(resolved[0].or(numeric_min), resolved[1].or(numeric_max)));
     }
     // Match numeric min/max's existing ratio transfer. A newly resolved width
     // limit must constrain the auto height before an earlier preferred-width

@@ -99,7 +99,7 @@ where
                     Some(SizingKeywordResolution::Measure(space)) => {
                         let mut query = available_space;
                         set_axis(&mut query, axis, space);
-                        let mut known = node_size.maybe_clamp(node_min_size, node_max_size);
+                        let mut known = inputs.size_bounds.known(node_size.maybe_clamp(node_min_size, node_max_size));
                         set_axis(&mut known, axis, None);
                         query = known.map(|value| value.map(AvailableSpace::Definite)).unwrap_or(query);
                         let measured = measure_function(
@@ -125,13 +125,19 @@ where
         node_size = node_size.maybe_clamp(node_min_size, node_max_size);
     }
 
+    (node_min_size, node_max_size) = inputs.size_bounds.limits(node_min_size, node_max_size);
+    let padding_border_floor = inputs.size_bounds.floor(pb_sum);
+    node_size = node_size.maybe_clamp(node_min_size, node_max_size);
+
     // Contained auto axes use an empty content contribution before measuring
     // the other axis. In particular, inline containment must wrap a paragraph
     // against its actual used width rather than the ancestor's available width.
     let contained = style.contain().size_containment();
     if contained.width || contained.height {
-        let empty_size =
-            content_box_inset.sum_axes().maybe_clamp(node_min_size, node_max_size).maybe_max(pb_sum.map(Some));
+        let empty_size = content_box_inset
+            .sum_axes()
+            .maybe_clamp(node_min_size, node_max_size)
+            .maybe_max(padding_border_floor.map(Some));
         node_size = node_size
             .maybe_apply_aspect_ratio(aspect_ratio)
             .or(Size {
@@ -163,7 +169,7 @@ where
         if let Size { width: Some(width), height: Some(height) } = node_size {
             let size = Size { width, height }
                 .maybe_clamp(node_min_size, node_max_size)
-                .maybe_max(padding_border.sum_axes().map(Some));
+                .maybe_max(padding_border_floor.map(Some));
             return LayoutOutput {
                 size,
                 #[cfg(feature = "content_size")]
@@ -187,7 +193,8 @@ where
             .maybe_set(known_dimensions.width)
             .maybe_set(node_size.width)
             .map_definite_value(|size| {
-                size.maybe_clamp(node_min_size.width, node_max_size.width) - content_box_inset.horizontal_axis_sum()
+                (size.maybe_clamp(node_min_size.width, node_max_size.width) - content_box_inset.horizontal_axis_sum())
+                    .max(0.0)
             }),
         height: known_dimensions
             .height
@@ -196,7 +203,8 @@ where
             .maybe_set(known_dimensions.height)
             .maybe_set(node_size.height)
             .map_definite_value(|size| {
-                size.maybe_clamp(node_min_size.height, node_max_size.height) - content_box_inset.vertical_axis_sum()
+                (size.maybe_clamp(node_min_size.height, node_max_size.height) - content_box_inset.vertical_axis_sum())
+                    .max(0.0)
             }),
     };
 
@@ -221,7 +229,7 @@ where
         width: clamped_size.width,
         height: f32_max(clamped_size.height, aspect_ratio.map(|ratio| clamped_size.width / ratio).unwrap_or(0.0)),
     };
-    let size = size.maybe_max(padding_border.sum_axes().map(Some));
+    let size = inputs.size_bounds.constrain(size.maybe_max(padding_border_floor.map(Some)));
 
     // A scroll container's own padding at the end of the content is part of its scrollable
     // overflow region, so it is included in the overflow rect. Boxes that are not scroll

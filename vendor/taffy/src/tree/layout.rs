@@ -119,10 +119,91 @@ impl TryFrom<RequestedAxis> for AbsoluteAxis {
     }
 }
 
+/// Hard border-box size bounds supplied by the host/parent, independent of CSS
+/// min/max styles and soft available space. Infinity is the unbounded maximum.
+#[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct SizeBounds {
+    /// Minimum border-box size.
+    pub min: Size<f32>,
+    /// Maximum border-box size; positive infinity means no upper bound.
+    pub max: Size<f32>,
+}
+
+impl SizeBounds {
+    /// No externally imposed bounds.
+    pub const NONE: Self = Self { min: Size::ZERO, max: Size { width: f32::INFINITY, height: f32::INFINITY } };
+
+    /// Bounds are ordered and nonnegative; only maxima may be positive infinity.
+    pub fn is_valid(self) -> bool {
+        [(self.min.width, self.max.width), (self.min.height, self.max.height)]
+            .into_iter()
+            .all(|(min, max)| min.is_finite() && min >= 0.0 && !max.is_nan() && max >= min)
+    }
+
+    /// Clamp a chosen size. External bounds take precedence over style limits,
+    /// aspect ratio and the usual CSS padding/border floor.
+    pub fn constrain(self, size: Size<f32>) -> Size<f32> {
+        Size {
+            width: size.width.clamp(self.min.width, self.max.width),
+            height: size.height.clamp(self.min.height, self.max.height),
+        }
+    }
+
+    /// Constrain known axes without turning loose bounds into exact dimensions.
+    pub(crate) fn known(self, size: Size<Option<f32>>) -> Size<Option<f32>> {
+        size.zip_map(self.min.zip_map(self.max, |min, max| (min, max)), |value, (min, max)| {
+            value.map(|value| value.clamp(min, max))
+        })
+    }
+
+    /// The largest permitted padding/border floor; excess decoration overflows.
+    pub(crate) fn floor(self, padding_border: Size<f32>) -> Size<f32> {
+        padding_border.zip_map(self.max, f32::min)
+    }
+
+    /// Combine style limits with the parent's stronger border-box limits.
+    pub(crate) fn limits(
+        self,
+        min: Size<Option<f32>>,
+        max: Size<Option<f32>>,
+    ) -> (Size<Option<f32>>, Size<Option<f32>>) {
+        if self == Self::NONE {
+            return (min, max);
+        }
+        let lower = min.zip_map(self.min, |style, parent| Some(style.unwrap_or(0.0).max(parent)));
+        let lower = lower.zip_map(self.max, |value, cap| value.map(|value| value.min(cap)));
+        let upper = max.zip_map(self.max, |style, parent| {
+            let value = style.unwrap_or(f32::INFINITY).min(parent);
+            value.is_finite().then_some(value)
+        });
+        let upper = upper.zip_map(self.min, |value, floor| value.map(|value| value.max(floor)));
+        (lower, upper)
+    }
+
+    /// Constrain soft normal layout space, preserving explicit intrinsic modes.
+    pub(crate) fn available(self, space: Size<AvailableSpace>) -> Size<AvailableSpace> {
+        space.zip_map(self.min.zip_map(self.max, |min, max| (min, max)), |space, (min, cap)| match space {
+            AvailableSpace::Definite(value) => AvailableSpace::Definite(value.clamp(min, cap)),
+            AvailableSpace::Unbounded if cap.is_finite() => AvailableSpace::Definite(cap),
+            other => other,
+        })
+    }
+}
+
+impl Default for SizeBounds {
+    fn default() -> Self {
+        Self::NONE
+    }
+}
+
 /// A struct containing the inputs constraints/hints for laying out a node, which are passed in by the parent
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct LayoutInput {
+    /// Hard border-box bounds for this node only. Child calls choose their own
+    /// bounds; they must not inherit the parent's bounds through a struct update.
+    pub size_bounds: SizeBounds,
     /// Whether we only need to know the Node's size, or whether we need to perform a full layout
     pub run_mode: RunMode,
     /// Whether a Node's style sizes should be taken into account or ignored
@@ -166,6 +247,7 @@ pub struct LayoutInput {
 impl LayoutInput {
     /// A LayoutInput that can be used to request hidden layout
     pub const HIDDEN: LayoutInput = LayoutInput {
+        size_bounds: SizeBounds::NONE,
         // The important property for hidden layout
         run_mode: RunMode::PerformHiddenLayout,
         // The rest will be ignored
@@ -186,6 +268,7 @@ impl LayoutInput {
     /// across a change of block axis.
     pub fn transpose(self) -> LayoutInput {
         LayoutInput {
+            size_bounds: SizeBounds { min: self.size_bounds.min.transpose(), max: self.size_bounds.max.transpose() },
             run_mode: self.run_mode,
             sizing_mode: self.sizing_mode,
             axis: self.axis.transpose(),

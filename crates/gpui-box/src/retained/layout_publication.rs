@@ -73,9 +73,10 @@ impl UiTree {
         // the next paint frame, so run it against an owned clone.
         let mut layout = self.layout.clone();
         let mut stats = LayoutStats::default();
-        layout.compute_layout_with_measure_and_observer(
+        layout.compute_layout_with_bounds_and_measure_and_observer(
             root,
             available_space,
+            constraints.bounds.to_taffy()?,
             |inputs, _, snapshot, style| {
                 measure::layout_leaf(inputs, snapshot.as_deref(), style, &mut stats)
             },
@@ -95,26 +96,28 @@ impl UiTree {
         let mut changed_layout_writes = 0;
         let nodes = &self.layout_nodes;
         let written = &mut self.layout_written;
-        self.layout.compute_layout_with_measure_and_observer(
-            root,
-            Size {
-                width: constraints.width.to_taffy()?,
-                height: constraints.height.to_taffy()?,
-            },
-            |inputs, _, snapshot, style| {
-                measure::layout_leaf(inputs, snapshot.as_deref(), style, &mut stats)
-            },
-            |id, previous, current| {
-                stats_layout_write(
-                    &mut layout_writes,
-                    &mut changed_layout_writes,
-                    previous != current,
-                );
-                if previous != current {
-                    written.insert(nodes[&id]);
-                }
-            },
-        )?;
+        self.layout
+            .compute_layout_with_bounds_and_measure_and_observer(
+                root,
+                Size {
+                    width: constraints.width.to_taffy()?,
+                    height: constraints.height.to_taffy()?,
+                },
+                constraints.bounds.to_taffy()?,
+                |inputs, _, snapshot, style| {
+                    measure::layout_leaf(inputs, snapshot.as_deref(), style, &mut stats)
+                },
+                |id, previous, current| {
+                    stats_layout_write(
+                        &mut layout_writes,
+                        &mut changed_layout_writes,
+                        previous != current,
+                    );
+                    if previous != current {
+                        written.insert(nodes[&id]);
+                    }
+                },
+            )?;
         stats.layout_writes = layout_writes;
         stats.changed_layout_writes = changed_layout_writes;
         // Cached out-of-flow raw positions can still need new parent-local

@@ -81,10 +81,27 @@ pub fn compute_root_layout(
     root: NodeId,
     available_space: Size<AvailableSpace>,
 ) {
+    compute_root_layout_with_bounds(tree, root, available_space, crate::tree::SizeBounds::NONE)
+}
+
+/// Layout a root with independent hard border-box bounds. The caller must
+/// provide nonnegative ordered bounds with finite minima and finite or +inf
+/// maxima. Hidden nodes remain zero-sized regardless of bounds.
+pub fn compute_root_layout_with_bounds(
+    tree: &mut (impl crate::tree::LayoutContainingBlock + CacheTree),
+    root: NodeId,
+    available_space: Size<AvailableSpace>,
+    bounds: crate::tree::SizeBounds,
+) {
     let style = tree.get_core_container_style(root);
     let position = style.position();
     let direction = style.direction();
+    let hidden = style.box_generation_mode() == crate::BoxGenerationMode::None;
     drop(style);
+    if hidden {
+        compute_hidden_layout(tree, root);
+        return;
+    }
 
     let icb_size = available_space.into_options();
     let oof_root_area = match (position.is_out_of_flow(), icb_size.width, icb_size.height) {
@@ -126,11 +143,12 @@ pub fn compute_root_layout(
             Point { x: Overflow::Visible, y: Overflow::Visible },
             #[cfg(feature = "grid")]
             None,
+            bounds,
             |tree, inputs| root_is_cached = tree.cache_get(root, inputs).is_some(),
         );
         (layout, surfaced)
     } else {
-        compute_in_flow_root_layout(tree, root, available_space, &mut root_is_cached)
+        compute_in_flow_root_layout(tree, root, available_space, bounds, &mut root_is_cached)
     };
 
     // Final positioning pass for out-of-flow boxes with no nearer containing block: the initial
@@ -149,8 +167,9 @@ pub fn compute_root_layout(
                 top: 0.0,
                 bottom: layout.scrollbar_size.height,
             };
-        let root_padding_box_size =
-            layout.size - Size { width: area_inset.horizontal_axis_sum(), height: area_inset.vertical_axis_sum() };
+        let root_padding_box_size = (layout.size
+            - Size { width: area_inset.horizontal_axis_sum(), height: area_inset.vertical_axis_sum() })
+        .map(|value| value.max(0.0));
         let (area_width, area_x) = match icb_size.width {
             Some(width) => ((width - layout.scrollbar_size.width).max(0.0), -layout.location.x),
             None => (root_padding_box_size.width, area_inset.left),
@@ -191,6 +210,7 @@ fn compute_in_flow_root_layout(
     tree: &mut (impl crate::tree::LayoutContainingBlock + CacheTree),
     root: NodeId,
     available_space: Size<AvailableSpace>,
+    bounds: crate::tree::SizeBounds,
     root_is_cached: &mut bool,
 ) -> (Layout, OofCandidates) {
     let mut known_dimensions = Size::NONE;
@@ -200,7 +220,7 @@ fn compute_in_flow_root_layout(
         let style = tree.get_core_container_style(root);
         let margin =
             style.margin().resolve_or_zero(available_space.width.into_option(), |val, basis| tree.calc(val, basis));
-        available_space.maybe_sub(margin.sum_axes()).maybe_max(Size::ZERO)
+        bounds.available(available_space.maybe_sub(margin.sum_axes()).maybe_max(Size::ZERO))
     };
 
     #[cfg(feature = "block_layout")]
@@ -262,8 +282,10 @@ fn compute_in_flow_root_layout(
         }
     }
 
+    let tight_dimensions = bounds.min.zip_map(bounds.max, |min, max| (min == max).then_some(min));
     let mut inputs = LayoutInput {
-        known_dimensions,
+        size_bounds: bounds,
+        known_dimensions: tight_dimensions.or(known_dimensions),
         known_dimensions_are_definite: Size { width: true, height: true },
         parent_size: available_space.into_options(),
         available_space: root_available_space,
@@ -290,8 +312,8 @@ fn compute_in_flow_root_layout(
     drop(style);
     let (intrinsic_min, intrinsic_max) =
         common::intrinsic_limits::resolve_intrinsic_limits(tree, root, min_style, max_style, inputs);
-    inputs.known_dimensions =
-        inputs.known_dimensions.maybe_clamp(intrinsic_min.or(numeric_min), intrinsic_max.or(numeric_max));
+    let (min_size, max_size) = bounds.limits(intrinsic_min.or(numeric_min), intrinsic_max.or(numeric_max));
+    inputs.known_dimensions = inputs.known_dimensions.maybe_clamp(min_size, max_size);
     // A root has no parent item algorithm to resolve its sizing keywords.
     // Measure the requested intrinsic axes using the same resolver as Flex,
     // Grid and out-of-flow items, then run normal layout with the used size.
@@ -316,6 +338,7 @@ fn compute_in_flow_root_layout(
             .maybe_resolve(inputs.parent_size, |val, basis| tree.calc(val, basis))
             .maybe_apply_aspect_ratio(aspect_ratio)
             .maybe_add(adjustment));
+        let (min_size, max_size) = bounds.limits(min_size, max_size);
         inputs.known_dimensions = inputs.known_dimensions.or(size_style
             .maybe_resolve(inputs.parent_size, |val, basis| tree.calc(val, basis))
             .maybe_apply_aspect_ratio(aspect_ratio)
@@ -359,14 +382,20 @@ fn compute_in_flow_root_layout(
             }
         }
         if measured_axes.width || measured_axes.height {
-            let measured = tree.measure_child_size_both(
-                root,
-                inputs.known_dimensions,
-                inputs.parent_size,
-                query_space,
-                SizingMode::ContentSize,
-                Line::FALSE,
-            );
+            // Keep bounds on same-node keyword queries so a constrained inline
+            // size determines actual wrapped height. Descendant helpers reset
+            // them explicitly. ContentSize still ignores authored limits.
+            let measured = tree
+                .compute_child_layout(
+                    root,
+                    LayoutInput {
+                        available_space: query_space,
+                        sizing_mode: SizingMode::ContentSize,
+                        run_mode: RunMode::ComputeSize,
+                        ..inputs
+                    },
+                )
+                .size;
             inputs.known_dimensions = inputs
                 .known_dimensions
                 .zip_map(measured.zip_map(measured_axes, |size, used| used.then_some(size)), Option::or);
@@ -383,6 +412,21 @@ fn compute_in_flow_root_layout(
             .maybe_clamp(min_size, max_size)
             .maybe_max(padding_border);
     }
+    // Tight dimensions are definite parent assignments, including an
+    // independently unbounded available-space axis. Loose bounds constrain the
+    // normal sizing algorithm without manufacturing a percentage basis.
+    inputs.known_dimensions = inputs
+        .known_dimensions
+        .zip_map(bounds.min.zip_map(bounds.max, |min, max| (min == max).then_some(min)), |known, tight| {
+            tight.or(known)
+        });
+    inputs.known_dimensions =
+        inputs.known_dimensions.zip_map(bounds.min.zip_map(bounds.max, |min, max| (min, max)), |known, (min, max)| {
+            known.map(|value| value.clamp(min, max))
+        });
+    inputs.known_dimensions_are_definite = inputs
+        .known_dimensions_are_definite
+        .zip_map(bounds.min.zip_map(bounds.max, |min, max| min == max), |definite, tight| definite || tight);
     *root_is_cached = tree.cache_get(root, &inputs).is_some();
 
     // Recursively compute node layout
@@ -599,6 +643,9 @@ pub mod detailed_info {
         DetailedGridInfo, DetailedGridItemsInfo, DetailedGridTracksInfo, GridLineNames, GridLineNamesIter,
     };
 }
+
+#[cfg(all(test, feature = "taffy_tree", feature = "flexbox"))]
+mod bounds_tests;
 
 #[cfg(test)]
 mod tests {

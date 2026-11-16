@@ -407,6 +407,7 @@ pub(crate) trait LayoutPartialTreeExt: LayoutPartialTree {
         self.compute_child_layout(
             node_id,
             LayoutInput {
+                size_bounds: crate::tree::SizeBounds::NONE,
                 known_dimensions,
                 known_dimensions_are_definite: Size { width: true, height: true },
                 parent_size,
@@ -436,6 +437,7 @@ pub(crate) trait LayoutPartialTreeExt: LayoutPartialTree {
         self.compute_child_layout(
             node_id,
             LayoutInput {
+                size_bounds: crate::tree::SizeBounds::NONE,
                 known_dimensions,
                 known_dimensions_are_definite: Size { width: true, height: true },
                 parent_size,
@@ -463,6 +465,7 @@ pub(crate) trait LayoutPartialTreeExt: LayoutPartialTree {
         self.compute_child_layout(
             node_id,
             LayoutInput {
+                size_bounds: crate::tree::SizeBounds::NONE,
                 known_dimensions,
                 known_dimensions_are_definite: Size { width: true, height: true },
                 parent_size,

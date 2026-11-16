@@ -422,6 +422,8 @@ pub fn compute_block_layout(
             .maybe_apply_aspect_ratio(aspect_ratio)
             .maybe_add(box_sizing_adjustment))
     };
+    let (min_size, max_size) = inputs.size_bounds.limits(min_size, max_size);
+    let padding_border_floor = inputs.size_bounds.floor(padding_border_size);
     let clamped_style_size = if inputs.sizing_mode == SizingMode::InherentSize {
         style
             .size()
@@ -447,7 +449,11 @@ pub fn compute_block_layout(
         .or(min_max_definite_size)
         .or(clamped_style_size)
         .or(contained_size)
-        .maybe_max(padding_border_size);
+        .maybe_max(padding_border_floor);
+    let styled_based_known_dimensions = styled_based_known_dimensions
+        .zip_map(inputs.size_bounds.min.zip_map(inputs.size_bounds.max, |min, max| (min, max)), |known, (min, max)| {
+            known.map(|value| value.clamp(min, max))
+        });
 
     // Short-circuit layout if the container's size is fully determined by the container's size and the run mode
     // is ComputeSize (and thus the container's size is all that we're interested in)
@@ -565,6 +571,7 @@ fn compute_inner(
     };
     // The outer algorithm has already resolved both numeric and intrinsic
     // limits, and removed the queried box's own limits for ContentSize.
+    let padding_border_floor = inputs.size_bounds.floor(padding_border_size);
     let min_size = resolved_min;
     let max_size = resolved_max;
 
@@ -583,7 +590,8 @@ fn compute_inner(
         width: known_dimensions.width,
         height: known_dimensions.height.filter(|_| inputs.known_dimensions_are_definite.height),
     };
-    let container_content_box_size = percentage_basis_dimensions.maybe_sub(content_box_inset.sum_axes());
+    let container_content_box_size =
+        percentage_basis_dimensions.maybe_sub(content_box_inset.sum_axes()).maybe_max(Size::ZERO);
 
     let overflow = style.overflow();
     let is_scroll_container = overflow.x.is_scroll_container() || overflow.y.is_scroll_container();
@@ -641,6 +649,7 @@ fn compute_inner(
             min_style,
             max_style,
             LayoutInput {
+                size_bounds: crate::tree::SizeBounds::NONE,
                 known_dimensions: item.size,
                 parent_size: container_content_box_size,
                 available_space: available_space.maybe_sub(content_box_inset.sum_axes()).maybe_sub(
@@ -659,7 +668,7 @@ fn compute_inner(
         let available_width = available_space.width.maybe_sub(content_box_inset.horizontal_axis_sum());
         let intrinsic_width = determine_content_based_container_width(tree, &items, available_width)
             + content_box_inset.horizontal_axis_sum();
-        intrinsic_width.maybe_clamp(min_size.width, max_size.width).maybe_max(Some(padding_border_size.width))
+        intrinsic_width.maybe_clamp(min_size.width, max_size.width).maybe_max(Some(padding_border_floor.width))
     });
 
     // Short-circuit if computing size and both dimensions known
@@ -727,7 +736,7 @@ fn compute_inner(
     let container_outer_height = known_dimensions
         .height
         .unwrap_or(intrinsic_outer_height.maybe_clamp(min_size.height, max_size.height))
-        .maybe_max(Some(padding_border_size.height));
+        .maybe_max(Some(padding_border_floor.height));
     let final_outer_size = Size { width: container_outer_width, height: container_outer_height };
 
     // CSS2 §8.3.1: the bottom margin of a block with `height: auto` collapses with its last
@@ -891,7 +900,7 @@ fn compute_inner(
     }
 
     let absolute_position_inset = resolved_border + scrollbar_gutter;
-    let absolute_position_area = final_outer_size - absolute_position_inset.sum_axes();
+    let absolute_position_area = (final_outer_size - absolute_position_inset.sum_axes()).map(|value| value.max(0.0));
     let absolute_position_offset = Point { x: absolute_position_inset.left, y: absolute_position_inset.top };
     output.oof_candidates = candidates;
     output.oof_positioning_area =
@@ -1358,7 +1367,9 @@ fn perform_final_layout_on_in_flow_children(
                         let mut slot_segment = None;
                         let slot = loop {
                             let slot = block_ctx.find_bfc_slot(min_y, x_margins, direction, item.clear, slot_segment);
-                            let Some(segment_id) = slot.segment_id else { break slot };
+                            let Some(segment_id) = slot.segment_id else {
+                                break slot;
+                            };
                             let width = item
                                 .size
                                 .width
@@ -1469,6 +1480,7 @@ fn perform_final_layout_on_in_flow_children(
             //
 
             let inputs = LayoutInput {
+                size_bounds: crate::tree::SizeBounds::NONE,
                 run_mode,
                 sizing_mode: SizingMode::InherentSize,
                 axis: RequestedAxis::Both,

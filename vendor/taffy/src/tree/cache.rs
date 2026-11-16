@@ -215,6 +215,9 @@ pub(crate) struct CacheEntry<T> {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Cache {
+    /// Bounds apply to one node and rarely change within a layout invocation.
+    /// Store one mode per cache rather than enlarging all ten entry keys.
+    bounds: crate::tree::SizeBounds,
     /// The cache entry for the node's final layout
     final_layout_entry: Option<CacheEntry<LayoutOutput>>,
     /// The cache entries for the node's preliminary size measurements
@@ -243,6 +246,7 @@ impl Cache {
         /// Workaround for `Option<CacheEntry<_>>` not being `Copy` (required for array repeat expressions)
         const NONE_MEASURE_ENTRY: Option<CacheEntry<Size<f32>>> = None;
         Self {
+            bounds: crate::tree::SizeBounds::NONE,
             final_layout_entry: None,
             measure_entries: [NONE_MEASURE_ENTRY; CACHE_SIZE],
             recently_used_entries: 0,
@@ -255,7 +259,7 @@ impl Cache {
     /// Try to retrieve a cached result from the cache
     #[inline]
     pub fn get(&mut self, input: &LayoutInput) -> Option<LayoutOutput> {
-        if self.mode != CacheMode::from(input) {
+        if self.mode != CacheMode::from(input) || self.bounds != input.size_bounds {
             return None;
         }
         let key = CacheKey::from(input);
@@ -286,6 +290,10 @@ impl Cache {
     pub fn store(&mut self, input: &LayoutInput, layout_output: LayoutOutput) {
         if input.run_mode == RunMode::PerformHiddenLayout {
             return;
+        }
+        if self.bounds != input.size_bounds {
+            self.clear();
+            self.bounds = input.size_bounds;
         }
         let mode = CacheMode::from(input);
         if self.mode != mode {
@@ -376,6 +384,24 @@ mod tests {
     use crate::tree::SizingMode;
 
     #[test]
+    fn hard_bounds_changes_cannot_reuse_old_layout_or_measure_entries() {
+        for mode in [RunMode::ComputeSize, RunMode::PerformLayout] {
+            let mut cache = Cache::new();
+            let mut query = input(100.0);
+            query.run_mode = mode;
+            cache.store(&query, output(100.0));
+            let original = query;
+            query.size_bounds.max.width = 50.0;
+            assert!(cache.get(&query).is_none());
+            cache.store(&query, output(50.0));
+            assert_eq!(cache.get(&query), Some(output(50.0)));
+            assert!(cache.get(&original).is_none());
+            query.size_bounds.min.height = 20.0;
+            assert!(cache.get(&query).is_none());
+        }
+    }
+
+    #[test]
     fn unbounded_cache_keys_do_not_alias_intrinsic_or_known_dimensions() {
         for run_mode in [RunMode::ComputeSize, RunMode::PerformLayout] {
             for axis in [RequestedAxis::Horizontal, RequestedAxis::Vertical, RequestedAxis::Both] {
@@ -414,6 +440,7 @@ mod tests {
 
     fn input(width: f32) -> LayoutInput {
         LayoutInput {
+            size_bounds: crate::tree::SizeBounds::NONE,
             run_mode: RunMode::ComputeSize,
             sizing_mode: SizingMode::InherentSize,
             axis: RequestedAxis::Both,

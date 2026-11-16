@@ -18,8 +18,7 @@ use crate::util::debug::{debug_log, debug_log_node};
 use crate::util::sys::{new_const_children_vec, new_vec_with_capacity, Box, ChildrenVec, Vec};
 
 use crate::compute::{
-    compute_cached_layout, compute_hidden_layout, compute_leaf_layout, compute_oof_layout, compute_root_layout,
-    round_layout,
+    compute_cached_layout, compute_hidden_layout, compute_leaf_layout, compute_oof_layout, round_layout,
 };
 use crate::CacheTree;
 
@@ -40,6 +39,8 @@ pub type TaffyResult<T> = Result<T, TaffyError>;
 /// An error that occurs while trying to access or modify a node's children by index.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TaffyError {
+    /// Hard host bounds must be ordered, nonnegative and have finite minima.
+    InvalidSizeBounds,
     /// The parent node does not have a child at `child_index`. It only has `child_count` children
     ChildIndexOutOfBounds {
         /// The parent node whose child was being looked up
@@ -60,14 +61,19 @@ pub enum TaffyError {
 impl core::fmt::Display for TaffyError {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         match self {
+            TaffyError::InvalidSizeBounds => write!(f, "Invalid host size bounds"),
             TaffyError::ChildIndexOutOfBounds { parent, child_index, child_count } => {
                 write!(f, "Index (is {child_index}) should be < child_count ({child_count}) for parent node {parent:?}")
             }
             TaffyError::InvalidParentNode(parent) => {
                 write!(f, "Parent Node {parent:?} is not in the TaffyTree instance")
             }
-            TaffyError::InvalidChildNode(child) => write!(f, "Child Node {child:?} is not in the TaffyTree instance"),
-            TaffyError::InvalidInputNode(node) => write!(f, "Supplied Node {node:?} is not in the TaffyTree instance"),
+            TaffyError::InvalidChildNode(child) => {
+                write!(f, "Child Node {child:?} is not in the TaffyTree instance")
+            }
+            TaffyError::InvalidInputNode(node) => {
+                write!(f, "Supplied Node {node:?} is not in the TaffyTree instance")
+            }
         }
     }
 }
@@ -1007,9 +1013,39 @@ impl<NodeContext> TaffyTree<NodeContext> {
         MeasureFunction: FnMut(LayoutInput, NodeId, Option<&mut NodeContext>, &Style) -> LayoutOutput,
         LayoutObserver: FnMut(NodeId, &Layout, &Layout),
     {
+        self.compute_layout_with_bounds_and_measure_and_observer(
+            node_id,
+            available_space,
+            crate::tree::SizeBounds::NONE,
+            measure_function,
+            layout_observer,
+        )
+    }
+
+    /// Root layout with hard border-box bounds, independent of the node's
+    /// authored style. Invalid bounds are rejected before tree mutation. Child bounds are selected
+    /// by their layout algorithm rather than inherited from this root.
+    pub fn compute_layout_with_bounds_and_measure_and_observer<MeasureFunction, LayoutObserver>(
+        &mut self,
+        node_id: NodeId,
+        available_space: Size<AvailableSpace>,
+        bounds: crate::tree::SizeBounds,
+        measure_function: MeasureFunction,
+        layout_observer: LayoutObserver,
+    ) -> Result<(), TaffyError>
+    where
+        MeasureFunction: FnMut(LayoutInput, NodeId, Option<&mut NodeContext>, &Style) -> LayoutOutput,
+        LayoutObserver: FnMut(NodeId, &Layout, &Layout),
+    {
+        if !bounds.is_valid() {
+            return Err(TaffyError::InvalidSizeBounds);
+        }
+        if !self.nodes.contains_key(node_id.into()) {
+            return Err(TaffyError::InvalidInputNode(node_id));
+        }
         let use_rounding = self.config.use_rounding;
         let mut taffy_view = TaffyView { taffy: self, measure_function, layout_observer };
-        compute_root_layout(&mut taffy_view, node_id, available_space);
+        crate::compute::compute_root_layout_with_bounds(&mut taffy_view, node_id, available_space, bounds);
         if use_rounding {
             round_layout(&mut taffy_view, node_id);
         }

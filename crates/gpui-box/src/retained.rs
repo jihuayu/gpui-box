@@ -22,7 +22,7 @@ mod local_ink;
 pub mod logical;
 pub use layout::{
     AlignContent as LayoutAlignContent, AlignItems as LayoutAlignItems,
-    AlignSelf as LayoutAlignSelf, AvailableSpace as LayoutAvailableSpace,
+    AlignSelf as LayoutAlignSelf, AvailableSpace as LayoutAvailableSpace, BoxConstraints,
     BoxSizing as LayoutBoxSizing, ContainerType as LayoutContainerType,
     Dimension as LayoutDimension, Edges as LayoutEdges, FlexDirection as LayoutFlexDirection,
     FlexWrap as LayoutFlexWrap, JustifyContent as LayoutJustifyContent, LayoutConstraints,
@@ -296,6 +296,7 @@ pub enum Error {
     InvalidNode,
     InvalidTranslation,
     InvalidViewport,
+    InvalidConstraints,
     InvalidChildren,
     CannotRemoveRoot,
     RevisionExhausted,

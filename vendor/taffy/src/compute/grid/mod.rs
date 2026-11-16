@@ -129,6 +129,8 @@ fn compute_container_constants<Tree: LayoutGridContainer>(
         min_size = Size::NONE;
         max_size = Size::NONE;
     }
+    (min_size, max_size) = inputs.size_bounds.limits(min_size, max_size);
+    let padding_border_floor = inputs.size_bounds.floor(padding_border_size);
     let preferred_size = if inputs.sizing_mode == SizingMode::InherentSize {
         style
             .size()
@@ -169,27 +171,27 @@ fn compute_container_constants<Tree: LayoutGridContainer>(
         .map(|size| size.map(AvailableSpace::Definite))
         .unwrap_or(available_space)
         .maybe_clamp(min_size, max_size)
-        .maybe_max(padding_border_size);
+        .maybe_max(padding_border_floor);
 
     let available_grid_space = Size {
         width: constrained_available_space
             .width
-            .map_definite_value(|space| space - content_box_inset.horizontal_axis_sum()),
+            .map_definite_value(|space| (space - content_box_inset.horizontal_axis_sum()).max(0.0)),
         height: constrained_available_space
             .height
-            .map_definite_value(|space| space - content_box_inset.vertical_axis_sum()),
+            .map_definite_value(|space| (space - content_box_inset.vertical_axis_sum()).max(0.0)),
     };
 
     let outer_node_size =
-        known_dimensions.or(preferred_size).maybe_clamp(min_size, max_size).maybe_max(padding_border_size);
+        known_dimensions.or(preferred_size).maybe_clamp(min_size, max_size).maybe_max(padding_border_floor);
 
     // The track sizing algorithm operates on the grid container's content box, so the min/max sizes
     // (which are border-box sizes) need converting to content-box sizes before being passed to it
-    let inner_min_size = min_size.maybe_sub(content_box_inset.sum_axes());
-    let inner_max_size = max_size.maybe_sub(content_box_inset.sum_axes());
+    let inner_min_size = min_size.maybe_sub(content_box_inset.sum_axes()).maybe_max(Size::ZERO);
+    let inner_max_size = max_size.maybe_sub(content_box_inset.sum_axes()).maybe_max(Size::ZERO);
     let inner_node_size = Size {
-        width: outer_node_size.width.map(|space| space - content_box_inset.horizontal_axis_sum()),
-        height: outer_node_size.height.map(|space| space - content_box_inset.vertical_axis_sum()),
+        width: outer_node_size.width.map(|space| (space - content_box_inset.horizontal_axis_sum()).max(0.0)),
+        height: outer_node_size.height.map(|space| (space - content_box_inset.vertical_axis_sum()).max(0.0)),
     };
 
     GridContainerConstants {
@@ -198,7 +200,7 @@ fn compute_container_constants<Tree: LayoutGridContainer>(
         containing_block_claims,
         padding,
         border,
-        padding_border_size,
+        padding_border_size: padding_border_floor,
         min_size,
         max_size,
         preferred_size,
@@ -870,7 +872,8 @@ pub fn compute_grid_layout<Tree: LayoutGridContainer>(
             top: 0.0,
             bottom: scrollbar_gutter.y,
         };
-    let absolute_position_area = container_border_box - absolute_position_inset.sum_axes();
+    let absolute_position_area =
+        (container_border_box - absolute_position_inset.sum_axes()).map(|value| value.max(0.0));
     let absolute_position_offset = Point { x: absolute_position_inset.left, y: absolute_position_inset.top };
     // Store the detailed grid info before the out-of-flow positioning pass so that the pass can
     // resolve the grid areas of out-of-flow boxes whose containing block is this grid

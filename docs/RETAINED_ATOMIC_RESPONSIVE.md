@@ -3,6 +3,9 @@
 Date: 2026-11-16. This extends the framework-owned
 `LayoutResponsiveBindings`; legacy `ResponsiveBindings` keeps its earlier
 two-pass contract. The full RFC implementation goal remains active.
+Follow-up: [hard parent constraints](RETAINED_PARENT_CONSTRAINTS.md) now feed
+the same root/subtree and private responsive layout paths. Nested builders and
+structural adaptation remain open; the open list below records this stage.
 
 ## Public contract
 
