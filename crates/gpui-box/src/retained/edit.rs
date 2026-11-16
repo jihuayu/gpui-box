@@ -14,6 +14,7 @@ pub struct TreeEditCommit<R> {
 /// the closure and complete final-state validation succeed. Failed reservations
 /// consume generation numbers so leaked draft handles never become valid later.
 pub struct TreeEdit<'a> {
+    pixel_snap: Option<PixelSnap>,
     tree: &'a mut UiTree,
     nodes: BTreeMap<NodeId, Node>,
     created: BTreeSet<NodeId>,
@@ -33,6 +34,7 @@ impl TreeEdit<'_> {
     ) -> Result<UiTree, Error> {
         let mut tree = self.tree.clone_for_layout_plan();
         let mut draft = TreeEdit {
+            pixel_snap: self.pixel_snap,
             tree: &mut tree,
             nodes: self.nodes.clone(),
             created: self.created.clone(),
@@ -54,6 +56,12 @@ impl TreeEdit<'_> {
 
     pub fn root(&self) -> NodeId {
         self.tree.root
+    }
+    /// Stage an output-only pixel policy in this edit's publication boundary.
+    pub fn pixel_snap(&mut self, policy: PixelSnap) -> Result<(), Error> {
+        policy.validate()?;
+        self.pixel_snap = Some(policy);
+        Ok(())
     }
     fn node(&self, id: NodeId) -> Result<&Node, Error> {
         self.nodes
@@ -252,6 +260,7 @@ impl UiTree {
     ) -> Result<TreeEditCommit<R>, Error> {
         let slots = self.slots.len();
         let mut draft = TreeEdit {
+            pixel_snap: None,
             tree: self,
             nodes: BTreeMap::new(),
             created: BTreeSet::new(),
@@ -266,6 +275,43 @@ impl UiTree {
 }
 impl TreeEdit<'_> {
     fn publish<R>(
+        self,
+        value: R,
+        capabilities: BackendCapabilities,
+    ) -> Result<TreeEditCommit<R>, Error> {
+        let policy = self
+            .pixel_snap
+            .filter(|policy| *policy != self.tree.pixel_snap);
+        let revision = self.tree.revision;
+        if policy.is_some() {
+            revision.checked_add(1).ok_or(Error::RevisionExhausted)?;
+        }
+        let owner = self.tree;
+        // Reborrow the owner so successful inner publication can install the
+        // already validated policy without a second revision for a mixed edit.
+        let draft = TreeEdit {
+            tree: &mut *owner,
+            pixel_snap: None,
+            nodes: self.nodes,
+            created: self.created,
+            removed: self.removed,
+            properties: self.properties,
+            free: self.free,
+            slots: self.slots,
+        };
+        let mut result = draft.publish_inner(value, capabilities)?;
+        if let Some(policy) = policy {
+            if owner.revision == revision {
+                owner.advance()?;
+            }
+            owner.apply_pixel_snap(policy);
+            result.commit.revision = owner.revision;
+            result.commit.request_frame = true;
+        }
+        Ok(result)
+    }
+
+    fn publish_inner<R>(
         mut self,
         value: R,
         capabilities: BackendCapabilities,

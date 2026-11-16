@@ -21,6 +21,133 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 }
 
 #[test]
+fn pixel_snap_moves_real_glyph_origins_without_rewrapping_at_rounded_box_width() {
+    pixel_snap_real_paragraph(false);
+}
+
+#[cfg(feature = "retained-wgpu")]
+#[test]
+#[ignore = "requires a WGPU adapter; run explicitly"]
+fn hardware_pixel_snap_real_paragraph_matches_independent_origin_projection() {
+    pixel_snap_real_paragraph(true);
+}
+
+fn pixel_snap_real_paragraph(gpu: bool) {
+    let system = text_system();
+    let paragraph = shape(&system, "one two three four five six 中文段落");
+    let scale = 2.0;
+    // Find a real font wrap boundary crossed by device-edge rounding. This
+    // avoids assuming a synthetic per-character advance or a platform metric.
+    let (width, rounded) = (200..2500)
+        .map(|i| i as f32 / 10.0)
+        .find_map(|width| {
+            let rounded = (width * scale).round() / scale;
+            (paragraph.layout(Some(width)).unwrap().size[1]
+                != paragraph.layout(Some(rounded)).unwrap().size[1])
+                .then_some((width, rounded))
+        })
+        .expect("real fractional wrap threshold");
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let resource = raster.prepare(paragraph.clone(), scale).unwrap();
+    let text = TextPaint {
+        resource: resource.clone(),
+        color: 0x00ffffff,
+    };
+    let root_style = LayoutStyle::column()
+        .size(LayoutDimension::Px(300.0), LayoutDimension::Px(700.0))
+        .padding(LayoutEdges::all(LayoutLength::Px(0.3)));
+    let leaf_style = LayoutStyle::row()
+        .size(LayoutDimension::Px(width), LayoutDimension::Auto)
+        .flex_shrink(0.0);
+    let mut tree = UiTree::new_layout(root_style.clone(), 0).unwrap();
+    let leaf = tree
+        .append_layout(tree.root(), leaf_style.clone(), 0)
+        .unwrap();
+    let mut tx = Transaction::default();
+    tx.text(leaf, Some(text.clone()));
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    let original = tree.frame([300.0, 700.0]).unwrap();
+    let old = original
+        .items
+        .iter()
+        .find(|item| item.node == leaf)
+        .unwrap();
+    let chunk = old.glyphs.as_ref().unwrap().clone();
+    let logical = tree.layout_result(leaf).unwrap();
+    assert_eq!(logical.content_size[0], width);
+    assert_ne!(
+        paragraph.layout(Some(width)).unwrap().size[1],
+        paragraph.layout(Some(rounded)).unwrap().size[1]
+    );
+    let rasterized = raster.rasterized_glyphs();
+    tree.set_pixel_snap(PixelSnap::DevicePixels { scale })
+        .unwrap();
+    let snapped = tree.local_frame([300.0, 700.0]).unwrap();
+    let frame = snapped.resolve();
+    let item = frame.items.iter().find(|item| item.node == leaf).unwrap();
+    assert!(Arc::ptr_eq(&chunk, item.glyphs.as_ref().unwrap()));
+    assert!(Arc::ptr_eq(&chunk, &resource.chunk(width).unwrap()));
+    assert_eq!(tree.layout_result(leaf).unwrap(), logical);
+    assert_eq!(raster.rasterized_glyphs(), rasterized);
+    // The independent reference retains the original logical wrap width and
+    // moves only the transparent text box to the expected device-pixel origin.
+    let snap = |value: f32| (value * scale).round() / scale;
+    let mut full = UiTree::new_layout(root_style, 0).unwrap();
+    let expected_leaf = full.append_layout(full.root(), leaf_style, 0).unwrap();
+    let mut tx = Transaction::default();
+    tx.text(expected_leaf, Some(text));
+    tx.translation(
+        expected_leaf,
+        [
+            snap(old.content_bounds.x) - old.content_bounds.x,
+            snap(old.content_bounds.y) - old.content_bounds.y,
+        ],
+    );
+    full.commit(tx, BackendCapabilities::default()).unwrap();
+    let reference = full.frame([300.0, 700.0]).unwrap();
+    #[cfg(feature = "retained-wgpu")]
+    if gpu {
+        let mut renderer = wgpu::WgpuFrameRenderer::new(2).unwrap();
+        eprintln!(
+            "pixel snap paragraph adapter: {:?}",
+            renderer.adapter_info()
+        );
+        renderer
+            .submit_local(&snapped, [600, 1400], scale)
+            .unwrap()
+            .unwrap();
+        let actual = renderer.image().unwrap();
+        let expected = renderer
+            .reference_image(&reference, [600, 1400], scale)
+            .unwrap();
+        assert!(actual.as_raw() == expected.as_raw());
+        renderer.finish().unwrap();
+    }
+    #[cfg(not(feature = "retained-wgpu"))]
+    let _ = gpu;
+    fn pixels(frame: FramePacket) -> Vec<u8> {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [600, 1400],
+                scale: 2.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 16 * 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(8192).unwrap() {}
+        job.into_frame().unwrap().pixels().to_vec()
+    }
+    let actual = pixels(frame);
+    assert!(actual.chunks_exact(4).any(|p| p[1] > 0 && p[2] > 0));
+    assert_eq!(actual, pixels(reference));
+    drop((tree, full, raster, system));
+    assert_eq!(pixels(snapped.resolve()), actual);
+}
+
+#[test]
 fn responsive_rules_and_keyed_paragraph_builder_share_atomic_local_output() {
     responsive_paragraph_builder_frames(false);
 }

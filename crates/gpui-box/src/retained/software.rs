@@ -116,6 +116,9 @@ pub struct SoftwareJob {
 
 impl SoftwareJob {
     pub fn new(packet: FramePacket, options: SoftwareOptions) -> Result<Self, SoftwareError> {
+        if !packet.pixel_snap().accepts_scale(options.scale) {
+            return Err(SoftwareError::InvalidFrame);
+        }
         if options.size.contains(&0)
             || !options.scale.is_finite()
             || options.scale <= 0.0

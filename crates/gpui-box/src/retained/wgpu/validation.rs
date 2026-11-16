@@ -165,7 +165,8 @@ pub(super) fn validate_header(
     surface: [u32; 2],
     scale: f32,
 ) -> Result<(), Error> {
-    if !scale.is_finite()
+    if !frame.pixel_snap().accepts_scale(scale)
+        || !scale.is_finite()
         || scale <= 0.0
         || surface
             .iter()

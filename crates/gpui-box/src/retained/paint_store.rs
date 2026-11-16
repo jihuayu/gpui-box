@@ -384,6 +384,7 @@ impl UiTree {
             })
         };
         let mut frame = FramePacket {
+            pixel_snap: self.pixel_snap,
             tree: self.identity,
             base_revision: Some(before.revision),
             revision: self.revision,

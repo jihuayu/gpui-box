@@ -346,6 +346,11 @@ impl LogicalEdit<'_, '_, '_> {
     pub fn properties(&mut self) -> &mut Transaction {
         self.render.tree().properties()
     }
+    /// Project final output to device pixels without changing layout/query or
+    /// text measurement. Published frame and policy share this atomic edit.
+    pub fn pixel_snap(&mut self, policy: PixelSnap) -> Result<(), Error> {
+        self.render.tree().pixel_snap(policy)
+    }
     pub fn read<T: 'static>(&self, signal: Signal<T>) -> Result<&T, Error> {
         self.render.read(signal)
     }

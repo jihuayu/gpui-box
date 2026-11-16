@@ -56,6 +56,8 @@ mod properties;
 pub use primitive::{BoxShadow, QuadDecoration, ShadowGeometry};
 mod spatial;
 pub use spatial::SpatialState;
+mod pixel_snap;
+pub use pixel_snap::PixelSnap;
 mod edit;
 pub mod reactive;
 pub mod responsive;
@@ -120,6 +122,7 @@ pub struct PaintItem {
 /// Owned output can be read after the producing tree has changed or been dropped.
 #[derive(Clone, Debug)]
 pub struct FramePacket {
+    pixel_snap: PixelSnap,
     pub tree: u64,
     pub base_revision: Option<u64>,
     pub revision: u64,
@@ -136,6 +139,11 @@ pub struct FramePacket {
 }
 
 impl FramePacket {
+    /// Presentation policy used by the producer. Device-pixel output must be
+    /// consumed at that exact logical-to-physical scale.
+    pub fn pixel_snap(&self) -> PixelSnap {
+        self.pixel_snap
+    }
     pub fn hit_test(&self, x: f32, y: f32) -> Option<NodeId> {
         self.items.hit_test(x, y).0
     }
@@ -400,6 +408,7 @@ struct Slot {
 
 /// One UI owner mutates the tree. FramePackets own everything they expose.
 pub struct UiTree {
+    pixel_snap: PixelSnap,
     identity: u64,
     slots: Vec<Slot>,
     free: Vec<usize>,
@@ -489,6 +498,7 @@ impl UiTree {
             Default::default()
         };
         Ok(Self {
+            pixel_snap: PixelSnap::None,
             identity,
             slots: vec![Slot {
                 generation: 0,
@@ -1338,6 +1348,12 @@ impl UiTree {
     }
 
     fn build_frame(&mut self, viewport: [f32; 2]) -> Result<FramePacket, Error> {
+        // Snapping is an output projection. Parent movement can change every
+        // descendant's snapped extent, so retain the complete extraction path
+        // until incremental snap dependencies have an explicit contract.
+        if self.pixel_snap != PixelSnap::None && self.dirty {
+            self.full_extract_required = true;
+        }
         // Compare against published output, not the working environment: local
         // publication may prepare it before entering this resolved fallback.
         let root_clip = Some(Rect {
@@ -1346,11 +1362,14 @@ impl UiTree {
             width: viewport[0],
             height: viewport[1],
         });
+        let projected_root_clip = root_clip
+            .map(|rect| self.pixel_snap.project_rect(rect))
+            .transpose()?;
         let viewport_changed = self
             .frame
             .as_ref()
             .and_then(|frame| frame.items.iter().next())
-            .is_none_or(|item| item.spatial.root_clip != root_clip);
+            .is_none_or(|item| item.spatial.root_clip != projected_root_clip);
         if !self.dirty {
             let mut cached = self.frame.as_ref().expect("prepared frame").clone();
             cached.layout_runs = 0;
@@ -1385,7 +1404,7 @@ impl UiTree {
         }
         let mut properties = properties::PropertyBuilder::default();
         let mut recorded_chunks = 0;
-        let items = self.extract_subtree(
+        let mut items = self.extract_subtree(
             self.root,
             [0.0; 2],
             Some(Rect {
@@ -1398,7 +1417,8 @@ impl UiTree {
             &mut properties,
             &mut recorded_chunks,
         )?;
-        let properties = properties.finish();
+        let mut properties = properties.finish();
+        self.pixel_snap.apply(&mut items, &mut properties)?;
         let previous: BTreeMap<_, _> = self
             .frame
             .as_ref()
@@ -1461,6 +1481,7 @@ impl UiTree {
             PaintUpdates::indexed(items.clone(), update_indices)
         };
         let mut frame = FramePacket {
+            pixel_snap: self.pixel_snap,
             tree: self.identity,
             base_revision: self.frame.as_ref().map(|frame| frame.revision),
             revision: self.revision,

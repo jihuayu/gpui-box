@@ -701,6 +701,9 @@ impl WgpuFrameRenderer {
         surface: [u32; 2],
         scale: f32,
     ) -> Result<Option<FrameSubmission>, Error> {
+        if !frame.pixel_snap().accepts_scale(scale) {
+            return Err(Error::InvalidFrame);
+        }
         if let Some(local) = &self.local_snapshot
             && self.latest == Some((frame.tree, frame.revision))
         {

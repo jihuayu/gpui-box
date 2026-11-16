@@ -93,6 +93,9 @@ impl WgpuFrameRenderer {
     ) -> Result<Option<FrameSubmission>, Error> {
         #[cfg(feature = "retained-diagnostics")]
         let started = std::time::Instant::now();
+        if !frame.pixel_snap().accepts_scale(scale) {
+            return Err(Error::InvalidFrame);
+        }
         if self.failed {
             return Err(Error::Gpu("reset after failed frame submission".into()));
         }

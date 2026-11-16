@@ -172,6 +172,9 @@ impl LogicalUi {
     pub fn stats(&self) -> reactive::ReactiveStats {
         self.ui.stats()
     }
+    pub fn pixel_snap(&self) -> PixelSnap {
+        self.ui.tree().pixel_snap()
+    }
     pub fn set_capabilities(&mut self, capabilities: BackendCapabilities) {
         self.ui.set_capabilities(capabilities);
     }

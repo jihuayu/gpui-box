@@ -308,6 +308,7 @@ impl UiTree {
     /// same tree identity/generation namespace, so no public Clone is provided.
     pub(in crate::retained) fn clone_for_layout_plan(&self) -> Self {
         Self {
+            pixel_snap: self.pixel_snap,
             identity: self.identity,
             slots: self.slots.clone(),
             free: self.free.clone(),

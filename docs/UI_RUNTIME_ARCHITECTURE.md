@@ -251,8 +251,16 @@ clone 的最终布局读取同一字段，不改写已发布状态。Grid 在未
 这次把结果保存在布局输出中，而非事后读布局缓存或猜测容器基线，避免缓存驱逐、
 同几何不同基线和 display:none 暴露陈旧值。它没有新增全树扫描；几何不变时仍可
 保留原 PaintItems 与零 chunk 重录。详细契约、验证和成本见
-[布局基线发布](RETAINED_LAYOUT_BASELINES.md)。世界变换、公共设备像素取整策略、
-last-baseline 对齐、竖排文字、复杂 intrinsic、公共 Grid 和 `calc()` 仍未完成。
+[布局基线发布](RETAINED_LAYOUT_BASELINES.md)。可选公共设备像素策略现已通过
+`PixelSnap::DevicePixels { scale }` 接入：在逻辑布局和 glyph chunk 选择之后，
+发布绝对 border/content/clip 边缘的取整结果；LayoutResult、查询阈值、builder
+输入、文字换行和基线仍保持逻辑精度。绘制与命中共享输出，CPU/WGPU 拒绝与
+快照 scale 不匹配的消费。策略可加入同一个 keyed/source/frame 原子编辑；
+同值不请求更新。默认 None 保留小数。当前 opt-in 每个脏帧完整提取并投影，
+失去祖先位移/滚动共享，不能宣称性能收益；任意设备网格的 f32 精确表示、
+自动 DPI 集成、增量投影和广泛取整一致性仍开放。详见
+[像素输出契约与 ADR](RETAINED_PIXEL_SNAPPING.md)。完整 affine 变换、last-baseline
+对齐、竖排文字、复杂 intrinsic、公共 Grid 和 `calc()` 仍未完成。
 
 UI IR 的最小数据集合：
 

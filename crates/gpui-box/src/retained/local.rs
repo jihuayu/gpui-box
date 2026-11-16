@@ -282,6 +282,9 @@ impl LocalFrame {
     pub fn revision(&self) -> u64 {
         self.0.revision
     }
+    pub fn pixel_snap(&self) -> PixelSnap {
+        self.0.template.pixel_snap()
+    }
     pub fn len(&self) -> usize {
         self.0.template.items.len()
     }
@@ -565,7 +568,8 @@ impl LocalFrame {
 impl UiTree {
     pub(super) fn can_reuse_local_frame(&self) -> bool {
         self.local_frame.as_ref().is_some_and(|old| {
-            !self.layout_dirty
+            (self.pixel_snap == PixelSnap::None || !self.dirty)
+                && !self.layout_dirty
                 && !self.full_extract_required
                 && self.geometry_dirty.is_empty()
                 && self
