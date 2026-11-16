@@ -1,0 +1,406 @@
+{
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36",
+  "cases": 5376,
+  "fields": [
+    "kind",
+    "dir",
+    "rtl",
+    "wrap",
+    "itemRtl",
+    "position",
+    "overflow",
+    "childW",
+    "childH",
+    "count"
+  ],
+  "geometryFile": "browser-reference.tsv",
+  "tolerance": 0.02,
+  "expectedMatches": 5364,
+  "deviations": [
+    {
+      "kind": "content",
+      "dir": "row",
+      "rtl": false,
+      "wrap": "wrap-reverse",
+      "itemRtl": false,
+      "position": "space-between",
+      "overflow": "default",
+      "childW": 60,
+      "childH": 40,
+      "count": 3,
+      "actual": [
+        [
+          0,
+          20,
+          60,
+          40
+        ],
+        [
+          0,
+          -20,
+          60,
+          40
+        ],
+        [
+          0,
+          -60,
+          60,
+          40
+        ]
+      ]
+    },
+    {
+      "kind": "content",
+      "dir": "row",
+      "rtl": true,
+      "wrap": "wrap-reverse",
+      "itemRtl": false,
+      "position": "space-between",
+      "overflow": "default",
+      "childW": 60,
+      "childH": 40,
+      "count": 3,
+      "actual": [
+        [
+          40,
+          20,
+          60,
+          40
+        ],
+        [
+          40,
+          -20,
+          60,
+          40
+        ],
+        [
+          40,
+          -60,
+          60,
+          40
+        ]
+      ]
+    },
+    {
+      "kind": "main",
+      "dir": "row-reverse",
+      "rtl": false,
+      "wrap": "nowrap",
+      "itemRtl": false,
+      "position": "space-between",
+      "overflow": "default",
+      "childW": 45,
+      "childH": 20,
+      "count": 3,
+      "actual": [
+        [
+          55,
+          0,
+          45,
+          20
+        ],
+        [
+          10,
+          0,
+          45,
+          20
+        ],
+        [
+          -35,
+          0,
+          45,
+          20
+        ]
+      ]
+    },
+    {
+      "kind": "content",
+      "dir": "row-reverse",
+      "rtl": false,
+      "wrap": "wrap-reverse",
+      "itemRtl": false,
+      "position": "space-between",
+      "overflow": "default",
+      "childW": 60,
+      "childH": 40,
+      "count": 3,
+      "actual": [
+        [
+          0,
+          20,
+          60,
+          40
+        ],
+        [
+          0,
+          -20,
+          60,
+          40
+        ],
+        [
+          0,
+          -60,
+          60,
+          40
+        ]
+      ]
+    },
+    {
+      "kind": "main",
+      "dir": "row-reverse",
+      "rtl": true,
+      "wrap": "nowrap",
+      "itemRtl": false,
+      "position": "space-between",
+      "overflow": "default",
+      "childW": 45,
+      "childH": 20,
+      "count": 3,
+      "actual": [
+        [
+          0,
+          0,
+          45,
+          20
+        ],
+        [
+          45,
+          0,
+          45,
+          20
+        ],
+        [
+          90,
+          0,
+          45,
+          20
+        ]
+      ]
+    },
+    {
+      "kind": "content",
+      "dir": "row-reverse",
+      "rtl": true,
+      "wrap": "wrap-reverse",
+      "itemRtl": false,
+      "position": "space-between",
+      "overflow": "default",
+      "childW": 60,
+      "childH": 40,
+      "count": 3,
+      "actual": [
+        [
+          40,
+          20,
+          60,
+          40
+        ],
+        [
+          40,
+          -20,
+          60,
+          40
+        ],
+        [
+          40,
+          -60,
+          60,
+          40
+        ]
+      ]
+    },
+    {
+      "kind": "content",
+      "dir": "column",
+      "rtl": false,
+      "wrap": "wrap-reverse",
+      "itemRtl": false,
+      "position": "space-between",
+      "overflow": "default",
+      "childW": 60,
+      "childH": 40,
+      "count": 3,
+      "actual": [
+        [
+          40,
+          0,
+          60,
+          40
+        ],
+        [
+          -20,
+          0,
+          60,
+          40
+        ],
+        [
+          -80,
+          0,
+          60,
+          40
+        ]
+      ]
+    },
+    {
+      "kind": "content",
+      "dir": "column",
+      "rtl": true,
+      "wrap": "wrap-reverse",
+      "itemRtl": false,
+      "position": "space-between",
+      "overflow": "default",
+      "childW": 60,
+      "childH": 40,
+      "count": 3,
+      "actual": [
+        [
+          0,
+          0,
+          60,
+          40
+        ],
+        [
+          60,
+          0,
+          60,
+          40
+        ],
+        [
+          120,
+          0,
+          60,
+          40
+        ]
+      ]
+    },
+    {
+      "kind": "main",
+      "dir": "column-reverse",
+      "rtl": false,
+      "wrap": "nowrap",
+      "itemRtl": false,
+      "position": "space-between",
+      "overflow": "default",
+      "childW": 20,
+      "childH": 30,
+      "count": 3,
+      "actual": [
+        [
+          0,
+          30,
+          20,
+          30
+        ],
+        [
+          0,
+          0,
+          20,
+          30
+        ],
+        [
+          0,
+          -30,
+          20,
+          30
+        ]
+      ]
+    },
+    {
+      "kind": "content",
+      "dir": "column-reverse",
+      "rtl": false,
+      "wrap": "wrap-reverse",
+      "itemRtl": false,
+      "position": "space-between",
+      "overflow": "default",
+      "childW": 60,
+      "childH": 40,
+      "count": 3,
+      "actual": [
+        [
+          40,
+          0,
+          60,
+          40
+        ],
+        [
+          -20,
+          0,
+          60,
+          40
+        ],
+        [
+          -80,
+          0,
+          60,
+          40
+        ]
+      ]
+    },
+    {
+      "kind": "main",
+      "dir": "column-reverse",
+      "rtl": true,
+      "wrap": "nowrap",
+      "itemRtl": false,
+      "position": "space-between",
+      "overflow": "default",
+      "childW": 20,
+      "childH": 30,
+      "count": 3,
+      "actual": [
+        [
+          80,
+          30,
+          20,
+          30
+        ],
+        [
+          80,
+          0,
+          20,
+          30
+        ],
+        [
+          80,
+          -30,
+          20,
+          30
+        ]
+      ]
+    },
+    {
+      "kind": "content",
+      "dir": "column-reverse",
+      "rtl": true,
+      "wrap": "wrap-reverse",
+      "itemRtl": false,
+      "position": "space-between",
+      "overflow": "default",
+      "childW": 60,
+      "childH": 40,
+      "count": 3,
+      "actual": [
+        [
+          0,
+          0,
+          60,
+          40
+        ],
+        [
+          60,
+          0,
+          60,
+          40
+        ],
+        [
+          120,
+          0,
+          60,
+          40
+        ]
+      ]
+    }
+  ],
+  "reason": "Chromium 145 uses flex-start for overflowing reverse space-between; current CSS requires safe flex-start -> logical start."
+}

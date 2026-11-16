@@ -22,12 +22,14 @@ mod local_ink;
 pub mod logical;
 pub use layout::{
     AlignContent as LayoutAlignContent, AlignItems as LayoutAlignItems,
-    AlignSelf as LayoutAlignSelf, AvailableSpace as LayoutAvailableSpace, BoxConstraints,
-    BoxSizing as LayoutBoxSizing, ConstraintFit, ContainerType as LayoutContainerType,
-    Dimension as LayoutDimension, Edges as LayoutEdges, FlexDirection as LayoutFlexDirection,
-    FlexWrap as LayoutFlexWrap, JustifyContent as LayoutJustifyContent, LayoutConstraints,
-    LayoutDirection, LayoutDisplay, LayoutPosition, LayoutResult, LayoutSize, LayoutStyle,
-    Length as LayoutLength, Overflow as LayoutOverflow,
+    AlignSelf as LayoutAlignSelf, Alignment as LayoutAlignment,
+    AlignmentOverflow as LayoutAlignmentOverflow, AvailableSpace as LayoutAvailableSpace,
+    BoxConstraints, BoxSizing as LayoutBoxSizing, ConstraintFit,
+    ContainerType as LayoutContainerType, Dimension as LayoutDimension, Edges as LayoutEdges,
+    FlexDirection as LayoutFlexDirection, FlexWrap as LayoutFlexWrap,
+    JustifyContent as LayoutJustifyContent, LayoutConstraints, LayoutDirection, LayoutDisplay,
+    LayoutPosition, LayoutResult, LayoutSize, LayoutStyle, Length as LayoutLength,
+    Overflow as LayoutOverflow,
 };
 pub mod pacing;
 pub mod software;

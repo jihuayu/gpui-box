@@ -654,14 +654,16 @@ fn compute_constants(
     // items with an `align_self` of `None`, which defer to this value, are also resolved.
     let align_items = resolve_normal_alignment(style.align_items());
     // `normal` behaves as `stretch` for flex containers. In the main axis `stretch` behaves as
-    // `flex-start`, so a `normal` justify-content is resolved straight to `flex-start`.
+    // `flex-start`, so both `normal` and `stretch` justify-content resolve to it.
     // <https://www.w3.org/TR/css-align-3/#distribution-flex>
     let align_content = match style.align_content() {
         AlignContent { keyword: AlignContentKeyword::Normal, .. } => AlignContent::STRETCH,
         align_content => align_content,
     };
     let justify_content = match style.justify_content() {
-        JustifyContent { keyword: AlignContentKeyword::Normal, .. } => JustifyContent::FLEX_START,
+        JustifyContent { keyword: AlignContentKeyword::Normal | AlignContentKeyword::Stretch, .. } => {
+            JustifyContent::FLEX_START
+        }
         justify_content => justify_content,
     };
     let layout_direction = style.direction();

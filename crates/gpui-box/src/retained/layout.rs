@@ -211,8 +211,13 @@ pub enum FlexWrap {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AlignItems {
+    Normal,
     Start,
     End,
+    FlexStart,
+    FlexEnd,
+    SelfStart,
+    SelfEnd,
     Center,
     Stretch,
     Baseline,
@@ -223,8 +228,13 @@ pub enum AlignItems {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AlignSelf {
     Auto,
+    Normal,
     Start,
     End,
+    FlexStart,
+    FlexEnd,
+    SelfStart,
+    SelfEnd,
     Center,
     Stretch,
     Baseline,
@@ -232,8 +242,11 @@ pub enum AlignSelf {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AlignContent {
+    Normal,
     Start,
     End,
+    FlexStart,
+    FlexEnd,
     Center,
     Stretch,
     SpaceBetween,
@@ -243,12 +256,75 @@ pub enum AlignContent {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum JustifyContent {
+    Normal,
     Start,
     End,
+    FlexStart,
+    FlexEnd,
     Center,
+    Stretch,
     SpaceBetween,
     SpaceEvenly,
     SpaceAround,
+}
+
+/// Overflow-position is independent of the alignment keyword. Default leaves
+/// fallback to the layout mode; Unsafe preserves the requested position; Safe
+/// falls back to logical start when alignment would lose start-side content.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum AlignmentOverflow {
+    #[default]
+    Default,
+    Safe,
+    Unsafe,
+}
+
+/// Backend-independent alignment value. Non-default overflow modifiers are
+/// valid only for positional keywords, checked before styles enter the tree.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Alignment<T> {
+    pub position: T,
+    pub overflow: AlignmentOverflow,
+}
+impl<T> From<T> for Alignment<T> {
+    fn from(position: T) -> Self {
+        Self {
+            position,
+            overflow: AlignmentOverflow::Default,
+        }
+    }
+}
+impl<T> Alignment<T> {
+    pub const fn with_overflow(mut self, overflow: AlignmentOverflow) -> Self {
+        self.overflow = overflow;
+        self
+    }
+}
+macro_rules! alignment_modifiers {
+    ($($ty:ty),+ $(,)?) => { $(impl $ty {
+        pub const fn safe(self) -> Alignment<Self> {
+            Alignment { position: self, overflow: AlignmentOverflow::Safe }
+        }
+        pub const fn unsafe_overflow(self) -> Alignment<Self> {
+            Alignment { position: self, overflow: AlignmentOverflow::Unsafe }
+        }
+    })+ };
+}
+alignment_modifiers!(AlignItems, AlignSelf, AlignContent, JustifyContent);
+
+fn alignment_safety(value: AlignmentOverflow) -> taffy::AlignmentSafety {
+    match value {
+        AlignmentOverflow::Default => taffy::AlignmentSafety::Default,
+        AlignmentOverflow::Safe => taffy::AlignmentSafety::Safe,
+        AlignmentOverflow::Unsafe => taffy::AlignmentSafety::Unsafe,
+    }
+}
+fn validate_alignment(overflow: AlignmentOverflow, positional: bool) -> Result<(), Error> {
+    if overflow != AlignmentOverflow::Default && !positional {
+        Err(Error::InvalidStyle)
+    } else {
+        Ok(())
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -580,10 +656,10 @@ pub struct LayoutStyle {
     pub flex_basis: Dimension,
     pub flex_grow: f32,
     pub flex_shrink: f32,
-    pub align_items: AlignItems,
-    pub align_self: AlignSelf,
-    pub align_content: AlignContent,
-    pub justify_content: JustifyContent,
+    pub align_items: Alignment<AlignItems>,
+    pub align_self: Alignment<AlignSelf>,
+    pub align_content: Alignment<AlignContent>,
+    pub justify_content: Alignment<JustifyContent>,
     /// Physical gaps: width = column gap, height = row gap.
     pub gap: LayoutSize<Length>,
     /// Optional flex-axis override: width = main gap, height = cross gap.
@@ -613,10 +689,10 @@ impl Default for LayoutStyle {
             flex_basis: Dimension::Auto,
             flex_grow: 0.0,
             flex_shrink: 1.0,
-            align_items: AlignItems::Stretch,
-            align_self: AlignSelf::Auto,
-            align_content: AlignContent::Stretch,
-            justify_content: JustifyContent::Start,
+            align_items: AlignItems::Stretch.into(),
+            align_self: AlignSelf::Auto.into(),
+            align_content: AlignContent::Stretch.into(),
+            justify_content: JustifyContent::Start.into(),
             gap: LayoutSize::new(Length::Px(0.0), Length::Px(0.0)),
             main_cross_gap: None,
             overflow: LayoutSize::new(Overflow::Visible, Overflow::Visible),
@@ -731,28 +807,76 @@ impl LayoutStyle {
         self.margin = edges;
         self
     }
-    pub fn align_items(mut self, value: AlignItems) -> Self {
-        self.align_items = value;
+    pub fn align_items(mut self, value: impl Into<Alignment<AlignItems>>) -> Self {
+        self.align_items = value.into();
         self
     }
-    pub fn align_self(mut self, value: AlignSelf) -> Self {
-        self.align_self = value;
+    pub fn align_self(mut self, value: impl Into<Alignment<AlignSelf>>) -> Self {
+        self.align_self = value.into();
         self
     }
     pub fn overflow(mut self, x: Overflow, y: Overflow) -> Self {
         self.overflow = LayoutSize::new(x, y);
         self
     }
-    pub fn align_content(mut self, value: AlignContent) -> Self {
-        self.align_content = value;
+    pub fn align_content(mut self, value: impl Into<Alignment<AlignContent>>) -> Self {
+        self.align_content = value.into();
         self
     }
-    pub fn justify_content(mut self, value: JustifyContent) -> Self {
-        self.justify_content = value;
+    pub fn justify_content(mut self, value: impl Into<Alignment<JustifyContent>>) -> Self {
+        self.justify_content = value.into();
         self
     }
 
     pub fn validate(&self) -> Result<(), Error> {
+        validate_alignment(
+            self.align_items.overflow,
+            matches!(
+                self.align_items.position,
+                AlignItems::Start
+                    | AlignItems::End
+                    | AlignItems::FlexStart
+                    | AlignItems::FlexEnd
+                    | AlignItems::SelfStart
+                    | AlignItems::SelfEnd
+                    | AlignItems::Center
+            ),
+        )?;
+        validate_alignment(
+            self.align_self.overflow,
+            matches!(
+                self.align_self.position,
+                AlignSelf::Start
+                    | AlignSelf::End
+                    | AlignSelf::FlexStart
+                    | AlignSelf::FlexEnd
+                    | AlignSelf::SelfStart
+                    | AlignSelf::SelfEnd
+                    | AlignSelf::Center
+            ),
+        )?;
+        validate_alignment(
+            self.align_content.overflow,
+            matches!(
+                self.align_content.position,
+                AlignContent::Start
+                    | AlignContent::End
+                    | AlignContent::FlexStart
+                    | AlignContent::FlexEnd
+                    | AlignContent::Center
+            ),
+        )?;
+        validate_alignment(
+            self.justify_content.overflow,
+            matches!(
+                self.justify_content.position,
+                JustifyContent::Start
+                    | JustifyContent::End
+                    | JustifyContent::FlexStart
+                    | JustifyContent::FlexEnd
+                    | JustifyContent::Center
+            ),
+        )?;
         self.inset.validate(true, true)?;
         self.margin.validate(true, true)?;
         self.padding.validate(false, false)?;
@@ -852,38 +976,59 @@ impl LayoutStyle {
             flex_basis: self.flex_basis.to_taffy(),
             flex_grow: self.flex_grow,
             flex_shrink: self.flex_shrink,
-            align_items: match self.align_items {
+            align_items: (match self.align_items.position {
+                AlignItems::Normal => taffy::AlignItems::NORMAL,
                 AlignItems::Start => taffy::AlignItems::START,
                 AlignItems::End => taffy::AlignItems::END,
+                AlignItems::FlexStart => taffy::AlignItems::FLEX_START,
+                AlignItems::FlexEnd => taffy::AlignItems::FLEX_END,
+                AlignItems::SelfStart => taffy::AlignItems::SELF_START,
+                AlignItems::SelfEnd => taffy::AlignItems::SELF_END,
                 AlignItems::Center => taffy::AlignItems::CENTER,
                 AlignItems::Stretch => taffy::AlignItems::STRETCH,
                 AlignItems::Baseline => taffy::AlignItems::BASELINE,
-            },
-            align_self: match self.align_self {
+            })
+            .with_safety(alignment_safety(self.align_items.overflow)),
+            align_self: match self.align_self.position {
                 AlignSelf::Auto => None,
+                AlignSelf::Normal => Some(taffy::AlignSelf::NORMAL),
                 AlignSelf::Start => Some(taffy::AlignSelf::START),
                 AlignSelf::End => Some(taffy::AlignSelf::END),
+                AlignSelf::FlexStart => Some(taffy::AlignSelf::FLEX_START),
+                AlignSelf::FlexEnd => Some(taffy::AlignSelf::FLEX_END),
+                AlignSelf::SelfStart => Some(taffy::AlignSelf::SELF_START),
+                AlignSelf::SelfEnd => Some(taffy::AlignSelf::SELF_END),
                 AlignSelf::Center => Some(taffy::AlignSelf::CENTER),
                 AlignSelf::Stretch => Some(taffy::AlignSelf::STRETCH),
                 AlignSelf::Baseline => Some(taffy::AlignSelf::BASELINE),
-            },
-            align_content: match self.align_content {
+            }
+            .map(|value| value.with_safety(alignment_safety(self.align_self.overflow))),
+            align_content: (match self.align_content.position {
+                AlignContent::Normal => taffy::AlignContent::NORMAL,
                 AlignContent::Start => taffy::AlignContent::START,
                 AlignContent::End => taffy::AlignContent::END,
+                AlignContent::FlexStart => taffy::AlignContent::FLEX_START,
+                AlignContent::FlexEnd => taffy::AlignContent::FLEX_END,
                 AlignContent::Center => taffy::AlignContent::CENTER,
                 AlignContent::Stretch => taffy::AlignContent::STRETCH,
                 AlignContent::SpaceBetween => taffy::AlignContent::SPACE_BETWEEN,
                 AlignContent::SpaceEvenly => taffy::AlignContent::SPACE_EVENLY,
                 AlignContent::SpaceAround => taffy::AlignContent::SPACE_AROUND,
-            },
-            justify_content: match self.justify_content {
+            })
+            .with_safety(alignment_safety(self.align_content.overflow)),
+            justify_content: (match self.justify_content.position {
+                JustifyContent::Normal => taffy::JustifyContent::NORMAL,
                 JustifyContent::Start => taffy::JustifyContent::START,
                 JustifyContent::End => taffy::JustifyContent::END,
+                JustifyContent::FlexStart => taffy::JustifyContent::FLEX_START,
+                JustifyContent::FlexEnd => taffy::JustifyContent::FLEX_END,
                 JustifyContent::Center => taffy::JustifyContent::CENTER,
+                JustifyContent::Stretch => taffy::JustifyContent::STRETCH,
                 JustifyContent::SpaceBetween => taffy::JustifyContent::SPACE_BETWEEN,
                 JustifyContent::SpaceEvenly => taffy::JustifyContent::SPACE_EVENLY,
                 JustifyContent::SpaceAround => taffy::JustifyContent::SPACE_AROUND,
-            },
+            })
+            .with_safety(alignment_safety(self.justify_content.overflow)),
             gap: {
                 let physical = match (self.main_cross_gap, self.flex_direction) {
                     (None, _) => self.gap,
@@ -920,6 +1065,8 @@ impl LayoutStyle {
     }
 }
 
+#[cfg(test)]
+mod alignment_tests;
 #[cfg(test)]
 mod baseline_tests;
 #[cfg(test)]

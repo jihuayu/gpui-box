@@ -1,0 +1,57 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Flex alignment reference</title>
+<style>body{margin:0}#results{white-space:pre-wrap}#fixture{position:absolute;left:200px;top:200px}</style>
+<div id="fixture"></div><pre id="results"></pre>
+<script>
+window.referenceReady = (async () => {
+  const fixture = document.querySelector('#fixture'), cases = [];
+  const positions = ['start','end','flex-start','flex-end','center'];
+  const itemPositions = [...positions,'self-start','self-end'];
+  function run(kind, dir, rtl, wrap, itemRtl, position, overflow, wide) {
+    const row = dir.startsWith('row');
+    const childW = kind === 'main' ? (row ? (wide ? 45 : 15) : 20)
+      : kind === 'items' || kind === 'self' ? (row ? 20 : (wide ? 140 : 50)) : (row ? 60 : (wide ? 60 : 20));
+    const childH = kind === 'main' ? (row ? 20 : (wide ? 30 : 10))
+      : kind === 'items' || kind === 'self' ? (row ? (wide ? 100 : 20) : 10) : (row ? (wide ? 40 : 10) : 40);
+    const count = kind === 'items' || kind === 'self' ? 2 : 3;
+    const value = overflow === 'default' ? position : `${overflow} ${position}`;
+    const property = kind === 'main' ? 'justify-content' : kind === 'content' ? 'align-content' : 'align-items';
+    if (!CSS.supports(kind === 'self' ? 'align-self' : property, value)) throw new Error(`Unsupported ${kind}:${value}`);
+    fixture.replaceChildren();
+    const root = document.createElement('div');
+    root.style.cssText = `display:flex;width:100px;height:60px;box-sizing:border-box;flex-direction:${dir};direction:${rtl?'rtl':'ltr'};flex-wrap:${wrap};justify-content:start;align-items:start;${property}:${kind==='self'?'start':value}`;
+    fixture.append(root);
+    const elements = [];
+    for (let i=0; i<count; i++) {
+      const child = document.createElement('div');
+      child.style.cssText = `width:${childW}px;height:${childH}px;flex-shrink:0;direction:${itemRtl?'rtl':'ltr'};${kind==='self'?`align-self:${value}`:''}`;
+      root.append(child); elements.push(child);
+    }
+    const r = root.getBoundingClientRect();
+    const actual = elements.map(e => { const b=e.getBoundingClientRect(); return [b.x-r.x,b.y-r.y,b.width,b.height]; });
+    cases.push({kind,dir,rtl,wrap,itemRtl,position,overflow,childW,childH,count,actual});
+  }
+  for (const dir of ['row','row-reverse','column','column-reverse']) for (const rtl of [false,true]) {
+    for (const wide of [false,true]) {
+      for (const p of [...positions,'normal','stretch','space-between','space-around','space-evenly']) {
+        for (const overflow of positions.includes(p) ? ['default','safe','unsafe'] : ['default'])
+          run('main',dir,rtl,'nowrap',false,p,overflow,wide);
+      }
+      for (const wrap of ['nowrap','wrap','wrap-reverse']) for (const itemRtl of [false,true]) {
+        for (const p of [...itemPositions,'normal','stretch']) for (const overflow of itemPositions.includes(p) ? ['default','safe','unsafe'] : ['default']) {
+          run('items',dir,rtl,wrap,itemRtl,p,overflow,wide);
+          run('self',dir,rtl,wrap,itemRtl,p,overflow,wide);
+        }
+      }
+      for (const wrap of ['wrap','wrap-reverse']) for (const p of [...positions,'normal','stretch','space-between','space-around','space-evenly']) {
+        for (const overflow of positions.includes(p) ? ['default','safe','unsafe'] : ['default'])
+          run('content',dir,rtl,wrap,false,p,overflow,wide);
+      }
+    }
+  }
+  const result = {userAgent:navigator.userAgent,cases};
+  document.querySelector('#results').textContent = JSON.stringify({userAgent:result.userAgent,cases:cases.length});
+  return result;
+})();
+</script>

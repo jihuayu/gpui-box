@@ -16,6 +16,13 @@ The [atomic responsive follow-up](RETAINED_ATOMIC_RESPONSIVE.md) adds
 final-only style/source/frame/effect publication and public local output to
 `LayoutResponsiveBindings`, including computed layout sink dependencies and
 independent layout/paint inputs. It leaves this legacy adapter unchanged.
+The [alignment update](RETAINED_FLEX_ALIGNMENT.md) (2026-11-17) extends the
+framework-owned LayoutStyle with logical/flex/self-relative keywords and
+independent Safe/Unsafe overflow policy, including atomic responsive sources
+and real CPU/GPU/glyph controls. Its 5,364 independent Chromium geometry matches
+and twelve explicit spec/browser differences do not establish full Flex
+conformance. The pinned-alignment statement below describes the legacy adapter;
+the newer API and owned-kernel corrections use the current alignment contract.
 
 `retained::responsive` adds validated Flex style values, configurable width
 thresholds and a bounded responsive resolver. The normal gallery prepaint path

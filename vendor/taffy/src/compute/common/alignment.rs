@@ -41,12 +41,14 @@ pub(crate) fn apply_alignment_fallback(
     let mut is_safe = matches!(alignment_mode.safety, AlignmentSafety::Safe);
 
     // 1. If there is only a single item being aligned or the items overflow the container, the
-    //    distributed alignment keywords (`stretch`, `space-*`) fall back to a positional keyword
-    //    and gain implicit `safe` semantics so step 2 can flip them to `Start` on overflow.
+    //    distributed alignment keywords fall back to a positional keyword.
+    //    Stretch falls back to flex-start without an implicit safe modifier;
+    //    space-* fallbacks gain safe semantics.
     //    https://www.w3.org/TR/css-align-3/#distribution-values
     if num_items <= 1 || free_space <= 0.0 {
         (keyword, is_safe) = match keyword {
-            AlignContentKeyword::Stretch | AlignContentKeyword::SpaceBetween => (AlignContentKeyword::FlexStart, true),
+            AlignContentKeyword::Stretch => (AlignContentKeyword::FlexStart, false),
+            AlignContentKeyword::SpaceBetween => (AlignContentKeyword::FlexStart, true),
             AlignContentKeyword::SpaceAround | AlignContentKeyword::SpaceEvenly => (AlignContentKeyword::Center, true),
             other => (other, is_safe),
         };
@@ -124,6 +126,41 @@ pub(crate) fn compute_alignment_offset(
             AlignContentKeyword::SpaceBetween => free_space / (num_items - 1) as f32,
             AlignContentKeyword::SpaceAround => free_space / num_items as f32,
             AlignContentKeyword::SpaceEvenly => free_space / (num_items + 1) as f32,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stretch_keeps_flex_relative_fallback_while_space_between_is_safe() {
+        for count in [1, 3] {
+            assert_eq!(apply_alignment_fallback(-40.0, count, AlignContent::STRETCH), AlignContentKeyword::FlexStart);
+            assert_eq!(apply_alignment_fallback(-40.0, count, AlignContent::SPACE_BETWEEN), AlignContentKeyword::Start);
+            assert_eq!(
+                compute_alignment_offset(
+                    -40.0,
+                    count,
+                    0.0,
+                    apply_alignment_fallback(-40.0, count, AlignContent::STRETCH),
+                    true,
+                    true,
+                ),
+                -40.0
+            );
+            assert_eq!(
+                compute_alignment_offset(
+                    -40.0,
+                    count,
+                    0.0,
+                    apply_alignment_fallback(-40.0, count, AlignContent::SPACE_BETWEEN),
+                    true,
+                    true,
+                ),
+                0.0
+            );
         }
     }
 }

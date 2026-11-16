@@ -21,6 +21,117 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 }
 
 #[test]
+fn safe_alignment_preserves_real_glyph_wrapping_and_complete_cpu_pixels() {
+    use gpui_box::retained::logical::LogicalUi;
+    let system = text_system();
+    let paragraph = shape(&system, "one two three four five six 中文段落");
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let text = TextPaint {
+        resource: raster.prepare(paragraph.clone(), 1.0).unwrap(),
+        color: 0x00ffffff,
+    };
+    let height = paragraph.layout(Some(60.0)).unwrap().size[1];
+    assert!(height > 30.0);
+    let root = LayoutStyle::row().size(LayoutDimension::Px(300.0), LayoutDimension::Px(700.0));
+    let host_style = |safe| {
+        LayoutStyle::row()
+            .size(LayoutDimension::Px(60.0), LayoutDimension::Px(30.0))
+            .align_items(if safe {
+                LayoutAlignItems::Center.safe()
+            } else {
+                LayoutAlignItems::Center.unsafe_overflow()
+            })
+    };
+    let leaf_style = LayoutStyle::row()
+        .size(LayoutDimension::Px(60.0), LayoutDimension::Auto)
+        .flex_shrink(0.0);
+    let mut ui = LogicalUi::new_layout(root.clone(), 0, BackendCapabilities::default()).unwrap();
+    let scope = ui.root_scope();
+    let host = ui
+        .append_render_layout(scope, ui.root_render(), host_style(true), 0)
+        .unwrap();
+    let leaf = ui
+        .append_render_layout(scope, host, leaf_style.clone(), 0)
+        .unwrap();
+    ui.edit(
+        |_| Ok(()),
+        |(), edit| {
+            edit.properties().text(leaf, Some(text.clone()));
+            Ok(())
+        },
+    )
+    .unwrap();
+    fn pixels(frame: FramePacket) -> Vec<u8> {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [300, 700],
+                scale: 1.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 4 * 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(8192).unwrap() {}
+        job.into_frame().unwrap().pixels().to_vec()
+    }
+    let mut old = None;
+    let mut geometry = None;
+    for safe in [true, false, true, false] {
+        let (_, frame) = ui
+            .edit_local_frame(
+                LayoutConstraints::viewport(300.0, 700.0),
+                [300.0, 700.0],
+                |_| Ok(()),
+                |(), edit| {
+                    edit.properties().layout_style(host, host_style(safe));
+                    Ok(())
+                },
+            )
+            .unwrap();
+        let y = if safe { 0.0 } else { (30.0 - height) * 0.5 };
+        assert_eq!(ui.layout_result(leaf).unwrap().size, [60.0, height]);
+        assert_eq!(ui.layout_result(leaf).unwrap().location, [0.0, y]);
+        let resolved = frame.resolve();
+        let glyphs = resolved
+            .items
+            .iter()
+            .find(|p| p.node == leaf)
+            .unwrap()
+            .glyphs
+            .as_ref()
+            .unwrap();
+        if let Some(previous) = &geometry {
+            assert!(Arc::ptr_eq(previous, glyphs));
+        } else {
+            geometry = Some(glyphs.clone());
+        }
+        let mut full = UiTree::new_layout(root.clone(), 0).unwrap();
+        full.set_frame_build_policy(FrameBuildPolicy::Full);
+        let h = full
+            .append_layout(
+                full.root(),
+                host_style(true).align_items(LayoutAlignItems::Start),
+                0,
+            )
+            .unwrap();
+        let node = full.append_layout(h, leaf_style.clone(), 0).unwrap();
+        let mut tx = Transaction::default();
+        tx.text(node, Some(text.clone()));
+        tx.translation(node, [0.0, y]);
+        full.commit(tx, BackendCapabilities::default()).unwrap();
+        let actual = pixels(resolved);
+        assert!(actual.chunks_exact(4).any(|p| p[1] > 0 && p[2] > 0));
+        assert_eq!(actual, pixels(full.frame([300.0, 700.0]).unwrap()));
+        old.get_or_insert((frame, actual));
+    }
+    drop((ui, system, raster, text, paragraph, geometry));
+    let (old, expected) = old.unwrap();
+    assert_eq!(pixels(old.resolve()), expected);
+}
+
+#[test]
 fn pixel_snap_moves_real_glyph_origins_without_rewrapping_at_rounded_box_width() {
     pixel_snap_real_paragraph(false);
 }

@@ -284,6 +284,18 @@ layout-order 子列表，后续替换/增删重排即使等宽也拒绝；siblin
 防止已知尺寸遮蔽 soft space 变化。详见 [契约和 ADR](RETAINED_PARENT_ALLOCATION_BUILDERS.md)。
 仍有完整 preview、slot 与稀疏记录成本，没有新增性能结论。
 
+对齐 API 现在由框架自己的 `Alignment<T>` 与 `AlignmentOverflow` 表达，区分
+logical Start/End、FlexStart/FlexEnd、SelfStart/SelfEnd，以及 Safe/Unsafe 溢出
+回退；Normal/Stretch 按布局上下文解析。builder 接受原枚举或完整值，直接字段
+赋值需 `.into()`；框架默认 justify Start 保持。非法组合在原子发布前拒绝，
+modifier-only 修改经原样式/source 布局链路，同值不产新帧。项目内核修正了反向
+主轴 justify Stretch 与 content Stretch 溢出回退；独立 Chromium145 几何
+5,364 项匹配，另 12 项 reverse SpaceBetween 的规范/浏览器偏差单独保留断言。
+真实文字、CPU/WGPU 与命中验证使用同一发布几何，未增加第二套布局真相。
+详见 [Flex 对齐契约与 ADR](RETAINED_FLEX_ALIGNMENT.md)。这会增加样式值的策略
+字段、校验和复制成本，没有性能提升声明；last-baseline、竖排与广泛对齐/布局
+一致性仍开放。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。
