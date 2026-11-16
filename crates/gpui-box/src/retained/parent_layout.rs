@@ -1,6 +1,36 @@
 //! Backend-independent custom parent measurement and child placement.
 use super::*;
 
+/// Immutable, typed metadata for a node's direct parent algorithm. It is not
+/// inherited and ordinary Flex ignores it. Clone preserves identity; create a
+/// new handle whenever its value changes, as for ParentLayoutSnapshot.
+/// Interior mutation, mutable external state or invocation-dependent values
+/// violate the layout purity contract even if Rust's type system permits them.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ParentData(taffy::tree::CustomParentData);
+impl ParentData {
+    pub fn new<T: Send + Sync + 'static>(value: T) -> Self {
+        Self(taffy::tree::CustomParentData::new(value))
+    }
+    pub fn get<T: 'static>(&self) -> Option<&T> {
+        self.0.downcast_ref()
+    }
+    pub(super) fn to_taffy(&self) -> taffy::tree::CustomParentData {
+        self.0.clone()
+    }
+}
+
+/// Independent allocation can read authored direct-child metadata without
+/// measuring content, inspecting styles or accessing mutable application state.
+pub trait ParentAllocationChildren {
+    fn len(&self) -> usize;
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    /// Owned handle; borrowing a value through get() cannot outlive the handle.
+    fn parent_data(&self, child: usize) -> Result<Option<ParentData>, Error>;
+}
+
 /// Content-box inputs after the host's normal sizing and inset rules.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ParentLayoutInput {
@@ -81,6 +111,9 @@ pub trait ParentLayoutChildren {
     fn len(&self) -> usize;
     fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+    fn parent_data(&self, _child: usize) -> Result<Option<ParentData>, Error> {
+        Ok(None)
     }
     /// An independent planner's enforced inline assignment, if installed.
     /// Measurement and final placement use this width even if the caller's
@@ -192,14 +225,26 @@ pub struct ParentAllocationInput {
 
 /// Pure assignment from incoming constraints and owned immutable configuration.
 /// No child styles, measurements or measured host dimensions are available.
+/// Override allocate_children to additionally observe immutable parent data.
 /// Return one complete input per direct child in layout order, including hidden
 /// nodes. Loose/unbounded/intrinsic inputs remain distinct and supported.
 pub trait ParentAllocationLayout: std::fmt::Debug + Send + Sync + 'static {
+    /// Count-only compatibility entry. Override this or allocate_children;
+    /// leaving both at their defaults fails with InvalidParentLayout.
     fn allocate(
         &self,
+        _input: ParentAllocationInput,
+        _children: usize,
+    ) -> Result<Vec<ChildLayoutInput>, Error> {
+        Err(Error::InvalidParentLayout)
+    }
+    fn allocate_children(
+        &self,
         input: ParentAllocationInput,
-        children: usize,
-    ) -> Result<Vec<ChildLayoutInput>, Error>;
+        children: &dyn ParentAllocationChildren,
+    ) -> Result<Vec<ChildLayoutInput>, Error> {
+        self.allocate(input, children.len())
+    }
 }
 
 /// Clone this handle to preserve snapshot identity. Create a new snapshot when
@@ -291,6 +336,9 @@ impl ParentLayoutChildren for Children<'_> {
     fn len(&self) -> usize {
         self.inner.len()
     }
+    fn parent_data(&self, child: usize) -> Result<Option<ParentData>, Error> {
+        Ok(self.inner.parent_data(child)?.cloned().map(ParentData))
+    }
     fn inline_allocation(&self, child: usize) -> Result<Option<ChildInlineAllocation>, Error> {
         if child >= self.len() {
             return Err(Error::InvalidParentLayout);
@@ -322,27 +370,36 @@ impl ParentLayoutChildren for Children<'_> {
 }
 #[derive(Debug)]
 struct Adapter(ParentLayoutSnapshot);
+struct AllocationChildren<'a>(&'a dyn taffy::tree::CustomAllocationChildren);
+impl ParentAllocationChildren for AllocationChildren<'_> {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+    fn parent_data(&self, child: usize) -> Result<Option<ParentData>, Error> {
+        Ok(self.0.parent_data(child)?.cloned().map(ParentData))
+    }
+}
 impl taffy::tree::CustomLayout for Adapter {
     fn allocate(
         &self,
         input: taffy::LayoutInput,
-        children: usize,
+        children: &dyn taffy::tree::CustomAllocationChildren,
     ) -> Result<Option<Vec<taffy::LayoutInput>>, taffy::TaffyError> {
         let Some(planner) = &self.0.allocation else {
             return Ok(None);
         };
         let child = ChildLayoutInput::from_taffy(input);
         let result = (|| -> Result<Vec<taffy::LayoutInput>, Error> {
-            let slots = planner.allocate(
+            let slots = planner.allocate_children(
                 ParentAllocationInput {
                     known_size: from_size(input.known_dimensions),
                     known_size_is_definite: from_size(input.known_dimensions_are_definite),
                     constraints: child.constraints,
                     percentage_basis: child.percentage_basis,
                 },
-                children,
+                &AllocationChildren(children),
             )?;
-            if slots.len() != children {
+            if slots.len() != children.len() {
                 return Err(Error::InvalidParentLayout);
             }
             slots.into_iter().map(ChildLayoutInput::to_taffy).collect()
@@ -437,5 +494,7 @@ impl taffy::tree::CustomLayout for Adapter {
 
 #[cfg(test)]
 mod inline_tests;
+#[cfg(test)]
+mod parent_data_tests;
 #[cfg(test)]
 mod tests;

@@ -180,7 +180,11 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
             .filter(|(_, binding)| {
                 reachable.contains(&binding.source)
                     && match binding.field {
-                        Field::Style | Field::Measure | Field::ParentLayout | Field::Image => true,
+                        Field::Style
+                        | Field::Measure
+                        | Field::ParentLayout
+                        | Field::ParentData
+                        | Field::Image => true,
                         #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
                         Field::Text => true,
                         _ => false,

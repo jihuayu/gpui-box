@@ -181,7 +181,11 @@ impl ReactiveUi {
             for binding in &source.bindings {
                 let binding = &self.bindings[binding];
                 let layout = match binding.field {
-                    Field::Style | Field::Measure | Field::ParentLayout | Field::Image => true,
+                    Field::Style
+                    | Field::Measure
+                    | Field::ParentLayout
+                    | Field::ParentData
+                    | Field::Image => true,
                     #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
                     Field::Text => true,
                     _ => false,

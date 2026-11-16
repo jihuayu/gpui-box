@@ -12,6 +12,14 @@ local test artifacts and ignored.
 
 ## Local changes
 
+- Immutable opaque direct-child parent data lives in a sparse map with
+  clone/hidden/reparent/remove/clear lifetime and identity-aware invalidation.
+  CustomLayout allocation now receives a read-only count/data view, and measured
+  parents can read the same values. No child style or measurement is available
+  during independent allocation. Raw kernel implementors need the new allocate
+  signature; framework count-only adapters remain supported. See
+  [parent-data contract](../../docs/RETAINED_PARENT_DATA.md).
+
 - Full size-contained nodes record real incoming final LayoutInput in sparse
   storage; intrinsic probes do not replace final observations, cached ancestors
   preserve them and hidden/style/remove/reuse/clear retire them. A sparse node

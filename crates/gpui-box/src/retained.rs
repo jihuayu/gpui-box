@@ -53,10 +53,10 @@ pub use measure::{
     MeasureSnapshot,
 };
 pub use parent_layout::{
-    ChildInlineAllocation, ChildLayoutInput, ChildLayoutResult, ParentAllocationInput,
-    ParentAllocationLayout, ParentInlineInput, ParentInlineLayout, ParentLayout,
-    ParentLayoutChildren, ParentLayoutInput, ParentLayoutOutput, ParentLayoutSnapshot,
-    ParentPlacement,
+    ChildInlineAllocation, ChildLayoutInput, ChildLayoutResult, ParentAllocationChildren,
+    ParentAllocationInput, ParentAllocationLayout, ParentData, ParentInlineInput,
+    ParentInlineLayout, ParentLayout, ParentLayoutChildren, ParentLayoutInput, ParentLayoutOutput,
+    ParentLayoutSnapshot, ParentPlacement,
 };
 mod primitive;
 mod properties;
@@ -224,6 +224,7 @@ pub enum Patch {
     Opacity(NodeId, f32),
     Measure(NodeId, Option<MeasureSnapshot>),
     ParentLayout(NodeId, Option<ParentLayoutSnapshot>),
+    ParentData(NodeId, Option<ParentData>),
     Decoration(NodeId, QuadDecoration),
     Shadows(NodeId, Arc<[BoxShadow]>),
     Image(NodeId, Option<ImageResource>),
@@ -248,6 +249,7 @@ impl Patch {
             | Self::Opacity(id, _)
             | Self::Measure(id, _)
             | Self::ParentLayout(id, _)
+            | Self::ParentData(id, _)
             | Self::Decoration(id, _)
             | Self::Shadows(id, _)
             | Self::Image(id, _) => *id,
@@ -298,6 +300,10 @@ impl Transaction {
     /// Replace a pure owned parent algorithm. Equal snapshot handles coalesce.
     pub fn parent_layout(&mut self, node: NodeId, snapshot: Option<ParentLayoutSnapshot>) {
         self.patches.push(Patch::ParentLayout(node, snapshot));
+    }
+    /// Author immutable metadata consumed only by this node's direct parent.
+    pub fn parent_data(&mut self, node: NodeId, value: Option<ParentData>) {
+        self.patches.push(Patch::ParentData(node, value));
     }
     pub fn decoration(&mut self, node: NodeId, value: QuadDecoration) {
         self.patches.push(Patch::Decoration(node, value));
@@ -401,6 +407,7 @@ struct Node {
     opacity: f32,
     measure: Option<MeasureSnapshot>,
     parent_layout: Option<ParentLayoutSnapshot>,
+    parent_data: Option<ParentData>,
     decoration: QuadDecoration,
     shadows: Arc<[BoxShadow]>,
     image: Option<ImageResource>,
@@ -456,6 +463,7 @@ struct Pending {
     opacity: Option<f32>,
     measure: Option<Option<MeasureSnapshot>>,
     parent_layout: Option<Option<ParentLayoutSnapshot>>,
+    parent_data: Option<Option<ParentData>>,
     decoration: Option<QuadDecoration>,
     shadows: Option<Arc<[BoxShadow]>>,
     image: Option<Option<ImageResource>>,
@@ -526,6 +534,7 @@ impl UiTree {
                     opacity: 1.0,
                     measure: None,
                     parent_layout: None,
+                    parent_data: None,
                     decoration: QuadDecoration::default(),
                     shadows: Arc::from([]),
                     image: None,
@@ -582,6 +591,9 @@ impl UiTree {
     }
     pub fn style(&self, id: NodeId) -> Result<&Style, Error> {
         Ok(&self.node(id)?.style)
+    }
+    pub fn parent_data(&self, id: NodeId) -> Result<Option<&ParentData>, Error> {
+        Ok(self.node(id)?.parent_data.as_ref())
     }
 
     /// Returns the last published parent-local layout result for a node.
@@ -699,6 +711,7 @@ impl UiTree {
             opacity: 1.0,
             measure: None,
             parent_layout: None,
+            parent_data: None,
             decoration: QuadDecoration::default(),
             shadows: Arc::from([]),
             image: None,
@@ -893,6 +906,7 @@ impl UiTree {
                         entry.measure = Some(snapshot);
                     }
                     Patch::ParentLayout(_, snapshot) => entry.parent_layout = Some(snapshot),
+                    Patch::ParentData(_, data) => entry.parent_data = Some(data),
                     Patch::Decoration(_, decoration) => {
                         decoration.validate()?;
                         entry.decoration = Some(decoration);
@@ -1015,6 +1029,11 @@ impl UiTree {
                     .parent_layout
                     .as_ref()
                     .is_some_and(|value| *value != node.parent_layout);
+            let measure_changed = measure_changed
+                || entry
+                    .parent_data
+                    .as_ref()
+                    .is_some_and(|value| *value != node.parent_data);
             if style_changed
                 || order_changed
                 || color_changed
@@ -1172,6 +1191,13 @@ impl UiTree {
             }
             if style_changed || measure_changed {
                 let node = self.node(id).expect("prepared node");
+                let data_changed = entry
+                    .parent_data
+                    .as_ref()
+                    .is_some_and(|v| *v != node.parent_data);
+                let parent_data = entry
+                    .parent_data
+                    .unwrap_or_else(|| node.parent_data.clone());
                 let style = entry
                     .style
                     .map(|style| *style)
@@ -1213,6 +1239,12 @@ impl UiTree {
                         self.custom_parents.remove(&id);
                     }
                 }
+                if data_changed {
+                    self.layout
+                        .set_parent_data(layout, parent_data.as_ref().map(ParentData::to_taffy))
+                        .expect("prepared parent data");
+                }
+                self.node_mut(id).parent_data = parent_data;
                 self.node_mut(id).parent_layout = parent_layout;
                 self.node_mut(id).style = style;
                 self.node_mut(id).measure = snapshot;

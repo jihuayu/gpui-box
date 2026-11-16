@@ -1,5 +1,11 @@
 # Independent parent intervals and content-sized construction
 
+Follow-up 2026-11-17: [parent data](RETAINED_PARENT_DATA.md) adds the optional
+`allocate_children(input, &dyn ParentAllocationChildren)` entry with immutable
+typed metadata. Its default calls the existing count-only allocate method.
+The original count-only subset described below remains valid; metadata-aware
+builder observations additionally retain all allocator child-data identities.
+
 Status: experimental framework contract, 2026-11-17. This extends
 [independent inline allocation](RETAINED_PARENT_INLINE_ALLOCATION.md). The full
 RFC, general RenderBox, automatic scheduling and performance acceptance remain

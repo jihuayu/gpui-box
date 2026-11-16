@@ -1,5 +1,11 @@
 # Owned custom parent layout
 
+Follow-up 2026-11-17: [immutable parent data](RETAINED_PARENT_DATA.md) adds
+typed authored child metadata to both measured parents and independent full
+allocation. Normal typed transactions, cache invalidation, keyed ownership and
+final builder dependency checks carry this separate input domain. Ordinary
+Flex ignores it; arbitrary child-style/content dependency remains open.
+
 Follow-up 2026-11-17: [first/last baseline sets](RETAINED_LAST_BASELINE.md) adds `last_baseline` to ChildLayoutResult and ParentLayoutOutput. Existing parent output literals must supply None or an explicit content-box metric; both sets are validated and transported.
 
 Status: implemented subset, 2026-11-16. The complete RFC goal stays active.

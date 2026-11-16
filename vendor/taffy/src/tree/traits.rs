@@ -221,6 +221,12 @@ pub trait LayoutPartialTree: TraversePartialTree {
     /// Retire incoming final observations when a size-contained node is hidden.
     /// Other tree adapters need not store these optional diagnostics.
     fn clear_contained_layout_input(&mut self, _node: NodeId) {}
+
+    /// Authored immutable metadata for direct custom-parent algorithms.
+    #[cfg(feature = "taffy_tree")]
+    fn get_parent_data(&self, _node: NodeId) -> Option<&crate::tree::CustomParentData> {
+        None
+    }
 }
 
 /// Extends [`LayoutPartialTree`] with the operations needed by the out-of-flow positioning pass

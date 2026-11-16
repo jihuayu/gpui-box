@@ -1,5 +1,10 @@
 # Mixed Flex and independent allocation builders
 
+Follow-up: [parent data](RETAINED_PARENT_DATA.md) adds authored immutable
+direct-child metadata to independent/custom algorithms and captures its handle
+identities in allocation-builder dependency proofs. This does not authorize
+arbitrary child-style dependencies or alter the containment domain below.
+
 Status: experimental public framework contract, 2026-11-17. Extends
 [independent parent intervals](RETAINED_PARENT_ALLOCATION_BUILDERS.md), without
 declaring complete RenderBox or general Flex/content construction achieved.

@@ -246,6 +246,9 @@ impl LogicalUi {
     pub fn layout_result(&self, node: NodeId) -> Result<LayoutResult, Error> {
         self.ui.layout_result(node)
     }
+    pub fn parent_data(&self, node: NodeId) -> Result<Option<&ParentData>, Error> {
+        self.ui.parent_data(node)
+    }
     pub fn measure_with_constraints(
         &mut self,
         constraints: LayoutConstraints,

@@ -308,6 +308,21 @@ Final checks: retained 343, text/WGPU 376 (13 ignored), hello 28 (2 ignored),
 explicit mixed suite 7 including GPU passed. Taffy default/project suites passed
 206/200; no-default, alloc/Flex and all-feature checks, library Clippy and diff
 checks passed. Offscreen GTX1650Ti output is not sustained-presentation evidence.
+The [parent-data stage](RETAINED_PARENT_DATA.md) adds typed immutable child
+metadata, read-only allocation/measurement views and ordinary source/property
+updates. Independent full allocation may use direct-child data without child
+style/measurement; count-only implementations remain supported. Final builder
+observations retain all allocator child-data identities, and computed metadata
+sinks participate in both responsive planners. Hidden/reparent/clone/retirement,
+coalescing, invalid rollback, real Noto wrapping, ordinary full Flex CPU controls
+and explicit local WGPU readback cover this input domain. Sparse kernel maps,
+framework Node/Pending handles and conservative invalidation/proof costs grow;
+no timing improvement, complete RenderBox or general feedback proof is claimed.
+See [validation](performance/2026-11-17-parent-data/README.md).
+Final checks: retained 351, text/WGPU 384 (14 ignored), hello 29 (2 ignored),
+explicit parent-data suite 9 including actual GPU passed. Taffy default/project
+suites 207/201, three feature checks, library Clippy and diff checks passed.
+No all-targets Clippy or additional browser conformance pass is claimed.
 The [validation-cache stage](RETAINED_VALIDATION_CACHE.md) reuses consumer checks
 for cache-owned immutable pages and stable node indices, with full fallback for
 identity/order/scale changes and complete effect-reference checks on effect-map edits.

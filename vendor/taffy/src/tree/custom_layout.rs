@@ -1,6 +1,49 @@
 //! Owned parent algorithms. Kept outside Style so ordinary nodes stay compact.
 use crate::util::sys::Vec;
 use crate::{AvailableSpace, Baselines, LayoutInput, LayoutOutput, Point, Size, TaffyError};
+#[cfg(not(feature = "std"))]
+use alloc::sync::Arc;
+use core::any::Any;
+#[cfg(feature = "std")]
+use std::sync::Arc;
+
+/// Opaque, owned metadata attached to a child for its direct parent algorithm.
+/// Clone preserves identity; replacement must use a new handle. Values must be
+/// immutable for the same reason as owned layout delegates.
+#[derive(Clone)]
+pub struct CustomParentData(Arc<dyn Any + Send + Sync>);
+impl CustomParentData {
+    /// Own a typed value without exposing layout-engine or application state.
+    pub fn new<T: Any + Send + Sync>(value: T) -> Self {
+        Self(Arc::new(value))
+    }
+    /// Read the value only when its concrete type matches.
+    pub fn downcast_ref<T: Any>(&self) -> Option<&T> {
+        self.0.downcast_ref()
+    }
+}
+impl core::fmt::Debug for CustomParentData {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_tuple("CustomParentData").field(&(*self.0).type_id()).finish()
+    }
+}
+impl PartialEq for CustomParentData {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+/// Read-only direct-child metadata, without style or measurement capability.
+pub trait CustomAllocationChildren {
+    /// Direct children in layout order, including hidden children.
+    fn len(&self) -> usize;
+    /// Whether no children are present.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    /// Metadata remains attached to a node when it moves to another parent.
+    fn parent_data(&self, child: usize) -> Result<Option<&CustomParentData>, TaffyError>;
+}
 
 /// Content-box inputs after the common host box model has resolved sizing.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -20,6 +63,10 @@ pub trait CustomLayoutChildren {
     /// Whether there are no direct children.
     fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+    /// Same immutable metadata seen by the independent allocation phase.
+    fn parent_data(&self, _child: usize) -> Result<Option<&CustomParentData>, TaffyError> {
+        Ok(None)
     }
     /// A separate phase's enforced full assignment, when installed.
     fn allocation(&self, _child: usize) -> Result<Option<LayoutInput>, TaffyError> {
@@ -55,10 +102,15 @@ pub struct CustomLayoutOutput {
 /// times for intrinsic queries and final allocation, or skip it on cache hits.
 pub trait CustomLayout: core::fmt::Debug + Send + Sync {
     /// Independent assignments from the incoming border-box input, before host
-    /// measurement/sizing. No child styles or measurement capability is given.
+    /// measurement/sizing. Only child order/count and immutable parent data are
+    /// observable. No child styles or measurement capability is given.
     /// Slots are enforced throughout this invocation, including intrinsic
     /// probes and final placement. None preserves the measured-parent protocol.
-    fn allocate(&self, _input: LayoutInput, _children: usize) -> Result<Option<Vec<LayoutInput>>, TaffyError> {
+    fn allocate(
+        &self,
+        _input: LayoutInput,
+        _children: &dyn CustomAllocationChildren,
+    ) -> Result<Option<Vec<LayoutInput>>, TaffyError> {
         Ok(None)
     }
     /// Must depend only on owned snapshot data, inputs and child measurements.

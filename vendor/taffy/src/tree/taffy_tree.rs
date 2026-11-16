@@ -44,6 +44,9 @@ pub type TaffyResult<T> = Result<T, TaffyError>;
 #[cfg(all(test, feature = "flexbox"))]
 #[path = "contained_input_tests.rs"]
 mod contained_input_tests;
+#[cfg(all(test, feature = "flexbox"))]
+#[path = "parent_data_tests.rs"]
+mod parent_data_tests;
 
 /// An error that occurs while trying to access or modify a node's children by index.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -195,6 +198,9 @@ pub struct TaffyTree<NodeContext = ()> {
 
     /// Owned immutable parent algorithms; ordinary nodes carry no delegate slot.
     custom_layouts: SecondaryMap<DefaultKey, Arc<dyn crate::tree::CustomLayout>>,
+
+    /// Authored direct-parent metadata; absent nodes allocate no entry.
+    parent_data: SecondaryMap<DefaultKey, crate::tree::CustomParentData>,
 
     /// Lazily allocated, bounded full-result measurement caches. Only visited
     /// nodes in exact-measure invocations have entries; ordinary nodes stay compact.
@@ -478,6 +484,9 @@ where
     fn clear_contained_layout_input(&mut self, node: NodeId) {
         self.taffy.contained_layout_inputs.remove(node.into());
     }
+    fn get_parent_data(&self, node: NodeId) -> Option<&crate::tree::CustomParentData> {
+        self.taffy.parent_data.get(node.into())
+    }
     type CoreContainerStyle<'a>
         = &'a Style
     where
@@ -754,6 +763,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
             size_contained_nodes: SecondaryMap::new(),
             exact_layout_inputs: SecondaryMap::new(),
             custom_layouts: SecondaryMap::new(),
+            parent_data: SecondaryMap::new(),
             exact_measure_caches: SecondaryMap::new(),
             config: TaffyConfig::default(),
         }
@@ -777,6 +787,32 @@ impl<NodeContext> TaffyTree<NodeContext> {
             self.custom_layouts.remove(node.into());
         }
         self.mark_dirty(node)
+    }
+
+    /// Replace a child's immutable direct-parent metadata. Clones coalesce;
+    /// changed handles invalidate the child and ancestors, including exact caches.
+    pub fn set_parent_data(&mut self, node: NodeId, value: Option<crate::tree::CustomParentData>) -> TaffyResult<()> {
+        let key = node.into();
+        if !self.nodes.contains_key(key) {
+            return Err(TaffyError::InvalidInputNode(node));
+        }
+        if self.parent_data.get(key) == value.as_ref() {
+            return Ok(());
+        }
+        if let Some(value) = value {
+            self.parent_data.insert(key, value);
+        } else {
+            self.parent_data.remove(key);
+        }
+        self.mark_dirty(node)
+    }
+
+    /// Authored metadata is retained through hidden layout and reparenting.
+    pub fn parent_data(&self, node: NodeId) -> TaffyResult<Option<&crate::tree::CustomParentData>> {
+        if !self.nodes.contains_key(node.into()) {
+            return Err(TaffyError::InvalidInputNode(node));
+        }
+        Ok(self.parent_data.get(node.into()))
     }
 
     /// Enable rounding of layout values. Rounding is enabled by default.
@@ -892,6 +928,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
         self.size_contained_nodes.clear();
         self.exact_layout_inputs.clear();
         self.custom_layouts.clear();
+        self.parent_data.clear();
         self.exact_measure_caches.clear();
     }
 
@@ -925,6 +962,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
         let _ = self.size_contained_nodes.remove(key);
         let _ = self.exact_layout_inputs.remove(key);
         let _ = self.custom_layouts.remove(key);
+        let _ = self.parent_data.remove(key);
         let _ = self.exact_measure_caches.remove(key);
 
         Ok(node)

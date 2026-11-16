@@ -321,6 +321,13 @@ ConstraintBox 也可交付其实际 loose/tight outgoing slot。输入新增 kno
 final incoming input，complete-input cache guard 防止祖先缓存掩盖输入变化。无隔离
 边界的普通反馈边、child-style 分配与完整 RenderBox 仍未完成，成本与限制见 ADR。
 
+后续 [ParentData](RETAINED_PARENT_DATA.md) 把 direct child 的不可变 typed metadata
+独立于 CSS style 纳入父布局输入；独立分配器和测量阶段都可读取，普通 Flex 忽略。
+typed sink、事务合并、缓存失效、reparent/keyed 生命周期沿正常链路；builder proof
+记录所有 allocator child-data identity，响应式 computed metadata sink 参与依赖排序。
+它支持父算法定义权重/角色等输入，不开放任意 child-style/intrinsic 反馈；泛型数据
+尚无跨语言序列化 ABI/字节预算，clone/存储/保守 relayout 成本增加，无性能收益声明。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

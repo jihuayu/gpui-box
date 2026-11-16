@@ -54,6 +54,7 @@ enum Field {
     Opacity,
     Measure,
     ParentLayout,
+    ParentData,
     Decoration,
     Shadows,
     Image,
@@ -144,6 +145,15 @@ impl Property<Option<ParentLayoutSnapshot>> {
             node,
             field: Field::ParentLayout,
             write: |node, value, tx| tx.parent_layout(node, value.clone()),
+        }
+    }
+}
+impl Property<Option<ParentData>> {
+    pub fn parent_data(node: NodeId) -> Self {
+        Self {
+            node,
+            field: Field::ParentData,
+            write: |node, value, tx| tx.parent_data(node, value.clone()),
         }
     }
 }
@@ -358,6 +368,9 @@ impl ReactiveUi {
     }
     pub fn layout_result(&self, node: NodeId) -> Result<LayoutResult, Error> {
         self.tree.layout_result(node)
+    }
+    pub fn parent_data(&self, node: NodeId) -> Result<Option<&ParentData>, Error> {
+        self.tree.parent_data(node)
     }
 
     pub fn frame_in_viewport(

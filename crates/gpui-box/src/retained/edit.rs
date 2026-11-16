@@ -115,6 +115,7 @@ impl TreeEdit<'_> {
                 opacity: 1.0,
                 measure: None,
                 parent_layout: None,
+                parent_data: None,
                 decoration: QuadDecoration::default(),
                 shadows: Arc::from([]),
                 image: None,

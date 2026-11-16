@@ -1,5 +1,7 @@
 //! Custom parents use the same host box model and real cached child algorithms.
-use crate::tree::{CustomLayout, CustomLayoutChildren, CustomLayoutInput, CustomLayoutOutput};
+use crate::tree::{
+    CustomAllocationChildren, CustomLayout, CustomLayoutChildren, CustomLayoutInput, CustomLayoutOutput, CustomParentData,
+};
 use crate::util::{MaybeMath, MaybeResolve, ResolveOrZero};
 use crate::{
     Baselines, BoxSizing, CoreStyle, Layout, LayoutInput, LayoutOutput, LayoutPartialTree, Line, NodeId, Overflow,
@@ -11,9 +13,30 @@ struct Children<'a, T> {
     parent: NodeId,
     allocations: Option<&'a [LayoutInput]>,
 }
+struct AllocationChildren<'a, T> {
+    tree: &'a T,
+    parent: NodeId,
+}
+impl<T: LayoutPartialTree> CustomAllocationChildren for AllocationChildren<'_, T> {
+    fn len(&self) -> usize {
+        self.tree.child_count(self.parent)
+    }
+    fn parent_data(&self, child: usize) -> Result<Option<&CustomParentData>, TaffyError> {
+        if child >= self.len() {
+            return Err(TaffyError::InvalidCustomLayout);
+        }
+        Ok(self.tree.get_parent_data(self.tree.get_child_id(self.parent, child)))
+    }
+}
 impl<T: LayoutPartialTree> CustomLayoutChildren for Children<'_, T> {
     fn len(&self) -> usize {
         self.tree.child_count(self.parent)
+    }
+    fn parent_data(&self, child: usize) -> Result<Option<&CustomParentData>, TaffyError> {
+        if child >= self.len() {
+            return Err(TaffyError::InvalidCustomLayout);
+        }
+        Ok(self.tree.get_parent_data(self.tree.get_child_id(self.parent, child)))
     }
     fn allocation(&self, child: usize) -> Result<Option<LayoutInput>, TaffyError> {
         if child >= self.len() {
@@ -226,14 +249,14 @@ mod tests {
     #[derive(Debug)]
     struct Independent;
     impl CustomLayout for Independent {
-        fn allocate(&self, input: LayoutInput, children: usize) -> Result<Option<crate::util::sys::Vec<LayoutInput>>, TaffyError> {
+        fn allocate(&self, input: LayoutInput, children: &dyn CustomAllocationChildren) -> Result<Option<crate::util::sys::Vec<LayoutInput>>, TaffyError> {
             let width = input.available_space.width.into_option().unwrap_or(80.0);
             let mut slot = LayoutInput::HIDDEN;
             slot.run_mode = RunMode::ComputeSize;
             slot.available_space = Size { width: crate::AvailableSpace::Definite(width), height: crate::AvailableSpace::Unbounded };
             slot.size_bounds = SizeBounds { min: Size::ZERO, max: Size { width, height: f32::INFINITY } };
             slot.parent_size = Size { width: Some(width), height: None };
-            Ok(Some(vec![slot; children]))
+            Ok(Some(vec![slot; children.len()]))
         }
         fn layout(&self, input: CustomLayoutInput, children: &mut dyn CustomLayoutChildren) -> Result<CustomLayoutOutput, TaffyError> {
             let slot = children.allocation(0)?.unwrap();
@@ -296,7 +319,7 @@ pub fn compute_custom_layout(
 ) -> Result<LayoutOutput, TaffyError> {
     // Use the incoming input, never the measured/selected host size. Keeping
     // this phase outside plan() prevents auto-height feedback into assignments.
-    let allocations = delegate.allocate(inputs, tree.child_count(node))?;
+    let allocations = delegate.allocate(inputs, &AllocationChildren { tree, parent: node })?;
     if let Some(slots) = &allocations {
         if slots.len() != tree.child_count(node) || slots.iter().any(|slot| !valid_input(slot)) {
             return Err(TaffyError::InvalidCustomLayout);
