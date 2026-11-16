@@ -371,6 +371,7 @@ struct Node {
     #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
     text: Option<text::TextPaint>,
 }
+#[derive(Clone)]
 struct Slot {
     generation: u64,
     node: Option<Node>,

@@ -520,6 +520,18 @@ impl LocalFrame {
 }
 
 impl UiTree {
+    pub(super) fn can_reuse_local_frame(&self) -> bool {
+        self.local_frame.as_ref().is_some_and(|old| {
+            !self.layout_dirty
+                && !self.full_extract_required
+                && self.geometry_dirty.is_empty()
+                && self
+                    .frame
+                    .as_ref()
+                    .is_some_and(|frame| old.0.owner_items.ptr_eq(&Arc::downgrade(&frame.items)))
+        })
+    }
+
     /// Publish immutable local placement changes without descendant extraction.
     /// Layout/topology changes use the complete existing publisher. Materials
     /// patch immutable payload pages without invalidating placement/topology.
@@ -540,18 +552,8 @@ impl UiTree {
     ) -> Result<LocalFrame, Error> {
         self.prepare_layout_environment(constraints, viewport)?;
         let reusable = self
-            .local_frame
-            .as_ref()
-            .filter(|old| {
-                !self.layout_dirty
-                    && !self.full_extract_required
-                    && self.geometry_dirty.is_empty()
-                    && self.viewport == Some(viewport)
-                    && self.frame.as_ref().is_some_and(|frame| {
-                        old.0.owner_items.ptr_eq(&Arc::downgrade(&frame.items))
-                    })
-            })
-            .cloned();
+            .can_reuse_local_frame()
+            .then(|| self.local_frame.as_ref().unwrap().clone());
         let Some(old) = reusable else {
             let frame = LocalFrame::from_frame(self.frame_in_viewport(constraints, viewport)?);
             self.local_frame = Some(frame.clone());

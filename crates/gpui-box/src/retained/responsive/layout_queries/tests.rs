@@ -561,7 +561,9 @@ fn fluid_query_waits_for_sibling_allocation_updates_registered_later() {
         LayoutFlexDirection::Row
     );
     assert_eq!(frame.changed_styles, 1);
-    assert_eq!(frame.layout_runs, 2);
+    // Two private query previews plus final candidate layout. No intermediate
+    // FramePacket or source transaction is published.
+    assert_eq!(frame.layout_runs, 3);
 }
 
 #[test]

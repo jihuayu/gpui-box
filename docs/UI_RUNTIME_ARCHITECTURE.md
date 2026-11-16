@@ -109,10 +109,17 @@ width/min-width/max-width，height 可以为 Auto；BorderBox、水平 padding/b
 host 若受其他 responsive rule 控制，该 producer 的当前 source 与每一个断点分支
 也必须满足证明，注册顺序不影响检查。每帧先复验拓扑/host，再更新 viewport 样式，
 然后按依赖图分阶段读取实际 content width（减去 padding/border/滚动条）、批量提交
-规则和布局。安全嵌套与自动高度现已支持，不采用迭代收敛；最多初始布局加每个变化
-依赖层一次，所有阶段的布局计数累加。中间包可能发布，最终消费者仍需原有 base
-revision 恢复；多个阶段不是一次原子结构事务。构图每帧检查规则对和祖先关系，尚未
-索引化。完整 CSS 条件、结构自适应与通用反馈仍未实现。
+规则和布局。安全嵌套与自动高度现已支持，不采用迭代收敛。现改为同一个 source
+draft 内的私有布局预演，所有阶段通过后才在原树的私有 candidate 上一次应用最终
+sinks、布局并发布；中间 source、frame 和 effects 均不发布。后阶段返回错误时，
+正式 source、frame/geometry、统计和 effects 保留原值。effects 只观察最终提交。
+computed DAG 的所有布局 sinks 参与依赖图；每阶段复验实际草稿样式和原有证明，
+依赖层变化则拒绝，不迭代收敛。新公共 `local_frame` / `local_frame_in_viewport`
+返回 `LocalResponsiveFrame`，并将响应式环境、布局可用空间、绘制 viewport 分开。
+所有私有预布局及最终布局计数累加；变化中的求值增加 O(tree) 副本和可能重复布局
+成本，尚未优化为增量回滚。构图仍逐帧检查规则对、祖先和 computed sinks，尚未
+索引化。这不是结构自适应事务；完整 CSS 条件和通用反馈仍未实现。详见
+[响应式原子发布契约](RETAINED_ATOMIC_RESPONSIVE.md)。
 旧 `ResponsiveBindings` 保持原固定宽高、最多两阶段、拒绝嵌套依赖的迁移契约。
 
 公共 `LayoutContainerType::{Normal, InlineSize, Size}` 进一步提供显式尺寸隔离。

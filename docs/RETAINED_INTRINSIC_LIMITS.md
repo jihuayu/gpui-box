@@ -1,5 +1,11 @@
 # Intrinsic minimum and maximum layout sizes
 
+Follow-up (2026-11-16): normal Unbounded is implemented in
+[independent layout/paint inputs](RETAINED_UNBOUNDED_LAYOUT.md). Public local
+responsive output and multi-stage error isolation are now implemented in
+[atomic responsive evaluation](RETAINED_ATOMIC_RESPONSIVE.md). The open list
+below records the earlier intrinsic-limit stage; broader acceptance stays open.
+
 Updated 2026-11-16 on `codex/rendering-performance-research`. This extends
 [preferred intrinsic sizing](RETAINED_FLEX_SIZING_QUERIES.md) and
 [size containment](RETAINED_SIZE_CONTAINMENT.md). The full RFC remains open.

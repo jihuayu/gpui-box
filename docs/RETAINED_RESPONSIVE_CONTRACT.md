@@ -12,6 +12,10 @@ fluid full-size query hosts and inline-contained auto-height column chains,
 including sibling-allocation dependency scheduling and explicit rejection of
 unproven feedback. Its query boundaries deliberately include layout containment,
 which is stronger than current browser `container-type` alone.
+The [atomic responsive follow-up](RETAINED_ATOMIC_RESPONSIVE.md) adds
+final-only style/source/frame/effect publication and public local output to
+`LayoutResponsiveBindings`, including computed layout sink dependencies and
+independent layout/paint inputs. It leaves this legacy adapter unchanged.
 
 `retained::responsive` adds validated Flex style values, configurable width
 thresholds and a bounded responsive resolver. The normal gallery prepaint path

@@ -1,5 +1,11 @@
 # Size containment and fluid container queries
 
+Follow-up (2026-11-16): [atomic responsive evaluation](RETAINED_ATOMIC_RESPONSIVE.md)
+supersedes the intermediate-publication and missing-public-local-output limits
+below for `LayoutResponsiveBindings`. Private stages now publish final output
+only after validation; dependency checks include reachable computed layout
+sinks. Historical validation counts remain unchanged here.
+
 Updated 2026-11-16 on `codex/rendering-performance-research`. This stage builds
 on [intrinsic sizing and staged queries](RETAINED_FLEX_SIZING_QUERIES.md).
 It extends framework/API semantics and the project-owned Taffy algorithms;

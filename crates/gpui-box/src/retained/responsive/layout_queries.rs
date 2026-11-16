@@ -8,13 +8,69 @@ type Rule<'a> = (
     &'a LayoutBreakpointStyles,
 );
 
+pub(super) trait QueryContext {
+    fn tree(&self) -> &UiTree;
+    fn style(&self, source: Signal<LayoutStyle>) -> Result<&LayoutStyle, Error>;
+    fn targets(&self, source: Signal<LayoutStyle>) -> Result<Vec<NodeId>, Error>;
+    fn validate_writer(
+        &self,
+        source: Signal<LayoutStyle>,
+        target: NodeId,
+        binding: reactive::BindingId,
+    ) -> Result<(), Error>;
+}
+
+impl QueryContext for LogicalUi {
+    fn tree(&self) -> &UiTree {
+        self.reactive().tree()
+    }
+    fn style(&self, source: Signal<LayoutStyle>) -> Result<&LayoutStyle, Error> {
+        self.read(source)
+    }
+    fn targets(&self, source: Signal<LayoutStyle>) -> Result<Vec<NodeId>, Error> {
+        self.reactive().responsive_layout_targets(source)
+    }
+    fn validate_writer(
+        &self,
+        source: Signal<LayoutStyle>,
+        target: NodeId,
+        binding: reactive::BindingId,
+    ) -> Result<(), Error> {
+        self.reactive()
+            .validate_responsive_writer(source, target, binding)
+    }
+}
+
+impl QueryContext for reactive::responsive::Draft<'_> {
+    fn tree(&self) -> &UiTree {
+        self.tree()
+    }
+    fn style(&self, source: Signal<LayoutStyle>) -> Result<&LayoutStyle, Error> {
+        self.style(source)
+    }
+    fn targets(&self, source: Signal<LayoutStyle>) -> Result<Vec<NodeId>, Error> {
+        self.layout_targets(source)
+    }
+    fn validate_writer(
+        &self,
+        source: Signal<LayoutStyle>,
+        target: NodeId,
+        binding: reactive::BindingId,
+    ) -> Result<(), Error> {
+        self.validate_writer(source, target, binding)
+    }
+}
+
 impl LayoutResponsiveBindings {
     pub(super) fn validate_layout_rules(
         &self,
-        ui: &LogicalUi,
+        ui: &impl QueryContext,
         candidate: Option<Rule<'_>>,
     ) -> Result<Vec<Vec<usize>>, Error> {
-        let tree = ui.reactive().tree();
+        let tree = ui.tree();
+        for binding in &self.bindings {
+            ui.validate_writer(binding.source, binding.target, binding.binding)?;
+        }
         let rules: Vec<_> = self
             .bindings
             .iter()
@@ -43,7 +99,7 @@ impl LayoutResponsiveBindings {
             // its inline size independent of descendant measurement.
             for (source, producer, _, styles) in &rules {
                 if *producer == host {
-                    validate_query_host(ui, &rules, host, &ui.read(*source)?.to_taffy()?)?;
+                    validate_query_host(ui, &rules, host, &ui.style(*source)?.to_taffy()?)?;
                     for style in &styles.styles {
                         validate_query_host(ui, &rules, host, &style.to_taffy()?)?;
                     }
@@ -54,7 +110,7 @@ impl LayoutResponsiveBindings {
     }
 }
 
-fn query_stages(ui: &LogicalUi, rules: &[Rule<'_>]) -> Result<Vec<Vec<usize>>, Error> {
+fn query_stages(ui: &impl QueryContext, rules: &[Rule<'_>]) -> Result<Vec<Vec<usize>>, Error> {
     let queries = rules
         .iter()
         .enumerate()
@@ -64,12 +120,27 @@ fn query_stages(ui: &LogicalUi, rules: &[Rule<'_>]) -> Result<Vec<Vec<usize>>, E
         .collect::<Vec<_>>();
     let mut dependents = vec![vec![]; queries.len()];
     let mut indegrees = vec![0; queries.len()];
+    let targets = rules
+        .iter()
+        .map(|(source, target, _, _)| {
+            let mut targets = ui.targets(*source)?;
+            // Candidate registration validates before its direct sink is installed.
+            if !targets.contains(target) {
+                targets.push(*target);
+            }
+            Ok(targets)
+        })
+        .collect::<Result<Vec<_>, Error>>()?;
     for (consumer, &index) in queries.iter().enumerate() {
         let LayoutQuery::ContainerInline(host) = rules[index].2 else {
             unreachable!()
         };
         for (producer, &other) in queries.iter().enumerate() {
-            if affects_query(ui, rules, rules[other].1, host)? {
+            let mut affects = false;
+            for &target in &targets[other] {
+                affects |= affects_query(ui, rules, target, host)?;
+            }
+            if affects {
                 dependents[producer].push(consumer);
                 indegrees[consumer] += 1;
             }
@@ -107,18 +178,18 @@ fn query_stages(ui: &LogicalUi, rules: &[Rule<'_>]) -> Result<Vec<Vec<usize>>, E
 /// Walk the producer's ancestors to its first invariant full size/layout
 /// boundary: changes inside that boundary cannot affect external allocation.
 fn affects_query(
-    ui: &LogicalUi,
+    ui: &impl QueryContext,
     rules: &[Rule<'_>],
     target: NodeId,
     host: NodeId,
 ) -> Result<bool, Error> {
-    let tree = ui.reactive().tree();
+    let tree = ui.tree();
     if LayoutResponsiveBindings::is_ancestor(tree, target, host)? {
         return Ok(true);
     }
     let mut fluid = !external_inline_extent(ui, rules, host, &tree.node(host)?.style)?;
     for (source, _, _, styles) in rules.iter().filter(|(_, target, _, _)| *target == host) {
-        fluid |= !external_inline_extent(ui, rules, host, &ui.read(*source)?.to_taffy()?)?;
+        fluid |= !external_inline_extent(ui, rules, host, &ui.style(*source)?.to_taffy()?)?;
         for style in &styles.styles {
             fluid |= !external_inline_extent(ui, rules, host, &style.to_taffy()?)?;
         }
@@ -130,7 +201,7 @@ fn affects_query(
     while let Some(boundary) = parent {
         let mut invariant = full_size_boundary(&tree.node(boundary)?.style);
         for (source, _, _, styles) in rules.iter().filter(|(_, target, _, _)| *target == boundary) {
-            invariant &= ui.read(*source)?.container_type == LayoutContainerType::Size
+            invariant &= ui.style(*source)?.container_type == LayoutContainerType::Size
                 && styles
                     .styles
                     .iter()
@@ -161,7 +232,7 @@ fn fixed_inline_extent(style: &Style) -> bool {
 }
 
 fn validate_query_host(
-    ui: &LogicalUi,
+    ui: &impl QueryContext,
     rules: &[Rule<'_>],
     host: NodeId,
     style: &Style,
@@ -173,7 +244,7 @@ fn validate_query_host(
 }
 
 fn external_inline_extent(
-    ui: &LogicalUi,
+    ui: &impl QueryContext,
     rules: &[Rule<'_>],
     host: NodeId,
     style: &Style,
@@ -192,10 +263,14 @@ fn external_inline_extent(
     column_inline_chain(ui, rules, host, style)
 }
 
-fn possible_styles(ui: &LogicalUi, rules: &[Rule<'_>], node: NodeId) -> Result<Vec<Style>, Error> {
-    let mut result = vec![ui.reactive().tree().node(node)?.style.clone()];
+fn possible_styles(
+    ui: &impl QueryContext,
+    rules: &[Rule<'_>],
+    node: NodeId,
+) -> Result<Vec<Style>, Error> {
+    let mut result = vec![ui.tree().node(node)?.style.clone()];
     for (source, _, _, styles) in rules.iter().filter(|(_, target, _, _)| *target == node) {
-        result.push(ui.read(*source)?.to_taffy()?);
+        result.push(ui.style(*source)?.to_taffy()?);
         for style in &styles.styles {
             result.push(style.to_taffy()?);
         }
@@ -204,7 +279,7 @@ fn possible_styles(ui: &LogicalUi, rules: &[Rule<'_>], node: NodeId) -> Result<V
 }
 
 fn column_inline_chain(
-    ui: &LogicalUi,
+    ui: &impl QueryContext,
     rules: &[Rule<'_>],
     node: NodeId,
     style: &Style,
@@ -213,7 +288,7 @@ fn column_inline_chain(
 }
 
 fn column_inline_style(
-    ui: &LogicalUi,
+    ui: &impl QueryContext,
     rules: &[Rule<'_>],
     node: NodeId,
     style: &Style,
@@ -232,7 +307,7 @@ fn column_inline_style(
         style.size.width.expand(),
         D::Length(_) | D::Percent(_) | D::Stretch
     );
-    let Some(parent) = ui.reactive().tree().node(node)?.parent else {
+    let Some(parent) = ui.tree().node(node)?.parent else {
         return Ok(definite_width);
     };
     let parents = possible_styles(ui, rules, parent)?;
@@ -318,5 +393,7 @@ fn validate_inline_extent(style: &Style) -> Result<(), Error> {
     Ok(())
 }
 
+#[cfg(test)]
+mod atomic_tests;
 #[cfg(test)]
 mod tests;

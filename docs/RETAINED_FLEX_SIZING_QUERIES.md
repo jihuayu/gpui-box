@@ -1,5 +1,12 @@
 # Intrinsic Flex sizing and staged container queries
 
+Follow-up (2026-11-16): [atomic responsive evaluation](RETAINED_ATOMIC_RESPONSIVE.md)
+supersedes the intermediate-publication and missing-local-output limitations
+recorded below. Framework rules now share a private source/layout draft and
+publish once after validation; computed layout sinks participate in ordering.
+This adds copying/final-layout costs. Historical counts and the legacy adapter
+contract below remain evidence for this earlier stage.
+
 Updated 2026-11-16 on `codex/rendering-performance-research`. This stage extends
 the framework-owned layout contract and fixes algorithms in the project-owned
 Taffy fork. The full RFC remains partially implemented.

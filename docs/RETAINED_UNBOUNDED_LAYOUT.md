@@ -1,5 +1,11 @@
 # Normal unbounded layout and an independent paint viewport
 
+Follow-up (2026-11-16): [atomic responsive evaluation](RETAINED_ATOMIC_RESPONSIVE.md)
+adds public resolved/local responsive methods with these independent inputs,
+private query previews and final-only publication. It supersedes the missing
+public-local-responsive and multi-stage-recovery items below for the framework
+resolver. Ordinary UiTree methods keep their existing error semantics.
+
 Updated 2026-11-16 on `codex/rendering-performance-research`. This extends
 [intrinsic limits](RETAINED_INTRINSIC_LIMITS.md). The complete RFC remains open.
 

@@ -156,6 +156,9 @@ impl LogicalUi {
     pub fn reactive(&self) -> &ReactiveUi {
         &self.ui
     }
+    pub(in crate::retained) fn reactive_mut(&mut self) -> &mut ReactiveUi {
+        &mut self.ui
+    }
     pub fn published_frame(&self) -> Option<&FramePacket> {
         self.ui.published_frame()
     }

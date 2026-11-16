@@ -9,6 +9,19 @@ pub(super) struct PreparedUpdate {
     computed_equal: u64,
 }
 
+impl ReactiveTransaction<'_> {
+    pub(super) fn into_prepared(mut self) -> Result<PreparedUpdate, Error> {
+        self.settle()?;
+        Ok(PreparedUpdate {
+            values: self.values,
+            writes: self.writes,
+            equal: self.equal,
+            computed_evaluations: self.computed_evaluations,
+            computed_equal: self.computed_equal,
+        })
+    }
+}
+
 pub struct ReactiveEditCommit<R> {
     pub result: ReactiveCommit<R>,
     pub inserted: Vec<NodeId>,
@@ -314,17 +327,7 @@ impl ReactiveUi {
             computed_equal: 0,
         };
         let value = update(&mut tx)?;
-        tx.settle()?;
-        Ok((
-            value,
-            PreparedUpdate {
-                values: tx.values,
-                writes: tx.writes,
-                equal: tx.equal,
-                computed_evaluations: tx.computed_evaluations,
-                computed_equal: tx.computed_equal,
-            },
-        ))
+        Ok((value, tx.into_prepared()?))
     }
     pub(super) fn collect_sinks(
         &self,

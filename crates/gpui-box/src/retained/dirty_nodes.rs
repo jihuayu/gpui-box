@@ -1,7 +1,7 @@
 //! Private owner-local membership journal. Ordering is never paint/event order.
 use super::NodeId;
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct DirtyNodes {
     positions: Vec<Option<usize>>,
     nodes: Vec<NodeId>,

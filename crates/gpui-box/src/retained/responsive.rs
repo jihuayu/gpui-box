@@ -210,6 +210,7 @@ impl LayoutBreakpointStyles {
 }
 
 struct LayoutBinding {
+    binding: reactive::BindingId,
     source: Signal<LayoutStyle>,
     target: NodeId,
     styles: LayoutBreakpointStyles,
@@ -225,6 +226,9 @@ pub enum LayoutQuery {
 /// Responsive bindings using framework-owned layout types. Container queries
 /// use fixed inline extents or explicit size containment, allow proven
 /// content-driven heights and resolve nested allocation dependencies in stages.
+/// Stages use private source/layout drafts and publish final sources and output
+/// only after validation; effects observe the final values once. Changed plans
+/// may copy the owned tree and repeat layout during final publication.
 #[derive(Default)]
 pub struct LayoutResponsiveBindings {
     bindings: Vec<LayoutBinding>,
@@ -262,8 +266,9 @@ impl LayoutResponsiveBindings {
             ui,
             Some((source, target, LayoutQuery::ViewportInline, &styles)),
         )?;
-        ui.bind(source, Property::layout_style(target))?;
+        let (binding, _) = ui.bind(source, Property::layout_style(target))?;
         self.bindings.push(LayoutBinding {
+            binding,
             source,
             target,
             styles,
@@ -300,8 +305,9 @@ impl LayoutResponsiveBindings {
                 &styles,
             )),
         )?;
-        ui.bind(source, Property::layout_style(target))?;
+        let (binding, _) = ui.bind(source, Property::layout_style(target))?;
         self.bindings.push(LayoutBinding {
+            binding,
             source,
             target,
             styles,
@@ -315,69 +321,160 @@ impl LayoutResponsiveBindings {
         ui: &mut LogicalUi,
         environment: &LayoutEnvironment,
     ) -> Result<ResponsiveFrame, Error> {
+        self.frame_in_viewport(
+            ui,
+            environment,
+            LayoutConstraints::viewport(
+                environment.layout_viewport[0],
+                environment.layout_viewport[1],
+            ),
+            environment.layout_viewport,
+        )
+    }
+
+    /// Resolve all rule stages privately, then publish one complete resolved
+    /// frame. Environment viewport selects viewport rules; available space
+    /// drives layout; the finite paint viewport is only a clip.
+    pub fn frame_in_viewport(
+        &mut self,
+        ui: &mut LogicalUi,
+        environment: &LayoutEnvironment,
+        constraints: LayoutConstraints,
+        viewport: [f32; 2],
+    ) -> Result<ResponsiveFrame, Error> {
+        let publication = self.publish(ui, environment, constraints, viewport, false)?;
+        let reactive::responsive::Output::Resolved(frame) = publication.output else {
+            unreachable!()
+        };
+        Ok(ResponsiveFrame {
+            frame,
+            rules_examined: self.bindings.len(),
+            changed_styles: publication.changed_styles,
+            layout_runs: publication.layout_runs,
+            layout_stats: publication.layout_stats,
+        })
+    }
+
+    /// Resolve atomically into local placement output using the environment's
+    /// finite viewport for both layout and painting. Counters include private
+    /// layout previews as well as final publication.
+    pub fn local_frame(
+        &mut self,
+        ui: &mut LogicalUi,
+        environment: &LayoutEnvironment,
+    ) -> Result<LocalResponsiveFrame, Error> {
+        self.local_frame_in_viewport(
+            ui,
+            environment,
+            LayoutConstraints::viewport(
+                environment.layout_viewport[0],
+                environment.layout_viewport[1],
+            ),
+            environment.layout_viewport,
+        )
+    }
+
+    /// Publish local output after all responsive stages validate. The
+    /// environment selects viewport rules, constraints determine query geometry,
+    /// and the independent finite viewport clips paint and hit testing.
+    /// Stable property-only changes preserve sparse local publication.
+    pub fn local_frame_in_viewport(
+        &mut self,
+        ui: &mut LogicalUi,
+        environment: &LayoutEnvironment,
+        constraints: LayoutConstraints,
+        viewport: [f32; 2],
+    ) -> Result<LocalResponsiveFrame, Error> {
+        let publication = self.publish(ui, environment, constraints, viewport, true)?;
+        let reactive::responsive::Output::Local(frame) = publication.output else {
+            unreachable!()
+        };
+        Ok(LocalResponsiveFrame {
+            frame,
+            rules_examined: self.bindings.len(),
+            changed_styles: publication.changed_styles,
+            layout_runs: publication.layout_runs,
+            layout_stats: publication.layout_stats,
+        })
+    }
+
+    fn publish(
+        &mut self,
+        ui: &mut LogicalUi,
+        environment: &LayoutEnvironment,
+        constraints: LayoutConstraints,
+        viewport: [f32; 2],
+        local: bool,
+    ) -> Result<reactive::responsive::Publication, Error> {
         environment.validate()?;
+        constraints.validate()?;
+        if viewport
+            .iter()
+            .any(|value| !value.is_finite() || *value < 0.0)
+        {
+            return Err(Error::InvalidViewport);
+        }
         self.bindings.retain(|binding| {
             ui.read(binding.source).is_ok() && ui.reactive().tree().node(binding.target).is_ok()
         });
         let stages = self.validate_layout_rules(ui, None)?;
-        let values = self
-            .bindings
-            .iter()
-            .filter(|binding| matches!(binding.query, LayoutQuery::ViewportInline))
-            .map(|binding| {
-                (
-                    binding.source,
-                    binding
-                        .styles
-                        .select(environment.layout_viewport[0], environment.direction),
-                )
-            })
-            .collect::<Vec<_>>();
-        let changed_styles = Self::apply(ui, values)?;
-        let first = ui.frame(environment.layout_viewport)?;
-        let mut result = ResponsiveFrame {
-            layout_runs: first.layout_runs,
-            layout_stats: first.layout_stats,
-            frame: first,
-            rules_examined: self.bindings.len(),
-            changed_styles,
-        };
-        for stage in stages {
-            let mut values = Vec::with_capacity(stage.len());
-            for index in stage {
-                let binding = &self.bindings[index];
-                let LayoutQuery::ContainerInline(container) = binding.query else {
-                    unreachable!()
-                };
-                let tree = ui.reactive().tree();
-                let layout = tree.layout.layout(tree.node(container)?.layout)?;
-                let width = (layout.size.width
-                    - layout.padding.left
-                    - layout.padding.right
-                    - layout.border.left
-                    - layout.border.right
-                    - layout.scrollbar_size.width)
-                    .max(0.0);
-                values.push((
-                    binding.source,
-                    binding.styles.select(width, environment.direction),
-                ));
-            }
-            let changed = Self::apply(ui, values)?;
-            result.changed_styles += changed;
-            if changed > 0 {
-                let frame = ui.frame(environment.layout_viewport)?;
-                result.layout_runs += frame.layout_runs;
-                result.layout_stats.leaf_layouts += frame.layout_stats.leaf_layouts;
-                result.layout_stats.measure_calls += frame.layout_stats.measure_calls;
-                result.layout_stats.layout_writes += frame.layout_stats.layout_writes;
-                result.layout_stats.changed_layout_writes +=
-                    frame.layout_stats.changed_layout_writes;
-                result.layout_stats.net_changed_nodes += frame.layout_stats.net_changed_nodes;
-                result.frame = frame;
-            }
-        }
-        Ok(result)
+        ui.reactive_mut().responsive_output(
+            constraints,
+            viewport,
+            local,
+            !stages.is_empty(),
+            |draft| {
+                // A computed rule source cannot also be this resolver's producer.
+                // Failure occurs inside the draft, before any output is visible.
+                let originals = self
+                    .bindings
+                    .iter()
+                    .map(|binding| Ok((binding.source, draft.read(binding.source)?.clone())))
+                    .collect::<Result<Vec<_>, Error>>()?;
+                let viewport_values = self
+                    .bindings
+                    .iter()
+                    .filter(|binding| matches!(binding.query, LayoutQuery::ViewportInline))
+                    .map(|binding| {
+                        (
+                            binding.source,
+                            binding
+                                .styles
+                                .select(environment.layout_viewport[0], environment.direction),
+                        )
+                    })
+                    .collect();
+                draft.apply(viewport_values)?;
+                if self.validate_layout_rules(draft, None)? != stages {
+                    return Err(Error::UnsafeContainerQuery);
+                }
+                for stage in &stages {
+                    let mut values = Vec::with_capacity(stage.len());
+                    for &index in stage {
+                        let binding = &self.bindings[index];
+                        let LayoutQuery::ContainerInline(container) = binding.query else {
+                            unreachable!()
+                        };
+                        let width = draft.inline_size(container)?;
+                        values.push((
+                            binding.source,
+                            binding.styles.select(width, environment.direction),
+                        ));
+                    }
+                    draft.apply(values)?;
+                    // Computed sinks may change ancestors as part of a stage.
+                    // Revalidate actual draft styles as well as authored branches.
+                    if self.validate_layout_rules(draft, None)? != stages {
+                        return Err(Error::UnsafeContainerQuery);
+                    }
+                }
+                let mut changed = 0;
+                for (source, original) in originals {
+                    changed += usize::from(draft.read(source)? != &original);
+                }
+                Ok(changed)
+            },
+        )
     }
 
     fn is_ancestor(tree: &UiTree, ancestor: NodeId, descendant: NodeId) -> Result<bool, Error> {
@@ -389,29 +486,6 @@ impl LayoutResponsiveBindings {
             current = tree.node(id)?.parent;
         }
         Ok(false)
-    }
-
-    fn apply(
-        ui: &mut LogicalUi,
-        values: Vec<(Signal<LayoutStyle>, LayoutStyle)>,
-    ) -> Result<usize, Error> {
-        let mut changes = vec![];
-        for (source, value) in values {
-            if ui.read(source)? != &value {
-                changes.push((source, value));
-            }
-        }
-        if changes.is_empty() {
-            return Ok(0);
-        }
-        Ok(ui
-            .transaction(|tx| {
-                for (source, value) in changes {
-                    tx.set(source, value)?;
-                }
-                Ok(())
-            })?
-            .changed_sources)
     }
 }
 
@@ -464,11 +538,23 @@ pub struct ResponsiveBindings {
     bindings: Vec<Binding>,
 }
 
+/// Local-placement output with counters including private responsive layout
+/// previews and the final publication. No intermediate packet is published.
+pub struct LocalResponsiveFrame {
+    pub frame: local::LocalFrame,
+    pub rules_examined: usize,
+    pub changed_styles: usize,
+    pub layout_runs: u64,
+    pub layout_stats: LayoutStats,
+}
+
 pub struct ResponsiveFrame {
     pub frame: FramePacket,
     pub rules_examined: usize,
     pub changed_styles: usize,
-    /// Total layout entries across the bounded pre-query/final passes.
+    /// Total layout entries across all pre-query/final passes, including private
+    /// previews for LayoutResponsiveBindings. The wrapped packet counts only its
+    /// own publication.
     pub layout_runs: u64,
     pub layout_stats: LayoutStats,
 }
