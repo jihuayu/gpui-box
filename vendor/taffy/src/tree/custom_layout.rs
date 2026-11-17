@@ -108,6 +108,9 @@ pub trait CustomAllocationChildren {
 /// Content-box inputs after the common host box model has resolved sizing.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CustomLayoutInput {
+    /// Query demand. Complete layout and baseline requests use Both.
+    /// A scalar measure may skip work unrelated to its requested dimension.
+    pub requested_axis: crate::RequestedAxis,
     /// Whether the host's own size styles participate in this invocation.
     pub sizing_mode: crate::SizingMode,
     /// Assigned content dimensions. Returned size must preserve these values.

@@ -60,7 +60,9 @@ impl<T: LayoutPartialTree> CustomLayoutChildren for Children<'_, T> {
         Ok(self.allocations.map(|slots| slots[child]))
     }
     fn measure(&mut self, child: usize, mut input: LayoutInput) -> Result<LayoutOutput, TaffyError> {
+        let axis = input.axis;
         input = self.allocation(child)?.unwrap_or(input);
+        input.axis = axis;
         if child >= self.len() || !valid_input(&input) {
             return Err(TaffyError::InvalidCustomLayout);
         }
@@ -71,6 +73,7 @@ impl<T: LayoutPartialTree> CustomLayoutChildren for Children<'_, T> {
     }
     fn measure_baselines(&mut self, child: usize, mut input: LayoutInput) -> Result<LayoutOutput, TaffyError> {
         input = self.allocation(child)?.unwrap_or(input);
+        input.axis = crate::RequestedAxis::Both;
         if child >= self.len() || !valid_input(&input) {
             return Err(TaffyError::InvalidCustomLayout);
         }
@@ -100,10 +103,12 @@ fn plan(
     tree: &mut impl LayoutPartialTree,
     node: NodeId,
     delegate: &dyn CustomLayout,
-    input: CustomLayoutInput,
+    mut input: CustomLayoutInput,
     allocations: Option<&[LayoutInput]>,
 ) -> Result<CustomLayoutOutput, TaffyError> {
     let count = tree.child_count(node);
+    // The complete-plan fallback always computes a complete placement input.
+    input.requested_axis = crate::RequestedAxis::Both;
     let mut output = delegate.layout(input, &mut Children { tree, parent: node, allocations })?;
     validate_measure(input, CustomMeasureOutput { size: output.size, baselines: output.baselines })?;
     if output.placements.len() != count {
@@ -122,6 +127,7 @@ fn plan(
         if let Some(slots) = allocations {
             placement.input = slots[placement.child];
         }
+        placement.input.axis = crate::RequestedAxis::Both;
         if !valid_input(&placement.input) {
             return Err(TaffyError::InvalidCustomLayout);
         }
@@ -428,6 +434,8 @@ mod tests {
 
 #[cfg(all(test, feature = "flexbox", feature = "taffy_tree"))]
 mod definiteness_tests;
+#[cfg(all(test, feature = "flexbox", feature = "taffy_tree"))]
+mod axis_tests;
 
 /// Apply an owned algorithm inside the host's standard sizing/inset model.
 /// An error can follow internal child writes; callers needing atomic mutation
@@ -438,6 +446,9 @@ pub fn compute_custom_layout(
     mut inputs: LayoutInput,
     delegate: &dyn CustomLayout,
 ) -> Result<LayoutOutput, TaffyError> {
+    if inputs.run_mode == RunMode::PerformLayout {
+        inputs.axis = crate::RequestedAxis::Both;
+    }
     // Use the incoming input, never the measured/selected host size. Keeping
     // this phase outside plan() prevents auto-height feedback into assignments.
     let allocations = delegate.allocate(inputs, &AllocationChildren { tree, parent: node })?;
@@ -554,6 +565,9 @@ pub fn compute_custom_layout(
                     .maybe_sub(inset_size)
                     .maybe_max(Size::ZERO);
                 match measure_content(tree, node, delegate, CustomLayoutInput {
+                    requested_axis: if inputs.axis == crate::RequestedAxis::Vertical && inputs.known_dimensions.width.is_none() {
+                        crate::RequestedAxis::Both
+                    } else { inputs.axis },
                     sizing_mode: inputs.sizing_mode,
                     known_size,
                     known_size_is_definite: inputs.known_dimensions_are_definite,
@@ -571,11 +585,21 @@ pub fn compute_custom_layout(
         error.map_or(Ok(output), Err)
     };
     let mut output = measure(tree, inputs)?;
+    if inputs.run_mode == RunMode::ComputeSize && inputs.axis == crate::RequestedAxis::Horizontal {
+        // Only width is authoritative. No dependent-height pass, baseline
+        // query or complete placement plan is required after its selection.
+        output.baselines = Baselines::NONE;
+        return Ok(output);
+    }
     if inputs.known_dimensions.width.is_none() {
         // Select inline size before dependent height. No fixed-point iteration.
         inputs.known_dimensions.width = Some(output.size.width);
         inputs.known_dimensions_are_definite.width = true;
         output = measure(tree, inputs)?;
+    }
+    if inputs.run_mode == RunMode::ComputeSize && inputs.axis == crate::RequestedAxis::Vertical {
+        output.baselines = Baselines::NONE;
+        return Ok(output);
     }
     let inner = (output.size - inset_size).map(|v| v.max(0.0));
     let percentage_basis = Size {
@@ -589,6 +613,7 @@ pub fn compute_custom_layout(
             .map(|h| (h - inset_size.height).max(0.0)),
     };
     let final_input = CustomLayoutInput {
+        requested_axis: crate::RequestedAxis::Both,
         sizing_mode: inputs.sizing_mode,
         known_size: inner.map(Some),
         known_size_is_definite: percentage_basis.map(|basis| basis.is_some()),

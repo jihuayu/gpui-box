@@ -513,6 +513,26 @@ vendor default224 / project218; framework library Clippy and vendor
 no-default/alloc-Flex/all-features checks pass. Scoped rustfmt and diff checks
 pass. Suites overlap; ignored hardware cases are not passing evidence.
 
+The [axis measurement stage](RETAINED_AXIS_MEASUREMENT.md) exposes LayoutAxis,
+scalar dry queries on public owners, child measure_axis and requested_axis in
+ParentMeasure inputs. Width-only custom probes omit selected-width dependent
+height and final metric/plan work; vertical probes retain necessary inline
+selection. Full/inline assignments preserve allocation authority independently
+from requested demand. Complete plans, final child placements and baseline
+queries normalize to Both, with exact cache separation from partial metrics.
+Normal sources, P0 restoration, actual glyphs and complete CPU/WGPU numeric
+controls share the ordinary route. Callback inputs grow, while ChildLayoutInput,
+builder/style/persistent cache/GPU/packet formats do not. Public queries still
+clone the tree and no timing gain is claimed; full RenderBox, general intrinsic
+conformance, feedback construction/scheduling and performance acceptance stay open.
+See [verification](performance/2026-11-17-axis-measurement/README.md).
+Verified: retained426; text/WGPU459 passed,27 ignored; hello44 passed,2 ignored;
+explicit NVIDIA/Vulkan case1 with6 complete-pixel submits; vendor default225 /
+project219; framework library Clippy and vendor no-default/alloc-Flex/all-features
+checks pass. Scoped formatting and diff checks pass. The ordinary Flex matrix
+has96 input combinations/192 scalar comparisons, not independent browser cases.
+Suite counts overlap; ignored tests alone are not hardware evidence.
+
 The [validation-cache stage](RETAINED_VALIDATION_CACHE.md) reuses consumer checks
 for cache-owned immutable pages and stable node indices, with full fallback for
 identity/order/scale changes and complete effect-reference checks on effect-map edits.

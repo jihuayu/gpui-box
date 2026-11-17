@@ -21,6 +21,171 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 }
 
 #[derive(Debug, Clone, Copy)]
+struct ScalarParagraphParent(f32);
+impl ScalarParagraphParent {
+    fn slot(self) -> ChildLayoutInput {
+        ChildLayoutInput::new(LayoutConstraints::new(
+            LayoutAvailableSpace::Definite(self.0),
+            LayoutAvailableSpace::Unbounded,
+        ))
+    }
+}
+impl ParentMeasure for ScalarParagraphParent {
+    fn measure(
+        &self,
+        input: ParentLayoutInput,
+        children: &mut dyn ParentLayoutChildren,
+    ) -> Result<ParentMeasureOutput, Error> {
+        let width = children.measure_axis(0, self.slot(), LayoutAxis::Horizontal)?;
+        let height = children.measure_axis(0, self.slot(), LayoutAxis::Vertical)?;
+        let full = children.measure_baselines(0, self.slot())?;
+        assert!((full.size[0] - width).abs() < 0.01);
+        assert!((full.size[1] - height).abs() < 0.01);
+        Ok(ParentMeasureOutput {
+            size: [
+                input.known_size.width.unwrap_or(width),
+                input.known_size.height.unwrap_or(height),
+            ],
+            baseline: full.baseline,
+            last_baseline: full.last_baseline,
+        })
+    }
+}
+impl ParentLayout for ScalarParagraphParent {
+    fn layout(
+        &self,
+        input: ParentLayoutInput,
+        children: &mut dyn ParentLayoutChildren,
+    ) -> Result<ParentLayoutOutput, Error> {
+        assert_eq!(input.requested_axis, None);
+        let value = self.measure(input, children)?;
+        Ok(ParentLayoutOutput {
+            size: value.size,
+            baseline: value.baseline,
+            last_baseline: value.last_baseline,
+            placements: vec![ParentPlacement {
+                child: 0,
+                input: self.slot(),
+                origin: [0.0; 2],
+            }],
+        })
+    }
+}
+
+#[test]
+fn scalar_queries_preserve_real_paragraph_metrics_and_normal_complete_glyph_frames() {
+    let system = text_system();
+    let paragraph = shape(&system, "one two 中文 longword second line");
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let paint = TextPaint {
+        resource: raster.prepare(paragraph.clone(), 1.0).unwrap(),
+        color: 0x00ffffff,
+    };
+    let mut tree = UiTree::new_layout(
+        LayoutStyle::column().align_items(LayoutAlignItems::Start),
+        0,
+    )
+    .unwrap();
+    let root = tree.root();
+    let leaf = tree.append_layout(root, LayoutStyle::row(), 0).unwrap();
+    let mut tx = Transaction::default();
+    tx.text(leaf, Some(paint.clone()));
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    let mut old = None;
+    for width in [60.0, 140.0, 60.0] {
+        let client = ScalarParagraphParent(width);
+        let mut tx = Transaction::default();
+        tx.parent_layout(
+            root,
+            Some(ParentLayoutSnapshot::new(client).with_measure(client)),
+        );
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+        let frame = tree.local_frame([200.0, 500.0]).unwrap();
+        let mut full = UiTree::new_layout(
+            LayoutStyle::column().align_items(LayoutAlignItems::Start),
+            0,
+        )
+        .unwrap();
+        full.set_frame_build_policy(FrameBuildPolicy::Full);
+        let text = full
+            .append_layout(
+                full.root(),
+                LayoutStyle::row().size(LayoutDimension::Px(width), LayoutDimension::Auto),
+                0,
+            )
+            .unwrap();
+        let mut tx = Transaction::default();
+        tx.text(text, Some(paint.clone()));
+        full.commit(tx, BackendCapabilities::default()).unwrap();
+        let control = full.frame([200.0, 500.0]).unwrap();
+        for axis in [LayoutAxis::Horizontal, LayoutAxis::Vertical] {
+            let value = tree
+                .dry_measure_node_axis(leaf, client.slot(), axis)
+                .unwrap();
+            let size = tree.layout_result(leaf).unwrap().size;
+            assert_eq!(
+                value,
+                match axis {
+                    LayoutAxis::Horizontal => size[0],
+                    LayoutAxis::Vertical => size[1],
+                }
+            );
+        }
+        for space in [
+            LayoutAvailableSpace::MinContent,
+            LayoutAvailableSpace::MaxContent,
+        ] {
+            let input = ChildLayoutInput::new(LayoutConstraints::new(
+                space,
+                LayoutAvailableSpace::Unbounded,
+            ));
+            assert_eq!(
+                tree.dry_measure_node_axis(leaf, input, LayoutAxis::Horizontal)
+                    .unwrap(),
+                tree.dry_measure_node(leaf, input).unwrap().size[0]
+            );
+        }
+        assert_eq!(
+            tree.layout_result(leaf).unwrap(),
+            full.layout_result(text).unwrap()
+        );
+        fn pixels(frame: FramePacket) -> Vec<u8> {
+            let mut job = software::SoftwareJob::new(
+                frame,
+                software::SoftwareOptions {
+                    size: [200, 500],
+                    scale: 1.0,
+                    background: 0,
+                    effects: pacing::SoftwareEffects::Exact,
+                    max_bytes: 4 * 1024 * 1024,
+                },
+            )
+            .unwrap();
+            while !job.step(4096).unwrap() {}
+            job.into_frame().unwrap().pixels().to_vec()
+        }
+        let actual = pixels(frame.resolve());
+        assert_eq!(actual, pixels(control));
+        old.get_or_insert((frame, actual));
+    }
+    let (old, expected) = old.unwrap();
+    drop((tree, paint, raster, paragraph, system));
+    let mut job = software::SoftwareJob::new(
+        old.resolve(),
+        software::SoftwareOptions {
+            size: [200, 500],
+            scale: 1.0,
+            background: 0,
+            effects: pacing::SoftwareEffects::Exact,
+            max_bytes: 4 * 1024 * 1024,
+        },
+    )
+    .unwrap();
+    while !job.step(4096).unwrap() {}
+    assert_eq!(job.into_frame().unwrap().pixels(), expected);
+}
+
+#[derive(Debug, Clone, Copy)]
 struct PercentageParagraphParent;
 impl PercentageParagraphParent {
     fn slot(input: ParentLayoutInput) -> ChildLayoutInput {

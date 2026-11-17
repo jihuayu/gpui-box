@@ -13,9 +13,24 @@ impl UiTree {
         node: NodeId,
         input: ChildLayoutInput,
     ) -> Result<ChildLayoutResult, Error> {
-        self.dry_query_node(node, input, false)
+        self.dry_query_node(node, input, false, None)
     }
 
+    /// One authoritative border-box extent, without requiring the unrelated
+    /// axis or baselines. Intrinsic mode remains explicit in the input space.
+    pub fn dry_measure_node_axis(
+        &self,
+        node: NodeId,
+        input: ChildLayoutInput,
+        axis: LayoutAxis,
+    ) -> Result<f32, Error> {
+        let result = self.dry_query_node(node, input, false, Some(axis))?;
+        let value = axis.select(result.size);
+        if !value.is_finite() || value < 0.0 {
+            return Err(Error::InvalidParentLayout);
+        }
+        Ok(value)
+    }
     /// Complete baseline metrics under direct-child constraints. Ordinary
     /// containers run placement arithmetic in an isolated query, without
     /// publishing it. This deliberately costs more than size-only measurement.
@@ -24,7 +39,7 @@ impl UiTree {
         node: NodeId,
         input: ChildLayoutInput,
     ) -> Result<ChildLayoutResult, Error> {
-        self.dry_query_node(node, input, true)
+        self.dry_query_node(node, input, true, None)
     }
 
     fn dry_query_node(
@@ -32,9 +47,16 @@ impl UiTree {
         node: NodeId,
         input: ChildLayoutInput,
         baselines: bool,
+        axis: Option<LayoutAxis>,
     ) -> Result<ChildLayoutResult, Error> {
         let layout_id = self.node(node)?.layout;
-        let input = input.to_taffy()?;
+        let mut input = input.to_taffy()?;
+        if let Some(axis) = axis {
+            input.axis = match axis {
+                LayoutAxis::Horizontal => taffy::RequestedAxis::Horizontal,
+                LayoutAxis::Vertical => taffy::RequestedAxis::Vertical,
+            };
+        }
         let mut candidate = self.layout.clone();
         let mut stats = LayoutStats::default();
         let mut measure_error = None;

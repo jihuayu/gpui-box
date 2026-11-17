@@ -418,6 +418,13 @@ allocator 能表达确定性的缺口。共同 custom-parent 与 ConstraintBox �
 虽在最终 callback 已知仍保持不确定。临时 input 新增 bool 字段，完整 literals 需迁移，
 未新增持久树/GPU/packet字段或测量轮次；完整 RenderBox、CSS 与性能验收继续开放。
 
+后续 [axis measurement](RETAINED_AXIS_MEASUREMENT.md) 暴露框架自有 LayoutAxis、
+公共 scalar dry query 和纯父策略 measure_axis。ParentMeasure 读取 requested_axis，
+普通 custom width query 可跳过依赖高度与最终plan；height仍先选择所需inline extent。
+独立full/inline slots保持分配权威但不覆盖查询意图，baseline/final与兼容full-plan
+fallback始终两轴，exact cache隔离partial结果。未扩大ChildLayoutInput/builder字段；
+临时callback输入增大且public query仍clone树，尚无帧时或完整RenderBox验收结论。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

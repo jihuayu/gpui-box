@@ -263,6 +263,14 @@ impl LogicalUi {
     ) -> Result<ChildLayoutResult, Error> {
         self.ui.dry_measure_node_baselines(node, input)
     }
+    pub fn dry_measure_node_axis(
+        &self,
+        node: NodeId,
+        input: ChildLayoutInput,
+        axis: LayoutAxis,
+    ) -> Result<f32, Error> {
+        self.ui.dry_measure_node_axis(node, input, axis)
+    }
     pub fn measure_with_constraints(
         &mut self,
         constraints: LayoutConstraints,

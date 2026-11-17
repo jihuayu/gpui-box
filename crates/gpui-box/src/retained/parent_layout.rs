@@ -1,6 +1,35 @@
 //! Backend-independent custom parent measurement and child placement.
 use super::*;
 
+/// Physical axis requested by a scalar measurement. This is query intent,
+/// independent of a child's complete placement/allocation inputs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LayoutAxis {
+    Horizontal,
+    Vertical,
+}
+impl LayoutAxis {
+    fn to_taffy(self) -> taffy::RequestedAxis {
+        match self {
+            Self::Horizontal => taffy::RequestedAxis::Horizontal,
+            Self::Vertical => taffy::RequestedAxis::Vertical,
+        }
+    }
+    fn from_taffy(axis: taffy::RequestedAxis) -> Option<Self> {
+        match axis {
+            taffy::RequestedAxis::Horizontal => Some(Self::Horizontal),
+            taffy::RequestedAxis::Vertical => Some(Self::Vertical),
+            taffy::RequestedAxis::Both => None,
+        }
+    }
+    pub(super) fn select(self, size: [f32; 2]) -> f32 {
+        size[match self {
+            Self::Horizontal => 0,
+            Self::Vertical => 1,
+        }]
+    }
+}
+
 /// Whether this node's own preferred/min/max sizes participate. Descendant
 /// styles, box-model insets, containment and parent hard inputs still apply.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -63,6 +92,10 @@ pub trait ParentAllocationChildren {
 /// Content-box inputs after the host's normal sizing and inset rules.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ParentLayoutInput {
+    /// None requests both axes. A scalar query may omit unneeded work, but
+    /// dependent-axis sizing and all selected dimensions must still be honored.
+    /// Complete layout and baseline queries always use None.
+    pub requested_axis: Option<LayoutAxis>,
     pub sizing_mode: LayoutSizingMode,
     pub known_size: LayoutSize<Option<f32>>,
     /// Whether each selected content extent establishes a percentage basis.
@@ -254,6 +287,22 @@ pub trait ParentLayoutChildren {
         child: usize,
         input: ChildLayoutInput,
     ) -> Result<ChildLayoutResult, Error>;
+    /// Request one authoritative border-box extent. Intrinsic intent is set
+    /// separately through input.constraints; this does not mean Content mode.
+    /// Independent assignment still overrides allocation fields, not query intent.
+    /// The compatibility default obtains both axes from measure().
+    fn measure_axis(
+        &mut self,
+        child: usize,
+        input: ChildLayoutInput,
+        axis: LayoutAxis,
+    ) -> Result<f32, Error> {
+        let value = axis.select(self.measure(child, input)?.size);
+        if !value.is_finite() || value < 0.0 {
+            return Err(Error::InvalidParentLayout);
+        }
+        Ok(value)
+    }
     /// Complete first/last baseline query for the same child allocation. This
     /// may run ordinary container placement arithmetic without publishing it.
     /// The default is unsupported for external measure-only implementations.
@@ -303,6 +352,8 @@ pub struct ParentMeasureOutput {
 pub trait ParentMeasure: std::fmt::Debug + Send + Sync + 'static {
     /// Read the same enforced slots and immutable metadata as the full layout.
     /// At the same final content input, metrics must agree exactly with layout.
+    /// A requested_axis allows an arbitrary finite nonnegative placeholder for
+    /// the unrelated unknown axis, while every known dimension is preserved.
     fn measure(
         &self,
         input: ParentLayoutInput,
@@ -567,6 +618,25 @@ impl ParentLayoutChildren for Children<'_> {
             last_baseline: result.baselines.last,
         })
     }
+    fn measure_axis(
+        &mut self,
+        child: usize,
+        input: ChildLayoutInput,
+        axis: LayoutAxis,
+    ) -> Result<f32, Error> {
+        let input = self.allocation(child)?.unwrap_or(
+            self.inline_allocation(child)?
+                .map_or(input, |slot| slot.apply(input)),
+        );
+        let mut input = input.to_taffy()?;
+        input.axis = axis.to_taffy();
+        let result = self.inner.measure(child, input)?;
+        let value = axis.select([result.size.width, result.size.height]);
+        if !value.is_finite() || value < 0.0 {
+            return Err(Error::InvalidParentLayout);
+        }
+        Ok(value)
+    }
 }
 #[derive(Debug)]
 struct Adapter(ParentLayoutSnapshot);
@@ -624,6 +694,7 @@ impl taffy::tree::CustomLayout for Adapter {
             return Ok(None);
         };
         let input = ParentLayoutInput {
+            requested_axis: LayoutAxis::from_taffy(input.requested_axis),
             sizing_mode: LayoutSizingMode::from_taffy(input.sizing_mode),
             known_size: from_size(input.known_size),
             known_size_is_definite: from_size(input.known_size_is_definite),
@@ -688,6 +759,7 @@ impl taffy::tree::CustomLayout for Adapter {
         children: &mut dyn taffy::tree::CustomLayoutChildren,
     ) -> Result<taffy::tree::CustomLayoutOutput, taffy::TaffyError> {
         let input = ParentLayoutInput {
+            requested_axis: LayoutAxis::from_taffy(input.requested_axis),
             sizing_mode: LayoutSizingMode::from_taffy(input.sizing_mode),
             known_size: from_size(input.known_size),
             known_size_is_definite: from_size(input.known_size_is_definite),
@@ -750,6 +822,8 @@ impl taffy::tree::CustomLayout for Adapter {
 mod allocation_style_tests;
 #[cfg(test)]
 mod assigned_size_tests;
+#[cfg(test)]
+mod axis_tests;
 mod child_style;
 #[cfg(test)]
 mod child_style_tests;

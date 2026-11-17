@@ -1,5 +1,9 @@
 # Pure parent metrics and explicit dry node queries
 
+Follow-up: [axis measurement](RETAINED_AXIS_MEASUREMENT.md) adds scalar public
+and child queries plus ParentLayoutInput.requested_axis. Allocation inputs remain
+complete; full-plan fallback and baseline/final layout always compute both axes.
+
 Follow-up: [content sizing](RETAINED_CONTENT_SIZING.md) exposes Inherent/Content
 queries and callback input modes without mutating queried styles. Existing dry
 isolation and final pure/full agreement remain authoritative.
