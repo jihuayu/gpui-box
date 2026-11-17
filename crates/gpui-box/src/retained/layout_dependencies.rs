@@ -16,23 +16,51 @@ impl InlineContext for UiTree {
     }
 }
 
-/// Custom width plans observe child count/order and owned snapshot data. A
-/// structural builder cannot change those dependencies after consuming a slot,
+/// Custom width plans and Row allocation observe child count/order and owned
+/// algorithm/item inputs. A builder cannot change them after consuming a slot,
 /// even if its numeric allocation happens to remain equal in this execution.
 #[derive(Clone)]
-pub(super) struct InlineDependencies(Vec<(NodeId, ParentLayoutSnapshot, Vec<NodeId>)>);
+pub(super) struct InlineDependencies(Vec<InlineParentDependency>);
+#[derive(Clone, PartialEq)]
+struct InlineParentDependency {
+    node: NodeId,
+    algorithm: Option<ParentLayoutSnapshot>,
+    children: Vec<NodeId>,
+    item_styles: Vec<(NodeId, Style)>,
+}
 impl InlineDependencies {
     pub(super) fn capture(tree: &UiTree, node: NodeId) -> Result<Self, Error> {
         let mut result = vec![];
         let mut parent = tree.node(node)?.parent;
         while let Some(id) = parent {
             let node = tree.node(id)?;
-            if let Some(snapshot) = &node.parent_layout {
-                result.push((
-                    id,
-                    snapshot.clone(),
-                    tree.ordered_children_for(id, &node.children)?,
-                ));
+            let row = matches!(node.style.display, taffy::Display::Flex)
+                && matches!(
+                    node.style.flex_direction,
+                    taffy::FlexDirection::Row | taffy::FlexDirection::RowReverse
+                );
+            if node.parent_layout.is_some() || row {
+                let children = tree.ordered_children_for(id, &node.children)?;
+                let styles = if row {
+                    children
+                        .iter()
+                        .map(|id| {
+                            let child = tree.node(*id)?;
+                            Ok((
+                                *id,
+                                measure::effective_style(&child.style, child.measure.as_ref()),
+                            ))
+                        })
+                        .collect::<Result<Vec<_>, Error>>()?
+                } else {
+                    vec![]
+                };
+                result.push(InlineParentDependency {
+                    node: id,
+                    algorithm: node.parent_layout.clone(),
+                    children,
+                    item_styles: styles,
+                });
             }
             parent = node.parent;
         }
@@ -44,10 +72,12 @@ impl InlineDependencies {
 }
 
 /// A column's stretched/definite inline size is independent of content height.
+/// Rows qualify when every item has a content-independent numeric main basis
+/// and explicit numeric minimum, including wrapping and reversed rows.
 /// A Tight constraint-box edge also assigns inline size from its own allocation.
 /// The proof walks every ancestor and every reachable authored alternative;
 /// aspect feedback, OOF and intrinsic width limits reject rather than iterate.
-pub(super) fn column_inline_chain(
+pub(super) fn independent_inline_chain(
     context: &impl InlineContext,
     node: NodeId,
     style: &Style,
@@ -58,7 +88,7 @@ pub(super) fn column_inline_chain(
 /// Incoming soft space and percentage basis depend on the entire ancestor
 /// chain, even when the host's own CSS width is locked. A local fixed-width
 /// boundary proves used content width, not these observable parent inputs.
-pub(super) fn column_inline_allocation_chain(
+pub(super) fn independent_inline_allocation_chain(
     context: &impl InlineContext,
     node: NodeId,
     style: &Style,
@@ -145,6 +175,15 @@ fn prove(
                 ..
             } => {}
             taffy::Display::Flex | taffy::Display::None => {
+                if matches!(
+                    parent_style.flex_direction,
+                    taffy::FlexDirection::Row | taffy::FlexDirection::RowReverse
+                ) {
+                    if !independent_row_items(context, parent)? {
+                        return Ok(false);
+                    }
+                    continue;
+                }
                 if !matches!(
                     parent_style.flex_direction,
                     taffy::FlexDirection::Column | taffy::FlexDirection::ColumnReverse
@@ -168,6 +207,34 @@ fn prove(
         }
     }
     prove_alternatives(context, parent, memo, incoming)
+}
+
+/// Numeric Flex bases plus explicit numeric main minima remove content from
+/// Row grow/shrink allocation. Inspect every sibling and every authored branch;
+/// replaced-image effective ratios can otherwise transfer height into width.
+fn independent_row_items(context: &impl InlineContext, parent: NodeId) -> Result<bool, Error> {
+    use taffy::style::ExpandedDimension as D;
+    for &child in &context.tree().node(parent)?.children {
+        let node = context.tree().node(child)?;
+        for style in context.styles(child)? {
+            let style = measure::effective_style(&style, node.measure.as_ref());
+            if style.display == taffy::Display::None || style.position.is_out_of_flow() {
+                continue;
+            }
+            let numeric = |v: taffy::Dimension| matches!(v.expand(), D::Length(x) if x.is_finite() && x >= 0.0);
+            let basis = numeric(style.flex_basis)
+                || (style.flex_basis.is_auto() && numeric(style.size.width));
+            if !basis
+                || !numeric(style.min_size.width)
+                || !(style.max_size.width.is_auto() || numeric(style.max_size.width))
+                || style.size.width.is_sizing_keyword()
+                || style.aspect_ratio.is_some()
+            {
+                return Ok(false);
+            }
+        }
+    }
+    Ok(true)
 }
 
 fn prove_alternatives(
@@ -206,3 +273,6 @@ fn fixed_inline_content(style: &Style) -> bool {
             |inset| matches!(inset.expand(), L::Length(value) if value.is_finite() && value >= 0.0),
         )
 }
+
+#[cfg(test)]
+mod row_tests;

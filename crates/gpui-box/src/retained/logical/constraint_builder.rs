@@ -260,7 +260,7 @@ pub(super) fn validate_inline_host(tree: &UiTree, host: NodeId) -> Result<(), Er
     if !style
         .contain
         .contains(taffy::Contain::INLINE_SIZE | taffy::Contain::LAYOUT)
-        || !layout_dependencies::column_inline_chain(tree, host, style)?
+        || !layout_dependencies::independent_inline_chain(tree, host, style)?
     {
         return Err(Error::UnsafeConstraintBuilder);
     }
@@ -289,7 +289,7 @@ pub(super) fn validate_inline_allocation_host(tree: &UiTree, host: NodeId) -> Re
     if !matches!(
         node.style.display,
         taffy::Display::Flex | taffy::Display::ConstraintBox { .. }
-    ) || !layout_dependencies::column_inline_allocation_chain(tree, host, &node.style)?
+    ) || !layout_dependencies::independent_inline_allocation_chain(tree, host, &node.style)?
     {
         return Err(Error::UnsafeConstraintBuilder);
     }

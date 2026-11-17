@@ -187,12 +187,22 @@ fn affects_query(
     if LayoutResponsiveBindings::is_ancestor(tree, target, host)? {
         return Ok(true);
     }
-    // Width phases address children in layout order. A sibling style sink can
-    // change order and therefore which enforced slot reaches this host.
+    // Width phases address children in layout order, while Row grow/shrink and
+    // wrapping consume every sibling's item style. These producers precede the
+    // host's consumers even when registered later and numerically equal today.
     let mut cursor = tree.node(host)?.parent;
     while let Some(parent) = cursor {
         let node = tree.node(parent)?;
-        if node.parent_layout.is_some() && tree.node(target)?.parent == Some(parent) {
+        if (node.parent_layout.is_some()
+            || possible_styles(ui, rules, parent)?.iter().any(|style| {
+                matches!(style.display, taffy::Display::Flex)
+                    && matches!(
+                        style.flex_direction,
+                        taffy::FlexDirection::Row | taffy::FlexDirection::RowReverse
+                    )
+            }))
+            && tree.node(target)?.parent == Some(parent)
+        {
             return Ok(true);
         }
         cursor = node.parent;
@@ -337,9 +347,9 @@ fn inline_chain(
     }
     let context = Context { ui, rules };
     if incoming {
-        layout_dependencies::column_inline_allocation_chain(&context, node, style)
+        layout_dependencies::independent_inline_allocation_chain(&context, node, style)
     } else {
-        layout_dependencies::column_inline_chain(&context, node, style)
+        layout_dependencies::independent_inline_chain(&context, node, style)
     }
 }
 

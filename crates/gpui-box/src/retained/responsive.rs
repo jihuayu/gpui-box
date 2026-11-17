@@ -235,7 +235,8 @@ pub enum LayoutQuery {
 
 /// Responsive bindings using framework-owned layout types. Container queries
 /// use fixed inline extents, explicit size containment or complete independent
-/// Column/Tight-box/width-phase chains anchored in external inline space; allow
+/// Column/content-independent-Row/Tight-box/width-phase chains anchored in
+/// external inline space; allow
 /// content-driven heights and resolve nested allocation dependencies in stages.
 /// Stages use private source/layout drafts and publish final sources and output
 /// only after validation; effects observe the final values once. Changed plans

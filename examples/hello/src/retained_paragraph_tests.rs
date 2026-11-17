@@ -21,6 +21,147 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 }
 
 #[test]
+fn row_allocated_real_text_composes_inline_builders_and_container_rules_without_containment() {
+    use gpui_box::retained::{logical::LogicalUi, responsive::*};
+    let system = text_system();
+    let paragraph = shape(&system, "one two three four five 中文段落 longword");
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let paint = TextPaint {
+        resource: raster.prepare(paragraph.clone(), 1.0).unwrap(),
+        color: 0x00ffffff,
+    };
+    let root_style = LayoutStyle::row()
+        .size(LayoutDimension::Percent(1.0), LayoutDimension::Auto)
+        .align_items(LayoutAlignItems::Start);
+    let item = || {
+        LayoutStyle::column()
+            .flex_basis(LayoutDimension::Px(0.0))
+            .flex_grow(1.0)
+            .min_size(LayoutDimension::Px(0.0), LayoutDimension::Auto)
+    };
+    let host_style = item().padding(LayoutEdges::all(LayoutLength::Px(3.0)));
+    let narrow = LayoutStyle::row();
+    let wide = LayoutStyle::row().size(LayoutDimension::Percent(0.5), LayoutDimension::Auto);
+    fn pixels(frame: FramePacket) -> Vec<u8> {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [240, 600],
+                scale: 1.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 4 * 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(4096).unwrap() {}
+        job.into_frame().unwrap().pixels().to_vec()
+    }
+    for local in [false, true] {
+        let mut ui =
+            LogicalUi::new_layout(root_style.clone(), 0, BackendCapabilities::default()).unwrap();
+        let scope = ui.root_scope();
+        let root = ui.root_render();
+        let host = ui
+            .append_render_layout(scope, root, host_style.clone(), 0)
+            .unwrap();
+        ui.append_render_layout(
+            scope,
+            root,
+            item().size(LayoutDimension::Auto, LayoutDimension::Px(10.0)),
+            0xff0000ff,
+        )
+        .unwrap();
+        let mut old = None;
+        for w in [120.0, 180.0, 240.0, 120.0] {
+            let input = LayoutConstraints::new(
+                LayoutAvailableSpace::Definite(w),
+                LayoutAvailableSpace::Unbounded,
+            );
+            let build = |(), edit: &mut gpui_box::retained::logical::LogicalEdit<'_, '_, '_>| {
+                edit.inline_allocation_builder(host, |input, edit| {
+                    assert_eq!(input.known_width, Some((w + 6.0) * 0.5));
+                    let branch = edit.reconcile_keys(scope, &[u64::from(w >= 180.0)])?[0];
+                    let renders = edit.renders(branch)?;
+                    let text = if let Some(node) = renders.first() {
+                        *node
+                    } else {
+                        edit.append_layout(branch, host, narrow.clone(), 0)?
+                    };
+                    let source = edit.state(branch, 0, || narrow.clone())?;
+                    edit.properties().text(text, Some(paint.clone()));
+                    edit.responsive_rule(
+                        branch,
+                        0,
+                        source,
+                        text,
+                        LayoutQuery::ContainerInline(host),
+                        LayoutBreakpointStyles::new(narrow.clone(), vec![(80.0, wide.clone())])?,
+                    )?;
+                    edit.responsive_registered(&LayoutEnvironment::new([500.0, 600.0]))?;
+                    Ok(text)
+                })
+            };
+            let (text, frame) = if local {
+                let (c, f) = ui
+                    .edit_local_frame(input, [240.0, 600.0], |_| Ok(()), build)
+                    .unwrap();
+                (c.result.value, f.resolve())
+            } else {
+                let (c, f) = ui
+                    .edit_frame(input, [240.0, 600.0], |_| Ok(()), build)
+                    .unwrap();
+                (c.result.value, f)
+            };
+            let content_width = (w - 6.0) * 0.5;
+            let mut full = UiTree::new_layout(root_style.clone(), 0).unwrap();
+            full.set_frame_build_policy(FrameBuildPolicy::Full);
+            let a = full
+                .append_layout(full.root(), host_style.clone(), 0)
+                .unwrap();
+            full.append_layout(
+                full.root(),
+                item().size(LayoutDimension::Auto, LayoutDimension::Px(10.0)),
+                0xff0000ff,
+            )
+            .unwrap();
+            let b = full
+                .append_layout(
+                    a,
+                    if content_width < 80.0 {
+                        narrow.clone()
+                    } else {
+                        wide.clone()
+                    },
+                    0,
+                )
+                .unwrap();
+            let mut tx = Transaction::default();
+            tx.text(b, Some(paint.clone()));
+            full.commit(tx, BackendCapabilities::default()).unwrap();
+            let reference = full.frame_in_viewport(input, [240.0, 600.0]).unwrap();
+            assert_eq!(
+                ui.layout_result(host).unwrap(),
+                full.layout_result(a).unwrap()
+            );
+            assert_eq!(
+                ui.layout_result(text).unwrap(),
+                full.layout_result(b).unwrap()
+            );
+            assert!(
+                pixels(frame.clone()) == pixels(reference),
+                "local={local} width={w}"
+            );
+            old.get_or_insert(frame);
+        }
+        let old = old.unwrap();
+        let expected = pixels(old.clone());
+        drop(ui);
+        assert_eq!(pixels(old), expected);
+    }
+}
+
+#[test]
 fn ordinary_container_query_uses_content_width_and_real_paragraph_height_without_containment() {
     use gpui_box::retained::{logical::LogicalUi, responsive::*};
     let system = text_system();

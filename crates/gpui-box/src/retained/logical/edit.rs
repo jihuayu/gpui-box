@@ -170,7 +170,7 @@ impl LogicalEdit<'_, '_, '_> {
     }
 
     /// Observe the incoming inline assignment of an ordinary content-sized
-    /// host, without containment. A complete Column/Tight-box/independent-width
+    /// host, without containment. A complete Column/proven-Row/Tight-box/width-phase
     /// chain must keep descendant block-size changes out of inline allocation.
     /// No final used height or block opportunity is observable.
     pub fn inline_allocation_builder<R>(

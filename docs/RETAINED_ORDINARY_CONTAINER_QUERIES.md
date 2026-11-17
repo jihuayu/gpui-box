@@ -6,6 +6,12 @@ RFC goal remains active. Extends [ordinary inline builders](RETAINED_INLINE_ALLO
 [automatic sessions](RETAINED_AUTOMATIC_RESPONSIVE.md).
 No frame-time, memory-saving or sustained-frame improvement is claimed.
 
+Follow-up: [content-independent Row allocation](RETAINED_ROW_INLINE_ALLOCATION.md)
+extends the shared chain through proven Row/RowReverse/wrap inputs and adds
+ordered sibling/effective-style observations plus sibling-producer DAG edges.
+The original Column-only restrictions below do not describe those newly proved
+cases. General content-dependent/ratio/intrinsic Row feedback remains open.
+
 ## Public behavior
 
 Existing `LayoutQuery::ContainerInline(host)`, standalone

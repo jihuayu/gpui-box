@@ -5,6 +5,12 @@ RFC goal remains active. Extends [inline constraint builders](RETAINED_INLINE_CO
 and [independent parent allocation](RETAINED_PARENT_ALLOCATION_BUILDERS.md).
 This is a structural layout capability; no timing or sustained-frame gain is claimed.
 
+Follow-up: [content-independent Row allocation](RETAINED_ROW_INLINE_ALLOCATION.md)
+extends the shared proof to Row/RowReverse with all wrap modes when all siblings'
+numeric bases/limits exclude content feedback. The original Column-only scope
+below is historical; arbitrary content-dependent Row/ratio/intrinsic cases remain
+unproven. Final observations now include Row ordered children/effective item styles.
+
 ## Public contract
 
 `LogicalEdit::inline_allocation_builder(host, callback)` reads the ordinary

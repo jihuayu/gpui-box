@@ -461,6 +461,16 @@ candidate复验width及custom algorithm/order，发布前失败保持旧sources/
 不新增公共签名或内核格式，proof扫描／style复制／observation vector有成本，无帧时收益声明。
 通用Row/wrap/aspect/full-axis反馈、自动跨builder调度和完整RenderBox仍开放。
 
+后续 [content-independent Row proof](RETAINED_ROW_INLINE_ALLOCATION.md) 让同一
+inline builder／ContainerInline穿过Row／RowReverse及三种wrap，前提是父inline独立，
+所有in-flow direct items有numeric basis（或Auto＋numeric width）、显式numeric min、
+numeric/Auto max且无effective ratio。普通Flex仍决定分行／grow／shrink，内容只改变依赖
+高度；未增加双栏特化算法。Final observations记录layout-order sibling列表和effective
+styles，图片派生ratio也参与；query DAG计入兄弟style producer并拒绝computed分配反馈。
+288组独立浏览器几何、真实glyph及CPU/GPU参考验证有限范围。公共API／内核格式不变，
+祖先兄弟扫描与Style副本增加成本，无帧时收益结论。通用content／percentage／ratio／
+intrinsic证明、full-axis反馈和自动调度仍未完成。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Content-independent Row allocation reference</title>
+<style>html,body{margin:0;padding:0}.host{position:absolute;left:0;top:0;display:flex;padding:3px;gap:4px;align-items:flex-start;align-content:flex-start;box-sizing:border-box}.item{display:flex;flex-direction:column;padding:2px;margin:0 2px}.content{width:400px;flex-shrink:0}</style>
+<body><script>
+window.referenceReady=(async()=>{
+  const cases=[];
+  for(const direction of ['row','row-reverse'])
+  for(const wrap of ['nowrap','wrap','wrap-reverse'])
+  for(const rtl of [false,true])
+  for(const width of [120,180,260])
+  for(const basis of ['zero','numeric'])
+  for(const model of ['border-box','content-box']) {
+    const host=document.createElement('div');host.className='host';
+    Object.assign(host.style,{flexDirection:direction,flexWrap:wrap,direction:rtl?'rtl':'ltr',width:`${width}px`});
+    for(let i=0;i<3;i++){
+      const item=document.createElement('div');item.className='item';
+      Object.assign(item.style,{flexBasis:`${basis==='zero'?0:[90,60,70][i]}px`,flexGrow:`${[1,2,1][i]}`,
+        minWidth:`${basis==='zero'?0:[30,20,10][i]}px`,maxWidth:i===2?'none':`${[100,200][i]}px`,boxSizing:model});
+      const content=document.createElement('div');content.className='content';item.append(content);host.append(item);
+    }
+    document.body.append(host);
+    for(const update of [false,true]) {
+      [...host.children].forEach((item,i)=>item.firstChild.style.height=`${update?[80,10,100][i]:[20,60,40][i]}px`);
+      const r=host.getBoundingClientRect();
+      const actual=[r.width,r.height,...[...host.children].flatMap(item=>{const b=item.getBoundingClientRect();return[b.x-r.x,b.y-r.y,b.width,b.height]})];
+      cases.push({direction,wrap,rtl,width,basis,model,update,actual});
+    }
+    host.remove();
+  }
+  return{userAgent:navigator.userAgent,cases};
+})();
+</script>

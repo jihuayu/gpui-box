@@ -460,6 +460,10 @@ fn ordinary_inline_builder_rejects_feedback_and_rolls_back_final_input_changes()
                 0,
             )
             .unwrap();
+        // A fixed host alone cannot prove the Row edge: this sibling still
+        // contributes a content basis and automatic minimum to allocation.
+        ui.append_render_layout(scope, root, LayoutStyle::column(), 0)
+            .unwrap();
         assert!(matches!(
             ui.edit_frame(
                 constraints(100.0),
