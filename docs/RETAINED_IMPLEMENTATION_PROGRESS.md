@@ -717,6 +717,34 @@ explicit NVIDIA/Vulkan Grid item4 and real glyph8 complete-pixel submissions;
 framework library Clippy, scoped format/diff and all1,152browser cases pass.
 Counts overlap; no vendor code/features changed or new vendor suite claimed.
 
+The [immutable layout-style stage](RETAINED_SHARED_LAYOUT_STYLES.md) shares
+lowered authored snapshots between framework/Taffy nodes, private candidates,
+dry queries and builder dependency observations. Style writes replace immutable
+handles; image-derived replacement/ratio metadata remains a separate effective
+snapshot only when required. Value equality/P0, cache/capability invalidation,
+ordinary Flex/Grid algorithms and atomic rollback stay authoritative. Heap
+allocation, pointer indirection, atomic handle costs and old-snapshot lifetimes
+are explicit. Whole-tree slots/topology/caches, changed-style lowering and proof
+scans remain. See [comparative CPU evidence](performance/2026-11-17-shared-layout-styles/README.md);
+neither static Node size nor finite timings establish peak/RSS/native frame-rate
+acceptance. The full goal remains active.
+Verified: retained489 passed/1ignored; text/WGPU522 passed/37ignored; hello52
+passed/6ignored; fork default232/affine+serde237/project-affine228 tests,
+alloc+tree+Flex+affine/all-features checks and framework library Clippy pass.
+Explicit NVIDIA/Vulkan Grid item4 and real glyph8 complete-pixel submissions
+match complete references. Three regular framework and three fork regressions
+plus one manual release benchmark were added. Suites overlap; the ignored
+benchmark is separate from hardware skips. No new browser/conformance run is
+claimed for this storage-only change. Retained-only unused fields/dependency
+linker messages remain. Static styles remain776bytes, ordinary core Node
+1168→400 and Slot1176→408bytes, excluding new shared heap payload/control blocks.
+Four alternating200-sample release process pairs on Ryzen4800H measure median
+per-process p50 reductions: Flex/Grid candidate clone55.5%/64.5%, isolated
+subtree54.8%/51.2%, atomic edit+layout validation31.9%/29.8%, isolated root
+measure15.7%/17.5% and create+measure28.1%/26.5%. Raw per-process p50/p95/max,
+source harness and binary hashes are saved; no individual-sample/p99, peak/RSS,
+live-layout-only or native presentation claim is made.
+
 The [validation-cache stage](RETAINED_VALIDATION_CACHE.md) reuses consumer checks
 for cache-owned immutable pages and stable node indices, with full fallback for
 identity/order/scale changes and complete effect-reference checks on effect-map edits.

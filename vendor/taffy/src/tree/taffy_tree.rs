@@ -53,6 +53,9 @@ mod dry_measure_tests;
 #[cfg(all(test, feature = "flexbox"))]
 #[path = "tracked_input_tests.rs"]
 mod tracked_input_tests;
+#[cfg(all(test, feature = "flexbox"))]
+#[path = "shared_style_tests.rs"]
+mod shared_style_tests;
 
 /// An error that occurs while trying to access or modify a node's children by index.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -124,7 +127,7 @@ impl Default for TaffyConfig {
 #[derive(Debug, Clone, PartialEq)]
 struct NodeData {
     /// The layout strategy used by this node
-    pub(crate) style: Style,
+    pub(crate) style: Arc<Style>,
 
     /// The always unrounded results of the layout computation. We must store this separately from the rounded
     /// layout to avoid errors from rounding already-rounded values. See <https://github.com/DioxusLabs/taffy/issues/501>.
@@ -151,7 +154,7 @@ struct NodeData {
 impl NodeData {
     /// Create the data for a new node
     #[must_use]
-    pub const fn new(style: Style) -> Self {
+    pub fn new(style: Arc<Style>) -> Self {
         Self {
             style,
             cache: Cache::new(),
@@ -1005,6 +1008,12 @@ impl<NodeContext> TaffyTree<NodeContext> {
 
     /// Creates and adds a new unattached leaf node to the tree, and returns the node of the new node
     pub fn new_leaf(&mut self, layout: Style) -> TaffyResult<NodeId> {
+        self.new_leaf_shared(Arc::new(layout))
+    }
+
+    /// Creates a leaf sharing an immutable style snapshot with its owner or
+    /// another tree. Later set_style calls replace the snapshot, never mutate it.
+    pub fn new_leaf_shared(&mut self, layout: Arc<Style>) -> TaffyResult<NodeId> {
         let constraint_box = matches!(layout.display, Display::ConstraintBox { .. });
         let contained = layout.contain.size_containment() == (Size { width: true, height: true });
         let id = self.nodes.insert(NodeData::new(layout));
@@ -1022,7 +1031,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
     pub fn new_leaf_with_context(&mut self, layout: Style, context: NodeContext) -> TaffyResult<NodeId> {
         let constraint_box = matches!(layout.display, Display::ConstraintBox { .. });
         let contained = layout.contain.size_containment() == (Size { width: true, height: true });
-        let mut data = NodeData::new(layout);
+        let mut data = NodeData::new(Arc::new(layout));
         data.has_context = true;
 
         let id = self.nodes.insert(data);
@@ -1040,7 +1049,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
     pub fn new_with_children(&mut self, layout: Style, children: &[NodeId]) -> TaffyResult<NodeId> {
         let constraint_box = matches!(layout.display, Display::ConstraintBox { .. });
         let contained = layout.contain.size_containment() == (Size { width: true, height: true });
-        let id = NodeId::from(self.nodes.insert(NodeData::new(layout)));
+        let id = NodeId::from(self.nodes.insert(NodeData::new(Arc::new(layout))));
         if contained { self.size_contained_nodes.insert(id.into(), ()); }
         if constraint_box { self.constraint_boxes.insert(id.into(), ()); }
 
@@ -1318,6 +1327,12 @@ impl<NodeContext> TaffyTree<NodeContext> {
     /// Sets the [`Style`] of the provided `node`
     #[inline]
     pub fn set_style(&mut self, node: NodeId, style: Style) -> TaffyResult<()> {
+        self.set_style_shared(node, Arc::new(style))
+    }
+
+    /// Replaces the node's immutable style snapshot. Cache invalidation and
+    /// capability indexes are identical to set_style, including equal values.
+    pub fn set_style_shared(&mut self, node: NodeId, style: Arc<Style>) -> TaffyResult<()> {
         if style.contain.size_containment() == (Size { width: true, height: true }) {
             self.size_contained_nodes.insert(node.into(), ());
         } else {

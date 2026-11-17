@@ -99,6 +99,13 @@ comparison work. Existing full candidate/preview costs remain. No new persistent
 node/style/kernel/GPU/frame field or Taffy layout pass; no payload/peak/wall-time
 measurement or complexity improvement is claimed.
 
+Follow-up: [shared layout styles](RETAINED_SHARED_LAYOUT_STYLES.md) replaces the
+boxed Grid style and inline sibling style copies with shared immutable handles,
+also covering full-axis allocator observations and private tree/kernel clones.
+Final comparisons remain value-based and proof/order scans remain. The linked
+stage has its own CPU measurements; the original browser/pixel evidence here
+does not imply any timing or peak-memory gain.
+
 General intrinsic/automatic columns, content/ratio feedback, implicit-Auto
 reachability analysis, auto-repeated rows, named placement, full-axis builder
 proofs, custom Grid placement input views, automatic builder/query scheduling,

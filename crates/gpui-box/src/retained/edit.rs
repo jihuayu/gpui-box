@@ -106,7 +106,7 @@ impl TreeEdit<'_> {
                 layout_order: 0,
                 parent: Some(parent),
                 children: vec![],
-                style,
+                style: share_style(style),
                 color,
                 translation: [0.0; 2],
                 chunk: None,
@@ -384,7 +384,7 @@ impl TreeEdit<'_> {
                 self.node_mut(*id)?.parent_layout = snapshot.clone();
             }
             if let Some(style) = &entry.style {
-                self.node_mut(*id)?.style = (**style).clone();
+                self.node_mut(*id)?.style = share_style((**style).clone());
             }
         }
         let tx = StructureTransaction {
@@ -447,7 +447,7 @@ impl TreeEdit<'_> {
             node.layout = self
                 .tree
                 .layout
-                .new_leaf(node.style.clone())
+                .new_leaf_shared(node.style.clone())
                 .expect("draft Taffy leaf");
             node.children.clear();
             self.tree.layout_nodes.insert(node.layout, *id);

@@ -85,6 +85,13 @@ lengths and original style sizes. Feature selection is not an application-level
 runtime performance policy. Future compact storage needs an owned lifetime design
 and measurements before replacing this representation.
 
+Follow-up: [shared layout styles](RETAINED_SHARED_LAYOUT_STYLES.md) keeps the
+776-byte value but shares immutable lowered snapshots across framework/Taffy
+nodes, candidates and dependency observations. Ordinary candidates no longer
+deep-clone those styles/tracks. Heap allocations, indirection and atomic handle
+costs remain; the linked stage records measured CPU comparisons, not peak/RSS or
+native frame-rate acceptance. The static affine sizes above remain unchanged.
+
 Serde keeps existing scalar-u64 encoding for ordinary values and uses a pair
 for owned mixed values; round-trip tests preserve coefficients and domain checks.
 Pointer expressions remain unserializable. This is the vendored Rust format,

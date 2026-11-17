@@ -143,7 +143,7 @@ impl FinalObservation {
             return Err(Error::UnsafeContainerQuery);
         }
         for binding in &self.observation.rules.bindings {
-            if tree.node(binding.target)?.style != context.style(binding.source)?.to_taffy()? {
+            if *tree.node(binding.target)?.style != context.style(binding.source)?.to_taffy()? {
                 return Err(Error::UnsafeContainerQuery);
             }
         }

@@ -515,6 +515,13 @@ Final observations记录full Grid Style、layout-order children和effective sibl
 proof扫描成本继续，无帧时／内存收益声明。General intrinsic/ratio/implicit reachability／named
 placement证明、full-axis反馈、完整RenderBox和自动调度仍开放。
 
+后续 [不可变布局样式共享](RETAINED_SHARED_LAYOUT_STYLES.md) 让框架节点、Taffy节点、
+private candidates与builder观察共享lowered Style；写入替换snapshot，image推导metadata
+保留独立effective值。等值/P0与final dependency比较继续按值，原子回滚和普通Flex/Grid
+算法不变。减少重复Style/track-vector复制，仍有heap/indirection/atomic handle成本；完整
+tree/cache/topology复制和proof扫描继续。该阶段的CPU对照不替代native呈现／帧率验收，
+Arc也不改变Taffy Style因裸指针表示而非Send/Sync的现状。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

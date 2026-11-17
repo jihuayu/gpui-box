@@ -44,6 +44,8 @@ mod layout_publication;
 mod measure;
 mod paint_store;
 pub mod parent_layout;
+#[cfg(test)]
+mod style_snapshot_tests;
 pub use paint_store::{FrameBuildPolicy, FrameBuildStats, HitTestStats, PaintItems, PaintUpdates};
 #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
 pub mod paragraph;
@@ -401,7 +403,7 @@ struct Node {
     layout_order: i32,
     children: Vec<NodeId>,
     parent: Option<NodeId>,
-    style: Style,
+    style: Arc<Style>,
     color: u32,
     translation: [f32; 2],
     chunk: Option<Arc<[DisplayCommand]>>,
@@ -421,6 +423,15 @@ struct Node {
 struct Slot {
     generation: u64,
     node: Option<Node>,
+}
+
+/// Matches the engine's immutable snapshot ownership. Upstream compact lengths
+/// contain raw calc pointers, so Style is not Send/Sync even without pointer
+/// expressions. Arc shares ownership only; it does not make this UI tree or
+/// these styles transferable to another thread.
+#[allow(clippy::arc_with_non_send_sync)]
+fn share_style(style: Style) -> Arc<Style> {
+    Arc::new(style)
 }
 
 /// One UI owner mutates the tree. FramePackets own everything they expose.
@@ -505,7 +516,8 @@ impl UiTree {
             .map_err(|_| Error::RevisionExhausted)?;
         let mut layout = TaffyTree::new();
         layout.disable_rounding();
-        let id = layout.new_leaf(style.clone())?;
+        let style = share_style(style);
+        let id = layout.new_leaf_shared(style.clone())?;
         let root = NodeId {
             tree: identity,
             slot: 0,
@@ -681,7 +693,8 @@ impl UiTree {
             .checked_add(1)
             .ok_or(Error::RevisionExhausted)?;
         let generation = self.issue_node_generation()?;
-        let layout = self.layout.new_leaf(style.clone())?;
+        let style = share_style(style);
+        let layout = self.layout.new_leaf_shared(style.clone())?;
         self.layout.add_child(parent_layout, layout)?;
         let slot = self.free.pop().unwrap_or(self.slots.len());
         if slot == self.slots.len() {
@@ -1000,7 +1013,7 @@ impl UiTree {
             let style_changed = entry
                 .style
                 .as_ref()
-                .is_some_and(|style| **style != node.style);
+                .is_some_and(|style| **style != *node.style);
             let final_style = entry.style.as_deref().unwrap_or(&node.style);
             validate_constraint_box(
                 final_style,
@@ -1207,7 +1220,7 @@ impl UiTree {
                     .unwrap_or_else(|| node.parent_data.clone());
                 let style = entry
                     .style
-                    .map(|style| *style)
+                    .map(|style| share_style(*style))
                     .unwrap_or_else(|| node.style.clone());
                 let snapshot = entry.measure.unwrap_or_else(|| node.measure.clone());
                 let parent_written = entry.parent_layout.is_some();
@@ -1236,7 +1249,7 @@ impl UiTree {
                     self.geometry_dirty.insert(id);
                 }
                 self.layout
-                    .set_style(layout, measure::effective_style(&style, snapshot.as_ref()))
+                    .set_style_shared(layout, measure::effective_style(&style, snapshot.as_ref()))
                     .expect("prepared Taffy style");
                 if style.position.is_out_of_flow() {
                     self.out_of_flow.insert(id);

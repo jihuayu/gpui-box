@@ -1,0 +1,18 @@
+
+running 1 test
+test retained::style_snapshot_tests::style_snapshot_benchmark ... STYLE_SIZE,Style,776
+STYLE_SIZE,Node,400
+STYLE_SIZE,Slot,408
+STYLE_BENCH,flex_clone,200,1380.200,1743.600,2021.200
+STYLE_BENCH,flex_dry_subtree,200,761.200,1064.700,1787.500
+STYLE_BENCH,flex_atomic_layout,200,5286.000,6669.200,8476.700
+STYLE_BENCH,flex_dry_root,200,4153.500,5072.800,6100.800
+STYLE_BENCH,flex_create_layout,200,12927.000,16459.300,18423.100
+STYLE_BENCH,grid_clone,200,1231.100,1775.300,2132.300
+STYLE_BENCH,grid_dry_subtree,200,859.300,1227.100,1404.400
+STYLE_BENCH,grid_atomic_layout,200,6648.600,9005.600,10762.000
+STYLE_BENCH,grid_dry_root,200,5283.000,6560.400,7486.600
+STYLE_BENCH,grid_create_layout,200,11792.300,15487.300,21286.700
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 489 filtered out; finished in 10.99s

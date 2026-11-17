@@ -4,14 +4,14 @@ use super::*;
 pub(super) trait InlineContext {
     fn tree(&self) -> &UiTree;
     /// All styles reachable during this plan, including current source values.
-    fn styles(&self, node: NodeId) -> Result<Vec<Style>, Error>;
+    fn styles(&self, node: NodeId) -> Result<Vec<Arc<Style>>, Error>;
 }
 
 impl InlineContext for UiTree {
     fn tree(&self) -> &UiTree {
         self
     }
-    fn styles(&self, node: NodeId) -> Result<Vec<Style>, Error> {
+    fn styles(&self, node: NodeId) -> Result<Vec<Arc<Style>>, Error> {
         Ok(vec![self.node(node)?.style.clone()])
     }
 }
@@ -25,9 +25,9 @@ pub(super) struct InlineDependencies(Vec<InlineParentDependency>);
 struct InlineParentDependency {
     node: NodeId,
     algorithm: Option<ParentLayoutSnapshot>,
-    grid_style: Option<Box<Style>>,
+    grid_style: Option<Arc<Style>>,
     children: Vec<NodeId>,
-    item_styles: Vec<(NodeId, Style)>,
+    item_styles: Vec<(NodeId, Arc<Style>)>,
 }
 impl InlineDependencies {
     pub(super) fn capture(tree: &UiTree, node: NodeId) -> Result<Self, Error> {
@@ -60,7 +60,7 @@ impl InlineDependencies {
                 result.push(InlineParentDependency {
                     node: id,
                     algorithm: node.parent_layout.clone(),
-                    grid_style: grid.then(|| Box::new(node.style.clone())),
+                    grid_style: grid.then(|| node.style.clone()),
                     children,
                     item_styles: styles,
                 });

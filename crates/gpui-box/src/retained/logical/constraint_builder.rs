@@ -83,8 +83,14 @@ impl Observation {
 /// descendants remain free to change because they cannot affect incoming slots.
 #[derive(PartialEq)]
 pub(super) struct AllocationDependencies(
-    Vec<(NodeId, Style, Option<ParentLayoutSnapshot>, Vec<NodeId>)>,
-    Vec<(NodeId, Style, Option<ParentData>)>,
+    Vec<AllocationParentDependency>,
+    Vec<(NodeId, Arc<Style>, Option<ParentData>)>,
+);
+type AllocationParentDependency = (
+    NodeId,
+    Arc<Style>,
+    Option<ParentLayoutSnapshot>,
+    Vec<NodeId>,
 );
 impl AllocationDependencies {
     pub(super) fn capture(tree: &UiTree, host: NodeId) -> Result<Self, Error> {

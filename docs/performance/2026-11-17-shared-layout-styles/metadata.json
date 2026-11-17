@@ -1,0 +1,18 @@
+{
+  "utc": "2026-11-17T13:49:48Z",
+  "platform": "Windows-11-10.0.26100-SP0",
+  "processor": "AMD64 Family 23 Model 96 Stepping 1, AuthenticAMD",
+  "samples": 200,
+  "rounds": 4,
+  "units": "microseconds",
+  "executables": {
+    "baseline": {
+      "path": "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\style-snapshot-baseline\\baseline.exe",
+      "sha256": "21e62b71a72a323737e2c12a913a125737f41a9de187a206d3dc0be2ddb5ae48"
+    },
+    "shared": {
+      "path": "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\style-snapshot-baseline\\shared.exe",
+      "sha256": "af440763b08bf302602bc787265d1043a2679eeff98898054094d5da86c30880"
+    }
+  }
+}

@@ -718,7 +718,7 @@ fn nested_custom_parents_apply_hard_bounds_and_publish_overflow_for_scrolling() 
     assert_eq!(tree.layout_result(blue).unwrap().location[1], 34.0);
     assert_eq!(frame.hit_test(6.0, 6.0), Some(red));
     // Replacing the authored height gives a viewport smaller than content.
-    let mut style = tree.node(host).unwrap().style.clone();
+    let mut style = tree.style(host).unwrap().clone();
     style.size.height = taffy::Dimension::length(40.0);
     let mut tx = Transaction::default();
     tx.style(host, style);

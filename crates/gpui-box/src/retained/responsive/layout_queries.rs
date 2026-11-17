@@ -310,12 +310,12 @@ fn possible_styles(
     ui: &impl QueryContext,
     rules: &[Rule<'_>],
     node: NodeId,
-) -> Result<Vec<Style>, Error> {
+) -> Result<Vec<Arc<Style>>, Error> {
     let mut result = vec![ui.tree().node(node)?.style.clone()];
     for (source, _, _, styles) in rules.iter().filter(|(_, target, _, _)| *target == node) {
-        result.push(ui.style(*source)?.to_taffy()?);
+        result.push(share_style(ui.style(*source)?.to_taffy()?));
         for style in &styles.styles {
-            result.push(style.to_taffy()?);
+            result.push(share_style(style.to_taffy()?));
         }
     }
     Ok(result)
@@ -345,7 +345,7 @@ fn inline_chain(
         fn tree(&self) -> &UiTree {
             self.ui.tree()
         }
-        fn styles(&self, node: NodeId) -> Result<Vec<Style>, Error> {
+        fn styles(&self, node: NodeId) -> Result<Vec<Arc<Style>>, Error> {
             possible_styles(self.ui, self.rules, node)
         }
     }

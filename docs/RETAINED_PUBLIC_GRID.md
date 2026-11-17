@@ -111,6 +111,12 @@ remain. Alignment and placements add inline public fields. Actual ABI bytes,
 peak memory, dense Grid resize cost and wall time were not profiled. Do not infer
 performance from API reuse, cache tests or finite geometry/pixel checks.
 
+Follow-up: [shared layout styles](RETAINED_SHARED_LAYOUT_STYLES.md) now retains
+immutable lowered styles in framework/Taffy nodes and candidate clones, avoiding
+the deep track copies described above on unchanged nodes. Lowering changed
+styles and whole candidate topology/cache copies still remain. Its separately
+recorded CPU timings do not establish sustained Grid resize/presentation rates.
+
 Auto-repeat grammar errors, zero repeats/empty fragments, nonfinite/negative
 numbers and zero lines/spans reject before state mutation. Broad CSS/cyclic
 percentages, Grid last-baseline/vertical writing, named tracks/areas, general Grid

@@ -434,20 +434,29 @@ fn layout_content(
     output
 }
 
-pub(super) fn effective_style(style: &Style, snapshot: Option<&MeasureSnapshot>) -> Style {
-    let mut effective = style.clone();
-    if matches!(snapshot, Some(MeasureSnapshot::Image(_))) {
-        effective.item_is_replaced = true;
-    }
-    if effective.aspect_ratio.is_none()
-        && !effective.contain.intersects(taffy::Contain::INLINE_SIZE)
-        && let Some(MeasureSnapshot::Image(image)) = snapshot
+/// Derived replaced-element metadata belongs to layout, not the author's
+/// style. Ordinary nodes and already-equivalent image styles share the exact
+/// snapshot; an image that changes metadata gets a separate immutable value.
+pub(super) fn effective_style(
+    style: &Arc<Style>,
+    snapshot: Option<&MeasureSnapshot>,
+) -> Arc<Style> {
+    let Some(MeasureSnapshot::Image(image)) = snapshot else {
+        return style.clone();
+    };
+    let derive_ratio = style.aspect_ratio.is_none()
+        && !style.contain.intersects(taffy::Contain::INLINE_SIZE)
         && image.width > 0.0
-        && image.height > 0.0
-    {
+        && image.height > 0.0;
+    if style.item_is_replaced && !derive_ratio {
+        return style.clone();
+    }
+    let mut effective = style.as_ref().clone();
+    effective.item_is_replaced = true;
+    if derive_ratio {
         effective.aspect_ratio = Some(image.width / image.height);
     }
-    effective
+    share_style(effective)
 }
 
 #[cfg(test)]
