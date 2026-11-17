@@ -49,8 +49,8 @@ pub mod paragraph;
 #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
 pub mod text;
 pub use measure::{
-    BaselineMeasureSnapshot, CustomMeasureSnapshot, ImageIntrinsicSize, LayoutStats,
-    MeasureSnapshot,
+    BaselineMeasureSnapshot, ContentMeasure, ContentMeasureInput, ContentMeasureOutput,
+    ContentMeasureSnapshot, CustomMeasureSnapshot, ImageIntrinsicSize, LayoutStats, MeasureSnapshot,
 };
 pub use parent_layout::{
     ChildInlineAllocation, ChildLayoutInput, ChildLayoutResult, ParentAllocationChildren,
@@ -437,6 +437,7 @@ pub struct UiTree {
     layout_written: std::collections::BTreeSet<NodeId>,
     out_of_flow: std::collections::BTreeSet<NodeId>,
     custom_parents: std::collections::BTreeSet<NodeId>,
+    content_measures: std::collections::BTreeSet<NodeId>,
     geometry_dirty: std::collections::BTreeSet<NodeId>,
     property_dirty: dirty_nodes::DirtyNodes,
     local_dirty: dirty_nodes::DirtyNodes,
@@ -554,6 +555,7 @@ impl UiTree {
             layout_written: Default::default(),
             out_of_flow,
             custom_parents: Default::default(),
+            content_measures: Default::default(),
             geometry_dirty: Default::default(),
             property_dirty: Default::default(),
             local_dirty: Default::default(),
@@ -767,6 +769,8 @@ impl UiTree {
             self.layout_nodes.remove(&layout);
             self.layout_written.remove(&removed);
             self.out_of_flow.remove(&removed);
+            self.custom_parents.remove(&removed);
+            self.content_measures.remove(&removed);
             let slot = &mut self.slots[removed.slot];
             slot.node = None;
             if let Some(next) = slot.generation.checked_add(1) {
@@ -1209,7 +1213,16 @@ impl UiTree {
                     .unwrap_or_else(|| node.parent_layout.clone());
                 let parent_changed = parent_written || node.parent_layout != parent_layout;
                 let layout = node.layout;
-                self.full_extract_required |= node.style.display != style.display;
+                let display_changed = node.style.display != style.display;
+                if matches!(snapshot, Some(MeasureSnapshot::Content(_))) {
+                    self.content_measures.insert(id);
+                } else {
+                    self.content_measures.remove(&id);
+                }
+                self.layout
+                    .set_exact_measure(layout, matches!(snapshot, Some(MeasureSnapshot::Content(_))))
+                    .expect("prepared content measurement");
+                self.full_extract_required |= display_changed;
                 self.layout
                     .set_style(layout, measure::effective_style(&style, snapshot.as_ref()))
                     .expect("prepared Taffy style");

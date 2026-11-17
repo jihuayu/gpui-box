@@ -37,19 +37,36 @@ impl UiTree {
         let input = input.to_taffy()?;
         let mut candidate = self.layout.clone();
         let mut stats = LayoutStats::default();
+        let mut measure_error = None;
         let output = if baselines {
             candidate.measure_node_baselines_with_input(
                 layout_id,
                 input,
                 |inputs, _, snapshot, style| {
-                    measure::layout_leaf(inputs, snapshot.as_deref(), style, &mut stats)
+                    measure::layout_leaf(
+                        inputs,
+                        snapshot.as_deref(),
+                        style,
+                        &mut stats,
+                        &mut measure_error,
+                    )
                 },
-            )?
+            )
         } else {
             candidate.measure_node_with_input(layout_id, input, |inputs, _, snapshot, style| {
-                measure::layout_leaf(inputs, snapshot.as_deref(), style, &mut stats)
-            })?
+                measure::layout_leaf(
+                    inputs,
+                    snapshot.as_deref(),
+                    style,
+                    &mut stats,
+                    &mut measure_error,
+                )
+            })
         };
+        if let Some(error) = measure_error {
+            return Err(error);
+        }
+        let output = output?;
         Ok(ChildLayoutResult {
             size: [output.size.width, output.size.height],
             baseline: output.baselines.first,
@@ -128,15 +145,26 @@ impl UiTree {
         // the next paint frame, so run it against an owned clone.
         let mut layout = self.layout.clone();
         let mut stats = LayoutStats::default();
-        layout.compute_layout_with_bounds_and_measure_and_observer(
+        let mut measure_error = None;
+        let result = layout.compute_layout_with_bounds_and_measure_and_observer(
             root,
             available_space,
             constraints.bounds.to_taffy()?,
             |inputs, _, snapshot, style| {
-                measure::layout_leaf(inputs, snapshot.as_deref(), style, &mut stats)
+                measure::layout_leaf(
+                    inputs,
+                    snapshot.as_deref(),
+                    style,
+                    &mut stats,
+                    &mut measure_error,
+                )
             },
             |_, _, _| {},
-        )?;
+        );
+        if let Some(error) = measure_error {
+            return Err(error);
+        }
+        result?;
         let result = layout.unrounded_layout(root);
         Ok(LayoutResult::from_taffy(result))
     }
@@ -147,12 +175,14 @@ impl UiTree {
     ) -> Result<LayoutStats, Error> {
         let root = self.node(self.root)?.layout;
         let mut stats = LayoutStats::default();
+        let mut measure_error = None;
         let mut layout_writes = 0;
         let mut changed_layout_writes = 0;
         let nodes = &self.layout_nodes;
         // User parent algorithms may fail after measuring real descendants.
         // Keep persistent caches/geometry and observer writes private on this path.
-        let mut candidate = (!self.custom_parents.is_empty()).then(|| self.layout.clone());
+        let mut candidate = (!self.custom_parents.is_empty() || !self.content_measures.is_empty())
+            .then(|| self.layout.clone());
         let mut staged_written = std::collections::BTreeSet::new();
         let written = if candidate.is_some() {
             &mut staged_written
@@ -160,7 +190,7 @@ impl UiTree {
             &mut self.layout_written
         };
         let layout = candidate.as_mut().unwrap_or(&mut self.layout);
-        layout.compute_layout_with_bounds_and_measure_and_observer(
+        let result = layout.compute_layout_with_bounds_and_measure_and_observer(
             root,
             Size {
                 width: constraints.width.to_taffy()?,
@@ -168,7 +198,13 @@ impl UiTree {
             },
             constraints.bounds.to_taffy()?,
             |inputs, _, snapshot, style| {
-                measure::layout_leaf(inputs, snapshot.as_deref(), style, &mut stats)
+                measure::layout_leaf(
+                    inputs,
+                    snapshot.as_deref(),
+                    style,
+                    &mut stats,
+                    &mut measure_error,
+                )
             },
             |id, previous, current| {
                 stats_layout_write(
@@ -180,7 +216,11 @@ impl UiTree {
                     written.insert(nodes[&id]);
                 }
             },
-        )?;
+        );
+        if let Some(error) = measure_error {
+            return Err(error);
+        }
+        result?;
         if let Some(candidate) = candidate {
             self.layout = candidate;
         }

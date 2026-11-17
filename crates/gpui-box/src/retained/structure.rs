@@ -233,6 +233,7 @@ impl UiTree {
             self.layout_written.remove(id);
             self.out_of_flow.remove(id);
             self.custom_parents.remove(id);
+            self.content_measures.remove(id);
             let slot = &mut self.slots[id.slot];
             slot.node = None;
             if let Some(next) = slot.generation.checked_add(1) {

@@ -1,5 +1,10 @@
 # Owned custom parent layout
 
+Follow-up 2026-11-17: [pure content leaves](RETAINED_CONTENT_MEASURE.md) now allow
+owned constraint-dependent custom measurement beneath these parent algorithms,
+with complete cache keys and fallible-layout isolation. This does not complete
+the broader RenderBox or general content-feedback builder contract.
+
 Follow-up 2026-11-17: [pure metric phase and dry queries](RETAINED_DRY_PARENT_MEASURE.md)
 adds optional ParentMeasure via with_measure, avoids complete custom placement
 plans during size probes, checks final metric agreement and exposes explicit

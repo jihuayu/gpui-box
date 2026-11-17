@@ -194,6 +194,8 @@ pub struct TaffyTree<NodeContext = ()> {
     contained_layout_inputs: SecondaryMap<DefaultKey, LayoutInput>,
     /// Index needed before the first layout, including hidden boundaries.
     size_contained_nodes: SecondaryMap<DefaultKey, ()>,
+    /// Nodes whose external pure measurement depends on exact query modes.
+    exact_measure_nodes: SecondaryMap<DefaultKey, ()>,
     /// Final CSS keys may hide soft space behind a known dimension. Arbitrary
     /// independent allocators can observe both, so exact invocations gate the
     /// existing final result with the complete incoming input.
@@ -269,11 +271,11 @@ impl<NodeContext> TraverseTree for TaffyTree<NodeContext> {}
 // CacheTree impl for TaffyTree
 impl<NodeContext> CacheTree for TaffyTree<NodeContext> {
     fn cache_get(&mut self, node_id: NodeId, input: &LayoutInput) -> Option<LayoutOutput> {
-        self.cached_layout(node_id, input, !self.custom_layouts.is_empty())
+        self.cached_layout(node_id, input, !self.custom_layouts.is_empty() || !self.exact_measure_nodes.is_empty())
     }
 
     fn cache_store(&mut self, node_id: NodeId, input: &LayoutInput, layout_output: LayoutOutput) {
-        self.store_cached_layout(node_id, input, layout_output, !self.custom_layouts.is_empty())
+        self.store_cached_layout(node_id, input, layout_output, !self.custom_layouts.is_empty() || !self.exact_measure_nodes.is_empty())
     }
 
     fn cache_clear(&mut self, node_id: NodeId) {
@@ -809,6 +811,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
             custom_child_inputs: SecondaryMap::new(),
             contained_layout_inputs: SecondaryMap::new(),
             size_contained_nodes: SecondaryMap::new(),
+            exact_measure_nodes: SecondaryMap::new(),
             exact_layout_inputs: SecondaryMap::new(),
             custom_layouts: SecondaryMap::new(),
             parent_data: SecondaryMap::new(),
@@ -834,6 +837,19 @@ impl<NodeContext> TaffyTree<NodeContext> {
         } else {
             self.custom_layouts.remove(node.into());
         }
+        self.mark_dirty(node)
+    }
+
+    /// Require full input/output cache identity throughout invocations with
+    /// this node, including cached ancestors. External measurement may observe
+    /// normal indefinite versus intrinsic query modes that CSS caches merge.
+    /// This is a cache contract, not a replacement measurement function.
+    pub fn set_exact_measure(&mut self, node: NodeId, enabled: bool) -> TaffyResult<()> {
+        let key = node.into();
+        if !self.nodes.contains_key(key) { return Err(TaffyError::InvalidInputNode(node)); }
+        if self.exact_measure_nodes.contains_key(key) == enabled { return Ok(()); }
+        if enabled { self.exact_measure_nodes.insert(key, ()); }
+        else { self.exact_measure_nodes.remove(key); }
         self.mark_dirty(node)
     }
 
@@ -974,6 +990,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
         self.custom_child_inputs.clear();
         self.contained_layout_inputs.clear();
         self.size_contained_nodes.clear();
+        self.exact_measure_nodes.clear();
         self.exact_layout_inputs.clear();
         self.custom_layouts.clear();
         self.parent_data.clear();
@@ -1008,6 +1025,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
         let _ = self.custom_child_inputs.remove(key);
         let _ = self.contained_layout_inputs.remove(key);
         let _ = self.size_contained_nodes.remove(key);
+        let _ = self.exact_measure_nodes.remove(key);
         let _ = self.exact_layout_inputs.remove(key);
         let _ = self.custom_layouts.remove(key);
         let _ = self.parent_data.remove(key);
@@ -1369,7 +1387,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
         // Custom descendants and contained structural boundaries observe input
         // metadata omitted by ordinary CSS size caches, including through a
         // cached Flex ancestor. Keep exact keys throughout those invocations.
-        let exact_measure = !self.custom_layouts.is_empty() || !self.size_contained_nodes.is_empty();
+        let exact_measure = !self.custom_layouts.is_empty() || !self.size_contained_nodes.is_empty() || !self.exact_measure_nodes.is_empty();
         let mut taffy_view = TaffyView {
             taffy: self, measure_function, layout_observer, layout_error: None, exact_measure, scratch_baselines: false,
         };
@@ -1436,7 +1454,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
         self.validate_layout_subtree(node_id)?;
         inputs.run_mode = RunMode::ComputeSize;
         inputs.vertical_margins_are_collapsible = crate::Line::FALSE;
-        let exact_measure = !self.custom_layouts.is_empty() || !self.size_contained_nodes.is_empty();
+        let exact_measure = !self.custom_layouts.is_empty() || !self.size_contained_nodes.is_empty() || !self.exact_measure_nodes.is_empty();
         let mut view = TaffyView {
             taffy: self, measure_function, layout_observer: |_, _, _| {}, layout_error: None, exact_measure, scratch_baselines: false,
         };
@@ -1514,6 +1532,38 @@ mod tests {
     use crate::style::{Dimension, Display, FlexDirection};
     use crate::style_helpers::*;
     use crate::util::sys;
+
+    #[test]
+    fn external_exact_measure_nodes_preserve_modes_and_follow_node_lifetime() {
+        let mut tree = TaffyTree::<()>::new();
+        let leaf = tree.new_leaf(Style::DEFAULT).unwrap();
+        let root = tree.new_with_children(Style::DEFAULT, &[leaf]).unwrap();
+        tree.set_exact_measure(leaf, true).unwrap();
+        let old = tree.clone();
+        let a = LayoutInput { run_mode: RunMode::ComputeSize, available_space: Size::MAX_CONTENT, ..LayoutInput::HIDDEN };
+        let b = LayoutInput { available_space: Size { height: AvailableSpace::Unbounded, ..a.available_space }, ..a };
+        let output = LayoutOutput::from_outer_size(Size { width: 20.0, height: 10.0 });
+        CacheTree::cache_store(&mut tree, leaf, &a, output.clone());
+        CacheTree::cache_store(&mut tree, root, &a, output.clone());
+        assert_eq!(CacheTree::cache_get(&mut tree, root, &a), Some(output));
+        assert_eq!(CacheTree::cache_get(&mut tree, root, &b), None);
+        tree.set_exact_measure(leaf, false).unwrap();
+        assert!(tree.exact_measure_nodes.is_empty());
+        assert!(tree.exact_measure_caches.is_empty(), "removing capability invalidates exact-only ancestors");
+        assert!(!old.exact_measure_nodes.is_empty());
+        tree.set_exact_measure(leaf, true).unwrap();
+        tree.set_style(leaf, Style { display: Display::None, ..Style::DEFAULT }).unwrap();
+        tree.compute_layout(root, Size::MAX_CONTENT).unwrap();
+        assert!(tree.exact_measure_nodes.contains_key(leaf.into()), "hidden retains authored capability");
+        tree.remove(leaf).unwrap();
+        assert!(tree.exact_measure_nodes.is_empty());
+        assert!(tree.set_exact_measure(leaf, true).is_err());
+        let next = tree.new_leaf(Style::DEFAULT).unwrap();
+        assert_ne!(next, leaf);
+        tree.set_exact_measure(next, true).unwrap();
+        tree.clear();
+        assert!(tree.exact_measure_nodes.is_empty());
+    }
 
     #[test]
     fn exact_only_dirty_nodes_invalidate_ancestors_without_discarding_sibling_cache() {

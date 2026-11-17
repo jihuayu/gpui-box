@@ -1,5 +1,10 @@
 # Owned intrinsic inputs for persistent Taffy
 
+Follow-up 2026-11-17: [owned content measurement](RETAINED_CONTENT_MEASURE.md)
+adds generic pure constraint-dependent leaf snapshots through the existing
+measure channel. Paragraphs and decoded images have their own subsequent
+implemented stages; pending statements below describe this original stage.
+
 The persistent tree now stores `MeasureSnapshot` values in Taffy's long-lived
 node context. Layout callbacks consume those values without capturing `App`,
 `Window`, business closures or borrowed element state. A typed measure property

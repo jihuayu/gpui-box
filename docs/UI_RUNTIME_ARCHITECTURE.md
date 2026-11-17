@@ -351,6 +351,15 @@ custom parent / ConstraintBox 的叶子 helper 只负责 host sizing；最终 ov
 固定叶子 intrinsic metrics 仍按自己的范围验证。既有 scroll reclamp/后代 property
 publication 消费修正结果，无新增 API/逐节点字段，也无本轮帧时改善声明。
 
+补充 [owned content measurement](RETAINED_CONTENT_MEASURE.md)：
+ContentMeasureSnapshot 通过既有 measure property 接入拥有式纯内容测量，回调只读取
+deflated soft content space，区分 Definite/Unbounded/MinContent/MaxContent。
+统一 leaf box model 选定 inline size 后重测 dependent height，实际内容 extent 与
+used border box 分离，首末有符号 baseline/overflow 同源。完整输入 cache key 和
+稀疏 capability index 防止查询模式合并；失败使用 private layout clone 保留旧几何。
+这不是完整 RenderBox/任意 child-style 分配，重复测量、exact cache 和 clone 有成本，
+没有本轮性能收益声明。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

@@ -2,6 +2,59 @@
 use super::*;
 use taffy::util::ResolveOrZero;
 
+/// Resolved soft content space, after the box model removes padding, border
+/// and gutters. Definite space is a wrapping opportunity, not a hard size;
+/// intrinsic and normal indefinite queries remain distinct.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ContentMeasureInput {
+    pub available: LayoutSize<layout::AvailableSpace>,
+}
+
+/// Natural content extent and optional horizontal baselines. The box model
+/// chooses the used border box independently; content may overflow that box.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ContentMeasureOutput {
+    pub size: [f32; 2],
+    pub baseline: Option<f32>,
+    pub last_baseline: Option<f32>,
+}
+impl ContentMeasureOutput {
+    fn validate(self) -> Result<Self, Error> {
+        if self.size.iter().any(|v| !v.is_finite() || *v < 0.0)
+            || [self.baseline, self.last_baseline]
+                .iter()
+                .flatten()
+                .any(|v| !v.is_finite())
+        {
+            return Err(Error::InvalidMeasure);
+        }
+        Ok(self)
+    }
+}
+
+/// Owned pure content measurement, independent of UI/renderer state. Calls may
+/// repeat or be omitted by caches; all dependencies belong to this snapshot.
+/// Return natural content extent; do not clamp it to an allocated height.
+pub trait ContentMeasure: std::fmt::Debug + Send + Sync + 'static {
+    fn measure(&self, input: ContentMeasureInput) -> Result<ContentMeasureOutput, Error>;
+}
+
+/// Clone preserves identity. Replace the handle when any captured input changes.
+/// Interior mutation, mutable globals and invocation-dependent answers violate
+/// purity; the type system cannot freeze user-owned captures.
+#[derive(Clone, Debug)]
+pub struct ContentMeasureSnapshot(Arc<dyn ContentMeasure>);
+impl ContentMeasureSnapshot {
+    pub fn new(value: impl ContentMeasure) -> Self {
+        Self(Arc::new(value))
+    }
+}
+impl PartialEq for ContentMeasureSnapshot {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ImageIntrinsicSize {
     pub width: f32,
@@ -35,6 +88,7 @@ pub enum MeasureSnapshot {
     Image(ImageIntrinsicSize),
     Fixed(CustomMeasureSnapshot),
     FixedBaselines(BaselineMeasureSnapshot),
+    Content(ContentMeasureSnapshot),
     #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
     Paragraph(paragraph::ParagraphSnapshot),
 }
@@ -62,6 +116,9 @@ impl MeasureSnapshot {
                 value.height,
                 [value.first_baseline, value.last_baseline],
             ),
+            // Constraint-dependent answers are checked when actually queried;
+            // committing a snapshot must not invoke arbitrary layout code.
+            Self::Content(_) => return Ok(()),
             #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
             Self::Paragraph(value) => (
                 value.max_content_width(),
@@ -107,6 +164,7 @@ impl MeasureSnapshot {
                 width: known.width.unwrap_or(value.width),
                 height: known.height.unwrap_or(value.height),
             },
+            Self::Content(_) => unreachable!("content delegates use the fallible adapter"),
             #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
             Self::Paragraph(value) => value.measure(_available.width),
         }
@@ -123,6 +181,7 @@ impl MeasureSnapshot {
                 last: value.last_baseline,
             },
             Self::Image(_) => taffy::Baselines::NONE,
+            Self::Content(_) => unreachable!("content delegates use the fallible adapter"),
             #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
             Self::Paragraph(value) => {
                 let layout = value.layout(Some(_width)).expect("validated content width");
@@ -142,8 +201,12 @@ pub(super) fn layout_leaf(
     snapshot: Option<&MeasureSnapshot>,
     style: &Style,
     stats: &mut LayoutStats,
+    error: &mut Option<Error>,
 ) -> taffy::tree::LayoutOutput {
     stats.leaf_layouts += 1;
+    if let Some(MeasureSnapshot::Content(snapshot)) = snapshot {
+        return layout_content(inputs, snapshot, style, stats, error);
+    }
     let mut output = taffy::compute_leaf_layout(
         inputs,
         style,
@@ -218,6 +281,119 @@ pub(super) fn layout_leaf(
     output
 }
 
+fn content_space(space: AvailableSpace) -> layout::AvailableSpace {
+    match space {
+        AvailableSpace::Definite(v) => layout::AvailableSpace::Definite(v),
+        AvailableSpace::MinContent => layout::AvailableSpace::MinContent,
+        AvailableSpace::MaxContent => layout::AvailableSpace::MaxContent,
+        AvailableSpace::Unbounded => layout::AvailableSpace::Unbounded,
+    }
+}
+
+fn layout_content(
+    mut inputs: taffy::LayoutInput,
+    snapshot: &ContentMeasureSnapshot,
+    style: &Style,
+    stats: &mut LayoutStats,
+    error: &mut Option<Error>,
+) -> taffy::LayoutOutput {
+    let mut last_metrics = None;
+    let mut query = |available: Size<AvailableSpace>| {
+        if error.is_some() {
+            return None;
+        }
+        if [available.width, available.height]
+            .iter()
+            .any(|space| matches!(space, AvailableSpace::Definite(v) if !v.is_finite()))
+        {
+            *error = Some(Error::InvalidMeasure);
+            return None;
+        }
+        stats.measure_calls += 1;
+        let available = available.map(|space| match space {
+            AvailableSpace::Definite(v) => AvailableSpace::Definite(v.max(0.0)),
+            other => other,
+        });
+        match snapshot
+            .0
+            .measure(ContentMeasureInput {
+                available: LayoutSize::new(
+                    content_space(available.width),
+                    content_space(available.height),
+                ),
+            })
+            .and_then(ContentMeasureOutput::validate)
+        {
+            Ok(output) => Some(output),
+            Err(_) => {
+                *error = Some(Error::InvalidMeasure);
+                None
+            }
+        }
+    };
+    let mut output = {
+        let mut measure = |mut input: taffy::LayoutInput| {
+            // Evaluate only the leaf's pure arithmetic. This publishes no tree
+            // geometry. Avoid its known-size early return so the same final
+            // query provides natural overflow and baseline metrics.
+            input.run_mode = taffy::RunMode::PerformLayout;
+            taffy::compute_leaf_layout(
+                input,
+                style,
+                |_, _| 0.0,
+                |_, available| {
+                    last_metrics = query(available);
+                    last_metrics.map_or(Size::ZERO, |v| Size {
+                        width: v.size[0],
+                        height: v.size[1],
+                    })
+                },
+            )
+        };
+        let mut output = measure(inputs);
+        if inputs.known_dimensions.width.is_none() {
+            // Select inline size once, then measure dependent height at that
+            // width. Block space stays the parent's soft opportunity; an auto
+            // content-derived height must not turn into a new hard input.
+            inputs.known_dimensions.width = Some(output.size.width);
+            output = measure(inputs);
+        }
+        output
+    };
+    let Some(metrics) = last_metrics else {
+        return taffy::LayoutOutput::HIDDEN;
+    };
+    if !style.contain.suppresses_baseline() {
+        let resolve = |value: taffy::LengthPercentage| {
+            value.resolve_or_zero(inputs.parent_size.width, |_, _| 0.0)
+        };
+        let padding = style.padding.map(resolve);
+        let border = style.border.map(resolve);
+        let inset = padding.top + border.top;
+        output.baselines = taffy::Baselines {
+            first: metrics.baseline.map(|v| v + inset),
+            last: metrics.last_baseline.map(|v| v + inset),
+        };
+    }
+    if [
+        output.size.width,
+        output.size.height,
+        output.scrollable_overflow_rect.right,
+        output.scrollable_overflow_rect.bottom,
+    ]
+    .iter()
+    .any(|v| !v.is_finite() || *v < 0.0)
+        || [output.baselines.first, output.baselines.last]
+            .iter()
+            .flatten()
+            .any(|v| !v.is_finite())
+    {
+        *error = Some(Error::InvalidMeasure);
+        return taffy::LayoutOutput::HIDDEN;
+    }
+    output
+}
+
 pub(super) fn effective_style(style: &Style, snapshot: Option<&MeasureSnapshot>) -> Style {
     let mut effective = style.clone();
     if matches!(snapshot, Some(MeasureSnapshot::Image(_))) {
@@ -234,6 +410,8 @@ pub(super) fn effective_style(style: &Style, snapshot: Option<&MeasureSnapshot>)
     effective
 }
 
+#[cfg(test)]
+mod content_tests;
 #[cfg(test)]
 mod tests {
     use super::*;

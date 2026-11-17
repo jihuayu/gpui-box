@@ -12,6 +12,12 @@ local test artifacts and ignored.
 
 ## Local changes
 
+- `set_exact_measure` records external content-measurement cache requirements in
+  a sparse capability index. Complete input/output measurement and final-input
+  guards apply through ancestors; clone/hidden/remove/clear/generation lifecycle
+  is explicit. The framework uses this for pure generic content leaves. See
+  [content protocol](../../docs/RETAINED_CONTENT_MEASURE.md).
+
 - Optional custom-parent pure metrics avoid complete placement plans during
   ComputeSize and are checked against the final plan's size/baselines. The
   measure_node_with_input API forces ComputeSize with explicit parent bases and

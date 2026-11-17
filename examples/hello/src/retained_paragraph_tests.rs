@@ -20,6 +20,129 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
     ParagraphSnapshot::shape(system, text, font("Noto Sans CJK SC"), 16.0, 32.0).unwrap()
 }
 
+#[derive(Debug)]
+struct ContentParagraph(ParagraphSnapshot);
+impl ContentMeasure for ContentParagraph {
+    fn measure(
+        &self,
+        input: ContentMeasureInput,
+    ) -> Result<ContentMeasureOutput, gpui_box::retained::Error> {
+        let width = match input.available.width {
+            LayoutAvailableSpace::Definite(v) => Some(v),
+            LayoutAvailableSpace::MinContent => Some(self.0.min_content_width()),
+            LayoutAvailableSpace::MaxContent | LayoutAvailableSpace::Unbounded => None,
+        };
+        let layout = self.0.layout(width)?;
+        Ok(ContentMeasureOutput {
+            size: layout.size,
+            baseline: Some(layout.first_baseline),
+            last_baseline: Some(layout.last_baseline),
+        })
+    }
+}
+
+#[test]
+fn generic_content_measure_uses_actual_shaped_paragraph_metrics_at_selected_width() {
+    let system = text_system();
+    let paragraph = shape(&system, "one two three four five six 中文段落");
+    let short = shape(&system, "x");
+    let root_style = LayoutStyle::column().align_items(LayoutAlignItems::Start);
+    let mut tree = UiTree::new_layout(root_style.clone(), 0).unwrap();
+    let mut full = UiTree::new_layout(root_style, 0).unwrap();
+    full.set_frame_build_policy(FrameBuildPolicy::Full);
+    let style = LayoutStyle::row()
+        .padding(LayoutEdges::all(LayoutLength::Px(3.0)))
+        .flex_shrink(0.0);
+    let leaf = tree
+        .append_layout(tree.root(), style.clone(), 0xff0000ff)
+        .unwrap();
+    let reference = full
+        .append_layout(full.root(), style.clone(), 0xff0000ff)
+        .unwrap();
+    let footer_style = LayoutStyle::row()
+        .size(LayoutDimension::Px(20.0), LayoutDimension::Px(10.0))
+        .flex_shrink(0.0);
+    let footer = tree
+        .append_layout(tree.root(), footer_style.clone(), 0x00ff00ff)
+        .unwrap();
+    let ref_footer = full
+        .append_layout(full.root(), footer_style, 0x00ff00ff)
+        .unwrap();
+    fn pixels(frame: FramePacket) -> Vec<u8> {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [220, 400],
+                scale: 1.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(4096).unwrap() {}
+        job.into_frame().unwrap().pixels().to_vec()
+    }
+    let mut old = None;
+    for (width, paragraph) in [
+        (60.0, &paragraph),
+        (140.0, &paragraph),
+        (90.0, &short),
+        (60.0, &paragraph),
+    ] {
+        for (owner, node, generic) in [(&mut tree, leaf, true), (&mut full, reference, false)] {
+            let mut tx = Transaction::default();
+            tx.layout_style(
+                node,
+                style
+                    .clone()
+                    .size(LayoutDimension::Px(width + 6.0), LayoutDimension::Auto),
+            );
+            tx.measure(
+                node,
+                Some(if generic {
+                    MeasureSnapshot::Content(ContentMeasureSnapshot::new(ContentParagraph(
+                        paragraph.clone(),
+                    )))
+                } else {
+                    MeasureSnapshot::Paragraph(paragraph.clone())
+                }),
+            );
+            owner.commit(tx, BackendCapabilities::default()).unwrap();
+        }
+        let query = tree
+            .dry_measure_node_baselines(
+                leaf,
+                ChildLayoutInput::new(LayoutConstraints::viewport(220.0, 400.0)),
+            )
+            .unwrap();
+        let frame = tree.local_frame([220.0, 400.0]).unwrap();
+        let actual = tree.layout_result(leaf).unwrap();
+        let expected = full.frame([220.0, 400.0]).unwrap();
+        assert_eq!(actual, full.layout_result(reference).unwrap());
+        assert_eq!(query.size, actual.size);
+        assert_eq!(
+            (query.baseline, query.last_baseline),
+            (actual.baseline, actual.last_baseline)
+        );
+        assert_eq!(
+            tree.layout_result(footer).unwrap(),
+            full.layout_result(ref_footer).unwrap()
+        );
+        assert_eq!(
+            actual.size[1],
+            paragraph.layout(Some(width)).unwrap().size[1] + 6.0
+        );
+        assert_eq!(frame.hit_test(1.0, 1.0), Some(leaf));
+        let actual = pixels(frame.resolve());
+        assert_eq!(actual, pixels(expected));
+        old.get_or_insert((frame, actual));
+    }
+    drop((tree, full, system, paragraph, short));
+    let (frame, expected) = old.unwrap();
+    assert_eq!(pixels(frame.resolve()), expected);
+}
+
 #[test]
 fn automatic_environment_updates_rewrap_real_text_and_preserve_full_cpu_pixels() {
     use gpui_box::retained::{logical::LogicalUi, responsive::*};

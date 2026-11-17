@@ -327,6 +327,7 @@ impl UiTree {
             layout_written: self.layout_written.clone(),
             out_of_flow: self.out_of_flow.clone(),
             custom_parents: self.custom_parents.clone(),
+            content_measures: self.content_measures.clone(),
             geometry_dirty: self.geometry_dirty.clone(),
             property_dirty: self.property_dirty.clone(),
             local_dirty: self.local_dirty.clone(),
