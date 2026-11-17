@@ -9,6 +9,7 @@ use super::*;
 /// these fields is the child's used size, a paint viewport, or a CSS media query.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ConstraintBuilderInput {
+    pub sizing_mode: LayoutSizingMode,
     /// Parent-selected border-box dimensions, independent of hard intervals.
     /// Flex's final known size is not represented by SizeBounds alone.
     pub known_size: LayoutSize<Option<f32>>,
@@ -204,6 +205,7 @@ fn contained_input(tree: &UiTree, host: NodeId) -> Result<ConstraintBuilderInput
 fn builder_input(input: taffy::LayoutInput) -> ConstraintBuilderInput {
     let child = parent_layout::ChildLayoutInput::from_taffy(input);
     ConstraintBuilderInput {
+        sizing_mode: child.sizing_mode,
         known_size: LayoutSize::new(input.known_dimensions.width, input.known_dimensions.height),
         known_size_is_definite: LayoutSize::new(
             input.known_dimensions_are_definite.width,

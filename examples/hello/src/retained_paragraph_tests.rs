@@ -23,10 +23,16 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 #[derive(Debug)]
 struct StyleBasisParagraph {
     selected: bool,
+    content: bool,
 }
 impl StyleBasisParagraph {
     fn slot(&self, width: f32, basis: LayoutSize<Option<f32>>) -> ChildLayoutInput {
         let mut slot = ChildLayoutInput {
+            sizing_mode: if self.content {
+                LayoutSizingMode::Content
+            } else {
+                LayoutSizingMode::Inherent
+            },
             constraints: LayoutConstraints::new(
                 LayoutAvailableSpace::Definite(width),
                 LayoutAvailableSpace::Unbounded,
@@ -37,8 +43,7 @@ impl StyleBasisParagraph {
         if self.selected {
             slot.known_size.width = Some(width);
         } else {
-            slot.constraints.bounds =
-                BoxConstraints::new([width, 0.0], [width, f32::INFINITY]);
+            slot.constraints.bounds = BoxConstraints::new([width, 0.0], [width, f32::INFINITY]);
         }
         slot
     }
@@ -89,21 +94,29 @@ impl ParentLayout for StyleBasisParagraph {
 
 #[test]
 fn measured_parent_reads_child_basis_and_rewraps_actual_glyphs_on_style_updates() {
-    style_basis_glyph_case(false, false);
+    style_basis_glyph_case(false, false, false);
 }
 #[test]
 fn independent_parent_reads_child_basis_and_rewraps_actual_glyphs_on_style_updates() {
-    style_basis_glyph_case(true, false);
+    style_basis_glyph_case(true, false, false);
 }
 #[test]
 fn selected_child_width_drives_measured_parent_and_actual_glyph_wrapping() {
-    style_basis_glyph_case(false, true);
+    style_basis_glyph_case(false, true, false);
 }
 #[test]
 fn selected_child_width_drives_independent_parent_and_actual_glyph_wrapping() {
-    style_basis_glyph_case(true, true);
+    style_basis_glyph_case(true, true, false);
 }
-fn style_basis_glyph_case(independent: bool, selected: bool) {
+#[test]
+fn content_sizing_ignores_authored_text_limits_in_measured_parent_glyph_wrapping() {
+    style_basis_glyph_case(false, true, true);
+}
+#[test]
+fn content_sizing_ignores_authored_text_limits_in_independent_parent_glyph_wrapping() {
+    style_basis_glyph_case(true, true, true);
+}
+fn style_basis_glyph_case(independent: bool, selected: bool, content: bool) {
     let system = text_system();
     let paragraph = shape(&system, "one two three four five six 中文段落");
     let mut raster = GlyphRasterizer::new(Arc::clone(&system));
@@ -140,9 +153,9 @@ fn style_basis_glyph_case(independent: bool, selected: bool) {
         .append_layout(full.root(), footer_style, 0xff0000ff)
         .unwrap();
     let mut tx = Transaction::default();
-    let mut snapshot = ParentLayoutSnapshot::new(StyleBasisParagraph { selected });
+    let mut snapshot = ParentLayoutSnapshot::new(StyleBasisParagraph { selected, content });
     if independent {
-        snapshot = snapshot.with_allocation_layout(StyleBasisParagraph { selected });
+        snapshot = snapshot.with_allocation_layout(StyleBasisParagraph { selected, content });
     }
     tx.parent_layout(host, Some(snapshot));
     tree.commit(tx, BackendCapabilities::default()).unwrap();
@@ -163,14 +176,22 @@ fn style_basis_glyph_case(independent: bool, selected: bool) {
     }
     let mut old = None;
     for width in [60.0, 140.0, 90.0, 60.0] {
-        for (owner, node) in [(&mut tree, leaf), (&mut full, reference)] {
+        for (owner, node, authored_limits) in
+            [(&mut tree, leaf, true), (&mut full, reference, false)]
+        {
             let mut tx = Transaction::default();
-            tx.layout_style(
-                node,
-                LayoutStyle::row()
-                    .flex_basis(LayoutDimension::Px(width))
-                    .flex_shrink(0.0),
-            );
+            let mut style = LayoutStyle::row()
+                .flex_basis(LayoutDimension::Px(width))
+                .flex_shrink(0.0);
+            if content && authored_limits {
+                // The client requests content at a selected width. Its own
+                // authored preferred/min/max must not change the glyph wrap.
+                style = style
+                    .size(LayoutDimension::Px(180.0), LayoutDimension::Px(300.0))
+                    .min_size(LayoutDimension::Px(180.0), LayoutDimension::Px(300.0))
+                    .max_size(LayoutDimension::Px(200.0), LayoutDimension::Px(350.0));
+            }
+            tx.layout_style(node, style);
             tx.text(node, Some(paint.clone()));
             owner.commit(tx, BackendCapabilities::default()).unwrap();
         }

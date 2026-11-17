@@ -1,6 +1,29 @@
 //! Backend-independent custom parent measurement and child placement.
 use super::*;
 
+/// Whether this node's own preferred/min/max sizes participate. Descendant
+/// styles, box-model insets, containment and parent hard inputs still apply.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum LayoutSizingMode {
+    #[default]
+    Inherent,
+    Content,
+}
+impl LayoutSizingMode {
+    fn to_taffy(self) -> taffy::SizingMode {
+        match self {
+            Self::Inherent => taffy::SizingMode::InherentSize,
+            Self::Content => taffy::SizingMode::ContentSize,
+        }
+    }
+    pub(super) fn from_taffy(mode: taffy::SizingMode) -> Self {
+        match mode {
+            taffy::SizingMode::InherentSize => Self::Inherent,
+            taffy::SizingMode::ContentSize => Self::Content,
+        }
+    }
+}
+
 /// Immutable, typed metadata for a node's direct parent algorithm. It is not
 /// inherited and ordinary Flex ignores it. Clone preserves identity; create a
 /// new handle whenever its value changes, as for ParentLayoutSnapshot.
@@ -40,6 +63,7 @@ pub trait ParentAllocationChildren {
 /// Content-box inputs after the host's normal sizing and inset rules.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ParentLayoutInput {
+    pub sizing_mode: LayoutSizingMode,
     pub known_size: LayoutSize<Option<f32>>,
     pub available: LayoutSize<layout::AvailableSpace>,
     pub percentage_basis: LayoutSize<Option<f32>>,
@@ -49,6 +73,9 @@ pub struct ParentLayoutInput {
 /// Selected size does not imply a tight interval or percentage definiteness.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ChildLayoutInput {
+    /// Content ignores this child's own preferred/min/max styles, not its
+    /// descendants' styles or parent assignments. It is not Min/MaxContent space.
+    pub sizing_mode: LayoutSizingMode,
     /// Parent-selected dimensions. None lets normal child sizing choose an axis.
     pub known_size: LayoutSize<Option<f32>>,
     /// Whether a selected axis establishes a definite size for the child's own
@@ -68,11 +95,16 @@ impl Default for ChildLayoutInput {
 impl ChildLayoutInput {
     pub const fn new(constraints: LayoutConstraints) -> Self {
         Self {
+            sizing_mode: LayoutSizingMode::Inherent,
             known_size: LayoutSize::new(None, None),
             known_size_is_definite: LayoutSize::new(true, true),
             constraints,
             percentage_basis: LayoutSize::new(None, None),
         }
+    }
+    pub const fn with_sizing_mode(mut self, mode: LayoutSizingMode) -> Self {
+        self.sizing_mode = mode;
+        self
     }
     pub const fn with_known_size(
         mut self,
@@ -85,6 +117,7 @@ impl ChildLayoutInput {
     }
     pub(super) fn from_taffy(input: taffy::LayoutInput) -> Self {
         Self {
+            sizing_mode: LayoutSizingMode::from_taffy(input.sizing_mode),
             known_size: from_size(input.known_dimensions),
             known_size_is_definite: from_size(input.known_dimensions_are_definite),
             constraints: LayoutConstraints::new(
@@ -136,7 +169,7 @@ impl ChildLayoutInput {
                 height: self.constraints.height.to_taffy()?,
             },
             run_mode: taffy::RunMode::ComputeSize,
-            sizing_mode: taffy::SizingMode::InherentSize,
+            sizing_mode: self.sizing_mode.to_taffy(),
             axis: taffy::RequestedAxis::Both,
             vertical_margins_are_collapsible: taffy::Line::FALSE,
         })
@@ -285,6 +318,7 @@ pub trait ParentLayout: std::fmt::Debug + Send + Sync + 'static {
 /// observable. The host box model still owns its final outer allocation.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ParentInlineInput {
+    pub sizing_mode: LayoutSizingMode,
     pub known_width: Option<f32>,
     pub available: layout::AvailableSpace,
     pub percentage_basis: Option<f32>,
@@ -338,6 +372,7 @@ pub trait ParentInlineLayout: std::fmt::Debug + Send + Sync + 'static {
 /// space. Host content dimensions/insets are deliberately not inferred here.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ParentAllocationInput {
+    pub sizing_mode: LayoutSizingMode,
     pub known_size: LayoutSize<Option<f32>>,
     pub known_size_is_definite: LayoutSize<bool>,
     pub constraints: LayoutConstraints,
@@ -539,6 +574,7 @@ impl Adapter {
             .map(|planner| {
                 let slots = planner.allocate(
                     ParentInlineInput {
+                        sizing_mode: input.sizing_mode,
                         known_width: input.known_size.width,
                         available: input.available.width,
                         percentage_basis: input.percentage_basis.width,
@@ -579,6 +615,7 @@ impl taffy::tree::CustomLayout for Adapter {
             return Ok(None);
         };
         let input = ParentLayoutInput {
+            sizing_mode: LayoutSizingMode::from_taffy(input.sizing_mode),
             known_size: from_size(input.known_size),
             available: from_size(input.available.map(space)),
             percentage_basis: from_size(input.percentage_basis),
@@ -618,6 +655,7 @@ impl taffy::tree::CustomLayout for Adapter {
         let result = (|| -> Result<Vec<taffy::LayoutInput>, Error> {
             let slots = planner.allocate_children(
                 ParentAllocationInput {
+                    sizing_mode: child.sizing_mode,
                     known_size: from_size(input.known_dimensions),
                     known_size_is_definite: from_size(input.known_dimensions_are_definite),
                     constraints: child.constraints,
@@ -640,6 +678,7 @@ impl taffy::tree::CustomLayout for Adapter {
         children: &mut dyn taffy::tree::CustomLayoutChildren,
     ) -> Result<taffy::tree::CustomLayoutOutput, taffy::TaffyError> {
         let input = ParentLayoutInput {
+            sizing_mode: LayoutSizingMode::from_taffy(input.sizing_mode),
             known_size: from_size(input.known_size),
             available: from_size(input.available.map(space)),
             percentage_basis: from_size(input.percentage_basis),
@@ -703,6 +742,8 @@ mod assigned_size_tests;
 mod child_style;
 #[cfg(test)]
 mod child_style_tests;
+#[cfg(test)]
+mod content_sizing_tests;
 #[cfg(test)]
 mod dry_baseline_tests;
 #[cfg(test)]

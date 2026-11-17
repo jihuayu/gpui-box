@@ -1,5 +1,9 @@
 # Pure parent metrics and explicit dry node queries
 
+Follow-up: [content sizing](RETAINED_CONTENT_SIZING.md) exposes Inherent/Content
+queries and callback input modes without mutating queried styles. Existing dry
+isolation and final pure/full agreement remain authoritative.
+
 Follow-up 2026-11-17: [selected child assignments](RETAINED_CHILD_ASSIGNMENTS.md)
 extends child measurement and explicit dry inputs with independent selected
 border-box size/percentage definiteness, retaining the same query isolation.

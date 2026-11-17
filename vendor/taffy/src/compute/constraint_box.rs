@@ -40,7 +40,7 @@ pub fn compute_constraint_box_layout(
     let size_style = style.size();
     let min_style = style.min_size();
     let max_style = style.max_size();
-    let ratio = style.aspect_ratio();
+    let ratio = if inputs.sizing_mode == SizingMode::InherentSize { style.aspect_ratio() } else { None };
     let adjustment =
         if style.box_sizing() == crate::BoxSizing::ContentBox { (padding + border).sum_axes() } else { Size::ZERO };
     let numeric_min = min_style
@@ -108,7 +108,7 @@ pub fn compute_constraint_box_layout(
         size: Size { width: crate::Dimension::auto(), height: crate::Dimension::auto() },
         min_size: dimensions(min),
         max_size: dimensions(max),
-        aspect_ratio: style.aspect_ratio(),
+        aspect_ratio: ratio,
         padding: lengths(padding),
         border: lengths(border),
         overflow: style.overflow(),
@@ -316,6 +316,11 @@ fn tight_dimensions(bounds: SizeBounds) -> Size<Option<f32>> {
 // items. This parent protocol has its own child entry and must perform the same
 // resolution before the ordinary child algorithm, without changing its style.
 pub(crate) fn layout_child(tree: &mut impl LayoutPartialTree, child: NodeId, mut inputs: LayoutInput) -> LayoutOutput {
+    // Content contribution queries deliberately ignore this node's own size
+    // styles, including keywords. Its descendants retain their normal sizing.
+    if inputs.sizing_mode == SizingMode::ContentSize {
+        return tree.compute_child_layout(child, inputs);
+    }
     let style = tree.get_core_container_style(child);
     let size = style.size();
     if style.box_generation_mode() == crate::BoxGenerationMode::None
@@ -402,6 +407,37 @@ mod tests {
                 bottom: crate::LengthPercentage::length(5.0),
             },
             ..Style::DEFAULT
+        }
+    }
+
+    #[test]
+    fn content_query_ignores_preferred_keywords_without_losing_measurement_modes() {
+        let mut tree = TaffyTree::<()>::new();
+        tree.disable_rounding();
+        let root = tree.new_leaf(Style {
+            size: Size { width: Dimension::min_content(), height: Dimension::AUTO },
+            ..Style::DEFAULT
+        }).unwrap();
+        for (mode, width) in [
+            (SizingMode::ContentSize, 100.0),
+            (SizingMode::InherentSize, 20.0),
+            (SizingMode::ContentSize, 100.0),
+        ] {
+            let input = LayoutInput { sizing_mode: mode, available_space: Size::MAX_CONTENT, ..LayoutInput::HIDDEN };
+            for baselines in [false, true] {
+                let measure = |input, _, _: Option<&mut ()>, style: &Style| {
+                    crate::compute_leaf_layout(input, style, |_, _| 0.0, |_, available| Size {
+                        width: if available.width == AvailableSpace::MinContent { 20.0 } else { 100.0 },
+                        height: 10.0,
+                    })
+                };
+                let output = if baselines {
+                    tree.measure_node_baselines_with_input(root, input, measure)
+                } else {
+                    tree.measure_node_with_input(root, input, measure)
+                }.unwrap();
+                assert_eq!(output.size, Size { width, height: 10.0 });
+            }
         }
     }
 

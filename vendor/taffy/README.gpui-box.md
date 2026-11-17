@@ -12,6 +12,11 @@ local test artifacts and ignored.
 
 ## Local changes
 
+- ContentSize direct-child entry skips the queried node's own preferred keyword
+  resolution; owned custom/ConstraintBox sizing suppresses its aspect suggestion
+  in that mode. CustomLayoutInput exposes the invocation mode to pure/full plans.
+  See [content-sizing contract](../../docs/RETAINED_CONTENT_SIZING.md).
+
 - Independent CustomAllocationChildren now shares the unresolved item-style
   view, without child measurement. The framework captures effective sibling
   styles in final structural observations. See

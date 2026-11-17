@@ -1,5 +1,9 @@
 # Selected child sizes and independent percentage definiteness
 
+Follow-up: [explicit content sizing](RETAINED_CONTENT_SIZING.md) adds sizing_mode
+to ChildLayoutInput and parent/builder callback inputs, distinguishing own-style
+participation from selected size and Min/MaxContent space. Defaults stay Inherent.
+
 Status: experimental public layout protocol, 2026-11-17. Extends
 [independent allocation styles](RETAINED_ALLOCATION_STYLES.md) and
 [dry parent queries](RETAINED_DRY_PARENT_MEASURE.md). Complete RenderBox,

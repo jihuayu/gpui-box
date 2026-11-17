@@ -1,5 +1,9 @@
 # Owned custom parent layout
 
+Follow-up: [content sizing](RETAINED_CONTENT_SIZING.md) makes sizing_mode explicit
+in child measurements/placements, parent callback inputs and independent phases;
+the shared keyword entry no longer resolves own styles in Content mode.
+
 Follow-up 2026-11-17: [selected child assignments](RETAINED_CHILD_ASSIGNMENTS.md)
 extends ChildLayoutInput with selected size and percentage definiteness for
 measured placement, independent slots and dry queries. Struct literals migrate

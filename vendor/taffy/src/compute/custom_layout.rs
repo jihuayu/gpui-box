@@ -463,7 +463,7 @@ pub fn compute_custom_layout(
     let size_style = style.size();
     let min_style = style.min_size();
     let max_style = style.max_size();
-    let ratio = style.aspect_ratio();
+    let ratio = if inputs.sizing_mode == SizingMode::InherentSize { style.aspect_ratio() } else { None };
     let adjustment =
         if style.box_sizing() == BoxSizing::ContentBox { (padding + border).sum_axes() } else { Size::ZERO };
     let numeric_min = min_style
@@ -544,7 +544,7 @@ pub fn compute_custom_layout(
                     .zip_map(inputs.known_dimensions_are_definite, |v, definite| if definite { v } else { None })
                     .maybe_sub(inset_size)
                     .maybe_max(Size::ZERO);
-                match measure_content(tree, node, delegate, CustomLayoutInput { known_size, available, percentage_basis }, allocations.as_deref()) {
+                match measure_content(tree, node, delegate, CustomLayoutInput { sizing_mode: inputs.sizing_mode, known_size, available, percentage_basis }, allocations.as_deref()) {
                     Ok(plan) => plan.size,
                     Err(value) => {
                         error = Some(value);
@@ -572,6 +572,7 @@ pub fn compute_custom_layout(
             .map(|h| (h - inset_size.height).max(0.0)),
     };
     let final_input = CustomLayoutInput {
+        sizing_mode: inputs.sizing_mode,
         known_size: inner.map(Some),
         available: inner.map(crate::AvailableSpace::Definite),
         percentage_basis,

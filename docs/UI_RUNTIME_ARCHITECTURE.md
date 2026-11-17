@@ -379,6 +379,15 @@ definite tight interval。与 hard bounds、soft space、incoming percentage bas
 allocation readback、measured placement、nested parent/builders 和 dry queries 保真。
 公开实验接口的 struct literals 已迁移，临时 input payload 增大，无性能收益声明。
 
+后续 [explicit content sizing](RETAINED_CONTENT_SIZING.md) 为同一子布局输入补齐
+LayoutSizingMode::Inherent/Content，并传到 measured/full/inline parent 与完整 builder
+输入。Content 查询忽略被查询节点自身 preferred/min/max，保留后代样式、已选尺寸、
+硬约束及 box insets；它与 MinContent/MaxContent 软空间是独立维度。共同 child entry
+修复 Content 查询仍解析自身 preferred keyword 的错误，owned box 同步忽略自身
+aspect suggestion。复用原内核及 cache 模式，没有第二套 intrinsic/Flex 算法。
+正常 source、keyed builder、真实 glyph 与 CPU/GPU 完整参考均验证有限用例；
+临时输入 payload 增大，没有帧时收益或完整 RenderBox/CSS contribution 一致性声明。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

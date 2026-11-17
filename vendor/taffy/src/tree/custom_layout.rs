@@ -106,6 +106,8 @@ pub trait CustomAllocationChildren {
 /// Content-box inputs after the common host box model has resolved sizing.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CustomLayoutInput {
+    /// Whether the host's own size styles participate in this invocation.
+    pub sizing_mode: crate::SizingMode,
     /// Assigned content dimensions. Returned size must preserve these values.
     pub known_size: Size<Option<f32>>,
     /// Soft content space, preserving intrinsic and normal indefinite modes.

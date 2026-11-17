@@ -1,5 +1,9 @@
 # Independent parent intervals and content-sized construction
 
+Follow-up: [content sizing](RETAINED_CONTENT_SIZING.md) adds an explicit
+Inherent/Content mode to full/inline allocator inputs, returned child slots and
+full builder observations. Independent phases still cannot measure children.
+
 Follow-up 2026-11-17: [selected child assignments](RETAINED_CHILD_ASSIGNMENTS.md)
 adds known_size and known_size_is_definite to ChildLayoutInput. An allocated
 size can remain indefinite for percentage descendants without tightening the
