@@ -95,9 +95,12 @@ where
         Overflow::Scroll => style.scrollbar_width(),
         _ => 0.0,
     });
-    // TODO: make side configurable based on the `direction` property
     let mut content_box_inset = padding_border;
-    content_box_inset.right += scrollbar_gutter.x;
+    if style.direction().is_rtl() {
+        content_box_inset.left += scrollbar_gutter.x;
+    } else {
+        content_box_inset.right += scrollbar_gutter.x;
+    }
     content_box_inset.bottom += scrollbar_gutter.y;
 
     // Intrinsic limits measure content independently of this node's preferred

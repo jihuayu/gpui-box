@@ -148,6 +148,12 @@ impl UiTree {
                 continue;
             }
             let layout = *self.layout.layout(node.layout)?;
+            let content_padding_left = layout.padding.left
+                + if node.style.direction == taffy::Direction::Rtl {
+                    layout.scrollbar_size.width
+                } else {
+                    0.0
+                };
             let layout_origin = node.layout_origin;
             let x = origin[0] + layout_origin[0] + node.translation[0];
             let y = origin[1] + layout_origin[1] + node.translation[1];
@@ -235,7 +241,8 @@ impl UiTree {
                             - layout.border.left
                             - layout.border.right
                             - layout.padding.left
-                            - layout.padding.right)
+                            - layout.padding.right
+                            - layout.scrollbar_size.width)
                             .max(0.0),
                     )
                 })
@@ -259,23 +266,25 @@ impl UiTree {
                 content_offsets: [
                     layout.border.left,
                     layout.border.top,
-                    layout.padding.left,
+                    content_padding_left,
                     layout.padding.top,
                 ],
                 content_bounds: Rect {
-                    x: x + layout.border.left + layout.padding.left,
+                    x: x + layout.border.left + content_padding_left,
                     y: y + layout.border.top + layout.padding.top,
                     width: (layout.size.width
                         - layout.border.left
                         - layout.border.right
                         - layout.padding.left
-                        - layout.padding.right)
+                        - layout.padding.right
+                        - layout.scrollbar_size.width)
                         .max(0.0),
                     height: (layout.size.height
                         - layout.border.top
                         - layout.border.bottom
                         - layout.padding.top
-                        - layout.padding.bottom)
+                        - layout.padding.bottom
+                        - layout.scrollbar_size.height)
                         .max(0.0),
                 },
                 clip,

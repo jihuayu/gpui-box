@@ -430,10 +430,12 @@ fn runtime_inline_feedback_fails_before_viewport_sources_or_frames_change() {
 fn query_content_width_subtracts_allocated_scrollbar_gutter() {
     let mut ui = setup();
     let scope = ui.root_scope();
-    let mut style = host(100.0).to_taffy().unwrap();
-    style.overflow.y = taffy::Overflow::Scroll;
-    style.scrollbar_width = 12.0;
-    let container = ui.append_render(scope, ui.root_render(), style, 0).unwrap();
+    let style = host(100.0)
+        .overflow(LayoutOverflow::Visible, LayoutOverflow::Scroll)
+        .scrollbar_width(12.0);
+    let container = ui
+        .append_render_layout(scope, ui.root_render(), style, 0)
+        .unwrap();
     let target = ui
         .append_render_layout(scope, container, LayoutStyle::row(), 0)
         .unwrap();
@@ -448,13 +450,29 @@ fn query_content_width_subtracts_allocated_scrollbar_gutter() {
             rules(LayoutStyle::row(), 89.0, LayoutStyle::column()),
         )
         .unwrap();
-    responsive
-        .frame(&mut ui, &LayoutEnvironment::new([300.0, 120.0]))
+    for (gutter, expected) in [
+        (12.0, LayoutFlexDirection::Row),
+        (0.0, LayoutFlexDirection::Column),
+        (12.0, LayoutFlexDirection::Row),
+    ] {
+        ui.edit(
+            |_| Ok(()),
+            |(), edit| {
+                edit.properties().layout_style(
+                    container,
+                    host(100.0)
+                        .overflow(LayoutOverflow::Visible, LayoutOverflow::Scroll)
+                        .scrollbar_width(gutter),
+                );
+                Ok(())
+            },
+        )
         .unwrap();
-    assert_eq!(
-        ui.read(source).unwrap().flex_direction,
-        LayoutFlexDirection::Row
-    );
+        responsive
+            .frame(&mut ui, &LayoutEnvironment::new([300.0, 120.0]))
+            .unwrap();
+        assert_eq!(ui.read(source).unwrap().flex_direction, expected);
+    }
 }
 
 #[test]

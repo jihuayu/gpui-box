@@ -117,3 +117,10 @@ full RFC remain open. Auto-height and safe nested query graphs now have the
 separate public implementation linked above; selected fluid inline extents now
 have explicit containment proofs. General content-dependent Row/wrap/aspect
 feedback and complete query conformance remain open.
+
+The later [explicit scrollbar allocation stage](RETAINED_SCROLLBAR_GUTTERS.md)
+exposes scrollbar_width through LayoutStyle, actual scrollbar_size in results
+and gutter-deflated content_size. Container queries, parent slots/builders,
+paragraph metrics and image/glyph paint now agree on that content width, with
+RTL origin handling and288 independent browser geometry cases. This provides
+explicit reservations; automatic appearance and native chrome remain open.

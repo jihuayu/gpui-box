@@ -21,6 +21,176 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 }
 
 #[test]
+fn public_scrollbar_gutters_keep_real_text_wrap_baselines_and_paint_in_agreement() {
+    scrollbar_text_controls(false);
+}
+
+#[cfg(feature = "retained-wgpu")]
+#[test]
+#[ignore = "requires a WGPU adapter; run explicitly"]
+fn hardware_public_scrollbar_gutters_keep_real_text_geometry() {
+    scrollbar_text_controls(true);
+}
+
+fn scrollbar_text_controls(hardware: bool) {
+    use gpui_box::retained::{logical::LogicalUi, reactive::Property};
+    let system = text_system();
+    let paragraph = shape(&system, "one two three four five 中文段落 longword");
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let paint = TextPaint {
+        resource: raster.prepare(paragraph.clone(), 1.0).unwrap(),
+        color: 0x00ffffff,
+    };
+    #[cfg(feature = "retained-wgpu")]
+    let mut gpu = hardware.then(|| wgpu::WgpuFrameRenderer::new(2).unwrap());
+    #[cfg(feature = "retained-wgpu")]
+    if let Some(gpu) = &gpu {
+        eprintln!("scrollbar glyph adapter: {:?}", gpu.adapter_info());
+    }
+    #[cfg(not(feature = "retained-wgpu"))]
+    assert!(!hardware);
+    let fixed = || {
+        LayoutStyle::column()
+            .size(LayoutDimension::Px(100.0), LayoutDimension::Px(400.0))
+            .flex_shrink(0.0)
+    };
+    let style = |width, rtl| {
+        fixed()
+            .padding(LayoutEdges::all(LayoutLength::Px(3.0)))
+            .scrollbar_width(width)
+            .overflow(LayoutOverflow::Visible, LayoutOverflow::Scroll)
+            .direction(if rtl {
+                LayoutDirection::Rtl
+            } else {
+                LayoutDirection::Ltr
+            })
+    };
+    fn pixels(frame: FramePacket) -> Vec<u8> {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [140, 420],
+                scale: 1.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 4 * 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(4096).unwrap() {}
+        job.into_frame().unwrap().pixels().to_vec()
+    }
+    for local in [false, true] {
+        let mut ui =
+            LogicalUi::new_layout(style(0.0, false), 0, BackendCapabilities::default()).unwrap();
+        let root = ui.root_render();
+        let scope = ui.root_scope();
+        let source = ui.state(scope, 760, || style(0.0, false)).unwrap();
+        ui.bind(source, Property::layout_style(root)).unwrap();
+        ui.edit(
+            |_| Ok(()),
+            |(), edit| {
+                edit.properties().text(root, Some(paint.clone()));
+                Ok(())
+            },
+        )
+        .unwrap();
+        let mut old = None;
+        for (gutter, rtl) in [
+            (0.0, false),
+            (16.0, false),
+            (16.0, true),
+            (32.0, true),
+            (0.0, false),
+        ] {
+            let sources = |tx: &mut ReactiveTransaction<'_>| {
+                tx.set(source, style(gutter, rtl))?;
+                Ok(())
+            };
+            let frame = if local {
+                ui.edit_local_frame(
+                    LayoutConstraints::viewport(140.0, 420.0),
+                    [140.0, 420.0],
+                    sources,
+                    |(), _| Ok(()),
+                )
+                .unwrap()
+                .1
+                .resolve()
+            } else {
+                ui.edit_frame(
+                    LayoutConstraints::viewport(140.0, 420.0),
+                    [140.0, 420.0],
+                    sources,
+                    |(), _| Ok(()),
+                )
+                .unwrap()
+                .1
+            };
+            let mut control_style = fixed().direction(if rtl {
+                LayoutDirection::Rtl
+            } else {
+                LayoutDirection::Ltr
+            });
+            // Explicit numeric content box: independent of scrollbar semantics.
+            control_style.padding = LayoutEdges {
+                left: LayoutLength::Px(3.0 + if rtl { gutter } else { 0.0 }),
+                right: LayoutLength::Px(3.0 + if rtl { 0.0 } else { gutter }),
+                top: LayoutLength::Px(3.0),
+                bottom: LayoutLength::Px(3.0),
+            };
+            let mut control = UiTree::new_layout(control_style, 0).unwrap();
+            control.set_frame_build_policy(FrameBuildPolicy::Full);
+            let mut tx = Transaction::default();
+            tx.text(control.root(), Some(paint.clone()));
+            control.commit(tx, BackendCapabilities::default()).unwrap();
+            let reference = control.frame([140.0, 420.0]).unwrap();
+            let expected = paragraph.layout(Some(94.0 - gutter)).unwrap();
+            let actual = ui.layout_result(root).unwrap();
+            assert_eq!(actual.content_size, [94.0 - gutter, 394.0]);
+            assert_eq!(actual.baseline, Some(expected.first_baseline + 3.0));
+            assert_eq!(
+                actual.last_baseline,
+                control.layout_result(control.root()).unwrap().last_baseline
+            );
+            assert_eq!(
+                frame.items[0].glyphs.as_ref().unwrap().glyphs.len(),
+                reference.items[0].glyphs.as_ref().unwrap().glyphs.len()
+            );
+            assert_eq!(
+                frame.items[0].content_bounds,
+                reference.items[0].content_bounds
+            );
+            assert!(
+                pixels(frame.clone()) == pixels(reference.clone()),
+                "local={local} gutter={gutter} rtl={rtl}"
+            );
+            #[cfg(feature = "retained-wgpu")]
+            if let Some(gpu) = &mut gpu {
+                gpu.submit(&frame, [140, 420], 1.0).unwrap().unwrap();
+                assert!(
+                    gpu.image().unwrap().as_raw()
+                        == gpu
+                            .reference_image(&reference, [140, 420], 1.0)
+                            .unwrap()
+                            .as_raw(),
+                    "local={local} gutter={gutter} rtl={rtl}"
+                );
+            }
+            old.get_or_insert(frame);
+        }
+        let old = old.unwrap();
+        let expected = pixels(old.clone());
+        drop(ui);
+        assert_eq!(pixels(old), expected);
+    }
+    #[cfg(feature = "retained-wgpu")]
+    if let Some(gpu) = &mut gpu {
+        gpu.finish().unwrap();
+    }
+}
+
+#[test]
 fn ordinary_inline_allocation_builder_selects_keyed_real_text_without_size_containment() {
     use gpui_box::retained::logical::LogicalUi;
     let system = text_system();

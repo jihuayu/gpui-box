@@ -570,7 +570,12 @@ impl LayoutConstraints {
 pub struct LayoutResult {
     pub location: [f32; 2],
     pub size: [f32; 2],
+    /// Usable content extent after border, padding and scrollbar reservations,
+    /// floored at zero. Kept separate from natural scrollable overflow.
     pub content_size: [f32; 2],
+    /// Reserved physical space: width for a vertical scrollbar, height for a
+    /// horizontal scrollbar. This is layout allocation, not painted chrome.
+    pub scrollbar_size: [f32; 2],
     pub border: [f32; 4],
     pub padding: [f32; 4],
     pub margin: [f32; 4],
@@ -594,15 +599,18 @@ impl LayoutResult {
                     - layout.border.left
                     - layout.border.right
                     - layout.padding.left
-                    - layout.padding.right)
+                    - layout.padding.right
+                    - layout.scrollbar_size.width)
                     .max(0.0),
                 (layout.size.height
                     - layout.border.top
                     - layout.border.bottom
                     - layout.padding.top
-                    - layout.padding.bottom)
+                    - layout.padding.bottom
+                    - layout.scrollbar_size.height)
                     .max(0.0),
             ],
+            scrollbar_size: [layout.scrollbar_size.width, layout.scrollbar_size.height],
             border: [
                 layout.border.left,
                 layout.border.right,
@@ -674,6 +682,10 @@ pub struct LayoutStyle {
     /// Optional flex-axis override: width = main gap, height = cross gap.
     pub main_cross_gap: Option<LayoutSize<Length>>,
     pub overflow: LayoutSize<Overflow>,
+    /// Finite nonnegative logical thickness reserved on each Scroll axis.
+    /// Zero is overlay allocation. Vertical gutters occupy inline-end (left
+    /// in RTL), horizontal gutters bottom. No automatic overflow detection.
+    pub scrollbar_width: f32,
     pub box_sizing: BoxSizing,
 }
 
@@ -706,6 +718,7 @@ impl Default for LayoutStyle {
             gap: LayoutSize::new(Length::Px(0.0), Length::Px(0.0)),
             main_cross_gap: None,
             overflow: LayoutSize::new(Overflow::Visible, Overflow::Visible),
+            scrollbar_width: 0.0,
             box_sizing: BoxSizing::BorderBox,
         }
     }
@@ -838,6 +851,10 @@ impl LayoutStyle {
         self.overflow = LayoutSize::new(x, y);
         self
     }
+    pub fn scrollbar_width(mut self, width: f32) -> Self {
+        self.scrollbar_width = width;
+        self
+    }
     pub fn align_content(mut self, value: impl Into<Alignment<AlignContent>>) -> Self {
         self.align_content = value.into();
         self
@@ -934,6 +951,8 @@ impl LayoutStyle {
             || self.flex_grow < 0.0
             || !self.flex_shrink.is_finite()
             || self.flex_shrink < 0.0
+            || !self.scrollbar_width.is_finite()
+            || self.scrollbar_width < 0.0
             || self
                 .aspect_ratio
                 .is_some_and(|value| !value.is_finite() || value <= 0.0)
@@ -992,6 +1011,7 @@ impl LayoutStyle {
                 height: self.max_size.height.to_taffy(),
             },
             aspect_ratio: self.aspect_ratio,
+            scrollbar_width: self.scrollbar_width,
             margin: self.margin.to_taffy(),
             padding: self.padding.to_taffy_padding()?,
             border: self.border.to_taffy_padding()?,
@@ -1118,6 +1138,8 @@ mod containment_tests;
 mod intrinsic_limits_tests;
 #[cfg(test)]
 mod percentage_gap_tests;
+#[cfg(test)]
+mod scrollbar_tests;
 #[cfg(test)]
 mod sizing_tests;
 #[cfg(test)]

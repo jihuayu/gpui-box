@@ -273,8 +273,17 @@ pub(super) fn layout_leaf(
     {
         let padding = style.padding.map(resolve);
         let border = style.border.map(resolve);
-        let width = (output.size.width - padding.left - padding.right - border.left - border.right)
-            .max(0.0);
+        let width = (output.size.width
+            - padding.left
+            - padding.right
+            - border.left
+            - border.right
+            - if style.overflow.y == taffy::Overflow::Scroll {
+                style.scrollbar_width
+            } else {
+                0.0
+            })
+        .max(0.0);
         let baselines = snapshot.baselines(width);
         let inset = padding.top + border.top;
         output.baselines = taffy::Baselines {

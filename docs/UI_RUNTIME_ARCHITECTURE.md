@@ -443,6 +443,15 @@ root 和 Row/wrap/aspect ancestry 保守拒绝，固定 used width 不能代替 
 frame 复用同一原子发布，真实文字和 CPU/GPU 完整参考验证有限场景。新增稀疏 map、
 preview、扫描和 cache 成本，没有性能收益声明；任意 full-axis feedback 和自动调度仍开放。
 
+后续 [显式 scrollbar allocation](RETAINED_SCROLLBAR_GUTTERS.md) 把既有内核占位接到
+公共 `LayoutStyle.scrollbar_width`，`LayoutResult.scrollbar_size` 返回实际逐物理轴预留，
+content_size 扣除 gutter。默认0保持overlay分配；Scroll预留、LTR右侧／RTL左侧、横向底部，
+没有自动overflow检测或scrollbar绘制。Flex、ConstraintBox、custom parent、query和builder
+复用同一box model，paragraph baseline重测、glyph wrap、image/glyph content bounds同步扣除
+并采用RTL起点；占位／方向变化走正常几何更新，source/P0/rollback保持。独立浏览器288组与
+真实glyph／CPU／GPU参考验证有限场景。公共payload和dirty检查有成本，没有帧时收益声明；
+自动appearance、OS metrics/native chrome、完整CSS/RenderBox及持续呈现验收仍开放。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

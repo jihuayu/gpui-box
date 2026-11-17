@@ -151,3 +151,9 @@ scheduling, incremental candidates/proof/rollback/global budgets, broad Flex /
 percentage/cycle/Grid/Block/writing-mode/precision and primitive/effect/native
 lifetimes remain open. Modern desktop GPU effects, CPU continuous complete
 frames, sustained60/120Hz and display-visible input tails remain separate gates.
+
+The [explicit scrollbar allocation follow-up](RETAINED_SCROLLBAR_GUTTERS.md)
+removes the raw-kernel style escape hatch from gutter fixtures and aligns public
+content_size, normal paragraph baselines, glyph wrap and image/glyph destinations
+with those same deflated content opportunities. Automatic scrollbar prediction
+remains separate work; the content callback does not decide bar appearance.

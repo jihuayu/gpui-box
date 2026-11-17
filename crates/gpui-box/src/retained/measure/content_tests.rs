@@ -429,17 +429,12 @@ fn typed_measure_sources_nested_custom_parents_and_restored_values_share_normal_
 #[test]
 fn scrollbar_gutters_deflate_content_and_final_metrics_share_the_same_query() {
     for direction in [LayoutDirection::Ltr, LayoutDirection::Rtl] {
-        let mut style = host()
+        let style = host()
             .size(LayoutDimension::Px(60.0), LayoutDimension::Px(20.0))
             .overflow(LayoutOverflow::Scroll, LayoutOverflow::Scroll)
-            .to_taffy()
-            .unwrap();
-        style.direction = match direction {
-            LayoutDirection::Ltr => taffy::Direction::Ltr,
-            LayoutDirection::Rtl => taffy::Direction::Rtl,
-        };
-        style.scrollbar_width = 6.0;
-        let mut tree = UiTree::new(style, 0).unwrap();
+            .direction(direction)
+            .scrollbar_width(6.0);
+        let mut tree = UiTree::new_layout(style, 0).unwrap();
         let root = tree.root();
         let (snapshot, queries) = cells(12);
         install(&mut tree, root, Some(snapshot));

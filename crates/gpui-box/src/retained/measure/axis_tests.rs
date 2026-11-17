@@ -142,13 +142,11 @@ fn content_internal_intrinsic_limit_probes_use_their_own_axis_and_match_complete
             }
             7 => {
                 style.overflow = LayoutSize::new(LayoutOverflow::Scroll, LayoutOverflow::Scroll);
+                style.scrollbar_width = 6.0;
             }
             _ => unreachable!(),
         }
-        let mut lowered = style.to_taffy().unwrap();
-        if case == 7 {
-            lowered.scrollbar_width = 6.0;
-        }
+        let lowered = style.to_taffy().unwrap();
         let mut tree = UiTree::new(lowered.clone(), 0).unwrap();
         let root = tree.root();
         let (value, log) = content(12, true);

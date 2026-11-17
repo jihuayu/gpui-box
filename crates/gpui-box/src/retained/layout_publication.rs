@@ -295,7 +295,10 @@ impl UiTree {
             };
             if node.published_origin != node.layout_origin || scroll(old) != scroll(new) {
                 self.property_dirty.insert(*id);
-            } else if old.size != new.size || old.padding != new.padding || old.border != new.border
+            } else if old.size != new.size
+                || old.padding != new.padding
+                || old.border != new.border
+                || old.scrollbar_size != new.scrollbar_size
             {
                 // Size/content-box changes alone affect this item's quad,
                 // glyph wrap and image destination. Changed children are

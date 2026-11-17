@@ -50,13 +50,15 @@ pub mod paragraph;
 pub mod text;
 pub use measure::{
     BaselineMeasureSnapshot, ContentMeasure, ContentMeasureInput, ContentMeasureOutput,
-    ContentMeasureSnapshot, CustomMeasureSnapshot, ImageIntrinsicSize, LayoutStats, MeasureSnapshot,
+    ContentMeasureSnapshot, CustomMeasureSnapshot, ImageIntrinsicSize, LayoutStats,
+    MeasureSnapshot,
 };
 pub use parent_layout::{
-    ChildInlineAllocation, ChildLayoutInput, ChildLayoutResult, ChildLayoutStyle, LayoutAxis, LayoutSizingMode,
-    ParentAllocationChildren, ParentAllocationInput, ParentAllocationLayout, ParentData, ParentInlineInput,
-    ParentInlineLayout, ParentLayout, ParentLayoutChildren, ParentLayoutInput, ParentLayoutOutput,
-    ParentLayoutSnapshot, ParentMeasure, ParentMeasureOutput, ParentPlacement,
+    ChildInlineAllocation, ChildLayoutInput, ChildLayoutResult, ChildLayoutStyle, LayoutAxis,
+    LayoutSizingMode, ParentAllocationChildren, ParentAllocationInput, ParentAllocationLayout,
+    ParentData, ParentInlineInput, ParentInlineLayout, ParentLayout, ParentLayoutChildren,
+    ParentLayoutInput, ParentLayoutOutput, ParentLayoutSnapshot, ParentMeasure,
+    ParentMeasureOutput, ParentPlacement,
 };
 mod primitive;
 mod properties;
@@ -1214,15 +1216,24 @@ impl UiTree {
                 let parent_changed = parent_written || node.parent_layout != parent_layout;
                 let layout = node.layout;
                 let display_changed = node.style.display != style.display;
+                let content_side_changed = node.style.direction != style.direction;
                 if matches!(snapshot, Some(MeasureSnapshot::Content(_))) {
                     self.content_measures.insert(id);
                 } else {
                     self.content_measures.remove(&id);
                 }
                 self.layout
-                    .set_exact_measure(layout, matches!(snapshot, Some(MeasureSnapshot::Content(_))))
+                    .set_exact_measure(
+                        layout,
+                        matches!(snapshot, Some(MeasureSnapshot::Content(_))),
+                    )
                     .expect("prepared content measurement");
                 self.full_extract_required |= display_changed;
+                // A direction change can move leaf text/images across an RTL
+                // gutter while all scalar layout fields stay equal.
+                if content_side_changed {
+                    self.geometry_dirty.insert(id);
+                }
                 self.layout
                     .set_style(layout, measure::effective_style(&style, snapshot.as_ref()))
                     .expect("prepared Taffy style");
