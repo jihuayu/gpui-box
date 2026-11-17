@@ -323,6 +323,22 @@ Final checks: retained 351, text/WGPU 384 (14 ignored), hello 29 (2 ignored),
 explicit parent-data suite 9 including actual GPU passed. Taffy default/project
 suites 207/201, three feature checks, library Clippy and diff checks passed.
 No all-targets Clippy or additional browser conformance pass is claimed.
+The [dry parent measure stage](RETAINED_DRY_PARENT_MEASURE.md) adds an optional
+owned ParentMeasure phase with size/first/last content metrics and exact final
+plan agreement. Actual size probes skip custom placement-plan construction;
+existing complete-plan parents retain fallback. Explicit dry_measure_node on
+UiTree/ReactiveUi/LogicalUi takes child constraints plus separate percentage
+bases, runs ComputeSize on a private candidate and leaves published state/cache
+untouched. The older full-root measurement query stays unchanged. Nested hosts,
+inline/full enforcement and metadata, intrinsic/bounds/contain/aspect controls,
+error rollback, true Noto pixels and actual WGPU readback cover the subset.
+Final metric queries add work, public clones and normal baseline scratch writes
+remain; callback reductions do not establish timing or complete RenderBox.
+See [validation](performance/2026-11-17-dry-parent-measure/README.md).
+In the four-width client control, complete plans fall from26 to4, with26 pure
+metric queries; this is not a wall-time claim. Final regression: retained359;
+text/WGPU392 passed/15 ignored; explicit dry9 including actual GPU; hello30
+passed/2 ignored; Taffy209/203. Library Clippy and kernel feature checks pass.
 The [validation-cache stage](RETAINED_VALIDATION_CACHE.md) reuses consumer checks
 for cache-owned immutable pages and stable node indices, with full fallback for
 identity/order/scale changes and complete effect-reference checks on effect-map edits.

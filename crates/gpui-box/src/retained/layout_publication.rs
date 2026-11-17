@@ -2,6 +2,30 @@
 use super::*;
 
 impl UiTree {
+    /// Pure direct-child-style query under explicit border-box constraints and
+    /// separate percentage bases. Unlike measure_node_with_constraints, this
+    /// does not run a full root layout or resolve root margins/OOF placement.
+    /// It cannot publish geometry or warm the live owner's layout caches.
+    pub fn dry_measure_node(
+        &self,
+        node: NodeId,
+        input: ChildLayoutInput,
+    ) -> Result<ChildLayoutResult, Error> {
+        let layout_id = self.node(node)?.layout;
+        let input = input.to_taffy()?;
+        let mut candidate = self.layout.clone();
+        let mut stats = LayoutStats::default();
+        let output =
+            candidate.measure_node_with_input(layout_id, input, |inputs, _, snapshot, style| {
+                measure::layout_leaf(inputs, snapshot.as_deref(), style, &mut stats)
+            })?;
+        Ok(ChildLayoutResult {
+            size: [output.size.width, output.size.height],
+            baseline: output.baselines.first,
+            last_baseline: output.baselines.last,
+        })
+    }
+
     /// Taffy positions out-of-flow boxes relative to their containing block.
     /// The render/property hierarchy needs parent-local placement instead.
     /// Only out-of-flow placement walks layout ancestry, once per layout pass.

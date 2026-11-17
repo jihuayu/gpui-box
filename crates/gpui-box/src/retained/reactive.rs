@@ -372,6 +372,13 @@ impl ReactiveUi {
     pub fn parent_data(&self, node: NodeId) -> Result<Option<&ParentData>, Error> {
         self.tree.parent_data(node)
     }
+    pub fn dry_measure_node(
+        &self,
+        node: NodeId,
+        input: ChildLayoutInput,
+    ) -> Result<ChildLayoutResult, Error> {
+        self.tree.dry_measure_node(node, input)
+    }
 
     pub fn frame_in_viewport(
         &mut self,

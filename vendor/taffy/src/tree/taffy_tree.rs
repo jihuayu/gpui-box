@@ -47,6 +47,9 @@ mod contained_input_tests;
 #[cfg(all(test, feature = "flexbox"))]
 #[path = "parent_data_tests.rs"]
 mod parent_data_tests;
+#[cfg(all(test, feature = "flexbox"))]
+#[path = "dry_measure_tests.rs"]
+mod dry_measure_tests;
 
 /// An error that occurs while trying to access or modify a node's children by index.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1316,6 +1319,55 @@ impl<NodeContext> TaffyTree<NodeContext> {
         if !bounds.is_valid() {
             return Err(TaffyError::InvalidSizeBounds);
         }
+        self.validate_layout_subtree(node_id)?;
+        let use_rounding = self.config.use_rounding;
+        // Custom descendants and contained structural boundaries observe input
+        // metadata omitted by ordinary CSS size caches, including through a
+        // cached Flex ancestor. Keep exact keys throughout those invocations.
+        let exact_measure = !self.custom_layouts.is_empty() || !self.size_contained_nodes.is_empty();
+        let mut taffy_view = TaffyView { taffy: self, measure_function, layout_observer, layout_error: None, exact_measure };
+        crate::compute::compute_root_layout_with_bounds(&mut taffy_view, node_id, available_space, bounds);
+        if let Some(error) = taffy_view.layout_error { return Err(error); }
+        if use_rounding {
+            round_layout(&mut taffy_view, node_id);
+        }
+        Ok(())
+    }
+
+    /// Measure a node as a direct custom-parent child, without a final root
+    /// layout, root margins, OOF positioning or rounding. ComputeSize is forced;
+    /// exact caches may warm, and ordinary baseline/hidden algorithms can write
+    /// internal scratch layout. Clone the tree for published-state isolation.
+    pub fn measure_node_with_input<MeasureFunction>(
+        &mut self,
+        node_id: NodeId,
+        mut inputs: LayoutInput,
+        measure_function: MeasureFunction,
+    ) -> TaffyResult<LayoutOutput>
+    where
+        MeasureFunction: FnMut(LayoutInput, NodeId, Option<&mut NodeContext>, &Style) -> LayoutOutput,
+    {
+        if !inputs.size_bounds.is_valid() {
+            return Err(TaffyError::InvalidSizeBounds);
+        }
+        if [inputs.known_dimensions.width, inputs.known_dimensions.height, inputs.parent_size.width, inputs.parent_size.height]
+            .iter().flatten().any(|v| !v.is_finite() || *v < 0.0)
+            || [inputs.available_space.width, inputs.available_space.height].iter()
+                .any(|space| matches!(space, AvailableSpace::Definite(v) if !v.is_finite() || *v < 0.0))
+        {
+            return Err(TaffyError::InvalidCustomLayout);
+        }
+        self.validate_layout_subtree(node_id)?;
+        inputs.run_mode = RunMode::ComputeSize;
+        inputs.vertical_margins_are_collapsible = crate::Line::FALSE;
+        let exact_measure = !self.custom_layouts.is_empty() || !self.size_contained_nodes.is_empty();
+        let mut view = TaffyView { taffy: self, measure_function, layout_observer: |_, _, _| {}, layout_error: None, exact_measure };
+        let output = view.compute_custom_child_layout(node_id, inputs);
+        if let Some(error) = view.layout_error { return Err(error); }
+        Ok(output)
+    }
+
+    fn validate_layout_subtree(&self, node_id: NodeId) -> TaffyResult<()> {
         if !self.nodes.contains_key(node_id.into()) {
             return Err(TaffyError::InvalidInputNode(node_id));
         }
@@ -1342,17 +1394,6 @@ impl<NodeContext> TaffyTree<NodeContext> {
                 }
                 ancestor = self.parents[id.into()];
             }
-        }
-        let use_rounding = self.config.use_rounding;
-        // Custom descendants and contained structural boundaries observe input
-        // metadata omitted by ordinary CSS size caches, including through a
-        // cached Flex ancestor. Keep exact keys throughout those invocations.
-        let exact_measure = !self.custom_layouts.is_empty() || !self.size_contained_nodes.is_empty();
-        let mut taffy_view = TaffyView { taffy: self, measure_function, layout_observer, layout_error: None, exact_measure };
-        crate::compute::compute_root_layout_with_bounds(&mut taffy_view, node_id, available_space, bounds);
-        if let Some(error) = taffy_view.layout_error { return Err(error); }
-        if use_rounding {
-            round_layout(&mut taffy_view, node_id);
         }
         Ok(())
     }

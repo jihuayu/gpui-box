@@ -249,6 +249,13 @@ impl LogicalUi {
     pub fn parent_data(&self, node: NodeId) -> Result<Option<&ParentData>, Error> {
         self.ui.parent_data(node)
     }
+    pub fn dry_measure_node(
+        &self,
+        node: NodeId,
+        input: ChildLayoutInput,
+    ) -> Result<ChildLayoutResult, Error> {
+        self.ui.dry_measure_node(node, input)
+    }
     pub fn measure_with_constraints(
         &mut self,
         constraints: LayoutConstraints,

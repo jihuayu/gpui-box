@@ -1,6 +1,7 @@
 //! Custom parents use the same host box model and real cached child algorithms.
 use crate::tree::{
-    CustomAllocationChildren, CustomLayout, CustomLayoutChildren, CustomLayoutInput, CustomLayoutOutput, CustomParentData,
+    CustomAllocationChildren, CustomLayout, CustomLayoutChildren, CustomLayoutInput, CustomLayoutOutput, CustomMeasureOutput,
+    CustomParentData,
 };
 use crate::util::{MaybeMath, MaybeResolve, ResolveOrZero};
 use crate::{
@@ -81,15 +82,8 @@ fn plan(
 ) -> Result<CustomLayoutOutput, TaffyError> {
     let count = tree.child_count(node);
     let mut output = delegate.layout(input, &mut Children { tree, parent: node, allocations })?;
-    if ![output.size.width, output.size.height].iter().all(|v| v.is_finite() && *v >= 0.0)
-        || input.known_size.width.is_some_and(|v| v != output.size.width)
-        || input.known_size.height.is_some_and(|v| v != output.size.height)
-        || [output.baselines.first, output.baselines.last]
-            .iter()
-            .flatten()
-            .any(|v| !v.is_finite() || *v < 0.0 || *v > output.size.height)
-        || output.placements.len() != count
-    {
+    validate_measure(input, CustomMeasureOutput { size: output.size, baselines: output.baselines })?;
+    if output.placements.len() != count {
         return Err(TaffyError::InvalidCustomLayout);
     }
     let mut seen = crate::util::sys::Vec::with_capacity(count);
@@ -110,6 +104,48 @@ fn plan(
         }
     }
     Ok(output)
+}
+
+fn validate_measure(input: CustomLayoutInput, output: CustomMeasureOutput) -> Result<(), TaffyError> {
+    if ![output.size.width, output.size.height].iter().all(|v| v.is_finite() && *v >= 0.0)
+        || input.known_size.width.is_some_and(|v| v != output.size.width)
+        || input.known_size.height.is_some_and(|v| v != output.size.height)
+        || [output.baselines.first, output.baselines.last]
+            .iter()
+            .flatten()
+            .any(|v| !v.is_finite() || *v < 0.0 || *v > output.size.height)
+    {
+        return Err(TaffyError::InvalidCustomLayout);
+    }
+    Ok(())
+}
+
+fn dry_measure(
+    tree: &mut impl LayoutPartialTree,
+    node: NodeId,
+    delegate: &dyn CustomLayout,
+    input: CustomLayoutInput,
+    allocations: Option<&[LayoutInput]>,
+) -> Result<Option<CustomMeasureOutput>, TaffyError> {
+    let output = delegate.measure(input, &mut Children { tree, parent: node, allocations })?;
+    if let Some(output) = output {
+        validate_measure(input, output)?;
+    }
+    Ok(output)
+}
+
+fn measure_content(
+    tree: &mut impl LayoutPartialTree,
+    node: NodeId,
+    delegate: &dyn CustomLayout,
+    input: CustomLayoutInput,
+    allocations: Option<&[LayoutInput]>,
+) -> Result<CustomMeasureOutput, TaffyError> {
+    if let Some(output) = dry_measure(tree, node, delegate, input, allocations)? {
+        return Ok(output);
+    }
+    let output = plan(tree, node, delegate, input, allocations)?;
+    Ok(CustomMeasureOutput { size: output.size, baselines: output.baselines })
 }
 
 #[cfg(all(test, feature = "flexbox"))]
@@ -426,7 +462,7 @@ pub fn compute_custom_layout(
                     .zip_map(inputs.known_dimensions_are_definite, |v, definite| if definite { v } else { None })
                     .maybe_sub(inset_size)
                     .maybe_max(Size::ZERO);
-                match plan(tree, node, delegate, CustomLayoutInput { known_size, available, percentage_basis }, allocations.as_deref()) {
+                match measure_content(tree, node, delegate, CustomLayoutInput { known_size, available, percentage_basis }, allocations.as_deref()) {
                     Ok(plan) => plan.size,
                     Err(value) => {
                         error = Some(value);
@@ -453,29 +489,36 @@ pub fn compute_custom_layout(
             .filter(|_| inputs.known_dimensions_are_definite.height)
             .map(|h| (h - inset_size.height).max(0.0)),
     };
-    let final_plan = plan(
-        tree,
-        node,
-        delegate,
-        CustomLayoutInput {
-            known_size: inner.map(Some),
-            available: inner.map(crate::AvailableSpace::Definite),
-            percentage_basis,
-        },
-        allocations.as_deref(),
-    )?;
+    let final_input = CustomLayoutInput {
+        known_size: inner.map(Some),
+        available: inner.map(crate::AvailableSpace::Definite),
+        percentage_basis,
+    };
+    let dry = dry_measure(tree, node, delegate, final_input, allocations.as_deref())?;
+    // A size query can now finish without constructing a placement vector.
+    // A final layout still validates the complete plan and exact dry metrics.
+    let final_plan = if inputs.run_mode == RunMode::PerformLayout || dry.is_none() {
+        Some(plan(tree, node, delegate, final_input, allocations.as_deref())?)
+    } else {
+        None
+    };
+    let metrics = final_plan.as_ref().map(|p| CustomMeasureOutput { size: p.size, baselines: p.baselines }).or(dry)
+        .ok_or(TaffyError::InvalidCustomLayout)?;
+    if dry.is_some_and(|dry| metrics != dry) {
+        return Err(TaffyError::InvalidCustomLayout);
+    }
     output.baselines = if common.contain.suppresses_baseline() {
         Baselines::NONE
     } else {
         Baselines {
-            first: final_plan.baselines.first.map(|v| v + inset.top),
-            last: final_plan.baselines.last.map(|v| v + inset.top),
+            first: metrics.baselines.first.map(|v| v + inset.top),
+            last: metrics.baselines.last.map(|v| v + inset.top),
         }
     };
     if inputs.run_mode != RunMode::PerformLayout {
         return Ok(output);
     }
-    for placement in final_plan.placements {
+    for placement in final_plan.ok_or(TaffyError::InvalidCustomLayout)?.placements {
         let child = tree.get_child_id(node, placement.child);
         let mut input = placement.input;
         input.run_mode = RunMode::PerformLayout;

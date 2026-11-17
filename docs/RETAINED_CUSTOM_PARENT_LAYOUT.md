@@ -1,5 +1,11 @@
 # Owned custom parent layout
 
+Follow-up 2026-11-17: [pure metric phase and dry queries](RETAINED_DRY_PARENT_MEASURE.md)
+adds optional ParentMeasure via with_measure, avoids complete custom placement
+plans during size probes, checks final metric agreement and exposes explicit
+dry_measure_node with independent percentage bases. Existing private full-root
+queries and complete-plan fallback retain their original contracts.
+
 Follow-up 2026-11-17: [immutable parent data](RETAINED_PARENT_DATA.md) adds
 typed authored child metadata to both measured parents and independent full
 allocation. Normal typed transactions, cache invalidation, keyed ownership and

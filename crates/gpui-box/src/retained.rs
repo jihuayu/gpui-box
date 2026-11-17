@@ -56,7 +56,7 @@ pub use parent_layout::{
     ChildInlineAllocation, ChildLayoutInput, ChildLayoutResult, ParentAllocationChildren,
     ParentAllocationInput, ParentAllocationLayout, ParentData, ParentInlineInput,
     ParentInlineLayout, ParentLayout, ParentLayoutChildren, ParentLayoutInput, ParentLayoutOutput,
-    ParentLayoutSnapshot, ParentPlacement,
+    ParentLayoutSnapshot, ParentMeasure, ParentMeasureOutput, ParentPlacement,
 };
 mod primitive;
 mod properties;

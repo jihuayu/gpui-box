@@ -838,6 +838,39 @@ fn atomic_local_builder_and_sparse_text_material_match_full_glyph_pixels() {
 
 #[derive(Debug)]
 struct ParagraphParent;
+impl ParentMeasure for ParagraphParent {
+    fn measure(
+        &self,
+        input: ParentLayoutInput,
+        children: &mut dyn ParentLayoutChildren,
+    ) -> Result<ParentMeasureOutput, Error> {
+        let width = input.known_size.width.or(match input.available.width {
+            LayoutAvailableSpace::Definite(w) => Some(w),
+            _ => None,
+        });
+        let slot = ChildLayoutInput {
+            constraints: LayoutConstraints::new(
+                input.available.width,
+                LayoutAvailableSpace::Unbounded,
+            )
+            .with_bounds(
+                width
+                    .map(|w| BoxConstraints::new([w, 0.0], [w, f32::INFINITY]))
+                    .unwrap_or(BoxConstraints::UNBOUNDED),
+            ),
+            percentage_basis: input.percentage_basis,
+        };
+        let child = children.measure(0, slot)?;
+        Ok(ParentMeasureOutput {
+            size: [
+                input.known_size.width.unwrap_or(child.size[0]),
+                input.known_size.height.unwrap_or(child.size[1]),
+            ],
+            baseline: child.baseline,
+            last_baseline: None,
+        })
+    }
+}
 impl ParentLayout for ParagraphParent {
     fn layout(
         &self,
@@ -880,6 +913,138 @@ impl ParentLayout for ParagraphParent {
             }],
         })
     }
+}
+
+#[test]
+fn dry_parent_measure_queries_and_final_real_glyphs_match_full_flex() {
+    let system = text_system();
+    let paragraph = shape(&system, "one two three four five six 中文段落");
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let paint = TextPaint {
+        resource: raster.prepare(paragraph.clone(), 1.0).unwrap(),
+        color: 0x00ffffff,
+    };
+    let column = LayoutStyle::column().size(LayoutDimension::Percent(1.0), LayoutDimension::Auto);
+    let mut tree = UiTree::new_layout(column.clone(), 0).unwrap();
+    let root = tree.root();
+    let host = tree
+        .append_layout(
+            root,
+            column
+                .clone()
+                .padding(LayoutEdges::all(LayoutLength::Px(5.0))),
+            0,
+        )
+        .unwrap();
+    let leaf = tree.append_layout(host, LayoutStyle::row(), 0).unwrap();
+    let footer = tree
+        .append_layout(
+            root,
+            LayoutStyle::row()
+                .size(LayoutDimension::Px(20.0), LayoutDimension::Px(10.0))
+                .flex_shrink(0.0),
+            0xff0000ff,
+        )
+        .unwrap();
+    let mut tx = Transaction::default();
+    tx.parent_layout(
+        host,
+        Some(ParentLayoutSnapshot::new(ParagraphParent).with_measure(ParagraphParent)),
+    );
+    tx.text(leaf, Some(paint.clone()));
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    fn pixels(frame: FramePacket) -> Vec<u8> {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [300, 700],
+                scale: 1.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 4 * 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(8192).unwrap() {}
+        job.into_frame().unwrap().pixels().to_vec()
+    }
+    let mut old = None;
+    for width in [60.0, 140.0, 90.0, 60.0] {
+        let input = ChildLayoutInput {
+            constraints: LayoutConstraints::new(
+                LayoutAvailableSpace::Definite(width + 10.0),
+                LayoutAvailableSpace::Unbounded,
+            )
+            .with_bounds(BoxConstraints::new(
+                [width + 10.0, 0.0],
+                [width + 10.0, f32::INFINITY],
+            )),
+            percentage_basis: LayoutSize::new(Some(500.0), None),
+        };
+        let dry = tree.dry_measure_node(host, input).unwrap();
+        let height = paragraph.layout(Some(width)).unwrap().size[1];
+        assert_eq!(dry.size, [width + 10.0, height + 10.0]);
+        assert_eq!(dry.baseline, Some(paragraph.first_baseline() + 5.0));
+        let constraints = LayoutConstraints::new(
+            LayoutAvailableSpace::Definite(width + 10.0),
+            LayoutAvailableSpace::Unbounded,
+        );
+        let frame = tree
+            .local_frame_in_viewport(constraints, [300.0, 700.0])
+            .unwrap();
+        assert_eq!(tree.layout_result(host).unwrap().size, dry.size);
+        assert_eq!(
+            tree.layout_result(footer).unwrap().location[1],
+            height + 10.0
+        );
+        assert_eq!(frame.hit_test(6.0, 6.0), Some(leaf));
+        let published = tree.layout_result(host).unwrap();
+        let before = frame.revision();
+        let _ = tree
+            .dry_measure_node(
+                host,
+                ChildLayoutInput::new(LayoutConstraints::new(
+                    LayoutAvailableSpace::MinContent,
+                    LayoutAvailableSpace::Unbounded,
+                )),
+            )
+            .unwrap();
+        assert_eq!(tree.layout_result(host).unwrap(), published);
+        assert_eq!(tree.published_local_frame().unwrap().revision(), before);
+        let mut full = UiTree::new_layout(column.clone(), 0).unwrap();
+        full.set_frame_build_policy(FrameBuildPolicy::Full);
+        let host = full
+            .append_layout(
+                full.root(),
+                column
+                    .clone()
+                    .padding(LayoutEdges::all(LayoutLength::Px(5.0))),
+                0,
+            )
+            .unwrap();
+        let leaf = full.append_layout(host, LayoutStyle::row(), 0).unwrap();
+        full.append_layout(
+            full.root(),
+            LayoutStyle::row()
+                .size(LayoutDimension::Px(20.0), LayoutDimension::Px(10.0))
+                .flex_shrink(0.0),
+            0xff0000ff,
+        )
+        .unwrap();
+        let mut tx = Transaction::default();
+        tx.text(leaf, Some(paint.clone()));
+        full.commit(tx, BackendCapabilities::default()).unwrap();
+        let actual = pixels(frame.resolve());
+        assert!(actual.chunks_exact(4).any(|p| p[1] > 0 && p[2] > 0));
+        assert_eq!(
+            actual,
+            pixels(full.frame_in_viewport(constraints, [300.0, 700.0]).unwrap())
+        );
+        old.get_or_insert((frame, actual));
+    }
+    drop((tree, system, raster, paragraph, paint));
+    let (frame, expected) = old.unwrap();
+    assert_eq!(pixels(frame.resolve()), expected);
 }
 
 #[derive(Debug)]

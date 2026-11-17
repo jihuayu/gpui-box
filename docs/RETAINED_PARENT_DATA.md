@@ -1,5 +1,9 @@
 # Immutable child metadata for owned parent layouts
 
+Follow-up: [pure parent metrics](RETAINED_DRY_PARENT_MEASURE.md) reads the same
+authored child metadata and enforced assignments without a placement list;
+final layout still validates exact metric agreement. General RenderBox remains open.
+
 Status: experimental framework contract, 2026-11-17. Extends
 [independent allocations](RETAINED_PARENT_ALLOCATION_BUILDERS.md) and
 [mixed Flex composition](RETAINED_MIXED_ALLOCATION_BUILDERS.md). Complete

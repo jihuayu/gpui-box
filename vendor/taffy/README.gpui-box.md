@@ -12,6 +12,13 @@ local test artifacts and ignored.
 
 ## Local changes
 
+- Optional custom-parent pure metrics avoid complete placement plans during
+  ComputeSize and are checked against the final plan's size/baselines. The
+  measure_node_with_input API forces ComputeSize with explicit parent bases and
+  exact-cache/sticky-error handling; ordinary baseline/hidden probes may still
+  use scratch layout writes, so framework public queries run on a clone. See
+  [dry parent contract](../../docs/RETAINED_DRY_PARENT_MEASURE.md).
+
 - Immutable opaque direct-child parent data lives in a sparse map with
   clone/hidden/reparent/remove/clear lifetime and identity-aware invalidation.
   CustomLayout allocation now receives a read-only count/data view, and measured

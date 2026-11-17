@@ -98,9 +98,28 @@ pub struct CustomLayoutOutput {
     pub placements: Vec<CustomPlacement>,
 }
 
+/// Pure content measurement, without child placements or published geometry.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CustomMeasureOutput {
+    /// Content-box dimensions; preserve every known dimension exactly.
+    pub size: Size<f32>,
+    /// Content-box baselines, subject to the same validity as layout output.
+    pub baselines: Baselines,
+}
+
 /// Immutable, repeatable layout snapshot. The engine may invoke this multiple
 /// times for intrinsic queries and final allocation, or skip it on cache hits.
 pub trait CustomLayout: core::fmt::Debug + Send + Sync {
+    /// Optional size/baseline-only query. None falls back to the complete plan.
+    /// Uses the same enforced slots, metadata and purity contract as layout.
+    /// A final layout must agree with Some at the same final content input.
+    fn measure(
+        &self,
+        _input: CustomLayoutInput,
+        _children: &mut dyn CustomLayoutChildren,
+    ) -> Result<Option<CustomMeasureOutput>, TaffyError> {
+        Ok(None)
+    }
     /// Independent assignments from the incoming border-box input, before host
     /// measurement/sizing. Only child order/count and immutable parent data are
     /// observable. No child styles or measurement capability is given.

@@ -65,7 +65,7 @@ impl ChildLayoutInput {
             percentage_basis: from_size(input.parent_size),
         }
     }
-    fn to_taffy(self) -> Result<taffy::LayoutInput, Error> {
+    pub(super) fn to_taffy(self) -> Result<taffy::LayoutInput, Error> {
         self.constraints.validate()?;
         if [self.percentage_basis.width, self.percentage_basis.height]
             .iter()
@@ -152,8 +152,29 @@ pub struct ParentLayoutOutput {
     pub placements: Vec<ParentPlacement>,
 }
 
+/// Pure content metrics. A dry query owns no placement plan and publishes no
+/// geometry. Known content dimensions and baseline validity match layout().
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ParentMeasureOutput {
+    pub size: [f32; 2],
+    pub baseline: Option<f32>,
+    pub last_baseline: Option<f32>,
+}
+
 /// Pure owned snapshot, called repeatedly for sizing queries and allocation.
 /// It must not read mutable application state or depend on invocation count.
+pub trait ParentMeasure: std::fmt::Debug + Send + Sync + 'static {
+    /// Read the same enforced slots and immutable metadata as the full layout.
+    /// At the same final content input, metrics must agree exactly with layout.
+    fn measure(
+        &self,
+        input: ParentLayoutInput,
+        children: &mut dyn ParentLayoutChildren,
+    ) -> Result<ParentMeasureOutput, Error>;
+}
+
+/// Pure complete parent plan; an optional separate ParentMeasure phase can
+/// answer size queries without constructing the placement list.
 pub trait ParentLayout: std::fmt::Debug + Send + Sync + 'static {
     fn layout(
         &self,
@@ -252,6 +273,7 @@ pub trait ParentAllocationLayout: std::fmt::Debug + Send + Sync + 'static {
 #[derive(Clone, Debug)]
 pub struct ParentLayoutSnapshot {
     layout: Arc<dyn ParentLayout>,
+    measure: Option<Arc<dyn ParentMeasure>>,
     inline: Option<Arc<dyn ParentInlineLayout>>,
     allocation: Option<Arc<dyn ParentAllocationLayout>>,
 }
@@ -259,9 +281,19 @@ impl ParentLayoutSnapshot {
     pub fn new(delegate: impl ParentLayout) -> Self {
         Self {
             layout: Arc::new(delegate),
+            measure: None,
             inline: None,
             allocation: None,
         }
+    }
+    /// Install pure content measurement. Complete final plans are still
+    /// validated against its metrics at the same final content input.
+    pub fn with_measure(mut self, measure: impl ParentMeasure) -> Self {
+        self.measure = Some(Arc::new(measure));
+        self
+    }
+    pub fn has_measure(&self) -> bool {
+        self.measure.is_some()
     }
     /// Install a separate width-only phase. The framework enforces its tight
     /// assignments; this is not an unchecked declaration about layout().
@@ -290,6 +322,11 @@ impl ParentLayoutSnapshot {
 impl PartialEq for ParentLayoutSnapshot {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.layout, &other.layout)
+            && match (&self.measure, &other.measure) {
+                (Some(a), Some(b)) => Arc::ptr_eq(a, b),
+                (None, None) => true,
+                _ => false,
+            }
             && match (&self.inline, &other.inline) {
                 (Some(a), Some(b)) => Arc::ptr_eq(a, b),
                 (None, None) => true,
@@ -370,6 +407,36 @@ impl ParentLayoutChildren for Children<'_> {
 }
 #[derive(Debug)]
 struct Adapter(ParentLayoutSnapshot);
+impl Adapter {
+    fn inline_slots(
+        &self,
+        input: ParentLayoutInput,
+        count: usize,
+    ) -> Result<Option<Vec<ChildInlineAllocation>>, taffy::TaffyError> {
+        self.0
+            .inline
+            .as_ref()
+            .map(|planner| {
+                let slots = planner.allocate(
+                    ParentInlineInput {
+                        known_width: input.known_size.width,
+                        available: input.available.width,
+                        percentage_basis: input.percentage_basis.width,
+                    },
+                    count,
+                )?;
+                if slots.len() != count {
+                    return Err(Error::InvalidParentLayout);
+                }
+                for slot in &slots {
+                    slot.validate()?;
+                }
+                Ok(slots)
+            })
+            .transpose()
+            .map_err(|_: Error| taffy::TaffyError::InvalidCustomLayout)
+    }
+}
 struct AllocationChildren<'a>(&'a dyn taffy::tree::CustomAllocationChildren);
 impl ParentAllocationChildren for AllocationChildren<'_> {
     fn len(&self) -> usize {
@@ -380,6 +447,42 @@ impl ParentAllocationChildren for AllocationChildren<'_> {
     }
 }
 impl taffy::tree::CustomLayout for Adapter {
+    fn measure(
+        &self,
+        input: taffy::tree::CustomLayoutInput,
+        children: &mut dyn taffy::tree::CustomLayoutChildren,
+    ) -> Result<Option<taffy::tree::CustomMeasureOutput>, taffy::TaffyError> {
+        let Some(measure) = &self.0.measure else {
+            return Ok(None);
+        };
+        let input = ParentLayoutInput {
+            known_size: from_size(input.known_size),
+            available: from_size(input.available.map(space)),
+            percentage_basis: from_size(input.percentage_basis),
+        };
+        let inline = self.inline_slots(input, children.len())?;
+        measure
+            .measure(
+                input,
+                &mut Children {
+                    inner: children,
+                    inline: inline.as_deref(),
+                },
+            )
+            .map(|output| {
+                Some(taffy::tree::CustomMeasureOutput {
+                    size: Size {
+                        width: output.size[0],
+                        height: output.size[1],
+                    },
+                    baselines: taffy::Baselines {
+                        first: output.baseline,
+                        last: output.last_baseline,
+                    },
+                })
+            })
+            .map_err(|_| taffy::TaffyError::InvalidCustomLayout)
+    }
     fn allocate(
         &self,
         input: taffy::LayoutInput,
@@ -418,29 +521,7 @@ impl taffy::tree::CustomLayout for Adapter {
             available: from_size(input.available.map(space)),
             percentage_basis: from_size(input.percentage_basis),
         };
-        let inline = self
-            .0
-            .inline
-            .as_ref()
-            .map(|planner| {
-                let slots = planner.allocate(
-                    ParentInlineInput {
-                        known_width: input.known_size.width,
-                        available: input.available.width,
-                        percentage_basis: input.percentage_basis.width,
-                    },
-                    children.len(),
-                )?;
-                if slots.len() != children.len() {
-                    return Err(Error::InvalidParentLayout);
-                }
-                for slot in &slots {
-                    slot.validate()?;
-                }
-                Ok(slots)
-            })
-            .transpose()
-            .map_err(|_: Error| taffy::TaffyError::InvalidCustomLayout)?;
+        let inline = self.inline_slots(input, children.len())?;
         let output = self
             .0
             .layout
@@ -492,6 +573,8 @@ impl taffy::tree::CustomLayout for Adapter {
     }
 }
 
+#[cfg(test)]
+mod dry_tests;
 #[cfg(test)]
 mod inline_tests;
 #[cfg(test)]

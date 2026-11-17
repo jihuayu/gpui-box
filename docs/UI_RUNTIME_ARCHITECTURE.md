@@ -328,6 +328,14 @@ typed sink、事务合并、缓存失效、reparent/keyed 生命周期沿正常�
 它支持父算法定义权重/角色等输入，不开放任意 child-style/intrinsic 反馈；泛型数据
 尚无跨语言序列化 ABI/字节预算，clone/存储/保守 relayout 成本增加，无性能收益声明。
 
+补充 [pure parent metrics](RETAINED_DRY_PARENT_MEASURE.md)：ParentLayoutSnapshot
+可选 with_measure(ParentMeasure)，尺寸探测返回 content size/首末 baseline 而不构造
+custom placement vector；最终 layout 对同一 final content input 校验一致性。显式
+dry_measure_node 接收 child bounds/space/percentage bases，在私有内核副本上强制
+ComputeSize；原 full-root measure API 保留。独立分配/metadata 在两阶段同样强制，
+仍无完整 RenderBox/普通容器 intrinsic baseline 一致性承诺。private clone 与末次
+metrics 校验成本保留，没有帧时/p99 收益结论。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。
