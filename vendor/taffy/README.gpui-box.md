@@ -162,6 +162,12 @@ full CSS baseline conformance remain open. See the
 
 ## Verification
 
+Explicit baseline-complete direct-child queries now reuse final container
+arithmetic under scoped geometry/cache/observation/OOF write suppression.
+Size-only queries retain their weaker baseline contract. No persistent cache or
+per-node field is added; explicit queries can repeat considerable layout work.
+See [contract and limits](../../docs/RETAINED_DRY_BASELINE_QUERY.md).
+
 ```powershell
 mise exec -- cargo test --manifest-path vendor/taffy/Cargo.toml --offline --lib
 mise exec -- cargo test --manifest-path vendor/taffy/Cargo.toml --offline --no-default-features --features std,taffy_tree,flexbox,grid,block_layout,float_layout,content_size --lib

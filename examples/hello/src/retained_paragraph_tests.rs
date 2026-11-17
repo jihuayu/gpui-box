@@ -838,6 +838,73 @@ fn atomic_local_builder_and_sparse_text_material_match_full_glyph_pixels() {
 
 #[derive(Debug)]
 struct ParagraphParent;
+#[derive(Debug)]
+struct BaselineParagraphParent;
+impl ParentMeasure for BaselineParagraphParent {
+    fn measure(
+        &self,
+        input: ParentLayoutInput,
+        children: &mut dyn ParentLayoutChildren,
+    ) -> Result<ParentMeasureOutput, Error> {
+        let child = children.measure_baselines(
+            0,
+            ChildLayoutInput {
+                constraints: LayoutConstraints::new(
+                    input.available.width,
+                    LayoutAvailableSpace::Unbounded,
+                )
+                .with_bounds(
+                    input
+                        .known_size
+                        .width
+                        .map(|w| BoxConstraints::new([w, 0.0], [w, f32::INFINITY]))
+                        .unwrap_or(BoxConstraints::UNBOUNDED),
+                ),
+                percentage_basis: input.percentage_basis,
+            },
+        )?;
+        Ok(ParentMeasureOutput {
+            size: [
+                input.known_size.width.unwrap_or(child.size[0]),
+                input.known_size.height.unwrap_or(child.size[1]),
+            ],
+            baseline: child.baseline,
+            last_baseline: child.last_baseline,
+        })
+    }
+}
+impl ParentLayout for BaselineParagraphParent {
+    fn layout(
+        &self,
+        input: ParentLayoutInput,
+        children: &mut dyn ParentLayoutChildren,
+    ) -> Result<ParentLayoutOutput, Error> {
+        let metrics = self.measure(input, children)?;
+        Ok(ParentLayoutOutput {
+            size: metrics.size,
+            baseline: metrics.baseline,
+            last_baseline: metrics.last_baseline,
+            placements: vec![ParentPlacement {
+                child: 0,
+                input: ChildLayoutInput {
+                    constraints: LayoutConstraints::new(
+                        input.available.width,
+                        LayoutAvailableSpace::Unbounded,
+                    )
+                    .with_bounds(
+                        input
+                            .known_size
+                            .width
+                            .map(|w| BoxConstraints::new([w, 0.0], [w, f32::INFINITY]))
+                            .unwrap_or(BoxConstraints::UNBOUNDED),
+                    ),
+                    percentage_basis: input.percentage_basis,
+                },
+                origin: [0.0; 2],
+            }],
+        })
+    }
+}
 impl ParentMeasure for ParagraphParent {
     fn measure(
         &self,
@@ -917,6 +984,13 @@ impl ParentLayout for ParagraphParent {
 
 #[test]
 fn dry_parent_measure_queries_and_final_real_glyphs_match_full_flex() {
+    dry_parent_glyph_case(false);
+}
+#[test]
+fn dry_baseline_queries_through_nested_flex_match_real_glyphs_and_last_baseline() {
+    dry_parent_glyph_case(true);
+}
+fn dry_parent_glyph_case(nested_baselines: bool) {
     let system = text_system();
     let paragraph = shape(&system, "one two three four five six 中文段落");
     let mut raster = GlyphRasterizer::new(Arc::clone(&system));
@@ -936,7 +1010,15 @@ fn dry_parent_measure_queries_and_final_real_glyphs_match_full_flex() {
             0,
         )
         .unwrap();
-    let leaf = tree.append_layout(host, LayoutStyle::row(), 0).unwrap();
+    let text_parent = if nested_baselines {
+        tree.append_layout(host, column.clone().align_items(LayoutAlignItems::Start), 0)
+            .unwrap()
+    } else {
+        host
+    };
+    let leaf = tree
+        .append_layout(text_parent, LayoutStyle::row(), 0)
+        .unwrap();
     let footer = tree
         .append_layout(
             root,
@@ -949,7 +1031,11 @@ fn dry_parent_measure_queries_and_final_real_glyphs_match_full_flex() {
     let mut tx = Transaction::default();
     tx.parent_layout(
         host,
-        Some(ParentLayoutSnapshot::new(ParagraphParent).with_measure(ParagraphParent)),
+        Some(if nested_baselines {
+            ParentLayoutSnapshot::new(BaselineParagraphParent).with_measure(BaselineParagraphParent)
+        } else {
+            ParentLayoutSnapshot::new(ParagraphParent).with_measure(ParagraphParent)
+        }),
     );
     tx.text(leaf, Some(paint.clone()));
     tree.commit(tx, BackendCapabilities::default()).unwrap();
@@ -999,6 +1085,15 @@ fn dry_parent_measure_queries_and_final_real_glyphs_match_full_flex() {
         );
         assert_eq!(frame.hit_test(6.0, 6.0), Some(leaf));
         let published = tree.layout_result(host).unwrap();
+        if nested_baselines {
+            let baseline_query = tree.dry_measure_node_baselines(host, input).unwrap();
+            assert_eq!(baseline_query, dry);
+            assert_eq!(dry.last_baseline, published.last_baseline);
+            assert_eq!(
+                dry.last_baseline,
+                Some(paragraph.layout(Some(width)).unwrap().last_baseline + 5.0)
+            );
+        }
         let before = frame.revision();
         let _ = tree
             .dry_measure_node(
@@ -1022,7 +1117,15 @@ fn dry_parent_measure_queries_and_final_real_glyphs_match_full_flex() {
                 0,
             )
             .unwrap();
-        let leaf = full.append_layout(host, LayoutStyle::row(), 0).unwrap();
+        let text_parent = if nested_baselines {
+            full.append_layout(host, column.clone().align_items(LayoutAlignItems::Start), 0)
+                .unwrap()
+        } else {
+            host
+        };
+        let leaf = full
+            .append_layout(text_parent, LayoutStyle::row(), 0)
+            .unwrap();
         full.append_layout(
             full.root(),
             LayoutStyle::row()

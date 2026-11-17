@@ -338,6 +338,9 @@ where
     pub(crate) layout_observer: LayoutObserver,
     layout_error: Option<TaffyError>,
     exact_measure: bool,
+    /// Complete baseline arithmetic without geometry/observation/cache writes.
+    /// Full-layout cache entries cannot be used: they imply placement exists.
+    scratch_baselines: bool,
 }
 
 impl<NodeContext, MeasureFunction, LayoutObserver> TaffyView<'_, NodeContext, MeasureFunction, LayoutObserver>
@@ -412,13 +415,13 @@ where
             // closure so that cached outputs already contain the processed candidate list.
             // Only full layout passes run it: measure passes must not write hoisted box layouts
             // (which would not be rewritten if the final layout pass is a cache hit).
-            if inputs.run_mode == RunMode::PerformLayout {
+            if inputs.run_mode == RunMode::PerformLayout && !tree.scratch_baselines {
                 compute_oof_layout(tree, node_id, &mut output);
             }
 
             output
         });
-        if inputs.run_mode == RunMode::PerformLayout {
+        if inputs.run_mode == RunMode::PerformLayout && !self.scratch_baselines {
             let style = &self.taffy.nodes[node_id.into()].style;
             if style.display != Display::None && style.contain.size_containment() == (Size { width: true, height: true }) {
                 self.taffy.contained_layout_inputs.insert(node_id.into(), inputs);
@@ -471,6 +474,9 @@ where
     LayoutObserver: FnMut(NodeId, &Layout, &Layout),
 {
     fn record_constraint_box_input(&mut self, node: NodeId, input: Option<LayoutInput>) {
+        if self.scratch_baselines {
+            return;
+        }
         if let Some(input) = input {
             self.taffy.constraint_box_inputs.insert(node.into(), input);
         } else {
@@ -478,6 +484,9 @@ where
         }
     }
     fn record_custom_child_inputs(&mut self, node: NodeId, inputs: Option<Vec<LayoutInput>>) {
+        if self.scratch_baselines {
+            return;
+        }
         if let Some(inputs) = inputs {
             self.taffy.custom_child_inputs.insert(node.into(), inputs.into());
         } else {
@@ -485,6 +494,9 @@ where
         }
     }
     fn clear_contained_layout_input(&mut self, node: NodeId) {
+        if self.scratch_baselines {
+            return;
+        }
         self.taffy.contained_layout_inputs.remove(node.into());
     }
     fn get_parent_data(&self, node: NodeId) -> Option<&crate::tree::CustomParentData> {
@@ -504,6 +516,9 @@ where
 
     #[inline(always)]
     fn set_unrounded_layout(&mut self, node_id: NodeId, layout: &Layout) {
+        if self.scratch_baselines {
+            return;
+        }
         let previous = &self.taffy.nodes[node_id.into()].unrounded_layout;
         (self.layout_observer)(node_id, previous, layout);
         self.taffy.nodes[node_id.into()].unrounded_layout = *layout;
@@ -521,6 +536,21 @@ where
         let output = crate::compute::constraint_box::layout_child(self, node, inputs);
         self.exact_measure = previous;
         output
+    }
+
+    fn compute_custom_child_baselines(&mut self, node: NodeId, mut inputs: LayoutInput) -> Option<LayoutOutput> {
+        let previous = self.scratch_baselines;
+        let previous_exact = self.exact_measure;
+        self.scratch_baselines = true;
+        self.exact_measure = true;
+        inputs.run_mode = RunMode::PerformLayout;
+        inputs.axis = crate::RequestedAxis::Both;
+        inputs.vertical_margins_are_collapsible = crate::Line::FALSE;
+        let output = crate::compute::constraint_box::layout_child(self, node, inputs);
+        self.scratch_baselines = previous;
+        self.exact_measure = previous_exact;
+        // Scratch out-of-flow candidates and overflow are not published data.
+        Some(LayoutOutput::from_sizes_and_baselines(output.size, crate::Rect::ZERO, output.baselines))
     }
 
     fn compute_child_layout(&mut self, node_id: NodeId, inputs: LayoutInput) -> LayoutOutput {
@@ -550,11 +580,17 @@ where
 
     #[inline(always)]
     fn clear_hoisted_children(&mut self, node_id: NodeId) {
+        if self.scratch_baselines {
+            return;
+        }
         self.taffy.nodes[node_id.into()].hoisted_children.clear();
     }
 
     #[inline(always)]
     fn add_hoisted_children(&mut self, node_id: NodeId, hoisted: &[NodeId]) {
+        if self.scratch_baselines {
+            return;
+        }
         self.taffy.nodes[node_id.into()].hoisted_children.extend_from_slice(hoisted);
     }
 
@@ -570,16 +606,22 @@ where
     LayoutObserver: FnMut(NodeId, &Layout, &Layout),
 {
     fn cache_get(&mut self, node_id: NodeId, input: &LayoutInput) -> Option<LayoutOutput> {
+        if self.scratch_baselines {
+            return None;
+        }
         self.taffy.cached_layout(node_id, input, self.exact_measure)
     }
 
     fn cache_store(&mut self, node_id: NodeId, input: &LayoutInput, layout_output: LayoutOutput) {
-        if self.layout_error.is_none() {
+        if self.layout_error.is_none() && !self.scratch_baselines {
             self.taffy.store_cached_layout(node_id, input, layout_output, self.exact_measure);
         }
     }
 
     fn cache_clear(&mut self, node_id: NodeId) {
+        if self.scratch_baselines {
+            return;
+        }
         self.taffy.nodes[node_id.into()].cache.clear();
         self.taffy.exact_measure_caches.remove(node_id.into());
         self.taffy.exact_layout_inputs.remove(node_id.into());
@@ -675,6 +717,9 @@ where
 
     #[inline(always)]
     fn set_detailed_grid_info(&mut self, node_id: NodeId, detailed_grid_info: DetailedGridInfo) {
+        if self.scratch_baselines {
+            return;
+        }
         self.taffy.nodes[node_id.into()].detailed_layout_info = DetailedLayoutInfo::Grid(Box::new(detailed_grid_info));
     }
 }
@@ -1325,7 +1370,9 @@ impl<NodeContext> TaffyTree<NodeContext> {
         // metadata omitted by ordinary CSS size caches, including through a
         // cached Flex ancestor. Keep exact keys throughout those invocations.
         let exact_measure = !self.custom_layouts.is_empty() || !self.size_contained_nodes.is_empty();
-        let mut taffy_view = TaffyView { taffy: self, measure_function, layout_observer, layout_error: None, exact_measure };
+        let mut taffy_view = TaffyView {
+            taffy: self, measure_function, layout_observer, layout_error: None, exact_measure, scratch_baselines: false,
+        };
         crate::compute::compute_root_layout_with_bounds(&mut taffy_view, node_id, available_space, bounds);
         if let Some(error) = taffy_view.layout_error { return Err(error); }
         if use_rounding {
@@ -1341,8 +1388,37 @@ impl<NodeContext> TaffyTree<NodeContext> {
     pub fn measure_node_with_input<MeasureFunction>(
         &mut self,
         node_id: NodeId,
+        inputs: LayoutInput,
+        measure_function: MeasureFunction,
+    ) -> TaffyResult<LayoutOutput>
+    where
+        MeasureFunction: FnMut(LayoutInput, NodeId, Option<&mut NodeContext>, &Style) -> LayoutOutput,
+    {
+        self.query_node_with_input(node_id, inputs, measure_function, false)
+    }
+
+    /// Complete baseline metrics under the same direct-child input contract.
+    /// Executes ordinary final placement arithmetic with geometry, observation,
+    /// OOF and cache writes suppressed. Does not reuse size-only/final caches.
+    /// A raw mutable NodeContext callback can still mutate its own context.
+    pub fn measure_node_baselines_with_input<MeasureFunction>(
+        &mut self,
+        node_id: NodeId,
+        inputs: LayoutInput,
+        measure_function: MeasureFunction,
+    ) -> TaffyResult<LayoutOutput>
+    where
+        MeasureFunction: FnMut(LayoutInput, NodeId, Option<&mut NodeContext>, &Style) -> LayoutOutput,
+    {
+        self.query_node_with_input(node_id, inputs, measure_function, true)
+    }
+
+    fn query_node_with_input<MeasureFunction>(
+        &mut self,
+        node_id: NodeId,
         mut inputs: LayoutInput,
         measure_function: MeasureFunction,
+        baselines: bool,
     ) -> TaffyResult<LayoutOutput>
     where
         MeasureFunction: FnMut(LayoutInput, NodeId, Option<&mut NodeContext>, &Style) -> LayoutOutput,
@@ -1361,8 +1437,14 @@ impl<NodeContext> TaffyTree<NodeContext> {
         inputs.run_mode = RunMode::ComputeSize;
         inputs.vertical_margins_are_collapsible = crate::Line::FALSE;
         let exact_measure = !self.custom_layouts.is_empty() || !self.size_contained_nodes.is_empty();
-        let mut view = TaffyView { taffy: self, measure_function, layout_observer: |_, _, _| {}, layout_error: None, exact_measure };
-        let output = view.compute_custom_child_layout(node_id, inputs);
+        let mut view = TaffyView {
+            taffy: self, measure_function, layout_observer: |_, _, _| {}, layout_error: None, exact_measure, scratch_baselines: false,
+        };
+        let output = if baselines {
+            view.compute_custom_child_baselines(node_id, inputs).ok_or(TaffyError::InvalidCustomLayout)?
+        } else {
+            view.compute_custom_child_layout(node_id, inputs)
+        };
         if let Some(error) = view.layout_error { return Err(error); }
         Ok(output)
     }
@@ -1420,6 +1502,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
             layout_observer: |_, _, _| {},
             layout_error: None,
             exact_measure: false,
+            scratch_baselines: false,
         }
     }
 }

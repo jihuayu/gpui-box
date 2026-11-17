@@ -256,6 +256,13 @@ impl LogicalUi {
     ) -> Result<ChildLayoutResult, Error> {
         self.ui.dry_measure_node(node, input)
     }
+    pub fn dry_measure_node_baselines(
+        &self,
+        node: NodeId,
+        input: ChildLayoutInput,
+    ) -> Result<ChildLayoutResult, Error> {
+        self.ui.dry_measure_node_baselines(node, input)
+    }
     pub fn measure_with_constraints(
         &mut self,
         constraints: LayoutConstraints,

@@ -209,6 +209,14 @@ pub trait LayoutPartialTree: TraversePartialTree {
         self.compute_child_layout(node, inputs)
     }
 
+    /// Explicit complete baseline query. Unlike size-only measurement, ordinary
+    /// containers must run placement arithmetic. Adapters must isolate layout
+    /// writes/cache entries if used during a measurement. None means unsupported;
+    /// an adapter must explicitly implement this capability before it is used.
+    fn compute_custom_child_baselines(&mut self, _node: NodeId, _inputs: LayoutInput) -> Option<LayoutOutput> {
+        None
+    }
+
     /// Records the final child-slot input of a parent-owned constraint box.
     /// This is not an intrinsic probe or a child layout result. `None` retires
     /// the observation when the box is hidden. Other tree adapters may ignore it.

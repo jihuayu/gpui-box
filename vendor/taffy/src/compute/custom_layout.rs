@@ -55,6 +55,15 @@ impl<T: LayoutPartialTree> CustomLayoutChildren for Children<'_, T> {
         let id = self.tree.get_child_id(self.parent, child);
         Ok(self.tree.compute_custom_child_layout(id, input))
     }
+    fn measure_baselines(&mut self, child: usize, mut input: LayoutInput) -> Result<LayoutOutput, TaffyError> {
+        input = self.allocation(child)?.unwrap_or(input);
+        if child >= self.len() || !valid_input(&input) {
+            return Err(TaffyError::InvalidCustomLayout);
+        }
+        input.vertical_margins_are_collapsible = Line::FALSE;
+        let id = self.tree.get_child_id(self.parent, child);
+        self.tree.compute_custom_child_baselines(id, input).ok_or(TaffyError::InvalidCustomLayout)
+    }
 }
 
 fn valid_input(input: &LayoutInput) -> bool {

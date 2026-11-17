@@ -87,8 +87,10 @@ and may warm the tree's exact caches. Ordinary Flex baseline probes or hidden
 algorithms can still write internal scratch layout, so raw callers must clone
 for isolation. The framework already does. Hidden custom nodes invoke neither
 metric nor full parent callbacks. This API does not promise all ordinary
-container algorithms return full final-layout baselines during ComputeSize;
-full general intrinsic/baseline query conformance remains open.
+container algorithms return full final-layout baselines during ComputeSize.
+An [explicit complete baseline query](RETAINED_DRY_BASELINE_QUERY.md) now exposes
+the supported final algorithm's metrics separately; full general intrinsic/
+baseline conformance remains open.
 
 ```mermaid
 flowchart TD
@@ -152,8 +154,9 @@ offscreen GPU pixels. The finite controls do not expand independent browser
 conformance or prove general metric/full callback equivalence.
 
 Still open: complete RenderBox/dry/intrinsic contracts for arbitrary algorithms,
-ordinary container baseline queries, arbitrary child-style allocation, uncontained
-ordinary Flex feedback builders, general scheduler, incremental candidates/proofs/
+full baseline conformance beyond the explicit supported-kernel query, arbitrary
+child-style allocation, uncontained ordinary Flex feedback builders, general
+scheduler, incremental candidates/proofs/
 rollback and global budgets. Broad Flex/intrinsic/percentage/cyclic/writing-mode/
 precision coverage, primitive/resource/effect/native lifecycle, modern GPU effects,
 smooth continuous CPU frames, sustained60/120Hz and display-visible input tails

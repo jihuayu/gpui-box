@@ -379,6 +379,13 @@ impl ReactiveUi {
     ) -> Result<ChildLayoutResult, Error> {
         self.tree.dry_measure_node(node, input)
     }
+    pub fn dry_measure_node_baselines(
+        &self,
+        node: NodeId,
+        input: ChildLayoutInput,
+    ) -> Result<ChildLayoutResult, Error> {
+        self.tree.dry_measure_node_baselines(node, input)
+    }
 
     pub fn frame_in_viewport(
         &mut self,

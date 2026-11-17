@@ -74,6 +74,12 @@ pub trait CustomLayoutChildren {
     }
     /// The engine forces ComputeSize and disables collapsing margins.
     fn measure(&mut self, child: usize, input: LayoutInput) -> Result<LayoutOutput, TaffyError>;
+    /// Explicit baseline-complete query under the same enforced assignment.
+    /// Tree adapters must isolate final placement/cache writes; the default
+    /// reports unsupported rather than silently returning size-only metadata.
+    fn measure_baselines(&mut self, _child: usize, _input: LayoutInput) -> Result<LayoutOutput, TaffyError> {
+        Err(TaffyError::InvalidCustomLayout)
+    }
 }
 
 /// One direct child's parent-owned border-box assignment and physical offset.

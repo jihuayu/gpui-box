@@ -339,6 +339,18 @@ In the four-width client control, complete plans fall from26 to4, with26 pure
 metric queries; this is not a wall-time claim. Final regression: retained359;
 text/WGPU392 passed/15 ignored; explicit dry9 including actual GPU; hello30
 passed/2 ignored; Taffy209/203. Library Clippy and kernel feature checks pass.
+The [explicit baseline query](RETAINED_DRY_BASELINE_QUERY.md) separates complete
+supported-kernel first/last metrics from size-only measurement. Public UI queries
+and custom parent callbacks reuse final placement arithmetic under scoped
+geometry/cache/observation/OOF write suppression. No baseline-specific layout
+algorithm, persistent cache, NodeData/GPU/packet fields or performance claim is
+introduced; queries may do substantial repeated work. See
+[validation](performance/2026-11-17-dry-baselines/README.md). Full RenderBox,
+baseline/intrinsic conformance and remaining RFC gates stay open.
+Final regression: retained364; text/WGPU397 passed/16 ignored; explicit baseline6
+including real GPU; hello31 passed/2 ignored; Taffy212/206. Library Clippy and
+kernel feature checks pass. An initial concurrent LLVM out-of-memory compile
+was rerun sequentially; it is not counted as a passed test invocation.
 The [validation-cache stage](RETAINED_VALIDATION_CACHE.md) reuses consumer checks
 for cache-owned immutable pages and stable node indices, with full fallback for
 identity/order/scale changes and complete effect-reference checks on effect-map edits.

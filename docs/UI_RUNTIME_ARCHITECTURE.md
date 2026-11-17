@@ -336,6 +336,13 @@ ComputeSize；原 full-root measure API 保留。独立分配/metadata 在两阶
 仍无完整 RenderBox/普通容器 intrinsic baseline 一致性承诺。private clone 与末次
 metrics 校验成本保留，没有帧时/p99 收益结论。
 
+补充 [显式完整基线查询](RETAINED_DRY_BASELINE_QUERY.md)：
+dry_measure_node_baselines / children.measure_baselines 复用同输入最终布局算术，
+在 scoped scratch 模式禁止 geometry/cache/builder observation/OOF 写入。
+普通 size query 保持原快速行为；需要完整首末 baseline 的父算法显式选择。
+查询可能执行后代完整 plan，跳过缓存，仍有 tree clone；无性能改善声明。
+返回内核已支持的最终指标，不补齐 Grid last-baseline、竖排或完整 CSS conformance。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

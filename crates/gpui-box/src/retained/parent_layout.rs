@@ -126,11 +126,23 @@ pub trait ParentLayoutChildren {
     fn allocation(&self, _child: usize) -> Result<Option<ChildLayoutInput>, Error> {
         Ok(None)
     }
+    /// Size-oriented query. Baselines are only those available from the size
+    /// algorithm; use measure_baselines when complete final metrics are needed.
     fn measure(
         &mut self,
         child: usize,
         input: ChildLayoutInput,
     ) -> Result<ChildLayoutResult, Error>;
+    /// Complete first/last baseline query for the same child allocation. This
+    /// may run ordinary container placement arithmetic without publishing it.
+    /// The default is unsupported for external measure-only implementations.
+    fn measure_baselines(
+        &mut self,
+        _child: usize,
+        _input: ChildLayoutInput,
+    ) -> Result<ChildLayoutResult, Error> {
+        Err(Error::InvalidParentLayout)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -404,6 +416,22 @@ impl ParentLayoutChildren for Children<'_> {
             last_baseline: result.baselines.last,
         })
     }
+    fn measure_baselines(
+        &mut self,
+        child: usize,
+        input: ChildLayoutInput,
+    ) -> Result<ChildLayoutResult, Error> {
+        let input = self.allocation(child)?.unwrap_or(
+            self.inline_allocation(child)?
+                .map_or(input, |slot| slot.apply(input)),
+        );
+        let result = self.inner.measure_baselines(child, input.to_taffy()?)?;
+        Ok(ChildLayoutResult {
+            size: [result.size.width, result.size.height],
+            baseline: result.baselines.first,
+            last_baseline: result.baselines.last,
+        })
+    }
 }
 #[derive(Debug)]
 struct Adapter(ParentLayoutSnapshot);
@@ -573,6 +601,8 @@ impl taffy::tree::CustomLayout for Adapter {
     }
 }
 
+#[cfg(test)]
+mod dry_baseline_tests;
 #[cfg(test)]
 mod dry_tests;
 #[cfg(test)]
