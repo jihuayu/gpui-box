@@ -122,7 +122,9 @@ fn validate_measure(input: CustomLayoutInput, output: CustomMeasureOutput) -> Re
         || [output.baselines.first, output.baselines.last]
             .iter()
             .flatten()
-            .any(|v| !v.is_finite() || *v < 0.0 || *v > output.size.height)
+            // Container baselines can lie outside a fixed host's content box
+            // (overflowing descendants, negative placements, alignment).
+            .any(|v| !v.is_finite())
     {
         return Err(TaffyError::InvalidCustomLayout);
     }
@@ -524,8 +526,17 @@ pub fn compute_custom_layout(
             last: metrics.baselines.last.map(|v| v + inset.top),
         }
     };
+    if [output.baselines.first, output.baselines.last].iter().flatten().any(|v| !v.is_finite()) {
+        return Err(TaffyError::InvalidCustomLayout);
+    }
     if inputs.run_mode != RunMode::PerformLayout {
         return Ok(output);
+    }
+    // The leaf helper computes host sizing, not container overflow. Its
+    // measured content dimensions are desired size, not a painted child box.
+    #[cfg(feature = "content_size")]
+    {
+        output.scrollable_overflow_rect = Rect::ZERO;
     }
     for placement in final_plan.ok_or(TaffyError::InvalidCustomLayout)?.placements {
         let child = tree.get_child_id(node, placement.child);
@@ -595,6 +606,11 @@ pub fn compute_custom_layout(
         let _ = child_contain;
         child_output.oof_candidates.translate(location);
         output.oof_candidates.append(&mut child_output.oof_candidates);
+    }
+    #[cfg(feature = "content_size")]
+    if overflow.x.is_scroll_container() || overflow.y.is_scroll_container() {
+        output.scrollable_overflow_rect.right += if rtl { padding.left } else { padding.right };
+        output.scrollable_overflow_rect.bottom += padding.bottom;
     }
     output.oof_positioning_area = Some(crate::OofPositioningArea {
         size: (output.size - border.sum_axes() - gutter).map(|v| v.max(0.0)),

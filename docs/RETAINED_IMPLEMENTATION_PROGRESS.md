@@ -351,6 +351,19 @@ Final regression: retained364; text/WGPU397 passed/16 ignored; explicit baseline
 including real GPU; hello31 passed/2 ignored; Taffy212/206. Library Clippy and
 kernel feature checks pass. An initial concurrent LLVM out-of-memory compile
 was rerun sequentially; it is not counted as a passed test invocation.
+The [owned container overflow fix](RETAINED_OWNED_CONTAINER_OVERFLOW.md) replaces
+the host sizing helper's phantom content extent with actual child contributions
+and scroll end padding once, for both custom parents and ConstraintBox. The prior
+baseline fixture now checks full LayoutResult equality. ParentMeasure/ParentLayout
+baselines are finite signed content offsets, including negative/beyond-height
+positions; fixed leaf intrinsic validation remains separate. Finite384 kernel
+controls, reachable OOF descendants, empty/hidden lifecycle, resolved/local scroll
+reclamping, cached descendants, hit/pixel and real text controls are recorded in
+[validation](performance/2026-11-17-owned-container-overflow/README.md).
+Final regression: retained366; text/WGPU399 passed/17 ignored; hello32 passed/2
+ignored; explicit owned-overflow3 including actual GPU passed; Taffy216/210.
+Library Clippy, kernel feature and diff checks pass. This is a correctness fix
+with no new frame-time or sustained-presentation qualification.
 The [validation-cache stage](RETAINED_VALIDATION_CACHE.md) reuses consumer checks
 for cache-owned immutable pages and stable node indices, with full fallback for
 identity/order/scale changes and complete effect-reference checks on effect-map edits.

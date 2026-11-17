@@ -655,6 +655,8 @@ pub mod detailed_info {
 
 #[cfg(all(test, feature = "taffy_tree", feature = "flexbox"))]
 mod bounds_tests;
+#[cfg(all(test, feature = "taffy_tree", feature = "flexbox", feature = "content_size"))]
+mod container_overflow_tests;
 
 #[cfg(test)]
 mod tests {

@@ -98,7 +98,8 @@ pub struct CustomPlacement {
 pub struct CustomLayoutOutput {
     /// Requested content size, before the host box model adds insets.
     pub size: Size<f32>,
-    /// Optional content-box baseline. Validated before publication.
+    /// Optional finite signed content-box baselines. Overflowing descendants
+    /// may place them outside the host's content height.
     pub baselines: Baselines,
     /// Placement order does not change retained paint or hit-test order.
     pub placements: Vec<CustomPlacement>,
@@ -109,7 +110,8 @@ pub struct CustomLayoutOutput {
 pub struct CustomMeasureOutput {
     /// Content-box dimensions; preserve every known dimension exactly.
     pub size: Size<f32>,
-    /// Content-box baselines, subject to the same validity as layout output.
+    /// Finite signed content-box baselines, as for layout output; not clamped
+    /// to content height.
     pub baselines: Baselines,
 }
 

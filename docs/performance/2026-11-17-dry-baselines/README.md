@@ -55,6 +55,9 @@ baseline3/5/3 updates match independent ordinary full location, size, first/last
 baseline and CPU pixels. The pre-existing custom-host overflow accumulation
 differs from ordinary Flex (the fixture reports right78 versus52), so complete
 LayoutResult equality is not claimed; this query does not return overflow.
+Follow-up: [actual owned overflow](../2026-11-17-owned-container-overflow/README.md)
+fixes the temporary host-sizing extent; that fixture now checks full LayoutResult
+equality. The preceding difference is historical evidence for this stage.
 
 Bundled Noto Sans CJK SC text at60/140/90/60 content widths passes through a real
 ordinary nested Flex and the custom parent. Pure metrics/final host/footer/hit,

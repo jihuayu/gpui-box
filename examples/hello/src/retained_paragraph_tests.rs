@@ -1150,6 +1150,138 @@ fn dry_parent_glyph_case(nested_baselines: bool) {
     assert_eq!(pixels(frame.resolve()), expected);
 }
 
+#[test]
+fn owned_parent_actual_text_overflow_reclamps_scroll_with_complete_glyph_output() {
+    let system = text_system();
+    let long = shape(&system, "one two three four five six 中文段落");
+    let short = shape(&system, "x");
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let long_paint = TextPaint {
+        resource: raster.prepare(long.clone(), 1.0).unwrap(),
+        color: 0x00ffffff,
+    };
+    let short_paint = TextPaint {
+        resource: raster.prepare(short.clone(), 1.0).unwrap(),
+        color: 0x00ffffff,
+    };
+    let host_style = LayoutStyle::column()
+        .size(LayoutDimension::Px(70.0), LayoutDimension::Px(50.0))
+        .padding(LayoutEdges::all(LayoutLength::Px(5.0)))
+        .align_items(LayoutAlignItems::Start)
+        .overflow(LayoutOverflow::Scroll, LayoutOverflow::Scroll)
+        .flex_shrink(0.0);
+    let mut tree = UiTree::new_layout(LayoutStyle::column(), 0).unwrap();
+    let host = tree
+        .append_layout(tree.root(), host_style.clone(), 0)
+        .unwrap();
+    let text = tree
+        .append_layout(
+            host,
+            LayoutStyle::row()
+                .size(LayoutDimension::Px(60.0), LayoutDimension::Auto)
+                .flex_shrink(0.0),
+            0,
+        )
+        .unwrap();
+    let mut full = UiTree::new_layout(LayoutStyle::column(), 0).unwrap();
+    full.set_frame_build_policy(FrameBuildPolicy::Full);
+    let ref_host = full.append_layout(full.root(), host_style, 0).unwrap();
+    let ref_text = full
+        .append_layout(
+            ref_host,
+            LayoutStyle::row()
+                .size(LayoutDimension::Px(60.0), LayoutDimension::Auto)
+                .flex_shrink(0.0),
+            0,
+        )
+        .unwrap();
+    let mut tx = Transaction::default();
+    tx.parent_layout(
+        host,
+        Some(
+            ParentLayoutSnapshot::new(BaselineParagraphParent)
+                .with_measure(BaselineParagraphParent),
+        ),
+    );
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    fn pixels(frame: FramePacket) -> Vec<u8> {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [140, 140],
+                scale: 1.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(4096).unwrap() {}
+        job.into_frame().unwrap().pixels().to_vec()
+    }
+    let mut old = None;
+    for (paragraph, paint) in [
+        (&long, &long_paint),
+        (&short, &short_paint),
+        (&long, &long_paint),
+    ] {
+        for (owner, host, text) in [(&mut tree, host, text), (&mut full, ref_host, ref_text)] {
+            let mut tx = Transaction::default();
+            tx.text(text, Some(paint.clone()));
+            tx.scroll(host, [1000.0; 2]);
+            tx.clip(
+                host,
+                Some(Rect {
+                    x: 0.0,
+                    y: 0.0,
+                    width: 70.0,
+                    height: 50.0,
+                }),
+            );
+            owner.commit(tx, BackendCapabilities::default()).unwrap();
+        }
+        let frame = tree.local_frame([140.0; 2]).unwrap();
+        let reference = full.frame([140.0; 2]).unwrap();
+        let height = paragraph.layout(Some(60.0)).unwrap().size[1];
+        assert_eq!(
+            tree.layout_result(host).unwrap().scrollable_overflow,
+            [0.0, 70.0, 0.0, height + 10.0]
+        );
+        assert_eq!(
+            tree.layout_result(host).unwrap(),
+            full.layout_result(ref_host).unwrap()
+        );
+        let y = 5.0 - (height + 10.0 - 50.0).max(0.0);
+        assert_eq!(
+            frame
+                .resolve()
+                .items
+                .iter()
+                .find(|item| item.node == text)
+                .unwrap()
+                .bounds
+                .y,
+            y
+        );
+        assert_eq!(frame.hit_test(6.0, 6.0), Some(text));
+        let actual = pixels(frame.resolve());
+        assert_eq!(actual, pixels(reference));
+        old.get_or_insert((frame, actual));
+    }
+    drop((
+        tree,
+        full,
+        system,
+        raster,
+        long,
+        short,
+        long_paint,
+        short_paint,
+    ));
+    let (frame, expected) = old.unwrap();
+    assert_eq!(pixels(frame.resolve()), expected);
+}
+
 #[derive(Debug)]
 struct HalfInline;
 impl ParentInlineLayout for HalfInline {

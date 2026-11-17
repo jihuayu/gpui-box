@@ -156,9 +156,11 @@ pub struct ParentPlacement {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ParentLayoutOutput {
     pub size: [f32; 2],
-    /// First horizontal baseline from the host's content-box top.
+    /// First horizontal baseline from the host's content-box top. Must be
+    /// finite; overflowing/negatively placed content can put it outside size.
     pub baseline: Option<f32>,
-    /// Last horizontal baseline from the host's content-box top.
+    /// Last horizontal baseline from the host's content-box top; finite, with
+    /// no clamp to the host's content height.
     pub last_baseline: Option<f32>,
     /// Every child, including hidden nodes, must occur exactly once.
     pub placements: Vec<ParentPlacement>,
@@ -169,7 +171,9 @@ pub struct ParentLayoutOutput {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ParentMeasureOutput {
     pub size: [f32; 2],
+    /// Finite signed content-box offset, not limited by host height.
     pub baseline: Option<f32>,
+    /// Finite signed content-box offset, not limited by host height.
     pub last_baseline: Option<f32>,
 }
 
@@ -605,6 +609,8 @@ impl taffy::tree::CustomLayout for Adapter {
 mod dry_baseline_tests;
 #[cfg(test)]
 mod dry_tests;
+#[cfg(test)]
+mod overflow_tests;
 #[cfg(test)]
 mod inline_tests;
 #[cfg(test)]

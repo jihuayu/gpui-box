@@ -210,22 +210,7 @@ fn custom_parent_complete_metrics_drive_real_outer_first_and_last_alignment() {
             let expected = full.frame([120.0, 80.0]).unwrap();
             let actual = tree.layout_result(host).unwrap();
             let reference = full.layout_result(full_host).unwrap();
-            // The owned parent and ordinary Flex have different overflow
-            // accumulation contracts; this control covers baseline allocation.
-            assert_eq!(
-                (
-                    actual.location,
-                    actual.size,
-                    actual.baseline,
-                    actual.last_baseline
-                ),
-                (
-                    reference.location,
-                    reference.size,
-                    reference.baseline,
-                    reference.last_baseline
-                )
-            );
+            assert_eq!(actual, reference);
             assert_eq!(
                 super::tests::pixels(frame.resolve()),
                 super::tests::pixels(expected)

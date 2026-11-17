@@ -272,7 +272,7 @@ impl ParentLayout for Invalid {
             2 => output.placements[0].origin[1] = f32::INFINITY,
             3 => output.placements[0].input.percentage_basis.width = Some(-1.0),
             4 => output.placements[0].child = usize::MAX,
-            5 => output.baseline = Some(output.size[1] + 1.0),
+            5 => output.baseline = Some(f32::NEG_INFINITY),
             6 => output.size[0] += 1.0,
             7 => return Err(Error::InvalidParentLayout),
             _ => {

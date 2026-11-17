@@ -343,6 +343,14 @@ dry_measure_node_baselines / children.measure_baselines 复用同输入最终布
 查询可能执行后代完整 plan，跳过缓存，仍有 tree clone；无性能改善声明。
 返回内核已支持的最终指标，不补齐 Grid last-baseline、竖排或完整 CSS conformance。
 
+补充 [owned container overflow 修正](RETAINED_OWNED_CONTAINER_OVERFLOW.md)：
+custom parent / ConstraintBox 的叶子 helper 只负责 host sizing；最终 overflow
+丢弃该临时 desired-content extent，只累计真实子项及一次 scroll end padding。
+沿用共享 RTL/Clip/Scroll/containment/unreachable 规则，避免虚假滚动范围。
+父布局 baseline 为有限有符号 content offset，可随 overflow/负放置落在 host 高度外；
+固定叶子 intrinsic metrics 仍按自己的范围验证。既有 scroll reclamp/后代 property
+publication 消费修正结果，无新增 API/逐节点字段，也无本轮帧时改善声明。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

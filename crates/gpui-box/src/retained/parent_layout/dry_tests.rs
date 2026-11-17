@@ -231,7 +231,7 @@ impl ParentMeasure for Bad {
         match self.0 {
             0 => value.size[0] = f32::NAN,
             1 => value.size[1] = -1.0,
-            2 => value.baseline = Some(value.size[1] + 1.0),
+            2 => value.baseline = Some(f32::NEG_INFINITY),
             3 => value.last_baseline = Some(f32::INFINITY),
             4 => value.size[0] += 1.0,
             5 => return Err(Error::InvalidParentLayout),

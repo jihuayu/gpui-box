@@ -131,6 +131,17 @@ pub fn compute_constraint_box_layout(
     if inputs.run_mode != RunMode::PerformLayout {
         return output;
     }
+    // The leaf helper supplies size only. A container's overflow comes from
+    // actual child output, not from its measured/assigned content dimensions.
+    // Add its scroll end padding once, including the empty/hidden-child case.
+    #[cfg(feature = "content_size")]
+    {
+        output.scrollable_overflow_rect = Rect::ZERO;
+        if overflow.x.is_scroll_container() || overflow.y.is_scroll_container() {
+            output.scrollable_overflow_rect.right = if rtl { padding.left } else { padding.right };
+            output.scrollable_overflow_rect.bottom = padding.bottom;
+        }
+    }
     let inner = (output.size - inset_size).map(|v| v.max(0.0));
     let available = inputs
         .available_space
@@ -228,7 +239,11 @@ pub fn compute_constraint_box_layout(
             child_contain,
             overflow.x.is_scroll_container() || overflow.y.is_scroll_container(),
         );
-        output.scrollable_overflow_rect = output.scrollable_overflow_rect.union(contribution);
+        output.scrollable_overflow_rect = contribution;
+        if overflow.x.is_scroll_container() || overflow.y.is_scroll_container() {
+            output.scrollable_overflow_rect.right += if rtl { padding.left } else { padding.right };
+            output.scrollable_overflow_rect.bottom += padding.bottom;
+        }
     }
     #[cfg(not(feature = "content_size"))]
     let _ = child_contain;

@@ -85,7 +85,10 @@ flowchart TD
 
 Reject nonfinite/negative sizes, invalid percentage bases or intervals, failure
 to preserve known dimensions, missing/duplicate/out-of-range child indices,
-nonfinite origins/endpoints and baselines outside the content height. Arbitrary
+nonfinite origins/endpoints and nonfinite baselines. Parent baselines are signed
+content-box offsets and may lie outside a fixed host's height due to overflow or
+negative placements. This corrects the original in-height restriction; fixed
+leaf intrinsic metrics retain their own stricter contract. Arbitrary
 delegate errors map to `InvalidParentLayout`. No error result is stored as a
 successful final cache entry. A nested error is sticky for the layout invocation.
 
@@ -147,6 +150,11 @@ adapter Arc; unchanged handles do not. Ordinary trees retain the in-place layout
 and observer journal path. Indexed delegate preflight is O(custom hosts × depth).
 
 ## Evidence and remaining scope
+
+The subsequent [actual overflow fix](RETAINED_OWNED_CONTAINER_OVERFLOW.md) drops
+the temporary host-sizing leaf overflow and accumulates actual children plus
+scroll end padding once, shared with ConstraintBox. This fixes phantom scroll
+extent without a new public overflow answer or extra layout traversal.
 
 See [validation commands and observations](performance/2026-11-16-custom-parent-layout/README.md).
 CPU compares custom parents with independently authored forced-full ordinary

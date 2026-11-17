@@ -35,8 +35,11 @@ inline allocation phase a second time.
 
 ParentLayoutInput retains known content dimensions, soft available space and
 independent percentage bases. Every known dimension must be preserved exactly.
-Output dimensions must be finite/nonnegative and each optional baseline finite,
-nonnegative and no greater than returned content height. The callback can read
+Output dimensions must be finite/nonnegative and each optional baseline a finite
+signed content-box offset. Overflowing or negatively placed descendants can put
+it outside the host height; the original in-height restriction was corrected in
+the [owned overflow stage](RETAINED_OWNED_CONTAINER_OVERFLOW.md). Leaf intrinsic
+metrics retain their own validation. The callback can read
 immutable child metadata and measure actual direct children. Inline/full
 independent assignments are enforced identically in dry and full callbacks;
 requested child inputs cannot override them. No builder, source mutation,

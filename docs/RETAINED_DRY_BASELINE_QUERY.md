@@ -110,6 +110,9 @@ parent; old glyph packets remain valid after owners drop.
 Outer first/last alignment also matches ordinary full location/size/baselines
 and CPU pixels; custom-host overflow accumulation remains a different existing
 contract (right78 versus52 in that fixture), not a full RenderBox equivalence.
+The subsequent [actual container overflow fix](RETAINED_OWNED_CONTAINER_OVERFLOW.md)
+removes that phantom measured-size extent; the fixture now verifies full
+LayoutResult equality. This does not imply arbitrary custom/Flex equivalence.
 
 Full RenderBox/dry/intrinsic semantics, general child-style allocation and
 uncontained ordinary Flex feedback builders, scheduler/incremental candidates/

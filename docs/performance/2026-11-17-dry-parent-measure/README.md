@@ -55,9 +55,13 @@ conformance. Independent ordinary Flex pixels above remain separate evidence.
 Nested custom hosts, percentage-basis distinctions, hidden/restoration, typed
 snapshot identity/replacement, inline/full enforced assignments, authored metadata
 and first/last baseline transport are covered. NaN/negative/nonfinite metrics,
-out-of-height baseline, known-size violation, delegate error and final baseline
-disagreement reject atomic frame edits with old source/frame retained. Vendor
-tests force ComputeSize despite incoming PerformLayout, verify exact repeat hits,
+negative-infinity baseline, known-size violation, delegate error and final baseline
+disagreement reject atomic frame edits with old source/frame retained.
+The subsequent [owned overflow stage](../2026-11-17-owned-container-overflow/README.md)
+allows finite signed parent baselines outside host height; the original
+out-of-height rejection was too restrictive and its test now rejects nonfinite
+negative infinity instead. Leaf intrinsic metrics remain separately validated.
+Vendor tests force ComputeSize despite incoming PerformLayout, verify exact repeat hits,
 changed-child invalidation, unchanged published layouts in their tested domain,
 input/node validation and that successful dry output cannot cache a failing full
 plan as successful.

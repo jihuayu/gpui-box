@@ -162,6 +162,12 @@ full CSS baseline conformance remain open. See the
 
 ## Verification
 
+Owned custom/ConstraintBox final overflow now starts from actual child output,
+discarding the temporary leaf sizing helper's desired-content extent and adding
+scroll end padding once. Custom parent metrics accept finite signed content
+baselines outside fixed host height; leaf intrinsic metrics remain separately
+validated. See [contract](../../docs/RETAINED_OWNED_CONTAINER_OVERFLOW.md).
+
 Explicit baseline-complete direct-child queries now reuse final container
 arithmetic under scoped geometry/cache/observation/OOF write suppression.
 Size-only queries retain their weaker baseline contract. No persistent cache or
