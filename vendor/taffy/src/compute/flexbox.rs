@@ -25,6 +25,8 @@ use super::common::sizing_keyword::{resolve_sizing_keyword, SizingKeywordResolut
 
 #[cfg(all(test, feature = "taffy_tree"))]
 mod auto_min_tests;
+#[cfg(all(test, feature = "taffy_tree"))]
+mod percentage_gap_tests;
 
 /// The intermediate results of a flexbox calculation for a single item
 struct FlexItem {
@@ -474,15 +476,45 @@ fn compute_preliminary(
         debug_log!("constants.node_outer_size", dbg:constants.node_outer_size);
         debug_log!("constants.node_inner_size", dbg:constants.node_inner_size);
 
-        // Re-resolve percentage gaps
-        let style = tree.get_flexbox_container_style(node);
-        let inner_container_size = constants.inner_container_size.main(constants.dir);
-        let new_gap = style
-            .gap()
-            .main(constants.dir)
-            .maybe_resolve(inner_container_size, |val, basis| tree.calc(val, basis))
-            .unwrap_or(0.0);
-        constants.gap.set_main(constants.dir, new_gap);
+        // A content-derived block size is still indefinite: resolving row-gap
+        // against that result would introduce a cyclic percentage contribution.
+        // Inline percentages can resolve against the selected used width, just
+        // as descendant percentage widths do after intrinsic inline sizing.
+        if constants.is_row && constants.known_main_size_is_definite {
+            let style = tree.get_flexbox_container_style(node);
+            let inner_container_size = constants.inner_container_size.main(constants.dir);
+            let new_gap = style
+                .gap()
+                .main(constants.dir)
+                .maybe_resolve(inner_container_size, |val, basis| tree.calc(val, basis))
+                .unwrap_or(0.0);
+            let gap_changed = new_gap != constants.gap.main(constants.dir);
+            constants.gap.set_main(constants.dir, new_gap);
+            drop(style);
+
+            // Fit-content inline sizing first selects a used width without
+            // cyclic percentage contributions. Once that width resolves the
+            // gap, normal wrapping must use both the selected width and the
+            // resolved gap. Intrinsic Min/MaxContent queries retain their own
+            // line-collection rules; do not iterate the container size.
+            if gap_changed && constants.is_wrap && available_space.main(constants.dir).is_definite() {
+                drop(flex_lines);
+                let final_space =
+                    available_space.with_main(constants.dir, AvailableSpace::Definite(inner_container_size));
+                #[cfg(feature = "flexbox_balance")]
+                {
+                    flex_lines = if constants.is_balance {
+                        collect_balanced_flex_lines(&constants, final_space, &mut flex_items)
+                    } else {
+                        collect_flex_lines(&constants, final_space, &mut flex_items)
+                    };
+                }
+                #[cfg(not(feature = "flexbox_balance"))]
+                {
+                    flex_lines = collect_flex_lines(&constants, final_space, &mut flex_items);
+                }
+            }
+        }
     }
 
     // If only the container's main size has been requested then we are done, as nothing below changes it. This
@@ -766,7 +798,12 @@ fn compute_constants(
     let has_definite_cross_size = known_dimensions_are_definite.cross(dir) && known_dimensions.cross(dir).is_some();
     let cross_axis_available_space_is_definite =
         has_definite_cross_size || matches!(available_space.cross(dir), AvailableSpace::Definite(_));
-    let gap = style.gap().resolve_or_zero(node_inner_size.or(Size::zero()), |val, basis| tree.calc(val, basis));
+    // A known used extent does not necessarily establish a definite percentage
+    // basis (notably intrinsic heights and parent-selected content sizes).
+    let gap_basis = node_inner_size.zip_map(known_dimensions_are_definite, |size, definite| {
+        if definite { size } else { None }
+    });
+    let gap = style.gap().resolve_or_zero(gap_basis.or(Size::zero()), |val, basis| tree.calc(val, basis));
 
     let container_size = Size::zero();
     let inner_container_size = Size::zero();

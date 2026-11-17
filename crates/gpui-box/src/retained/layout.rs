@@ -794,6 +794,11 @@ impl LayoutStyle {
     }
     /// Physical CSS gaps: row is vertical, column is horizontal, independent
     /// of flex direction. Use main_cross_gap for a flex-axis-relative helper.
+    /// Percentages use the corresponding definite inner size. A selected
+    /// content-derived height remains indefinite, so its percentage gap is
+    /// zero. A finite available-space value alone is not that percentage basis.
+    /// Normal fit-content inline layout resolves against the selected used
+    /// width and rechecks wrapping, without iterating that width to fit gaps.
     pub fn gap(mut self, row: Length, column: Length) -> Self {
         self.gap = LayoutSize::new(column, row);
         self.main_cross_gap = None;
@@ -1111,6 +1116,8 @@ mod containment_fallback_tests;
 mod containment_tests;
 #[cfg(test)]
 mod intrinsic_limits_tests;
+#[cfg(test)]
+mod percentage_gap_tests;
 #[cfg(test)]
 mod sizing_tests;
 #[cfg(test)]

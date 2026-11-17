@@ -475,6 +475,25 @@ library Clippy and no-default/alloc-Flex/all-features checks pass. The840
 Chromium145 Flex geometry cases all match. Suites overlap; finite offscreen
 correctness is not sustained or visible-frame performance qualification.
 
+The [Flex percentage-gap stage](RETAINED_FLEX_PERCENTAGE_GAPS.md) uses existing
+selected-size definiteness when resolving physical-axis gap percentages. A
+content-derived block extent no longer creates cyclic gaps. Normal fit-content
+inline layout rechecks line membership once after a selected width resolves a
+changed percentage gap, preserving that width and the ordinary greedy/balanced
+collectors. Normal source updates, measured/independent parent assignments, dry
+baselines/hard bounds, real glyphs and full CPU/GPU numeric-gap controls share
+the kernel route. No public/persistent/GPU/packet field is added; scalar checks
+and a conditional extra item scan/line allocation cost remain unprofiled.
+See [verification](performance/2026-11-17-flex-percentage-gaps/README.md).
+The1080 independent cases include1008 Chromium145 geometry matches and72
+separately asserted normative wrapped-Column MinContent deviations. Complete
+cyclic/CSS/RenderBox, scheduling and sustained visible-frame acceptance stay open.
+Verified: retained416; text/WGPU449 passed,25 ignored; explicitly run
+NVIDIA/Vulkan case1 with15 full-pixel submits; hello42 passed,2 ignored;
+vendor default223 / project217; framework library Clippy and vendor
+no-default/alloc-Flex/all-features checks pass. Scoped formatting and diff
+checks pass; suites overlap and ignored tests are not counted as passed.
+
 The [validation-cache stage](RETAINED_VALIDATION_CACHE.md) reuses consumer checks
 for cache-owned immutable pages and stable node indices, with full fallback for
 identity/order/scale changes and complete effect-reference checks on effect-map edits.

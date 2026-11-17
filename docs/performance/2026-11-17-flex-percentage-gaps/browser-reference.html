@@ -1,0 +1,26 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Flex percentage gap and definite content-box reference</title>
+<style>body{margin:0}.host{display:inline-flex;align-items:start;align-content:start;justify-content:start;box-sizing:border-box}.item{width:30px;height:20px;flex-shrink:0}</style>
+<body><script>
+window.referenceReady=(()=>{
+ const cases=[];
+ for(const direction of ['row','row-reverse','column','column-reverse'])
+ for(const wrap of ['nowrap','wrap','wrap-reverse'])
+ for(const main of ['definite','min-content','max-content','auto','percent'])
+ for(const cross of ['definite','auto'])
+ for(const model of ['plain','border','content'])
+ for(const gap of ['percent','mixed-row','mixed-column']) {
+  const row=direction.startsWith('row'),e=document.createElement('div');e.className='host';
+  const mainSize=main==='definite'?(row?'85px':'75px'):main==='percent'?'50%':main;
+  e.style.cssText+=`;flex-direction:${direction};flex-wrap:${wrap};width:${row?mainSize:(cross==='definite'?'85px':'max-content')};height:${row?(cross==='definite'?'75px':'auto'):mainSize}`;
+  e.style.rowGap=gap==='mixed-column'?'7px':'10%';e.style.columnGap=gap==='mixed-row'?'7px':'10%';
+  if(model!=='plain'){e.style.padding='3px';e.style.border='2px solid transparent';}
+  if(model==='content')e.style.boxSizing='content-box';
+  for(let i=0;i<3;i++){const c=document.createElement('div');c.className='item';e.append(c);}
+  const outer=document.createElement('div');outer.style.cssText='width:300px;height:200px';outer.append(e);document.body.append(outer);const r=e.getBoundingClientRect();
+  cases.push({direction,wrap,main,cross,model,gap,actual:[r.width,r.height,...[...e.children].flatMap(c=>{const q=c.getBoundingClientRect();return[q.x-r.x,q.y-r.y,q.width,q.height];})]});outer.remove();
+ }
+ return {userAgent:navigator.userAgent,cases};
+})();
+</script>

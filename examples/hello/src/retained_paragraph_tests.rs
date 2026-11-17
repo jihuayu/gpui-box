@@ -21,6 +21,96 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 }
 
 #[test]
+fn cyclic_percentage_gap_keeps_shaped_paragraph_positions_and_complete_cpu_pixels() {
+    let system = text_system();
+    let paragraph = shape(&system, "one two 中文 longword second line");
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let paint = TextPaint {
+        resource: raster.prepare(paragraph.clone(), 1.0).unwrap(),
+        color: 0x00ffffff,
+    };
+    let style = |definite: bool, reference: bool| {
+        LayoutStyle::column()
+            .size(
+                LayoutDimension::Px(120.0),
+                if definite {
+                    LayoutDimension::Px(250.0)
+                } else {
+                    LayoutDimension::MaxContent
+                },
+            )
+            .gap(
+                if reference {
+                    LayoutLength::Px(if definite { 25.0 } else { 0.0 })
+                } else {
+                    LayoutLength::Percent(0.1)
+                },
+                LayoutLength::Px(7.0),
+            )
+    };
+    let mut tree = UiTree::new_layout(style(false, false), 0).unwrap();
+    let mut full = UiTree::new_layout(style(false, true), 0).unwrap();
+    full.set_frame_build_policy(FrameBuildPolicy::Full);
+    let mut nodes = vec![];
+    let mut controls = vec![];
+    for (owner, ids) in [(&mut tree, &mut nodes), (&mut full, &mut controls)] {
+        for _ in 0..2 {
+            let child = owner
+                .append_layout(owner.root(), LayoutStyle::row().flex_shrink(0.0), 0)
+                .unwrap();
+            ids.push(child);
+            let mut tx = Transaction::default();
+            tx.text(child, Some(paint.clone()));
+            owner.commit(tx, BackendCapabilities::default()).unwrap();
+        }
+    }
+    fn pixels(frame: FramePacket) -> Vec<u8> {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [320, 320],
+                scale: 1.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(4096).unwrap() {}
+        job.into_frame().unwrap().pixels().to_vec()
+    }
+    let mut old = None;
+    for definite in [false, true, false] {
+        for (owner, reference) in [(&mut tree, false), (&mut full, true)] {
+            let mut tx = Transaction::default();
+            tx.layout_style(owner.root(), style(definite, reference));
+            owner.commit(tx, BackendCapabilities::default()).unwrap();
+        }
+        let frame = tree.local_frame([320.0, 320.0]).unwrap();
+        let reference = full.frame([320.0, 320.0]).unwrap();
+        assert_eq!(
+            tree.layout_result(tree.root()).unwrap(),
+            full.layout_result(full.root()).unwrap()
+        );
+        for (&node, &control) in nodes.iter().zip(&controls) {
+            assert_eq!(
+                tree.layout_result(node).unwrap(),
+                full.layout_result(control).unwrap()
+            );
+        }
+        let a = tree.layout_result(nodes[0]).unwrap();
+        let b = tree.layout_result(nodes[1]).unwrap();
+        assert!((b.location[1] - a.size[1] - if definite { 25.0 } else { 0.0 }).abs() < 0.01);
+        assert_eq!(pixels(frame.resolve()), pixels(reference));
+        old.get_or_insert(frame);
+    }
+    let old = old.unwrap();
+    let expected = pixels(old.resolve());
+    drop((tree, full, paint, paragraph, system, raster));
+    assert_eq!(pixels(old.resolve()), expected);
+}
+
+#[test]
 fn intrinsic_fallback_wraps_shaped_text_and_keeps_complete_cpu_glyph_pixels() {
     let system = text_system();
     let paragraph = shape(&system, "one two 中文 paragraph second line");

@@ -402,6 +402,14 @@ ConstraintBox/custom parent 及 Content 查询保留语义；fallback 不替代 
 父约束或响应式依赖证明。每个 style 实测增加16字节，显式记忆尺寸/内容跳过、自动
 scrollbar 预测仍未实现，没有新增持续帧率或尾延迟收益声明。
 
+后续 [Flex percentage gaps](RETAINED_FLEX_PERCENTAGE_GAPS.md) 让共同内核使用已有
+selected-size definiteness，避免把 content-derived height 当成百分比 gap 基准。
+普通自动 inline width 选定后，若 percentage gap 改变则按同一已选宽度重新收集换行，
+再进行正常 flex/cross/baseline/final placement，不反复调整容器尺寸求收敛。
+公共 API 不新增字段，正常 source、owned parent、dry query 与 CPU/GPU 输出共用此路径。
+额外标量判断与必要的一次 line collection 有成本，未测帧时或密集布局尾延迟；
+浏览器几何匹配与单列 MinContent 的规范差异分别记录，完整 CSS 与总目标仍未完成。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。
