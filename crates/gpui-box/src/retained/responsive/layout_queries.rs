@@ -188,18 +188,19 @@ fn affects_query(
         return Ok(true);
     }
     // Width phases address children in layout order, while Row grow/shrink and
-    // wrapping consume every sibling's item style. These producers precede the
+    // Grid placement consume sibling item styles. These producers precede the
     // host's consumers even when registered later and numerically equal today.
     let mut cursor = tree.node(host)?.parent;
     while let Some(parent) = cursor {
         let node = tree.node(parent)?;
         if (node.parent_layout.is_some()
             || possible_styles(ui, rules, parent)?.iter().any(|style| {
-                matches!(style.display, taffy::Display::Flex)
-                    && matches!(
-                        style.flex_direction,
-                        taffy::FlexDirection::Row | taffy::FlexDirection::RowReverse
-                    )
+                style.display == taffy::Display::Grid
+                    || (matches!(style.display, taffy::Display::Flex)
+                        && matches!(
+                            style.flex_direction,
+                            taffy::FlexDirection::Row | taffy::FlexDirection::RowReverse
+                        ))
             }))
             && tree.node(target)?.parent == Some(parent)
         {

@@ -1,0 +1,29 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Content-independent Grid inline allocation</title>
+<style>html,body{margin:0;padding:0}.host{position:absolute;left:0;top:0;display:grid;padding:3px;gap:4px;box-sizing:border-box;grid-template-rows:auto auto;grid-auto-columns:minmax(20px,1fr);align-items:start;align-content:start;justify-content:start}.item{display:flex;flex-direction:column;padding:2px;margin:0 2px;border:1px solid transparent}.content{width:400px;flex-shrink:0}</style>
+<body><script>
+window.referenceReady=(async()=>{
+ const cases=[];
+ const templates={fraction:'minmax(0,1fr) minmax(20px,2fr)',bounded:'minmax(30px,90px) minmax(10px,120px)',percent:'30% minmax(20px,1fr)',repeat:'repeat(2,minmax(20px,1fr))',fit:'repeat(auto-fit,minmax(60px,1fr))',fill:'repeat(auto-fill,minmax(60px,1fr))'};
+ for(const template of Object.keys(templates))
+ for(const flow of ['row','row dense','column','column dense'])
+ for(const rtl of [false,true])
+ for(const width of [120,180,260])
+ for(const placed of [false,true])
+ for(const model of ['border-box','content-box']) {
+  const host=document.createElement('div');host.className='host';Object.assign(host.style,{width:`${width}px`,gridTemplateColumns:templates[template],gridAutoFlow:flow,direction:rtl?'rtl':'ltr'});
+  for(let i=0;i<4;i++){
+   const item=document.createElement('div');item.className='item';item.style.boxSizing=model;
+   if(placed){if(i===0){item.style.gridColumn='span 2';item.style.order='1'}if(i===1){item.style.gridColumn='-2 / -1';item.style.gridRow='1'}if(i===2)item.style.gridRow='span 2'}
+   const c=document.createElement('div');c.className='content';item.append(c);host.append(item);
+  }
+  document.body.append(host);
+  for(const update of [false,true]){
+   [...host.children].forEach((item,i)=>item.firstChild.style.height=`${update?[80,10,100,30][i]:[20,60,40,10][i]}px`);
+   const r=host.getBoundingClientRect();const actual=[r.width,r.height,...[...host.children].flatMap(item=>{const b=item.getBoundingClientRect();return[b.x-r.x,b.y-r.y,b.width,b.height]})];
+   cases.push({template,flow,rtl,width,placed,model,update,actual});
+  }host.remove();
+ }return{userAgent:navigator.userAgent,cases};
+})();
+</script>

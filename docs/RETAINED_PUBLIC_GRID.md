@@ -68,6 +68,11 @@ parent edge. Ordinary item queries/builders inside content-dependent Grid tracks
 remain rejected. Track dependency analysis and custom item-style access to Grid
 placement are future work; this does not silently inherit Row-only proofs.
 
+Follow-up: [Grid inline allocation](RETAINED_GRID_INLINE_ALLOCATION.md) now proves
+content-independent definite/fractional columns across Grid parent edges, with
+explicit implicit-column patterns, live root anchors, sibling/track observations
+and query DAG dependencies. General content-dependent tracks remain outside it.
+
 ```mermaid
 flowchart LR
     A[Owned GridStyle and item placements] --> B[Validate typed LayoutStyle]

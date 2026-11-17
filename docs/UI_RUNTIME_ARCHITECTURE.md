@@ -503,6 +503,18 @@ Style<String>576→776；Cargo feature统一使同workspace GPUI也受影响。�
 收益声明，普通standalone不启用affine保持原尺寸。复杂calc函数／单位、广泛cyclic/intrinsic、
 完整RenderBox、自动调度、incremental candidates与持续可见呈现验收仍开放。
 
+后续 [Grid inline allocation](RETAINED_GRID_INLINE_ALLOCATION.md) 将既有inline builder／
+ContainerInline从Grid host扩展到可证明的普通Grid item：所有explicit/implicit columns有
+definite min与definite/fr max，parent完整链有live definite inline锚点，items采用numeric或
+正常stretch宽且无effective ratio/intrinsic limits。固定row count允许Auto行高和column/dense
+flow，column auto-fit/fill继续由普通内核求解；auto-repeat rows／implicit Auto／content反馈
+仍拒绝。Definiteness与independence分开证明，可组合nested Grid及Grid→Row percentage basis。
+Final observations记录full Grid Style、layout-order children和effective sibling styles；query DAG
+计入Grid兄弟producer，computed反馈和读后等宽输入变化拒绝。新增1,152组浏览器、真实glyph
+及CPU/GPU完整参考验证有限范围。无新公共API／kernel pass，额外Style/track-vector复制和
+proof扫描成本继续，无帧时／内存收益声明。General intrinsic/ratio/implicit reachability／named
+placement证明、full-axis反馈、完整RenderBox和自动调度仍开放。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

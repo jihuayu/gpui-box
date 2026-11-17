@@ -331,15 +331,27 @@ fn public_grid_real_paragraphs(hardware: bool) {
 
 #[test]
 fn row_allocated_real_text_composes_inline_builders_and_container_rules_without_containment() {
-    row_allocated_real_text(LayoutDimension::Px(0.0));
+    row_allocated_real_text(LayoutDimension::Px(0.0), false, false);
 }
 
 #[test]
 fn percentage_row_real_text_composes_inline_builders_and_container_rules() {
-    row_allocated_real_text(LayoutDimension::Percent(0.25));
+    row_allocated_real_text(LayoutDimension::Percent(0.25), false, false);
 }
 
-fn row_allocated_real_text(basis: LayoutDimension) {
+#[test]
+fn grid_item_real_text_composes_inline_builder_and_container_rules() {
+    row_allocated_real_text(LayoutDimension::Px(0.0), true, false);
+}
+
+#[cfg(feature = "retained-wgpu")]
+#[test]
+#[ignore = "requires a WGPU adapter; run explicitly"]
+fn hardware_grid_item_real_text_builder_queries_match_full_reference() {
+    row_allocated_real_text(LayoutDimension::Px(0.0), true, true);
+}
+
+fn row_allocated_real_text(basis: LayoutDimension, grid: bool, hardware: bool) {
     use gpui_box::retained::{logical::LogicalUi, responsive::*};
     let system = text_system();
     let paragraph = shape(&system, "one two three four five 中文段落 longword");
@@ -348,9 +360,26 @@ fn row_allocated_real_text(basis: LayoutDimension) {
         resource: raster.prepare(paragraph.clone(), 1.0).unwrap(),
         color: 0x00ffffff,
     };
-    let root_style = LayoutStyle::row()
-        .size(LayoutDimension::Percent(1.0), LayoutDimension::Auto)
-        .align_items(LayoutAlignItems::Start);
+    #[cfg(feature = "retained-wgpu")]
+    let mut gpu = hardware.then(|| wgpu::WgpuFrameRenderer::new(2).unwrap());
+    #[cfg(feature = "retained-wgpu")]
+    if let Some(gpu) = &gpu {
+        eprintln!("Grid item glyph adapter: {:?}", gpu.adapter_info());
+    }
+    #[cfg(not(feature = "retained-wgpu"))]
+    assert!(!hardware);
+    let root_style = if grid {
+        let track = GridTrack::minmax(GridMinTrack::Px(0.0), GridMaxTrack::Fr(1.0));
+        LayoutStyle::grid(
+            GridStyle::default()
+                .columns(vec![track.into(), track.into()])
+                .auto_columns(vec![track]),
+        )
+    } else {
+        LayoutStyle::row()
+    }
+    .size(LayoutDimension::Percent(1.0), LayoutDimension::Auto)
+    .align_items(LayoutAlignItems::Start);
     let item = || {
         LayoutStyle::column()
             .flex_basis(basis)
@@ -392,7 +421,7 @@ fn row_allocated_real_text(basis: LayoutDimension) {
         .unwrap();
         let mut old = None;
         for w in [120.0, 180.0, 240.0, 120.0] {
-            let allocated = if matches!(basis, LayoutDimension::Percent(_)) {
+            let allocated = if grid || matches!(basis, LayoutDimension::Percent(_)) {
                 w * 0.5
             } else {
                 (w + 6.0) * 0.5
@@ -464,6 +493,17 @@ fn row_allocated_real_text(basis: LayoutDimension) {
             tx.text(b, Some(paint.clone()));
             full.commit(tx, BackendCapabilities::default()).unwrap();
             let reference = full.frame_in_viewport(input, [240.0, 600.0]).unwrap();
+            #[cfg(feature = "retained-wgpu")]
+            if let Some(gpu) = &mut gpu {
+                gpu.submit(&frame, [240, 600], 1.0).unwrap().unwrap();
+                assert!(
+                    gpu.image().unwrap().as_raw()
+                        == gpu
+                            .reference_image(&reference, [240, 600], 1.0)
+                            .unwrap()
+                            .as_raw()
+                );
+            }
             assert_eq!(
                 ui.layout_result(host).unwrap(),
                 full.layout_result(a).unwrap()
@@ -482,6 +522,10 @@ fn row_allocated_real_text(basis: LayoutDimension) {
         let expected = pixels(old.clone());
         drop(ui);
         assert_eq!(pixels(old), expected);
+    }
+    #[cfg(feature = "retained-wgpu")]
+    if let Some(gpu) = &mut gpu {
+        gpu.finish().unwrap();
     }
 }
 

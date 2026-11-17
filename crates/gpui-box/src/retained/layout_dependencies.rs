@@ -16,7 +16,7 @@ impl InlineContext for UiTree {
     }
 }
 
-/// Custom width plans and Row allocation observe child count/order and owned
+/// Custom width plans, Row and Grid allocation observe child count/order and owned
 /// algorithm/item inputs. A builder cannot change them after consuming a slot,
 /// even if its numeric allocation happens to remain equal in this execution.
 #[derive(Clone)]
@@ -25,6 +25,7 @@ pub(super) struct InlineDependencies(Vec<InlineParentDependency>);
 struct InlineParentDependency {
     node: NodeId,
     algorithm: Option<ParentLayoutSnapshot>,
+    grid_style: Option<Box<Style>>,
     children: Vec<NodeId>,
     item_styles: Vec<(NodeId, Style)>,
 }
@@ -39,9 +40,10 @@ impl InlineDependencies {
                     node.style.flex_direction,
                     taffy::FlexDirection::Row | taffy::FlexDirection::RowReverse
                 );
-            if node.parent_layout.is_some() || row {
+            let grid = node.style.display == taffy::Display::Grid;
+            if node.parent_layout.is_some() || row || grid {
                 let children = tree.ordered_children_for(id, &node.children)?;
-                let styles = if row {
+                let styles = if row || grid {
                     children
                         .iter()
                         .map(|id| {
@@ -58,6 +60,7 @@ impl InlineDependencies {
                 result.push(InlineParentDependency {
                     node: id,
                     algorithm: node.parent_layout.clone(),
+                    grid_style: grid.then(|| Box::new(node.style.clone())),
                     children,
                     item_styles: styles,
                 });
@@ -175,6 +178,16 @@ fn prove(
             return Ok(false);
         }
         match parent_style.display {
+            taffy::Display::Grid => {
+                // Track percentages/fr require a definite, independently
+                // assigned parent width and the caller's live external anchor.
+                if !incoming
+                    || !definite_inline_chain(context, parent, &mut Default::default())?
+                    || !independent_grid_items(context, parent, parent_style)?
+                {
+                    return Ok(false);
+                }
+            }
             taffy::Display::ConstraintBox {
                 width: taffy::ConstraintFit::Tight,
                 ..
@@ -245,7 +258,7 @@ fn independent_row_items(
             .iter()
             .any(|v| matches!(v.expand(), D::Percent(_) | D::Affine(_, _)));
             if incoming && needs_percentage && percentage_proof.is_none() {
-                percentage_proof = Some(definite_flex_inline_chain(
+                percentage_proof = Some(definite_inline_chain(
                     context,
                     parent,
                     &mut Default::default(),
@@ -273,13 +286,13 @@ fn independent_row_items(
     Ok(true)
 }
 
-/// Conditional on a live definite external root anchor, ordinary Flex assigns
-/// a definite inline size down these edges. This is separate from independence:
+/// Conditional on a live definite external root anchor, ordinary Flex/Grid
+/// assign a definite inline size down these edges. Separate from independence:
 /// a Row item's post-flexing width is definite when the Row width is definite,
 /// even when its basis is content-dependent. `prove` checks that dependency.
 /// Custom/box protocols are deliberately excluded: a custom selected width can
 /// be independent yet explicitly not establish a percentage basis.
-fn definite_flex_inline_chain(
+fn definite_inline_chain(
     context: &impl InlineContext,
     node: NodeId,
     memo: &mut std::collections::HashMap<NodeId, bool>,
@@ -292,10 +305,13 @@ fn definite_flex_inline_chain(
     let parent = current.parent;
     let mut valid = current.parent_layout.is_none();
     if let Some(parent) = parent {
-        valid &= definite_flex_inline_chain(context, parent, memo)?;
+        valid &= definite_inline_chain(context, parent, memo)?;
     }
     for style in context.styles(node)? {
-        if !valid || style.display != taffy::Display::Flex || style.position.is_out_of_flow() {
+        if !valid
+            || !matches!(style.display, taffy::Display::Flex | taffy::Display::Grid)
+            || style.position.is_out_of_flow()
+        {
             valid = false;
             break;
         }
@@ -308,6 +324,13 @@ fn definite_flex_inline_chain(
             continue;
         };
         for parent_style in context.styles(parent)? {
+            if parent_style.display == taffy::Display::Grid {
+                valid &= grid_item_inline_size(
+                    &measure::effective_style(&style, current.measure.as_ref()),
+                    &parent_style,
+                );
+                continue;
+            }
             if matches!(
                 parent_style.flex_direction,
                 taffy::FlexDirection::Row | taffy::FlexDirection::RowReverse
@@ -329,6 +352,107 @@ fn definite_flex_inline_chain(
     }
     memo.insert(node, valid);
     Ok(valid)
+}
+
+/// Track sizing is content-independent when every possible explicit/implicit
+/// column has a definite minimum and a definite or fractional maximum. A
+/// definite container gives fr its remaining-space input without item measures.
+/// Fixed row counts make placement independent of content heights, including
+/// column auto-flow. Auto-repeated rows can instead depend on content height.
+fn independent_grid_items(
+    context: &impl InlineContext,
+    parent: NodeId,
+    style: &Style,
+) -> Result<bool, Error> {
+    use taffy::style::{
+        ExpandedMaxTrackSizingFunction as Max, ExpandedMinTrackSizingFunction as Min,
+    };
+    let track = |track: &taffy::TrackSizingFunction| {
+        let min = matches!(track.min.expand(), Min::Length(v) | Min::Percent(v) if v.is_finite() && v >= 0.0)
+            || matches!(track.min.expand(), Min::Affine(px,p) if px.is_finite() && p.is_finite());
+        let max = matches!(track.max.expand(), Max::Length(v) | Max::Percent(v) | Max::Fr(v) if v.is_finite() && v >= 0.0)
+            || matches!(track.max.expand(), Max::Affine(px,p) if px.is_finite() && p.is_finite());
+        min && max
+    };
+    if style.grid_template_columns.is_empty()
+        || style.grid_auto_columns.is_empty()
+        || !style.grid_auto_columns.iter().all(track)
+        || style.grid_template_areas.is_some()
+        || !style.grid_template_column_names.is_empty()
+        || !style.grid_template_row_names.is_empty()
+    {
+        return Ok(false);
+    }
+    for component in &style.grid_template_columns {
+        match component {
+            taffy::GridTemplateComponent::Single(t) if track(t) => {}
+            taffy::GridTemplateComponent::Repeat(r)
+                if !r.tracks.is_empty()
+                    && r.tracks.iter().all(track)
+                    && r.line_names.is_empty()
+                    && !matches!(r.count, taffy::RepetitionCount::Count(0)) => {}
+            _ => return Ok(false),
+        }
+    }
+    for component in &style.grid_template_rows {
+        if let taffy::GridTemplateComponent::Repeat(r) = component
+            && !matches!(r.count, taffy::RepetitionCount::Count(n) if n > 0)
+        {
+            return Ok(false);
+        }
+    }
+    for &child in &context.tree().node(parent)?.children {
+        let node = context.tree().node(child)?;
+        for item in context.styles(child)? {
+            let item = measure::effective_style(&item, node.measure.as_ref());
+            if item.display == taffy::Display::None || item.position.is_out_of_flow() {
+                continue;
+            }
+            if !grid_item_inline_size(&item, style) {
+                return Ok(false);
+            }
+            if [
+                &item.grid_column.start,
+                &item.grid_column.end,
+                &item.grid_row.start,
+                &item.grid_row.end,
+            ]
+            .iter()
+            .any(|v| {
+                !matches!(
+                    v,
+                    taffy::GridPlacement::Auto
+                        | taffy::GridPlacement::Line(_)
+                        | taffy::GridPlacement::Span(_)
+                )
+            }) {
+                return Ok(false);
+            }
+        }
+    }
+    Ok(true)
+}
+
+fn grid_item_inline_size(item: &Style, parent: &Style) -> bool {
+    use taffy::style::{ExpandedDimension as D, ExpandedLengthPercentageAuto as A};
+    let numeric = |v: taffy::Dimension| {
+        matches!(v.expand(), D::Length(x) | D::Percent(x) if x.is_finite() && x >= 0.0)
+            || matches!(v.expand(),D::Affine(px,p) if px.is_finite() && p.is_finite())
+    };
+    let alignment = item.justify_self.unwrap_or(parent.justify_items);
+    let stretch = item.size.width.is_auto()
+        && matches!(
+            alignment,
+            taffy::AlignSelf::STRETCH | taffy::AlignSelf::NORMAL
+        )
+        && !item.item_is_replaced
+        && !item.item_is_compressible_replaced
+        && !matches!(item.margin.left.expand(), A::Auto)
+        && !matches!(item.margin.right.expand(), A::Auto);
+    item.aspect_ratio.is_none()
+        && (numeric(item.size.width) || stretch)
+        && (item.min_size.width.is_auto() || numeric(item.min_size.width))
+        && (item.max_size.width.is_auto() || numeric(item.max_size.width))
 }
 
 fn prove_alternatives(
@@ -368,6 +492,8 @@ fn fixed_inline_content(style: &Style) -> bool {
         )
 }
 
+#[cfg(test)]
+mod grid_tests;
 #[cfg(test)]
 mod percentage_tests;
 #[cfg(test)]
