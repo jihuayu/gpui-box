@@ -73,7 +73,9 @@ impl InlineDependencies {
 
 /// A column's stretched/definite inline size is independent of content height.
 /// Rows qualify when every item has a content-independent numeric main basis
-/// and explicit numeric minimum, including wrapping and reversed rows.
+/// and explicit numeric minimum, including wrapping and reversed rows. Incoming
+/// proofs can also resolve percentage inputs along a definite ordinary-Flex
+/// chain, conditional on the caller's live external inline anchor.
 /// A Tight constraint-box edge also assigns inline size from its own allocation.
 /// The proof walks every ancestor and every reachable authored alternative;
 /// aspect feedback, OOF and intrinsic width limits reject rather than iterate.
@@ -179,7 +181,7 @@ fn prove(
                     parent_style.flex_direction,
                     taffy::FlexDirection::Row | taffy::FlexDirection::RowReverse
                 ) {
-                    if !independent_row_items(context, parent)? {
+                    if !independent_row_items(context, parent, incoming)? {
                         return Ok(false);
                     }
                     continue;
@@ -209,11 +211,17 @@ fn prove(
     prove_alternatives(context, parent, memo, incoming)
 }
 
-/// Numeric Flex bases plus explicit numeric main minima remove content from
-/// Row grow/shrink allocation. Inspect every sibling and every authored branch;
-/// replaced-image effective ratios can otherwise transfer height into width.
-fn independent_row_items(context: &impl InlineContext, parent: NodeId) -> Result<bool, Error> {
+/// Numeric bases/limits remove content from Row allocation. Percentages also
+/// qualify along a definite ordinary-Flex chain, but only the incoming proof
+/// carries the caller's live external-anchor requirement. The used-width proof
+/// remains valid without that requirement for existing containment consumers.
+fn independent_row_items(
+    context: &impl InlineContext,
+    parent: NodeId,
+    incoming: bool,
+) -> Result<bool, Error> {
     use taffy::style::ExpandedDimension as D;
+    let mut percentage_proof = None;
     for &child in &context.tree().node(parent)?.children {
         let node = context.tree().node(child)?;
         for style in context.styles(child)? {
@@ -221,7 +229,31 @@ fn independent_row_items(context: &impl InlineContext, parent: NodeId) -> Result
             if style.display == taffy::Display::None || style.position.is_out_of_flow() {
                 continue;
             }
-            let numeric = |v: taffy::Dimension| matches!(v.expand(), D::Length(x) if x.is_finite() && x >= 0.0);
+            let needs_percentage = [
+                style.flex_basis,
+                style.min_size.width,
+                style.max_size.width,
+                if style.flex_basis.is_auto() {
+                    style.size.width
+                } else {
+                    taffy::Dimension::auto()
+                },
+            ]
+            .iter()
+            .any(|v| matches!(v.expand(), D::Percent(_)));
+            if incoming && needs_percentage && percentage_proof.is_none() {
+                percentage_proof = Some(definite_flex_inline_chain(
+                    context,
+                    parent,
+                    &mut Default::default(),
+                )?);
+            }
+            let percentages = percentage_proof == Some(true);
+            let numeric = |v: taffy::Dimension| match v.expand() {
+                D::Length(x) => x.is_finite() && x >= 0.0,
+                D::Percent(x) => percentages && x.is_finite() && x >= 0.0,
+                _ => false,
+            };
             let basis = numeric(style.flex_basis)
                 || (style.flex_basis.is_auto() && numeric(style.size.width));
             if !basis
@@ -235,6 +267,61 @@ fn independent_row_items(context: &impl InlineContext, parent: NodeId) -> Result
         }
     }
     Ok(true)
+}
+
+/// Conditional on a live definite external root anchor, ordinary Flex assigns
+/// a definite inline size down these edges. This is separate from independence:
+/// a Row item's post-flexing width is definite when the Row width is definite,
+/// even when its basis is content-dependent. `prove` checks that dependency.
+/// Custom/box protocols are deliberately excluded: a custom selected width can
+/// be independent yet explicitly not establish a percentage basis.
+fn definite_flex_inline_chain(
+    context: &impl InlineContext,
+    node: NodeId,
+    memo: &mut std::collections::HashMap<NodeId, bool>,
+) -> Result<bool, Error> {
+    use taffy::style::{ExpandedDimension as D, ExpandedLengthPercentageAuto as A};
+    if let Some(valid) = memo.get(&node) {
+        return Ok(*valid);
+    }
+    let current = context.tree().node(node)?;
+    let parent = current.parent;
+    let mut valid = current.parent_layout.is_none();
+    if let Some(parent) = parent {
+        valid &= definite_flex_inline_chain(context, parent, memo)?;
+    }
+    for style in context.styles(node)? {
+        if !valid || style.display != taffy::Display::Flex || style.position.is_out_of_flow() {
+            valid = false;
+            break;
+        }
+        let numeric = matches!(style.size.width.expand(), D::Length(_) | D::Percent(_));
+        let Some(parent) = parent else {
+            valid &= numeric || style.size.width.is_stretch();
+            continue;
+        };
+        for parent_style in context.styles(parent)? {
+            if matches!(
+                parent_style.flex_direction,
+                taffy::FlexDirection::Row | taffy::FlexDirection::RowReverse
+            ) {
+                // Definite parent main size makes post-flexing main size definite.
+                continue;
+            }
+            let align = style.align_self.unwrap_or(parent_style.align_items);
+            let stretched = (style.size.width.is_auto()
+                && matches!(
+                    align.keyword,
+                    taffy::AlignItemsKeyword::Stretch | taffy::AlignItemsKeyword::Normal
+                )
+                || style.size.width.is_stretch())
+                && !matches!(style.margin.left.expand(), A::Auto)
+                && !matches!(style.margin.right.expand(), A::Auto);
+            valid &= numeric || stretched;
+        }
+    }
+    memo.insert(node, valid);
+    Ok(valid)
 }
 
 fn prove_alternatives(
@@ -274,5 +361,7 @@ fn fixed_inline_content(style: &Style) -> bool {
         )
 }
 
+#[cfg(test)]
+mod percentage_tests;
 #[cfg(test)]
 mod row_tests;

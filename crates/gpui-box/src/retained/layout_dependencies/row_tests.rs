@@ -1,7 +1,7 @@
 use super::*;
 use crate::retained::{logical::LogicalUi, reactive::Property, responsive::*};
 
-fn root(reverse: bool) -> LayoutStyle {
+pub(super) fn root(reverse: bool) -> LayoutStyle {
     LayoutStyle::row()
         .flex_direction(if reverse {
             LayoutFlexDirection::RowReverse
@@ -11,24 +11,24 @@ fn root(reverse: bool) -> LayoutStyle {
         .size(LayoutDimension::Percent(1.0), LayoutDimension::Auto)
         .align_items(LayoutAlignItems::Start)
 }
-fn item(grow: f32) -> LayoutStyle {
+pub(super) fn item(grow: f32) -> LayoutStyle {
     LayoutStyle::column()
         .flex_basis(LayoutDimension::Px(0.0))
         .flex_grow(grow)
         .min_size(LayoutDimension::Px(0.0), LayoutDimension::Auto)
 }
-fn fixed(w: f32, h: f32) -> LayoutStyle {
+pub(super) fn fixed(w: f32, h: f32) -> LayoutStyle {
     LayoutStyle::row()
         .size(LayoutDimension::Px(w), LayoutDimension::Px(h))
         .flex_shrink(0.0)
 }
-fn constraints(w: f32) -> LayoutConstraints {
+pub(super) fn constraints(w: f32) -> LayoutConstraints {
     LayoutConstraints::new(
         LayoutAvailableSpace::Definite(w),
         LayoutAvailableSpace::Unbounded,
     )
 }
-fn pixels(frame: FramePacket) -> Vec<u8> {
+pub(super) fn pixels(frame: FramePacket) -> Vec<u8> {
     let mut job = software::SoftwareJob::new(
         frame,
         software::SoftwareOptions {

@@ -22,6 +22,15 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 
 #[test]
 fn row_allocated_real_text_composes_inline_builders_and_container_rules_without_containment() {
+    row_allocated_real_text(LayoutDimension::Px(0.0));
+}
+
+#[test]
+fn percentage_row_real_text_composes_inline_builders_and_container_rules() {
+    row_allocated_real_text(LayoutDimension::Percent(0.25));
+}
+
+fn row_allocated_real_text(basis: LayoutDimension) {
     use gpui_box::retained::{logical::LogicalUi, responsive::*};
     let system = text_system();
     let paragraph = shape(&system, "one two three four five 中文段落 longword");
@@ -35,7 +44,7 @@ fn row_allocated_real_text_composes_inline_builders_and_container_rules_without_
         .align_items(LayoutAlignItems::Start);
     let item = || {
         LayoutStyle::column()
-            .flex_basis(LayoutDimension::Px(0.0))
+            .flex_basis(basis)
             .flex_grow(1.0)
             .min_size(LayoutDimension::Px(0.0), LayoutDimension::Auto)
     };
@@ -74,13 +83,19 @@ fn row_allocated_real_text_composes_inline_builders_and_container_rules_without_
         .unwrap();
         let mut old = None;
         for w in [120.0, 180.0, 240.0, 120.0] {
+            let allocated = if matches!(basis, LayoutDimension::Percent(_)) {
+                w * 0.5
+            } else {
+                (w + 6.0) * 0.5
+            };
             let input = LayoutConstraints::new(
                 LayoutAvailableSpace::Definite(w),
                 LayoutAvailableSpace::Unbounded,
             );
             let build = |(), edit: &mut gpui_box::retained::logical::LogicalEdit<'_, '_, '_>| {
                 edit.inline_allocation_builder(host, |input, edit| {
-                    assert_eq!(input.known_width, Some((w + 6.0) * 0.5));
+                    assert_eq!(input.known_width, Some(allocated));
+                    assert!(input.known_width_is_definite);
                     let branch = edit.reconcile_keys(scope, &[u64::from(w >= 180.0)])?[0];
                     let renders = edit.renders(branch)?;
                     let text = if let Some(node) = renders.first() {
@@ -113,7 +128,7 @@ fn row_allocated_real_text_composes_inline_builders_and_container_rules_without_
                     .unwrap();
                 (c.result.value, f)
             };
-            let content_width = (w - 6.0) * 0.5;
+            let content_width = allocated - 6.0;
             let mut full = UiTree::new_layout(root_style.clone(), 0).unwrap();
             full.set_frame_build_policy(FrameBuildPolicy::Full);
             let a = full

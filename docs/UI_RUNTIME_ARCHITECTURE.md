@@ -471,6 +471,16 @@ styles，图片派生ratio也参与；query DAG计入兄弟style producer并拒�
 祖先兄弟扫描与Style副本增加成本，无帧时收益结论。通用content／percentage／ratio／
 intrinsic证明、full-axis反馈和自动调度仍未完成。
 
+后续 [definite percentage Row proof](RETAINED_PERCENTAGE_INLINE_ALLOCATION.md)
+扩展完整incoming链：普通Flex祖先加live外部root锚点证明百分比基准确定后，Row子项可用
+Percent basis、Auto＋Percent width、显式Percent min和Auto/Px/Percent max。横向独立与
+percentage definiteness分开证明；Row的definite main size使post-flexing width definite，
+Column通过numeric/stretch分配传递。旧unconditional used-width证明不借用此条件，custom／
+ConstraintBox ancestry在新增definiteness证明中保守停止。仍用普通Flex算法及既有兄弟DAG／
+final observations／原子发布，432组独立浏览器对照和真实glyph／CPU／GPU参考覆盖有限范围。
+新增证明按需运行，不增加公共字段或内核pass；扫描／preview成本继续，无帧时收益声明。
+content/auto/intrinsic／ratio/general protocol证明、full-axis反馈和完整RenderBox仍开放。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

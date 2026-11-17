@@ -1,0 +1,35 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Definite percentage Row allocation reference</title>
+<style>html,body{margin:0;padding:0}.host{position:absolute;left:0;top:0;display:flex;padding:3px;gap:4px;align-items:flex-start;align-content:flex-start;justify-content:flex-start;box-sizing:border-box}.item{display:flex;flex-direction:column;padding:1%;border:1px solid transparent;margin:0 1.5%}.content{width:400px;flex-shrink:0}</style>
+<body><script>
+window.referenceReady=(async()=>{
+  const cases=[];
+  for(const direction of ['row','row-reverse'])
+  for(const wrap of ['nowrap','wrap','wrap-reverse'])
+  for(const rtl of [false,true])
+  for(const width of [120,180,260])
+  for(const basis of ['percent','auto-percent','mixed'])
+  for(const model of ['border-box','content-box']) {
+    const host=document.createElement('div');host.className='host';
+    Object.assign(host.style,{flexDirection:direction,flexWrap:wrap,direction:rtl?'rtl':'ltr',width:`${width}px`});
+    for(let i=0;i<3;i++){
+      const item=document.createElement('div');item.className='item';
+      const preferred=`${[55,30,25][i]}%`;
+      Object.assign(item.style,{flexBasis:basis==='auto-percent'?'auto':basis==='mixed'&&i===1?'60px':preferred,
+        width:basis==='auto-percent'?preferred:'auto',flexGrow:`${[1,2,1][i]}`,
+        minWidth:`${[10,8,6][i]}%`,maxWidth:i===2?'none':`${[70,90][i]}%`,boxSizing:model});
+      const content=document.createElement('div');content.className='content';item.append(content);host.append(item);
+    }
+    document.body.append(host);
+    for(const update of [false,true]) {
+      [...host.children].forEach((item,i)=>item.firstChild.style.height=`${update?[80,10,100][i]:[20,60,40][i]}px`);
+      const r=host.getBoundingClientRect();
+      const actual=[r.width,r.height,...[...host.children].flatMap(item=>{const b=item.getBoundingClientRect();return[b.x-r.x,b.y-r.y,b.width,b.height]})];
+      cases.push({direction,wrap,rtl,width,basis,model,update,actual});
+    }
+    host.remove();
+  }
+  return{userAgent:navigator.userAgent,cases};
+})();
+</script>

@@ -5,6 +5,11 @@ RFC goal remains active. Extends [ordinary inline builders](RETAINED_INLINE_ALLO
 and [ordinary content-width queries](RETAINED_ORDINARY_CONTAINER_QUERIES.md).
 No frame-time, tail-latency or sustained-frame improvement is claimed.
 
+Follow-up: [definite percentage allocation](RETAINED_PERCENTAGE_INLINE_ALLOCATION.md)
+extends the complete incoming proof to ordinary Flex percentage bases/limits
+under a live external anchor. The original numeric/unconditional proof and its
+evidence below remain; percentage rejection statements describe that baseline.
+
 ## Public behavior
 
 Existing inline builders and ContainerInline rules now cross ordinary Row and
