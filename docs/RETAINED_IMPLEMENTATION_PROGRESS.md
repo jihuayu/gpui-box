@@ -533,6 +533,25 @@ checks pass. Scoped formatting and diff checks pass. The ordinary Flex matrix
 has96 input combinations/192 scalar comparisons, not independent browser cases.
 Suite counts overlap; ignored tests alone are not hardware evidence.
 
+The [content axis stage](RETAINED_CONTENT_AXIS_MEASUREMENT.md) adds requested
+demand to ContentMeasureInput and a shared axis-aware leaf callback entry.
+Internal intrinsic width/height limit probes keep their own demand, independent
+of the outer scalar request. Width-only content probes omit an unrelated
+selected-width height pass; vertical probes retain required inline selection.
+Final layout/baseline queries obtain complete natural size, overflow and metrics.
+The legacy leaf callback wraps the same algorithm. Finite intrinsic/ratio/
+containment/gutter controls, normal source/P0/rollback/old-frame tests, actual
+paragraph metrics and complete CPU/GPU ordinary-Flex controls exercise the
+protocol. Temporary content inputs grow without new persistent node/style/cache/
+GPU/frame fields. Public private-tree clones and other costs remain, with no
+timing or full RenderBox acceptance claim. See
+[verification](performance/2026-11-17-content-axis/README.md).
+Verified: retained430; text/WGPU463 passed,28 ignored; hello44 passed,2 ignored;
+explicit NVIDIA/Vulkan case1 with4 complete-pixel submissions; vendor default227 /
+project221; framework library Clippy and vendor no-default/alloc-Flex/all-features
+checks pass. Scoped framework/glyph/vendor-test formatting and diff checks pass.
+Suite counts overlap; finite offscreen correctness does not qualify visible FPS.
+
 The [validation-cache stage](RETAINED_VALIDATION_CACHE.md) reuses consumer checks
 for cache-owned immutable pages and stable node indices, with full fallback for
 identity/order/scale changes and complete effect-reference checks on effect-map edits.

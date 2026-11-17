@@ -1,5 +1,9 @@
 # Axis-specific parent and intrinsic measurement
 
+Follow-up: [axis-aware content leaves](RETAINED_CONTENT_AXIS_MEASUREMENT.md)
+extends demand to ContentMeasure and internal leaf intrinsic-limit probes.
+Normal final layout/baselines still require complete natural metrics.
+
 Status: implemented experimental framework contract, 2026-11-17. Extends
 [pure parent measurement](RETAINED_DRY_PARENT_MEASURE.md) and
 [complete baseline queries](RETAINED_DRY_BASELINE_QUERY.md). The complete RFC
@@ -131,8 +135,8 @@ complete CPU/WGPU numeric controls, error/query isolation and old frames.
 These are finite same-kernel protocol controls, not new browser conformance.
 
 This does not implement Flutter's entire intrinsic/RenderBox contract, arbitrary
-content-feedback construction or cross-builder/query scheduling. Axis-aware
-custom content-only callbacks, broad Flex/Grid/Block intrinsic/ratio/cyclic
+content-feedback construction or cross-builder/query scheduling. Broad
+Flex/Grid/Block intrinsic/ratio/cyclic
 conformance, query budgets/incremental private candidates, primitive/effect/native
 lifecycles and modern desktop heavy-effect GPU/CPU continuous-frame/60/120Hz/
 visible-tail acceptance remain open.

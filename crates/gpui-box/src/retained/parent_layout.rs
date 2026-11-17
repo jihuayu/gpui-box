@@ -9,13 +9,13 @@ pub enum LayoutAxis {
     Vertical,
 }
 impl LayoutAxis {
-    fn to_taffy(self) -> taffy::RequestedAxis {
+    pub(super) fn to_taffy(self) -> taffy::RequestedAxis {
         match self {
             Self::Horizontal => taffy::RequestedAxis::Horizontal,
             Self::Vertical => taffy::RequestedAxis::Vertical,
         }
     }
-    fn from_taffy(axis: taffy::RequestedAxis) -> Option<Self> {
+    pub(super) fn from_taffy(axis: taffy::RequestedAxis) -> Option<Self> {
         match axis {
             taffy::RequestedAxis::Horizontal => Some(Self::Horizontal),
             taffy::RequestedAxis::Vertical => Some(Self::Vertical),

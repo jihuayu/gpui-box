@@ -7,6 +7,10 @@ use taffy::util::ResolveOrZero;
 /// intrinsic and normal indefinite queries remain distinct.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ContentMeasureInput {
+    /// None requires complete natural size and baseline metrics. A scalar
+    /// demand permits finite placeholders only for unrelated unknown extents.
+    /// Dependencies of the requested axis must still be measured correctly.
+    pub requested_axis: Option<LayoutAxis>,
     pub available: LayoutSize<layout::AvailableSpace>,
 }
 
@@ -298,7 +302,7 @@ fn layout_content(
     error: &mut Option<Error>,
 ) -> taffy::LayoutOutput {
     let mut last_metrics = None;
-    let mut query = |available: Size<AvailableSpace>| {
+    let mut query = |available: Size<AvailableSpace>, axis: taffy::RequestedAxis| {
         if error.is_some() {
             return None;
         }
@@ -317,6 +321,7 @@ fn layout_content(
         match snapshot
             .0
             .measure(ContentMeasureInput {
+                requested_axis: LayoutAxis::from_taffy(axis),
                 available: LayoutSize::new(
                     content_space(available.width),
                     content_space(available.height),
@@ -336,13 +341,34 @@ fn layout_content(
             // Evaluate only the leaf's pure arithmetic. This publishes no tree
             // geometry. Avoid its known-size early return so the same final
             // query provides natural overflow and baseline metrics.
+            let requested_axis = if input.run_mode == taffy::RunMode::PerformLayout {
+                taffy::RequestedAxis::Both
+            } else if input.axis == taffy::RequestedAxis::Vertical
+                && input.known_dimensions.width.is_none()
+            {
+                // First select the real used inline extent before asking only
+                // for dependent height. Finite soft space alone is not width.
+                taffy::RequestedAxis::Both
+            } else {
+                input.axis
+            };
+            // Keep the pure box arithmetic's known-size early return disabled
+            // while preserving query demand separately for the final callback.
             input.run_mode = taffy::RunMode::PerformLayout;
-            taffy::compute_leaf_layout(
+            taffy::compute_leaf_layout_with_measure_axis(
                 input,
                 style,
                 |_, _| 0.0,
-                |_, available| {
-                    last_metrics = query(available);
+                |_, available, axis| {
+                    // Internal intrinsic-limit probes keep their own demand;
+                    // only the final Both callback adopts this invocation's
+                    // scalar intent.
+                    let axis = if axis == taffy::RequestedAxis::Both {
+                        requested_axis
+                    } else {
+                        axis
+                    };
+                    last_metrics = query(available, axis);
                     last_metrics.map_or(Size::ZERO, |v| Size {
                         width: v.size[0],
                         height: v.size[1],
@@ -351,7 +377,10 @@ fn layout_content(
             )
         };
         let mut output = measure(inputs);
-        if inputs.known_dimensions.width.is_none() {
+        if inputs.known_dimensions.width.is_none()
+            && !(inputs.run_mode == taffy::RunMode::ComputeSize
+                && inputs.axis == taffy::RequestedAxis::Horizontal)
+        {
             // Select inline size once, then measure dependent height at that
             // width. Block space stays the parent's soft opportunity; an auto
             // content-derived height must not turn into a new hard input.
@@ -363,7 +392,9 @@ fn layout_content(
     let Some(metrics) = last_metrics else {
         return taffy::LayoutOutput::HIDDEN;
     };
-    if !style.contain.suppresses_baseline() {
+    if inputs.run_mode == taffy::RunMode::ComputeSize && inputs.axis != taffy::RequestedAxis::Both {
+        output.baselines = taffy::Baselines::NONE;
+    } else if !style.contain.suppresses_baseline() {
         let resolve = |value: taffy::LengthPercentage| {
             value.resolve_or_zero(inputs.parent_size.width, |_, _| 0.0)
         };
@@ -410,6 +441,8 @@ pub(super) fn effective_style(style: &Style, snapshot: Option<&MeasureSnapshot>)
     effective
 }
 
+#[cfg(test)]
+mod axis_tests;
 #[cfg(test)]
 mod content_tests;
 #[cfg(test)]

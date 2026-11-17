@@ -26,6 +26,28 @@ pub fn compute_leaf_layout<MeasureFunction>(
 where
     MeasureFunction: FnMut(Size<Option<f32>>, Size<AvailableSpace>) -> Size<f32>,
 {
+    compute_leaf_layout_with_measure_axis(inputs, style, resolve_calc_value, |known, available, _| {
+        measure_function(known, available)
+    })
+}
+
+#[cfg(test)]
+mod axis_tests;
+
+/// The common leaf algorithm with explicit per-probe measurement demand.
+/// Sizing-keyword min/max probes request their own physical axis, independently
+/// of the outer invocation. Final layout requests Both. The unrequested extent
+/// may be a finite placeholder only when it is not needed by the requested size.
+/// Known/available arguments retain compute_leaf_layout's existing semantics.
+pub fn compute_leaf_layout_with_measure_axis<MeasureFunction>(
+    inputs: LayoutInput,
+    style: &impl CoreStyle,
+    resolve_calc_value: impl Fn(*const (), f32) -> f32,
+    mut measure_function: MeasureFunction,
+) -> LayoutOutput
+where
+    MeasureFunction: FnMut(Size<Option<f32>>, Size<AvailableSpace>, crate::RequestedAxis) -> Size<f32>,
+{
     let LayoutInput { known_dimensions, parent_size, available_space, sizing_mode, run_mode, .. } = inputs;
     let intrinsic_fallback = style.contain_intrinsic_size().map(|value| value.unwrap_or(0.0));
 
@@ -106,6 +128,7 @@ where
                         let measured = measure_function(
                             known.maybe_sub(content_box_inset.sum_axes()),
                             query.maybe_sub(content_box_inset.sum_axes()),
+                            axis.into(),
                         );
                         let contained = style.contain().size_containment().get_abs(axis);
                         Some(if contained {
@@ -216,6 +239,7 @@ where
             RunMode::PerformHiddenLayout => unreachable!(),
         },
         available_space,
+        if run_mode == RunMode::PerformLayout { crate::RequestedAxis::Both } else { inputs.axis },
     );
     let contribution = Size {
         width: if contained.width { intrinsic_fallback.width } else { measured_size.width },

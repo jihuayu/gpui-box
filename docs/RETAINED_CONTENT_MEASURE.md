@@ -1,5 +1,10 @@
 # Owned constraint-dependent content measurement
 
+Follow-up: [content axis demand](RETAINED_CONTENT_AXIS_MEASUREMENT.md) adds
+requested_axis to callback inputs, preserves per-probe intrinsic demand in the
+shared leaf box model and keeps complete final/baseline metrics authoritative.
+Complete input literals need the new field; ignoring demand keeps old behavior.
+
 Status: experimental framework protocol, 2026-11-17. This extends fixed leaf
 metrics and pure parent layout. Full RenderBox/intrinsic semantics and the
 complete RFC goal remain open.

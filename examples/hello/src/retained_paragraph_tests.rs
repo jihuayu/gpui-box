@@ -830,10 +830,21 @@ impl ContentMeasure for ContentParagraph {
             LayoutAvailableSpace::MaxContent | LayoutAvailableSpace::Unbounded => None,
         };
         let layout = self.0.layout(width)?;
+        let size = match input.requested_axis {
+            Some(LayoutAxis::Horizontal) => [layout.size[0], 0.0],
+            Some(LayoutAxis::Vertical) => [0.0, layout.size[1]],
+            None => layout.size,
+        };
         Ok(ContentMeasureOutput {
-            size: layout.size,
-            baseline: Some(layout.first_baseline),
-            last_baseline: Some(layout.last_baseline),
+            size,
+            baseline: input
+                .requested_axis
+                .is_none()
+                .then_some(layout.first_baseline),
+            last_baseline: input
+                .requested_axis
+                .is_none()
+                .then_some(layout.last_baseline),
         })
     }
 }
@@ -913,6 +924,33 @@ fn generic_content_measure_uses_actual_shaped_paragraph_metrics_at_selected_widt
                 ChildLayoutInput::new(LayoutConstraints::viewport(220.0, 400.0)),
             )
             .unwrap();
+        for axis in [LayoutAxis::Horizontal, LayoutAxis::Vertical] {
+            let input = ChildLayoutInput::new(LayoutConstraints::viewport(220.0, 400.0));
+            let actual = tree.dry_measure_node_axis(leaf, input, axis).unwrap();
+            let expected = full.dry_measure_node(reference, input).unwrap().size;
+            assert_eq!(
+                actual,
+                match axis {
+                    LayoutAxis::Horizontal => expected[0],
+                    LayoutAxis::Vertical => expected[1],
+                }
+            );
+        }
+        for space in [
+            LayoutAvailableSpace::MinContent,
+            LayoutAvailableSpace::MaxContent,
+        ] {
+            let input = ChildLayoutInput::new(LayoutConstraints::new(
+                space,
+                LayoutAvailableSpace::Unbounded,
+            ))
+            .with_sizing_mode(LayoutSizingMode::Content);
+            assert_eq!(
+                tree.dry_measure_node_axis(leaf, input, LayoutAxis::Horizontal)
+                    .unwrap(),
+                full.dry_measure_node(reference, input).unwrap().size[0]
+            );
+        }
         let frame = tree.local_frame([220.0, 400.0]).unwrap();
         let actual = tree.layout_result(leaf).unwrap();
         let expected = full.frame([220.0, 400.0]).unwrap();

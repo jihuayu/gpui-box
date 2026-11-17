@@ -45,7 +45,7 @@ pub(crate) mod flexbox;
 #[cfg(feature = "grid")]
 pub(crate) mod grid;
 
-pub use leaf::compute_leaf_layout;
+pub use leaf::{compute_leaf_layout, compute_leaf_layout_with_measure_axis};
 pub use oof::{compute_oof_layout, compute_oof_layout_for_area, resolve_static_offset, OofLayoutResult};
 
 #[cfg(feature = "block_layout")]

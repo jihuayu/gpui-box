@@ -425,6 +425,13 @@ allocator 能表达确定性的缺口。共同 custom-parent 与 ConstraintBox �
 fallback始终两轴，exact cache隔离partial结果。未扩大ChildLayoutInput/builder字段；
 临时callback输入增大且public query仍clone树，尚无帧时或完整RenderBox验收结论。
 
+后续 [content axis demand](RETAINED_CONTENT_AXIS_MEASUREMENT.md) 把请求轴继续传到
+ContentMeasure，叶盒模型内部width/height intrinsic limit使用自己的probe axis。
+普通最终布局与baseline取得完整natural metrics，scalar width可跳过无关height pass，
+height仍先选定inline size。原leaf callback经包装复用同一算法，没有另一套盒模型。
+临时content input增加optional enum，既有full/partial exact key与原子失败边界复用；
+公共query clone/candidate成本仍在，不据callback减少推导帧时/尾延迟已改善。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。
