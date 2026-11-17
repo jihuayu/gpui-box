@@ -127,6 +127,7 @@ impl StyleWrap {
                     LayoutAvailableSpace::Unbounded,
                 ),
                 percentage_basis: input.percentage_basis,
+                ..ChildLayoutInput::default()
             };
             match style.flex_basis {
                 LayoutDimension::Auto => {}
@@ -360,6 +361,7 @@ impl ParentLayout for Inspect {
         let slot = ChildLayoutInput {
             constraints: LayoutConstraints::viewport(100.0, 100.0),
             percentage_basis: input.percentage_basis,
+            ..ChildLayoutInput::default()
         };
         let result = children.measure_baselines(0, slot)?;
         Ok(ParentLayoutOutput {

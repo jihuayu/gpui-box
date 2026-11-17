@@ -1,5 +1,10 @@
 # Independent parent intervals and content-sized construction
 
+Follow-up 2026-11-17: [selected child assignments](RETAINED_CHILD_ASSIGNMENTS.md)
+adds known_size and known_size_is_definite to ChildLayoutInput. An allocated
+size can remain indefinite for percentage descendants without tightening the
+hard interval. Readback, measurements, final placement and queries preserve it.
+
 Follow-up 2026-11-17: [independent item styles](RETAINED_ALLOCATION_STYLES.md)
 extends allocate_children with unresolved style reads, still without measurement.
 Builder observations retain all effective sibling styles as well as metadata,

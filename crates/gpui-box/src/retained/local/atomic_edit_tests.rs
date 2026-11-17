@@ -416,6 +416,7 @@ impl ParentLayout for Parent {
             constraints: constraints(width)
                 .with_bounds(BoxConstraints::new([width, 0.0], [width, f32::INFINITY])),
             percentage_basis: input.percentage_basis,
+            ..ChildLayoutInput::default()
         };
         let measured = children.measure(0, slot)?;
         Ok(ParentLayoutOutput {

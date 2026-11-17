@@ -329,6 +329,7 @@ impl ParentLayout for Forward {
                 LayoutAvailableSpace::Unbounded,
             ),
             percentage_basis: input.percentage_basis,
+            ..ChildLayoutInput::default()
         };
         let child = children.measure_baselines(0, slot)?;
         Ok(ParentLayoutOutput {

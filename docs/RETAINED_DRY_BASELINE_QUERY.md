@@ -1,5 +1,9 @@
 # Explicit complete baseline queries
 
+Follow-up 2026-11-17: [selected child assignments](RETAINED_CHILD_ASSIGNMENTS.md)
+adds explicit selected size/definiteness to query inputs, distinct from hard
+intervals, soft space and incoming percentage bases. Scratch isolation remains.
+
 Status: experimental framework protocol, 2026-11-17. Extends
 [pure parent metrics](RETAINED_DRY_PARENT_MEASURE.md). Full RFC acceptance and
 complete RenderBox/intrinsic semantics remain open.

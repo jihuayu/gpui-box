@@ -6,6 +6,7 @@ fn child_input(input: ParentLayoutInput) -> ChildLayoutInput {
     ChildLayoutInput {
         constraints: LayoutConstraints::new(input.available.width, LayoutAvailableSpace::Unbounded),
         percentage_basis: input.percentage_basis,
+        ..ChildLayoutInput::default()
     }
 }
 impl ParentMeasure for Mirror {

@@ -22,6 +22,7 @@ impl ParentAllocationLayout for LooseSlots {
                 )
                 .with_bounds(BoxConstraints::new([0.0; 2], [width, f32::INFINITY])),
                 percentage_basis: LayoutSize::new(Some(width), None),
+                ..ChildLayoutInput::default()
             })
             .collect())
     }
@@ -428,6 +429,7 @@ fn incoming_builder_preserves_intrinsic_unbounded_bounds_and_independent_bases()
             constraints: LayoutConstraints::new(space, LayoutAvailableSpace::Unbounded)
                 .with_bounds(BoxConstraints::new([25.0, 15.0], [70.0, 40.0])),
             percentage_basis: LayoutSize::new(Some(200.0), Some(300.0)),
+            ..ChildLayoutInput::default()
         };
         ui.edit_frame(
             constraints(80.0),
@@ -475,6 +477,7 @@ impl ParentAllocationLayout for OuterSoftSpace {
                 )
                 .with_bounds(BoxConstraints::new([80.0, 0.0], [80.0, f32::INFINITY])),
                 percentage_basis: LayoutSize::new(Some(80.0), None),
+                ..ChildLayoutInput::default()
             };
             count
         ])

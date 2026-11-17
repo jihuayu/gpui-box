@@ -21,7 +21,28 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 }
 
 #[derive(Debug)]
-struct StyleBasisParagraph;
+struct StyleBasisParagraph {
+    selected: bool,
+}
+impl StyleBasisParagraph {
+    fn slot(&self, width: f32, basis: LayoutSize<Option<f32>>) -> ChildLayoutInput {
+        let mut slot = ChildLayoutInput {
+            constraints: LayoutConstraints::new(
+                LayoutAvailableSpace::Definite(width),
+                LayoutAvailableSpace::Unbounded,
+            ),
+            percentage_basis: basis,
+            ..ChildLayoutInput::default()
+        };
+        if self.selected {
+            slot.known_size.width = Some(width);
+        } else {
+            slot.constraints.bounds =
+                BoxConstraints::new([width, 0.0], [width, f32::INFINITY]);
+        }
+        slot
+    }
+}
 impl ParentAllocationLayout for StyleBasisParagraph {
     fn allocate_children(
         &self,
@@ -33,14 +54,7 @@ impl ParentAllocationLayout for StyleBasisParagraph {
                 let LayoutDimension::Px(width) = children.style(child)?.flex_basis else {
                     return Err(gpui_box::retained::Error::InvalidParentLayout);
                 };
-                Ok(ChildLayoutInput {
-                    constraints: LayoutConstraints::new(
-                        LayoutAvailableSpace::Definite(width),
-                        LayoutAvailableSpace::Unbounded,
-                    )
-                    .with_bounds(BoxConstraints::new([width, 0.0], [width, f32::INFINITY])),
-                    percentage_basis: LayoutSize::new(Some(width), None),
-                })
+                Ok(self.slot(width, LayoutSize::new(Some(width), None)))
             })
             .collect()
     }
@@ -55,14 +69,7 @@ impl ParentLayout for StyleBasisParagraph {
         let LayoutDimension::Px(width) = item.flex_basis else {
             return Err(gpui_box::retained::Error::InvalidParentLayout);
         };
-        let slot = ChildLayoutInput {
-            constraints: LayoutConstraints::new(
-                LayoutAvailableSpace::Definite(width),
-                LayoutAvailableSpace::Unbounded,
-            )
-            .with_bounds(BoxConstraints::new([width, 0.0], [width, f32::INFINITY])),
-            percentage_basis: input.percentage_basis,
-        };
+        let slot = self.slot(width, input.percentage_basis);
         let child = children.measure_baselines(0, slot)?;
         Ok(ParentLayoutOutput {
             size: [
@@ -82,13 +89,21 @@ impl ParentLayout for StyleBasisParagraph {
 
 #[test]
 fn measured_parent_reads_child_basis_and_rewraps_actual_glyphs_on_style_updates() {
-    style_basis_glyph_case(false);
+    style_basis_glyph_case(false, false);
 }
 #[test]
 fn independent_parent_reads_child_basis_and_rewraps_actual_glyphs_on_style_updates() {
-    style_basis_glyph_case(true);
+    style_basis_glyph_case(true, false);
 }
-fn style_basis_glyph_case(independent: bool) {
+#[test]
+fn selected_child_width_drives_measured_parent_and_actual_glyph_wrapping() {
+    style_basis_glyph_case(false, true);
+}
+#[test]
+fn selected_child_width_drives_independent_parent_and_actual_glyph_wrapping() {
+    style_basis_glyph_case(true, true);
+}
+fn style_basis_glyph_case(independent: bool, selected: bool) {
     let system = text_system();
     let paragraph = shape(&system, "one two three four five six 中文段落");
     let mut raster = GlyphRasterizer::new(Arc::clone(&system));
@@ -125,9 +140,9 @@ fn style_basis_glyph_case(independent: bool) {
         .append_layout(full.root(), footer_style, 0xff0000ff)
         .unwrap();
     let mut tx = Transaction::default();
-    let mut snapshot = ParentLayoutSnapshot::new(StyleBasisParagraph);
+    let mut snapshot = ParentLayoutSnapshot::new(StyleBasisParagraph { selected });
     if independent {
-        snapshot = snapshot.with_allocation_layout(StyleBasisParagraph);
+        snapshot = snapshot.with_allocation_layout(StyleBasisParagraph { selected });
     }
     tx.parent_layout(host, Some(snapshot));
     tree.commit(tx, BackendCapabilities::default()).unwrap();
@@ -1162,6 +1177,7 @@ impl ParentMeasure for BaselineParagraphParent {
                         .unwrap_or(BoxConstraints::UNBOUNDED),
                 ),
                 percentage_basis: input.percentage_basis,
+                ..ChildLayoutInput::default()
             },
         )?;
         Ok(ParentMeasureOutput {
@@ -1200,6 +1216,7 @@ impl ParentLayout for BaselineParagraphParent {
                             .unwrap_or(BoxConstraints::UNBOUNDED),
                     ),
                     percentage_basis: input.percentage_basis,
+                    ..ChildLayoutInput::default()
                 },
                 origin: [0.0; 2],
             }],
@@ -1227,6 +1244,7 @@ impl ParentMeasure for ParagraphParent {
                     .unwrap_or(BoxConstraints::UNBOUNDED),
             ),
             percentage_basis: input.percentage_basis,
+            ..ChildLayoutInput::default()
         };
         let child = children.measure(0, slot)?;
         Ok(ParentMeasureOutput {
@@ -1260,6 +1278,7 @@ impl ParentLayout for ParagraphParent {
                     .unwrap_or(BoxConstraints::UNBOUNDED),
             ),
             percentage_basis: input.percentage_basis,
+            ..ChildLayoutInput::default()
         };
         let measured = children.measure(0, slot)?;
         // Repeated identical actual paragraph queries must retain the baseline
@@ -1367,6 +1386,7 @@ fn dry_parent_glyph_case(nested_baselines: bool) {
                 [width + 10.0, f32::INFINITY],
             )),
             percentage_basis: LayoutSize::new(Some(500.0), None),
+            ..ChildLayoutInput::default()
         };
         let dry = tree.dry_measure_node(host, input).unwrap();
         let height = paragraph.layout(Some(width)).unwrap().size[1];
@@ -1625,6 +1645,7 @@ impl ParentAllocationLayout for LooseParagraphInput {
                 )
                 .with_bounds(BoxConstraints::new([0.0; 2], [width, f32::INFINITY])),
                 percentage_basis: LayoutSize::new(Some(width), None),
+                ..ChildLayoutInput::default()
             };
             children
         ])
@@ -1759,6 +1780,7 @@ impl ParentAllocationLayout for KnownWidthParagraphInput {
                 )
                 .with_bounds(BoxConstraints::loose([width, f32::INFINITY])),
                 percentage_basis: LayoutSize::new(Some(width), None),
+                ..ChildLayoutInput::default()
             };
             count
         ])
@@ -1796,6 +1818,7 @@ impl ParentAllocationLayout for MetadataParagraphInput {
                     )
                     .with_bounds(BoxConstraints::new([width, 0.0], [width, f32::INFINITY])),
                     percentage_basis: LayoutSize::new(Some(width), None),
+                    ..ChildLayoutInput::default()
                 })
             })
             .collect()

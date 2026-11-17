@@ -14,6 +14,7 @@ impl ParentLayout for OneChild {
                 LayoutAvailableSpace::MaxContent,
             ),
             percentage_basis: input.percentage_basis,
+            ..ChildLayoutInput::default()
         };
         let child = if children.is_empty() {
             None

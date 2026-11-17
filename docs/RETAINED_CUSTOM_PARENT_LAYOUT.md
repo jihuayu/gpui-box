@@ -1,5 +1,10 @@
 # Owned custom parent layout
 
+Follow-up 2026-11-17: [selected child assignments](RETAINED_CHILD_ASSIGNMENTS.md)
+extends ChildLayoutInput with selected size and percentage definiteness for
+measured placement, independent slots and dry queries. Struct literals migrate
+with explicit fields or defaults; the complete RenderBox contract stays open.
+
 Follow-up 2026-11-17: [independent allocation styles](RETAINED_ALLOCATION_STYLES.md)
 adds child item-style reads to the full allocation phase with effective sibling
 style observations. General content feedback and complete RenderBox stay open.

@@ -17,6 +17,7 @@ impl ParentAllocationLayout for Loose {
                 )
                 .with_bounds(BoxConstraints::loose([width, f32::INFINITY])),
                 percentage_basis: LayoutSize::new(Some(width), None),
+                ..ChildLayoutInput::default()
             };
             count
         ])

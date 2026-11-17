@@ -1,5 +1,9 @@
 # Item styles in independent child allocation
 
+Follow-up: [selected child assignments](RETAINED_CHILD_ASSIGNMENTS.md) preserves
+known size/definiteness in returned/read child inputs, independently of hard
+intervals and percentage bases. The dependency domain below remains unchanged.
+
 Status: experimental framework protocol, 2026-11-17. Extends
 [measured item styles](RETAINED_CHILD_STYLE.md). Complete RenderBox, ordinary
 content-feedback construction and full RFC acceptance remain open.

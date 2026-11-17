@@ -1,5 +1,9 @@
 # Pure parent metrics and explicit dry node queries
 
+Follow-up 2026-11-17: [selected child assignments](RETAINED_CHILD_ASSIGNMENTS.md)
+extends child measurement and explicit dry inputs with independent selected
+border-box size/percentage definiteness, retaining the same query isolation.
+
 Follow-up 2026-11-17: [measured child item styles](RETAINED_CHILD_STYLE.md) adds
 owned unresolved item inputs to both metric/full phases. Independent allocation
 and structural proof domains remain restricted.

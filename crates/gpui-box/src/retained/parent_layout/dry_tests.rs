@@ -19,6 +19,7 @@ fn slot(input: ParentLayoutInput) -> ChildLayoutInput {
                     .unwrap_or(BoxConstraints::UNBOUNDED),
             ),
         percentage_basis: input.percentage_basis,
+        ..ChildLayoutInput::default()
     }
 }
 fn metrics(
@@ -285,6 +286,7 @@ fn public_dry_query_has_no_complete_plan_or_live_cache_geometry_publication() {
     let query = |space| ChildLayoutInput {
         constraints: LayoutConstraints::new(space, LayoutAvailableSpace::Unbounded),
         percentage_basis: LayoutSize::new(Some(90.0), None),
+        ..ChildLayoutInput::default()
     };
     let min = tree
         .dry_measure_node(host, query(LayoutAvailableSpace::MinContent))
@@ -352,6 +354,7 @@ fn dry_query_preserves_percentage_bases_hard_bounds_hidden_and_invalid_inputs() 
                     )
                     .with_bounds(BoxConstraints::new([80.0, 0.0], [80.0, f32::INFINITY])),
                     percentage_basis: LayoutSize::new(Some(500.0), h),
+                    ..ChildLayoutInput::default()
                 },
             )
             .unwrap();
@@ -363,6 +366,7 @@ fn dry_query_preserves_percentage_bases_hard_bounds_hidden_and_invalid_inputs() 
     let bad = ChildLayoutInput {
         constraints: LayoutConstraints::viewport(80.0, 60.0),
         percentage_basis: LayoutSize::new(Some(f32::NAN), None),
+        ..ChildLayoutInput::default()
     };
     assert!(matches!(
         tree.dry_measure_node(host, bad),
@@ -502,6 +506,7 @@ fn dry_intrinsic_limits_containment_aspect_and_box_bounds_match_complete_plan_co
                         ChildLayoutInput {
                             constraints,
                             percentage_basis: LayoutSize::new(Some(90.0), None),
+                            ..ChildLayoutInput::default()
                         },
                     )
                     .unwrap();
@@ -537,6 +542,7 @@ impl ParentAllocationLayout for Full {
                     )
                     .with_bounds(BoxConstraints::new([width, 0.0], [width, f32::INFINITY])),
                     percentage_basis: LayoutSize::new(Some(80.0), Some(40.0)),
+                    ..ChildLayoutInput::default()
                 })
             })
             .collect()

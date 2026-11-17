@@ -406,6 +406,22 @@ ignored; explicit allocation-style7 including actual GPU passed; Taffy218/212.
 Library Clippy, kernel feature and diff checks pass. Project-feature kernel tests
 required a lower-memory test-profile retry after an LLVM compile out-of-memory;
 the reproduction record preserves both the failure and successful settings.
+The [selected child assignment stage](RETAINED_CHILD_ASSIGNMENTS.md) adds
+known_size and known_size_is_definite to ChildLayoutInput, preserving real
+selected dimensions independently from hard intervals/soft space/incoming
+percentage bases. Readback no longer discards known dimensions; enforced
+assignments, measured plans, nested allocation inputs, keyed builders and
+explicit dry queries share the domain. Finite source-driven definite/indefinite
+percentage children, ordinary full CPU controls, restored P0 writes, failure
+rollback and actual Noto wrapping cover normal routes. Experimental struct
+literals are migrated; public temporary input payload grows, with no kernel
+cache, persistent node, GPU or packet format change. No speedup is claimed.
+See [validation](performance/2026-11-17-child-assignments/README.md). Complete
+RenderBox/general feedback/scheduling and full performance acceptance remain open.
+Final regression: retained394; text/WGPU427 passed/21 ignored; hello37 passed/2
+ignored; explicit selected-size7 including actual NVIDIA/Vulkan passed. Framework
+library Clippy, new test formatting and diff checks pass. No kernel source or
+feature configuration changed, so no new standalone vendor suite is claimed.
 
 The [validation-cache stage](RETAINED_VALIDATION_CACHE.md) reuses consumer checks
 for cache-owned immutable pages and stable node indices, with full fallback for

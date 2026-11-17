@@ -34,6 +34,7 @@ impl ParentLayout for Stack {
                 )
                 .with_bounds(bounds),
                 percentage_basis: input.percentage_basis,
+                ..ChildLayoutInput::default()
             };
             let result = children.measure(child, slot)?;
             if child == 0 {
@@ -491,6 +492,7 @@ impl ParentLayout for HeightBasis {
                     layout::AvailableSpace::Unbounded,
                 ),
                 percentage_basis: LayoutSize::new(Some(80.0), Some(basis)),
+                ..ChildLayoutInput::default()
             };
             let result = children.measure(0, slot)?;
             seen.push(result.size[1]);
@@ -548,6 +550,7 @@ impl ParentLayout for RepeatedStack {
             constraints: constraints(width)
                 .with_bounds(BoxConstraints::new([width, 0.0], [width, f32::INFINITY])),
             percentage_basis: LayoutSize::new(Some(width), None),
+            ..ChildLayoutInput::default()
         };
         let result = children.measure(0, slot)?;
         for _ in 1..self.repeats {

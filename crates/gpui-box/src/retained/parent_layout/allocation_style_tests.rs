@@ -54,6 +54,7 @@ impl ParentAllocationLayout for Weighted {
                     )
                     .with_bounds(BoxConstraints::new([w, 0.0], [w, f32::INFINITY])),
                     percentage_basis: LayoutSize::new(Some(w), None),
+                    ..ChildLayoutInput::default()
                 }
             })
             .collect())
@@ -392,6 +393,7 @@ impl ParentAllocationLayout for Basis {
                     )
                     .with_bounds(BoxConstraints::new([width, 0.0], [width, f32::INFINITY])),
                     percentage_basis: LayoutSize::new(Some(width), None),
+                    ..ChildLayoutInput::default()
                 })
             })
             .collect()

@@ -373,6 +373,12 @@ allocator 可读同一 unresolved item inputs，但仍不能测量内容。build
 replaced/aspect 和兄弟节点；即使数值 allocation 相等也重验输入。inline-only phase
 和一般 feedback/query 证明不放宽；临时样式复制/扫描成本明确保留，无性能收益声明。
 
+后续 [selected child assignments](RETAINED_CHILD_ASSIGNMENTS.md) 为 ChildLayoutInput
+补齐 known_size / known_size_is_definite，避免把 content-derived 已选尺寸强行编码成
+definite tight interval。与 hard bounds、soft space、incoming percentage basis 分开；
+allocation readback、measured placement、nested parent/builders 和 dry queries 保真。
+公开实验接口的 struct literals 已迁移，临时 input payload 增大，无性能收益声明。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

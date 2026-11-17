@@ -45,21 +45,48 @@ pub struct ParentLayoutInput {
     pub percentage_basis: LayoutSize<Option<f32>>,
 }
 
-/// A direct child's independent border-box constraints and percentage bases.
+/// A direct child's border-box assignment, constraints and percentage bases.
+/// Selected size does not imply a tight interval or percentage definiteness.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ChildLayoutInput {
+    /// Parent-selected dimensions. None lets normal child sizing choose an axis.
+    pub known_size: LayoutSize<Option<f32>>,
+    /// Whether a selected axis establishes a definite size for the child's own
+    /// percentage descendants. Ignored for None; a tight hard interval is definite.
+    pub known_size_is_definite: LayoutSize<bool>,
     pub constraints: LayoutConstraints,
     pub percentage_basis: LayoutSize<Option<f32>>,
 }
+impl Default for ChildLayoutInput {
+    fn default() -> Self {
+        Self::new(LayoutConstraints::new(
+            LayoutAvailableSpace::Unbounded,
+            LayoutAvailableSpace::Unbounded,
+        ))
+    }
+}
 impl ChildLayoutInput {
-    pub fn new(constraints: LayoutConstraints) -> Self {
+    pub const fn new(constraints: LayoutConstraints) -> Self {
         Self {
+            known_size: LayoutSize::new(None, None),
+            known_size_is_definite: LayoutSize::new(true, true),
             constraints,
             percentage_basis: LayoutSize::new(None, None),
         }
     }
+    pub const fn with_known_size(
+        mut self,
+        size: LayoutSize<Option<f32>>,
+        definite: LayoutSize<bool>,
+    ) -> Self {
+        self.known_size = size;
+        self.known_size_is_definite = definite;
+        self
+    }
     pub(super) fn from_taffy(input: taffy::LayoutInput) -> Self {
         Self {
+            known_size: from_size(input.known_dimensions),
+            known_size_is_definite: from_size(input.known_dimensions_are_definite),
             constraints: LayoutConstraints::new(
                 space(input.available_space.width),
                 space(input.available_space.height),
@@ -81,15 +108,28 @@ impl ChildLayoutInput {
             return Err(Error::InvalidParentLayout);
         }
         let bounds = self.constraints.bounds.to_taffy()?;
+        let selected = to_size(self.known_size);
+        let valid = selected.zip_map(
+            bounds.min.zip_map(bounds.max, |min, max| (min, max)),
+            |size, (min, max)| {
+                size.is_none_or(|size| size.is_finite() && size >= min && size <= max)
+            },
+        );
+        if !valid.width || !valid.height {
+            return Err(Error::InvalidParentLayout);
+        }
+        let tight = bounds.min.zip_map(bounds.max, |min, max| min == max);
         Ok(taffy::LayoutInput {
             size_bounds: bounds,
             known_dimensions: bounds
                 .min
-                .zip_map(bounds.max, |min, max| (min == max).then_some(min)),
-            known_dimensions_are_definite: Size {
-                width: true,
-                height: true,
-            },
+                .zip_map(bounds.max, |min, max| (min == max).then_some(min))
+                .or(selected),
+            known_dimensions_are_definite: to_size(self.known_size_is_definite)
+                .zip_map(selected, |definite, selected| {
+                    definite || selected.is_none()
+                })
+                .zip_map(tight, |definite, tight| definite || tight),
             parent_size: to_size(self.percentage_basis),
             available_space: Size {
                 width: self.constraints.width.to_taffy()?,
@@ -270,6 +310,8 @@ impl ChildInlineAllocation {
         Ok(())
     }
     fn apply(self, mut input: ChildLayoutInput) -> ChildLayoutInput {
+        input.known_size.width = Some(self.width);
+        input.known_size_is_definite.width = true;
         input.constraints.width = layout::AvailableSpace::Definite(self.width);
         input.constraints.bounds.min.width = self.width;
         input.constraints.bounds.max.width = self.width;
@@ -655,19 +697,21 @@ impl taffy::tree::CustomLayout for Adapter {
 }
 
 #[cfg(test)]
-mod dry_baseline_tests;
+mod allocation_style_tests;
 #[cfg(test)]
-mod dry_tests;
-#[cfg(test)]
-mod overflow_tests;
-#[cfg(test)]
-mod inline_tests;
-#[cfg(test)]
-mod parent_data_tests;
+mod assigned_size_tests;
 mod child_style;
 #[cfg(test)]
 mod child_style_tests;
 #[cfg(test)]
-mod allocation_style_tests;
+mod dry_baseline_tests;
+#[cfg(test)]
+mod dry_tests;
+#[cfg(test)]
+mod inline_tests;
+#[cfg(test)]
+mod overflow_tests;
+#[cfg(test)]
+mod parent_data_tests;
 #[cfg(test)]
 mod tests;
