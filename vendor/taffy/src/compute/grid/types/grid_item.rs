@@ -20,6 +20,39 @@ pub(in super::super) struct KnownDimensionsCacheEntry {
     known_dimensions: Size<Option<f32>>,
 }
 
+#[cfg(all(test, feature = "taffy_tree"))]
+mod minimum_box_tests {
+    use crate::prelude::*;
+
+    #[test]
+    fn fit_content_track_minimum_includes_border_box_floor() {
+        for padding in [0.0, 2.0, 5.0] {
+            for border in [0.0, 1.0, 3.0] {
+                let mut tree = TaffyTree::<()>::new();
+                tree.disable_rounding();
+                let floor = 2.0 * (padding + border);
+                let item = tree.new_leaf(Style {
+                    min_size: Size { width: length(0.0), height: auto() },
+                    padding: Rect { left: length(padding), right: length(padding), top: length(0.0), bottom: length(0.0) },
+                    border: Rect { left: length(border), right: length(border), top: length(0.0), bottom: length(0.0) },
+                    ..Style::DEFAULT
+                }).unwrap();
+                let marker = tree.new_leaf(Style::DEFAULT).unwrap();
+                let root = tree.new_with_children(Style {
+                    display: Display::Grid,
+                    size: Size { width: length(0.0), height: length(20.0) },
+                    grid_template_columns: vec![fit_content(length(70.0)), length(10.0)],
+                    gap: Size { width: length(4.0), height: length(0.0) },
+                    ..Style::DEFAULT
+                }, &[item, marker]).unwrap();
+                tree.compute_layout(root, Size::MAX_CONTENT).unwrap();
+                assert_eq!(tree.layout(item).unwrap().size.width, floor);
+                assert_eq!(tree.layout(marker).unwrap().location.x, floor + 4.0);
+            }
+        }
+    }
+}
+
 /// Represents a single grid item
 #[derive(Debug)]
 pub(in super::super) struct GridItem {
@@ -835,6 +868,10 @@ impl GridItem {
                     0.0
                 }
             })
+            // The minimum contribution is an outer border-box extent. An
+            // explicit border-box minimum (notably zero) or the automatic
+            // zero minimum cannot shrink it below its padding and border.
+            .max(padding_border_size.get(axis))
     }
 
     /// Retrieve the item's minimum contribution from the cache or compute it using the provided parameters

@@ -243,7 +243,10 @@ fn full_size_boundary(style: &Style) -> bool {
         .contains(taffy::Contain::SIZE | taffy::Contain::LAYOUT)
         && matches!(
             style.display,
-            taffy::Display::Flex | taffy::Display::ConstraintBox { .. } | taffy::Display::None
+            taffy::Display::Flex
+                | taffy::Display::Grid
+                | taffy::Display::ConstraintBox { .. }
+                | taffy::Display::None
         )
 }
 
@@ -401,7 +404,10 @@ fn validate_inline_extent(style: &Style) -> Result<(), Error> {
         || style.box_sizing != taffy::BoxSizing::BorderBox
         || !matches!(
             style.display,
-            taffy::Display::Flex | taffy::Display::ConstraintBox { .. } | taffy::Display::None
+            taffy::Display::Flex
+                | taffy::Display::Grid
+                | taffy::Display::ConstraintBox { .. }
+                | taffy::Display::None
         )
         || !style.scrollbar_width.is_finite()
         || style.scrollbar_width < 0.0

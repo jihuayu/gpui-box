@@ -5,6 +5,11 @@
 //! boundary used by the future UI IR and by non-GPUI hosts.
 
 use super::Error;
+mod grid;
+pub use grid::{
+    GridAutoFlow, GridAxisPlacement, GridMaxTrack, GridMinTrack, GridPlacement, GridRepetition,
+    GridStyle, GridTemplate, GridTrack,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Length {
@@ -339,6 +344,7 @@ pub enum LayoutPosition {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LayoutDisplay {
     Flex,
+    Grid,
     /// A single-child parent constraint protocol. Child margins, flex item
     /// placement and relative insets are outside this protocol. Use a Flex
     /// child when CSS placement is needed within the allocated content box.
@@ -647,10 +653,11 @@ impl<T> LayoutSize<T> {
     }
 }
 
-/// Engine-independent public layout contract for the supported Flex model.
+/// Engine-independent public layout contract for Flex, numeric Grid and boxes.
 #[derive(Clone, Debug, PartialEq)]
 pub struct LayoutStyle {
-    /// Stable flex-item ordering. Equal values preserve logical child order.
+    /// Stable item/paint ordering. Grid auto-placement follows this order;
+    /// equal values preserve logical child order.
     pub order: i32,
     pub display: LayoutDisplay,
     pub container_type: ContainerType,
@@ -675,6 +682,14 @@ pub struct LayoutStyle {
     pub flex_shrink: f32,
     pub align_items: Alignment<AlignItems>,
     pub align_self: Alignment<AlignSelf>,
+    /// Grid inline-axis item alignment. Flex ignores these fields.
+    pub justify_items: Alignment<AlignItems>,
+    pub justify_self: Alignment<AlignSelf>,
+    /// Grid container tracks and implicit-placement policy. Item placement is
+    /// independent: a Flex container may itself be a Grid item.
+    pub grid: Option<std::sync::Arc<GridStyle>>,
+    pub grid_column: GridAxisPlacement,
+    pub grid_row: GridAxisPlacement,
     pub align_content: Alignment<AlignContent>,
     pub justify_content: Alignment<JustifyContent>,
     /// Physical gaps: width = column gap, height = row gap.
@@ -713,6 +728,11 @@ impl Default for LayoutStyle {
             flex_shrink: 1.0,
             align_items: AlignItems::Stretch.into(),
             align_self: AlignSelf::Auto.into(),
+            justify_items: AlignItems::Normal.into(),
+            justify_self: AlignSelf::Auto.into(),
+            grid: None,
+            grid_column: GridAxisPlacement::default(),
+            grid_row: GridAxisPlacement::default(),
             align_content: AlignContent::Stretch.into(),
             justify_content: JustifyContent::Start.into(),
             gap: LayoutSize::new(Length::Px(0.0), Length::Px(0.0)),
@@ -736,6 +756,29 @@ impl LayoutStyle {
     }
     pub fn row() -> Self {
         Self::default()
+    }
+    pub fn grid(grid: GridStyle) -> Self {
+        Self {
+            display: LayoutDisplay::Grid,
+            grid: Some(std::sync::Arc::new(grid)),
+            ..Self::default()
+        }
+    }
+    pub fn grid_column(mut self, start: GridPlacement, end: GridPlacement) -> Self {
+        self.grid_column = GridAxisPlacement::new(start, end);
+        self
+    }
+    pub fn grid_row(mut self, start: GridPlacement, end: GridPlacement) -> Self {
+        self.grid_row = GridAxisPlacement::new(start, end);
+        self
+    }
+    pub fn justify_items(mut self, value: impl Into<Alignment<AlignItems>>) -> Self {
+        self.justify_items = value.into();
+        self
+    }
+    pub fn justify_self(mut self, value: impl Into<Alignment<AlignSelf>>) -> Self {
+        self.justify_self = value.into();
+        self
     }
     pub fn column() -> Self {
         Self {
@@ -865,6 +908,40 @@ impl LayoutStyle {
     }
 
     pub fn validate(&self) -> Result<(), Error> {
+        if self.display == LayoutDisplay::Grid && self.main_cross_gap.is_some() {
+            return Err(Error::InvalidStyle);
+        }
+        if let Some(grid) = &self.grid {
+            grid.validate()?;
+        }
+        self.grid_column.validate()?;
+        self.grid_row.validate()?;
+        validate_alignment(
+            self.justify_items.overflow,
+            matches!(
+                self.justify_items.position,
+                AlignItems::Start
+                    | AlignItems::End
+                    | AlignItems::FlexStart
+                    | AlignItems::FlexEnd
+                    | AlignItems::SelfStart
+                    | AlignItems::SelfEnd
+                    | AlignItems::Center
+            ),
+        )?;
+        validate_alignment(
+            self.justify_self.overflow,
+            matches!(
+                self.justify_self.position,
+                AlignSelf::Start
+                    | AlignSelf::End
+                    | AlignSelf::FlexStart
+                    | AlignSelf::FlexEnd
+                    | AlignSelf::SelfStart
+                    | AlignSelf::SelfEnd
+                    | AlignSelf::Center
+            ),
+        )?;
         validate_alignment(
             self.align_items.overflow,
             matches!(
@@ -964,7 +1041,7 @@ impl LayoutStyle {
 
     pub(crate) fn to_taffy(&self) -> Result<taffy::Style, Error> {
         self.validate()?;
-        Ok(taffy::Style {
+        let mut result = taffy::Style {
             contain_intrinsic_size: taffy::Size {
                 width: self.contain_intrinsic_size.width,
                 height: self.contain_intrinsic_size.height,
@@ -976,6 +1053,7 @@ impl LayoutStyle {
             },
             display: match self.display {
                 LayoutDisplay::Flex => taffy::Display::Flex,
+                LayoutDisplay::Grid => taffy::Display::Grid,
                 LayoutDisplay::ConstraintBox { width, height } => {
                     let lower = |fit| match fit {
                         ConstraintFit::Loose => taffy::ConstraintFit::Loose,
@@ -1029,35 +1107,12 @@ impl LayoutStyle {
             flex_basis: self.flex_basis.to_taffy(),
             flex_grow: self.flex_grow,
             flex_shrink: self.flex_shrink,
-            align_items: (match self.align_items.position {
-                AlignItems::Normal => taffy::AlignItems::NORMAL,
-                AlignItems::Start => taffy::AlignItems::START,
-                AlignItems::End => taffy::AlignItems::END,
-                AlignItems::FlexStart => taffy::AlignItems::FLEX_START,
-                AlignItems::FlexEnd => taffy::AlignItems::FLEX_END,
-                AlignItems::SelfStart => taffy::AlignItems::SELF_START,
-                AlignItems::SelfEnd => taffy::AlignItems::SELF_END,
-                AlignItems::Center => taffy::AlignItems::CENTER,
-                AlignItems::Stretch => taffy::AlignItems::STRETCH,
-                AlignItems::Baseline => taffy::AlignItems::BASELINE,
-                AlignItems::LastBaseline => taffy::AlignItems::LAST_BASELINE,
-            })
-            .with_safety(alignment_safety(self.align_items.overflow)),
-            align_self: match self.align_self.position {
-                AlignSelf::Auto => None,
-                AlignSelf::Normal => Some(taffy::AlignSelf::NORMAL),
-                AlignSelf::Start => Some(taffy::AlignSelf::START),
-                AlignSelf::End => Some(taffy::AlignSelf::END),
-                AlignSelf::FlexStart => Some(taffy::AlignSelf::FLEX_START),
-                AlignSelf::FlexEnd => Some(taffy::AlignSelf::FLEX_END),
-                AlignSelf::SelfStart => Some(taffy::AlignSelf::SELF_START),
-                AlignSelf::SelfEnd => Some(taffy::AlignSelf::SELF_END),
-                AlignSelf::Center => Some(taffy::AlignSelf::CENTER),
-                AlignSelf::Stretch => Some(taffy::AlignSelf::STRETCH),
-                AlignSelf::Baseline => Some(taffy::AlignSelf::BASELINE),
-                AlignSelf::LastBaseline => Some(taffy::AlignSelf::LAST_BASELINE),
-            }
-            .map(|value| value.with_safety(alignment_safety(self.align_self.overflow))),
+            align_items: lower_items(self.align_items),
+            align_self: lower_self(self.align_self),
+            justify_items: lower_items(self.justify_items),
+            justify_self: lower_self(self.justify_self),
+            grid_column: self.grid_column.to_taffy(),
+            grid_row: self.grid_row.to_taffy(),
             align_content: (match self.align_content.position {
                 AlignContent::Normal => taffy::AlignContent::NORMAL,
                 AlignContent::Start => taffy::AlignContent::START,
@@ -1116,8 +1171,49 @@ impl LayoutStyle {
                 },
             },
             ..taffy::Style::default()
-        })
+        };
+        if let Some(grid) = &self.grid {
+            grid.lower(&mut result);
+        }
+        Ok(result)
     }
+}
+
+fn lower_items(value: Alignment<AlignItems>) -> taffy::AlignItems {
+    (match value.position {
+        AlignItems::Normal => taffy::AlignItems::NORMAL,
+        AlignItems::Start => taffy::AlignItems::START,
+        AlignItems::End => taffy::AlignItems::END,
+        AlignItems::FlexStart => taffy::AlignItems::FLEX_START,
+        AlignItems::FlexEnd => taffy::AlignItems::FLEX_END,
+        AlignItems::SelfStart => taffy::AlignItems::SELF_START,
+        AlignItems::SelfEnd => taffy::AlignItems::SELF_END,
+        AlignItems::Center => taffy::AlignItems::CENTER,
+        AlignItems::Stretch => taffy::AlignItems::STRETCH,
+        AlignItems::Baseline => taffy::AlignItems::BASELINE,
+        AlignItems::LastBaseline => taffy::AlignItems::LAST_BASELINE,
+    })
+    .with_safety(alignment_safety(value.overflow))
+}
+fn lower_self(value: Alignment<AlignSelf>) -> Option<taffy::AlignSelf> {
+    let position = match value.position {
+        AlignSelf::Auto => return None,
+        AlignSelf::Normal => AlignItems::Normal,
+        AlignSelf::Start => AlignItems::Start,
+        AlignSelf::End => AlignItems::End,
+        AlignSelf::FlexStart => AlignItems::FlexStart,
+        AlignSelf::FlexEnd => AlignItems::FlexEnd,
+        AlignSelf::SelfStart => AlignItems::SelfStart,
+        AlignSelf::SelfEnd => AlignItems::SelfEnd,
+        AlignSelf::Center => AlignItems::Center,
+        AlignSelf::Stretch => AlignItems::Stretch,
+        AlignSelf::Baseline => AlignItems::Baseline,
+        AlignSelf::LastBaseline => AlignItems::LastBaseline,
+    };
+    Some(lower_items(Alignment {
+        position,
+        overflow: value.overflow,
+    }))
 }
 
 #[cfg(test)]
@@ -1134,6 +1230,8 @@ mod constraint_box_tests;
 mod containment_fallback_tests;
 #[cfg(test)]
 mod containment_tests;
+#[cfg(test)]
+mod grid_tests;
 #[cfg(test)]
 mod intrinsic_limits_tests;
 #[cfg(test)]

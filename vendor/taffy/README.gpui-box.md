@@ -12,6 +12,12 @@ local test artifacts and ignored.
 
 ## Local changes
 
+- Grid minimum outer contribution is floored at resolved padding+border even
+  with explicit/automatic zero minima. Independent browser references exposed
+  fit-content tracks smaller than their border-box floor; the standalone
+  regression and all1,152framework Grid cases cover the correction. See
+  [public Grid contract](../../docs/RETAINED_PUBLIC_GRID.md).
+
 - Flex preserves authored-size provenance, distinguishes replaced/ordinary
   automatic minima and transfers preferred ratios through the actual ratio box.
   Explicit cross sizes and automatic content minima retain their own limits.

@@ -1,0 +1,14 @@
+{
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36",
+  "cases": 1152,
+  "fields": [
+    "template",
+    "flow",
+    "rtl",
+    "width",
+    "placed",
+    "align",
+    "update"
+  ],
+  "tolerance": 0.06
+}

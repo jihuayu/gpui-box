@@ -21,6 +21,181 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 }
 
 #[test]
+fn public_grid_real_paragraphs_match_independently_positioned_cpu_glyphs() {
+    public_grid_real_paragraphs(false);
+}
+
+#[cfg(feature = "retained-wgpu")]
+#[test]
+#[ignore = "requires a WGPU adapter; run explicitly"]
+fn hardware_public_grid_real_paragraphs_match_independently_positioned_glyphs() {
+    public_grid_real_paragraphs(true);
+}
+
+fn public_grid_real_paragraphs(hardware: bool) {
+    use gpui_box::retained::logical::LogicalUi;
+    let system = text_system();
+    let paragraphs = [
+        shape(&system, "one two three four five 中文段落 longword"),
+        shape(&system, "short 中文"),
+        shape(
+            &system,
+            "changed paragraph with more words\nsecond line 中文",
+        ),
+    ];
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let paints: Vec<_> = paragraphs
+        .iter()
+        .enumerate()
+        .map(|(i, p)| TextPaint {
+            resource: raster.prepare(p.clone(), 1.0).unwrap(),
+            color: if i == 1 { 0x00ffffff } else { 0xff00ffff },
+        })
+        .collect();
+    #[cfg(feature = "retained-wgpu")]
+    let mut gpu = hardware.then(|| wgpu::WgpuFrameRenderer::new(2).unwrap());
+    #[cfg(feature = "retained-wgpu")]
+    if let Some(gpu) = &gpu {
+        eprintln!("Grid glyph adapter: {:?}", gpu.adapter_info());
+    }
+    #[cfg(not(feature = "retained-wgpu"))]
+    assert!(!hardware);
+    let grid = |w| {
+        LayoutStyle::grid(GridStyle::default().columns(vec![
+            GridTrack::minmax(GridMinTrack::Px(0.0), GridMaxTrack::Fr(1.0)).into(),
+            GridTrack::minmax(GridMinTrack::Px(0.0), GridMaxTrack::Fr(2.0)).into(),
+        ]))
+        .size(LayoutDimension::Px(w), LayoutDimension::Auto)
+        .padding(LayoutEdges::all(LayoutLength::Px(3.0)))
+        .gap(LayoutLength::Px(4.0), LayoutLength::Px(4.0))
+        .align_items(LayoutAlignItems::Start)
+    };
+    let text_style = || {
+        LayoutStyle::row()
+            .min_size(LayoutDimension::Px(0.0), LayoutDimension::Auto)
+            .padding(LayoutEdges::all(LayoutLength::Px(2.0)))
+    };
+    fn pixels(frame: FramePacket) -> Vec<u8> {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [300, 800],
+                scale: 1.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 4 * 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(4096).unwrap() {}
+        job.into_frame().unwrap().pixels().to_vec()
+    }
+    for local in [false, true] {
+        let mut ui = LogicalUi::new_layout(grid(180.0), 0, BackendCapabilities::default()).unwrap();
+        let scope = ui.root_scope();
+        let root = ui.root_render();
+        let source = ui.state(scope, 0, || grid(180.0)).unwrap();
+        ui.bind(source, Property::layout_style(root)).unwrap();
+        let mut nodes = vec![];
+        for _ in 0..2 {
+            nodes.push(
+                ui.append_render_layout(scope, root, text_style(), 0)
+                    .unwrap(),
+            );
+        }
+        let mut old = None;
+        for (step, w) in [180.0, 260.0, 120.0, 180.0].into_iter().enumerate() {
+            let indices = if step == 2 { [2, 1] } else { [0, 1] };
+            ui.edit(
+                |tx| tx.set(source, grid(w)).map(|_| ()),
+                |(), edit| {
+                    for i in 0..2 {
+                        edit.properties()
+                            .text(nodes[i], Some(paints[indices[i]].clone()));
+                    }
+                    Ok(())
+                },
+            )
+            .unwrap();
+            let frame = if local {
+                ui.local_frame_in_viewport(LayoutConstraints::viewport(w, 800.0), [300.0, 800.0])
+                    .unwrap()
+                    .resolve()
+            } else {
+                ui.frame_in_viewport(LayoutConstraints::viewport(w, 800.0), [300.0, 800.0])
+                    .unwrap()
+            };
+            let widths = [(w - 10.0) / 3.0, (w - 10.0) * 2.0 / 3.0];
+            let heights: Vec<_> = (0..2)
+                .map(|i| {
+                    paragraphs[indices[i]]
+                        .layout(Some(widths[i] - 4.0))
+                        .unwrap()
+                        .size[1]
+                        + 4.0
+                })
+                .collect();
+            let height = heights[0].max(heights[1]) + 6.0;
+            assert!((ui.layout_result(root).unwrap().size[1] - height).abs() < 0.02);
+            let mut control = UiTree::new_layout(
+                LayoutStyle::row().size(LayoutDimension::Px(w), LayoutDimension::Px(height)),
+                0,
+            )
+            .unwrap();
+            control.set_frame_build_policy(FrameBuildPolicy::Full);
+            for i in 0..2 {
+                let actual = ui.layout_result(nodes[i]).unwrap();
+                assert!((actual.size[0] - widths[i]).abs() < 0.02);
+                assert!((actual.size[1] - heights[i]).abs() < 0.02);
+                assert!(
+                    (actual.baseline.unwrap() - paragraphs[indices[i]].first_baseline() - 2.0)
+                        .abs()
+                        < 0.02
+                );
+                let mut style = text_style().size(
+                    LayoutDimension::Px(widths[i]),
+                    LayoutDimension::Px(heights[i]),
+                );
+                style.position = LayoutPosition::Absolute;
+                style.inset.left = LayoutLength::Px(if i == 0 { 3.0 } else { 7.0 + widths[0] });
+                style.inset.top = LayoutLength::Px(3.0);
+                let text = control.append_layout(control.root(), style, 0).unwrap();
+                let mut tx = Transaction::default();
+                tx.text(text, Some(paints[indices[i]].clone()));
+                control.commit(tx, BackendCapabilities::default()).unwrap();
+            }
+            let reference = control
+                .frame_in_viewport(LayoutConstraints::viewport(w, 800.0), [300.0, 800.0])
+                .unwrap();
+            #[cfg(feature = "retained-wgpu")]
+            if let Some(gpu) = &mut gpu {
+                gpu.submit(&frame, [300, 800], 1.0).unwrap().unwrap();
+                assert!(
+                    gpu.image().unwrap().as_raw()
+                        == gpu
+                            .reference_image(&reference, [300, 800], 1.0)
+                            .unwrap()
+                            .as_raw()
+                );
+            }
+            assert!(
+                pixels(frame.clone()) == pixels(reference),
+                "step={step} w={w} local={local}"
+            );
+            old.get_or_insert(frame);
+        }
+        let old = old.unwrap();
+        let expected = pixels(old.clone());
+        drop(ui);
+        assert_eq!(pixels(old), expected);
+    }
+    #[cfg(feature = "retained-wgpu")]
+    if let Some(gpu) = &mut gpu {
+        gpu.finish().unwrap();
+    }
+}
+
+#[test]
 fn row_allocated_real_text_composes_inline_builders_and_container_rules_without_containment() {
     row_allocated_real_text(LayoutDimension::Px(0.0));
 }

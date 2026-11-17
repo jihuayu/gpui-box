@@ -1,0 +1,38 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Public Grid independent geometry reference</title>
+<style>html,body{margin:0;padding:0}.host{position:absolute;left:0;top:0;display:grid;height:200px;padding:3px;column-gap:4px;row-gap:6px;align-content:start;justify-content:start;box-sizing:border-box;grid-template-rows:minmax(30px,auto) 40px;grid-auto-rows:35px 25px;grid-auto-columns:45px 65px}.item{display:flex;flex-direction:column;min-width:0;padding:2px;border:1px solid transparent;margin:1px;box-sizing:border-box}.content{flex-shrink:0}</style>
+<body><script>
+window.referenceReady=(async()=>{
+  const cases=[];
+  const templates={fraction:'minmax(0,1fr) minmax(30px,2fr)',percent:'30% minmax(20px,1fr)',repeat:'repeat(2,minmax(20px,1fr))',fit:'repeat(auto-fit,minmax(60px,1fr))',fill:'repeat(auto-fill,minmax(60px,1fr))',intrinsic:'min-content fit-content(70px) max-content'};
+  for(const template of Object.keys(templates))
+  for(const flow of ['row','column','row dense','column dense'])
+  for(const rtl of [false,true])
+  for(const width of [160,260])
+  for(const placed of [false,true])
+  for(const align of ['stretch','start','center']) {
+    const host=document.createElement('div');host.className='host';
+    Object.assign(host.style,{gridTemplateColumns:templates[template],gridAutoFlow:flow,direction:rtl?'rtl':'ltr',width:`${width}px`,alignItems:align,justifyItems:align});
+    const count=['fit','fill'].includes(template)?3:5;
+    for(let i=0;i<count;i++){
+      const item=document.createElement('div');item.className='item';
+      if(placed){
+        if(i===0){item.style.gridColumn='span 2';item.style.order='1'}
+        if(i===1){item.style.gridColumn='-2 / -1';item.style.gridRow='1'}
+        if(i===2){item.style.gridRow='span 2';item.style.justifySelf='end';item.style.alignSelf='center'}
+      }
+      const content=document.createElement('div');content.className='content';content.style.width=`${[30,80,25,55,70][i]}px`;item.append(content);host.append(item);
+    }
+    document.body.append(host);
+    for(const update of [false,true]) {
+      [...host.children].forEach((item,i)=>item.firstChild.style.height=`${[20,30,10,35,15][i]+(update?20:0)}px`);
+      const r=host.getBoundingClientRect();
+      const actual=[r.width,r.height,...[...host.children].flatMap(item=>{const b=item.getBoundingClientRect();return[b.x-r.x,b.y-r.y,b.width,b.height]})];
+      cases.push({template,flow,rtl,width,placed,align,update,actual});
+    }
+    host.remove();
+  }
+  return{userAgent:navigator.userAgent,cases};
+})();
+</script>

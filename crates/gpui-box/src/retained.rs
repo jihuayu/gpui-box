@@ -26,10 +26,11 @@ pub use layout::{
     AlignmentOverflow as LayoutAlignmentOverflow, AvailableSpace as LayoutAvailableSpace,
     BoxConstraints, BoxSizing as LayoutBoxSizing, ConstraintFit,
     ContainerType as LayoutContainerType, Dimension as LayoutDimension, Edges as LayoutEdges,
-    FlexDirection as LayoutFlexDirection, FlexWrap as LayoutFlexWrap,
-    JustifyContent as LayoutJustifyContent, LayoutConstraints, LayoutDirection, LayoutDisplay,
-    LayoutPosition, LayoutResult, LayoutSize, LayoutStyle, Length as LayoutLength,
-    Overflow as LayoutOverflow,
+    FlexDirection as LayoutFlexDirection, FlexWrap as LayoutFlexWrap, GridAutoFlow,
+    GridAxisPlacement, GridMaxTrack, GridMinTrack, GridPlacement, GridRepetition, GridStyle,
+    GridTemplate, GridTrack, JustifyContent as LayoutJustifyContent, LayoutConstraints,
+    LayoutDirection, LayoutDisplay, LayoutPosition, LayoutResult, LayoutSize, LayoutStyle,
+    Length as LayoutLength, Overflow as LayoutOverflow,
 };
 pub mod pacing;
 pub mod software;

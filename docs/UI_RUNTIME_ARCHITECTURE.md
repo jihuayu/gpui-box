@@ -481,6 +481,17 @@ final observations／原子发布，432组独立浏览器对照和真实glyph／
 新增证明按需运行，不增加公共字段或内核pass；扫描／preview成本继续，无帧时收益声明。
 content/auto/intrinsic／ratio/general protocol证明、full-axis反馈和完整RenderBox仍开放。
 
+后续 [公共Grid契约](RETAINED_PUBLIC_GRID.md) 新增框架自有GridStyle／轨道／重复／
+placement类型，LayoutStyle::grid支持fr、minmax、percent、intrinsic／fit-content、
+Count／AutoFit／AutoFill、implicit patterns与dense flow。公共justify_items／justify_self
+复用alignment safety，Grid/Flex嵌套与typed source／keyed原子更新走同一持久布局与frame链。
+轨道配置为可选Arc快照，Flex默认无轨道数组；lowering仍扫描／分配engine vectors，未测性能。
+独立Chromium1,152组暴露并验证了Taffy Grid minimum outer contribution低于padding+border
+的修复；真实Noto以手工公式定位参考验证换行／baseline／全部CPU glyph pixels。
+已证明外部宽度的Grid host可建树，fixed/full-contained Grid query复用session；content-dependent
+Grid item内部分配证明仍拒绝。Named lines/areas、subgrid、Grid last-baseline／竖排、calc、
+广泛CSS及持续GPU/CPU/可见呈现验收继续开放，不能把这一阶段称为完整CSS Grid。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

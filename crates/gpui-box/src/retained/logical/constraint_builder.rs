@@ -288,7 +288,7 @@ pub(super) fn validate_inline_allocation_host(tree: &UiTree, host: NodeId) -> Re
     let node = tree.node(host)?;
     if !matches!(
         node.style.display,
-        taffy::Display::Flex | taffy::Display::ConstraintBox { .. }
+        taffy::Display::Flex | taffy::Display::Grid | taffy::Display::ConstraintBox { .. }
     ) || !layout_dependencies::independent_inline_allocation_chain(tree, host, &node.style)?
     {
         return Err(Error::UnsafeConstraintBuilder);

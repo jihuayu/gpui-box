@@ -123,7 +123,10 @@ fn prove(
     if style.position.is_out_of_flow()
         || !matches!(
             style.display,
-            taffy::Display::Flex | taffy::Display::ConstraintBox { .. } | taffy::Display::None
+            taffy::Display::Flex
+                | taffy::Display::Grid
+                | taffy::Display::ConstraintBox { .. }
+                | taffy::Display::None
         )
     {
         return Ok(false);
