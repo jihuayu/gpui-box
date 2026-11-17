@@ -360,6 +360,13 @@ used border box 分离，首末有符号 baseline/overflow 同源。完整输入
 这不是完整 RenderBox/任意 child-style 分配，重复测量、exact cache 和 clone 有成本，
 没有本轮性能收益声明。
 
+自定义 measured parent 另有 [ChildLayoutStyle](RETAINED_CHILD_STYLE.md) 只读
+direct-child item inputs，包括未解析尺寸/边距、basis/grow/shrink、自对齐、containment
+和 effective replaced flags。只在 pure metric/full measured 阶段可读；独立 allocator
+仍只看 incoming constraints 与 metadata，未放宽 builder/query 证明。普通子布局仍由
+统一内核执行；自定义 ParentPlacement 的 margin metadata 继续为0，不自动套用 CSS
+margin/relative placement。无新增持久样式副本，无本轮性能改善声明。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

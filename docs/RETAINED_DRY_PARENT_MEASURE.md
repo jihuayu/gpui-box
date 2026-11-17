@@ -1,5 +1,9 @@
 # Pure parent metrics and explicit dry node queries
 
+Follow-up 2026-11-17: [measured child item styles](RETAINED_CHILD_STYLE.md) adds
+owned unresolved item inputs to both metric/full phases. Independent allocation
+and structural proof domains remain restricted.
+
 Status: experimental framework protocol, 2026-11-17. Extends
 [owned custom parents](RETAINED_CUSTOM_PARENT_LAYOUT.md) and
 [authored parent data](RETAINED_PARENT_DATA.md). Full RenderBox and full RFC

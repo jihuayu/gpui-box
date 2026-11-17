@@ -235,6 +235,13 @@ pub trait LayoutPartialTree: TraversePartialTree {
     fn get_parent_data(&self, _node: NodeId) -> Option<&crate::tree::CustomParentData> {
         None
     }
+
+    /// Optional item-style snapshot for measured custom parents. Other tree
+    /// adapters must provide their real style inputs to support this operation.
+    #[cfg(feature = "taffy_tree")]
+    fn get_custom_child_style(&self, _node: NodeId) -> Option<crate::tree::CustomChildStyle> {
+        None
+    }
 }
 
 /// Extends [`LayoutPartialTree`] with the operations needed by the out-of-flow positioning pass

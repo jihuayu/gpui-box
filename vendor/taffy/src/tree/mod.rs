@@ -10,7 +10,7 @@ mod custom_layout;
 #[cfg(feature = "taffy_tree")]
 pub use custom_layout::{
     CustomAllocationChildren, CustomLayout, CustomLayoutChildren, CustomLayoutInput, CustomLayoutOutput, CustomMeasureOutput,
-    CustomParentData,
+    CustomParentData, CustomChildStyle,
     CustomPlacement,
 };
 mod layout;

@@ -1,5 +1,9 @@
 # Immutable child metadata for owned parent layouts
 
+Follow-up: [item-style reads](RETAINED_CHILD_STYLE.md) now serve measured parent
+policies. Independent allocators still cannot read style or content; statements
+below about their restricted dependency domain remain applicable.
+
 Follow-up: [pure parent metrics](RETAINED_DRY_PARENT_MEASURE.md) reads the same
 authored child metadata and enforced assignments without a placement list;
 final layout still validates exact metric agreement. General RenderBox remains open.

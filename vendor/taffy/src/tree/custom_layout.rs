@@ -7,6 +7,59 @@ use core::any::Any;
 #[cfg(feature = "std")]
 use std::sync::Arc;
 
+/// Owned item-facing style inputs for a measured parent policy. Values remain
+/// unresolved; reading them does not measure content or assign child geometry.
+/// Independent allocation deliberately has no access to this input domain.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CustomChildStyle {
+    /// Whether the child generates no box.
+    pub hidden: bool,
+    /// Physical horizontal direction.
+    pub direction: crate::Direction,
+    /// Child positioning policy.
+    pub position: crate::Position,
+    /// Unresolved authored insets.
+    pub inset: crate::Rect<crate::LengthPercentageAuto>,
+    /// Preferred dimensions.
+    pub size: Size<crate::Dimension>,
+    /// Minimum dimensions.
+    pub min_size: Size<crate::Dimension>,
+    /// Maximum dimensions.
+    pub max_size: Size<crate::Dimension>,
+    /// Preferred width/height ratio.
+    pub aspect_ratio: Option<f32>,
+    /// Unresolved margins.
+    pub margin: crate::Rect<crate::LengthPercentageAuto>,
+    /// Unresolved padding.
+    pub padding: crate::Rect<crate::LengthPercentage>,
+    /// Unresolved border widths.
+    pub border: crate::Rect<crate::LengthPercentage>,
+    /// Size styles apply to this box.
+    pub box_sizing: crate::BoxSizing,
+    /// Overflow sizing behavior.
+    pub overflow: crate::Point<crate::Overflow>,
+    /// Reserved scrollbar extent.
+    pub scrollbar_width: f32,
+    /// Layout-affecting containment flags.
+    pub contain: crate::Contain,
+    /// Effective replaced-element classification, including measured images.
+    pub is_replaced: bool,
+    /// Effective compressible classification.
+    pub is_compressible_replaced: bool,
+    /// Flex item basis.
+    #[cfg(feature = "flexbox")]
+    pub flex_basis: crate::Dimension,
+    /// Flex item grow factor.
+    #[cfg(feature = "flexbox")]
+    pub flex_grow: f32,
+    /// Flex item shrink factor.
+    #[cfg(feature = "flexbox")]
+    pub flex_shrink: f32,
+    /// Optional item alignment.
+    #[cfg(feature = "flexbox")]
+    pub align_self: Option<crate::AlignSelf>,
+}
+
 /// Opaque, owned metadata attached to a child for its direct parent algorithm.
 /// Clone preserves identity; replacement must use a new handle. Values must be
 /// immutable for the same reason as owned layout delegates.
@@ -67,6 +120,12 @@ pub trait CustomLayoutChildren {
     /// Same immutable metadata seen by the independent allocation phase.
     fn parent_data(&self, _child: usize) -> Result<Option<&CustomParentData>, TaffyError> {
         Ok(None)
+    }
+    /// Direct-child item inputs in actual layout order, including hidden
+    /// children. Unsupported adapters fail explicitly rather than inventing
+    /// default style. No parent, descendant or final used geometry is exposed.
+    fn style(&self, _child: usize) -> Result<CustomChildStyle, TaffyError> {
+        Err(TaffyError::InvalidCustomLayout)
     }
     /// A separate phase's enforced full assignment, when installed.
     fn allocation(&self, _child: usize) -> Result<Option<LayoutInput>, TaffyError> {

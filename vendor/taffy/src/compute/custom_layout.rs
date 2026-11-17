@@ -39,6 +39,13 @@ impl<T: LayoutPartialTree> CustomLayoutChildren for Children<'_, T> {
         }
         Ok(self.tree.get_parent_data(self.tree.get_child_id(self.parent, child)))
     }
+    fn style(&self, child: usize) -> Result<crate::tree::CustomChildStyle, TaffyError> {
+        if child >= self.len() {
+            return Err(TaffyError::InvalidCustomLayout);
+        }
+        self.tree.get_custom_child_style(self.tree.get_child_id(self.parent, child))
+            .ok_or(TaffyError::InvalidCustomLayout)
+    }
     fn allocation(&self, child: usize) -> Result<Option<LayoutInput>, TaffyError> {
         if child >= self.len() {
             return Err(TaffyError::InvalidCustomLayout);
@@ -190,6 +197,53 @@ mod tests {
                 baselines: Baselines::NONE,
                 placements: vec![CustomPlacement { child: 0, input: slot, origin: Point { x: 0.0, y: 0.0 } }],
             })
+        }
+    }
+
+    #[derive(Debug)]
+    struct StyleSized;
+    impl CustomLayout for StyleSized {
+        fn layout(&self, input: CustomLayoutInput, children: &mut dyn CustomLayoutChildren) -> Result<CustomLayoutOutput, TaffyError> {
+            assert!(children.style(children.len()).is_err());
+            let style = children.style(0)?;
+            assert_eq!(style.margin.left, crate::LengthPercentageAuto::percent(0.1));
+            let width = 20.0 + style.flex_grow * 10.0;
+            let slot = LayoutInput {
+                known_dimensions: Size { width: Some(width), height: None },
+                available_space: Size::MAX_CONTENT,
+                ..LayoutInput::HIDDEN
+            };
+            let result = children.measure(0, slot)?;
+            assert_eq!(style, children.style(0)?, "measurement cannot mutate item style");
+            Ok(CustomLayoutOutput {
+                size: input.known_size.unwrap_or(result.size),
+                baselines: Baselines::NONE,
+                placements: vec![CustomPlacement { child: 0, input: slot, origin: Point::ZERO }],
+            })
+        }
+    }
+
+    #[test]
+    fn measured_child_style_inputs_invalidate_normal_and_exact_parent_caches() {
+        let mut tree = TaffyTree::<()>::new();
+        tree.disable_rounding();
+        let mut style = Style {
+            size: Size { width: Dimension::length(1.0), height: Dimension::length(10.0) },
+            margin: Rect { left: crate::LengthPercentageAuto::percent(0.1), ..Style::<crate::sys::DefaultCheapStr>::DEFAULT.margin },
+            flex_grow: 1.0,
+            ..Style::DEFAULT
+        };
+        let child = tree.new_leaf(style.clone()).unwrap();
+        let root = tree.new_with_children(Style::DEFAULT, &[child]).unwrap();
+        tree.set_custom_layout(root, Some(Arc::new(StyleSized))).unwrap();
+        for (grow, width) in [(1.0, 30.0), (3.0, 50.0), (1.0, 30.0)] {
+            style.flex_grow = grow;
+            tree.set_style(child, style.clone()).unwrap();
+            tree.compute_layout(root, Size::MAX_CONTENT).unwrap();
+            assert_eq!(tree.layout(root).unwrap().size, Size { width, height: 10.0 });
+            assert_eq!(tree.layout(child).unwrap().size, Size { width, height: 10.0 });
+            tree.compute_layout(root, Size::MAX_CONTENT).unwrap();
+            assert_eq!(tree.layout(child).unwrap().size.width, width);
         }
     }
 

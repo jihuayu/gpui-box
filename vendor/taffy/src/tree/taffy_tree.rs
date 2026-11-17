@@ -504,6 +504,36 @@ where
     fn get_parent_data(&self, node: NodeId) -> Option<&crate::tree::CustomParentData> {
         self.taffy.parent_data.get(node.into())
     }
+    fn get_custom_child_style(&self, node: NodeId) -> Option<crate::tree::CustomChildStyle> {
+        let style = &self.taffy.nodes[node.into()].style;
+        Some(crate::tree::CustomChildStyle {
+            hidden: style.display == Display::None,
+            direction: style.direction,
+            position: style.position,
+            inset: style.inset,
+            size: style.size,
+            min_size: style.min_size,
+            max_size: style.max_size,
+            aspect_ratio: style.aspect_ratio,
+            margin: style.margin,
+            padding: style.padding,
+            border: style.border,
+            box_sizing: style.box_sizing,
+            overflow: style.overflow,
+            scrollbar_width: style.scrollbar_width,
+            contain: style.contain,
+            is_replaced: style.item_is_replaced,
+            is_compressible_replaced: style.item_is_replaced || style.item_is_compressible_replaced,
+            #[cfg(feature = "flexbox")]
+            flex_basis: style.flex_basis,
+            #[cfg(feature = "flexbox")]
+            flex_grow: style.flex_grow,
+            #[cfg(feature = "flexbox")]
+            flex_shrink: style.flex_shrink,
+            #[cfg(feature = "flexbox")]
+            align_self: style.align_self,
+        })
+    }
     type CoreContainerStyle<'a>
         = &'a Style
     where

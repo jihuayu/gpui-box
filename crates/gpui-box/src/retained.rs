@@ -53,8 +53,8 @@ pub use measure::{
     ContentMeasureSnapshot, CustomMeasureSnapshot, ImageIntrinsicSize, LayoutStats, MeasureSnapshot,
 };
 pub use parent_layout::{
-    ChildInlineAllocation, ChildLayoutInput, ChildLayoutResult, ParentAllocationChildren,
-    ParentAllocationInput, ParentAllocationLayout, ParentData, ParentInlineInput,
+    ChildInlineAllocation, ChildLayoutInput, ChildLayoutResult, ChildLayoutStyle,
+    ParentAllocationChildren, ParentAllocationInput, ParentAllocationLayout, ParentData, ParentInlineInput,
     ParentInlineLayout, ParentLayout, ParentLayoutChildren, ParentLayoutInput, ParentLayoutOutput,
     ParentLayoutSnapshot, ParentMeasure, ParentMeasureOutput, ParentPlacement,
 };

@@ -106,6 +106,37 @@ pub struct ChildLayoutResult {
     pub last_baseline: Option<f32>,
 }
 
+/// Owned, unresolved item-facing inputs of a direct child. These are effective
+/// kernel inputs (including replaced-image classification), not final geometry.
+/// Container internals such as its own gap or child alignment stay encapsulated;
+/// use normal child measurement to obtain their content contribution.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ChildLayoutStyle {
+    pub hidden: bool,
+    pub direction: LayoutDirection,
+    pub position: LayoutPosition,
+    pub inset: LayoutEdges,
+    pub size: LayoutSize<LayoutDimension>,
+    pub min_size: LayoutSize<LayoutDimension>,
+    pub max_size: LayoutSize<LayoutDimension>,
+    pub aspect_ratio: Option<f32>,
+    pub margin: LayoutEdges,
+    pub padding: LayoutEdges,
+    pub border: LayoutEdges,
+    pub box_sizing: LayoutBoxSizing,
+    pub overflow: LayoutSize<LayoutOverflow>,
+    pub scrollbar_width: f32,
+    pub size_containment: LayoutSize<bool>,
+    pub layout_containment: bool,
+    pub paint_containment: bool,
+    pub is_replaced: bool,
+    pub is_compressible_replaced: bool,
+    pub flex_basis: LayoutDimension,
+    pub flex_grow: f32,
+    pub flex_shrink: f32,
+    pub align_self: LayoutAlignment<LayoutAlignSelf>,
+}
+
 /// Only direct children are addressable. Measurements never publish geometry.
 pub trait ParentLayoutChildren {
     fn len(&self) -> usize;
@@ -114,6 +145,12 @@ pub trait ParentLayoutChildren {
     }
     fn parent_data(&self, _child: usize) -> Result<Option<ParentData>, Error> {
         Ok(None)
+    }
+    /// Read direct-child style in current layout order, without measuring it.
+    /// Available only to measured phases, never independent allocators. The
+    /// default rejects unsupported external implementations explicitly.
+    fn style(&self, _child: usize) -> Result<ChildLayoutStyle, Error> {
+        Err(Error::InvalidParentLayout)
     }
     /// An independent planner's enforced inline assignment, if installed.
     /// Measurement and final placement use this width even if the caller's
@@ -392,6 +429,9 @@ impl ParentLayoutChildren for Children<'_> {
     fn parent_data(&self, child: usize) -> Result<Option<ParentData>, Error> {
         Ok(self.inner.parent_data(child)?.cloned().map(ParentData))
     }
+    fn style(&self, child: usize) -> Result<ChildLayoutStyle, Error> {
+        ChildLayoutStyle::from_taffy(self.inner.style(child)?)
+    }
     fn inline_allocation(&self, child: usize) -> Result<Option<ChildInlineAllocation>, Error> {
         if child >= self.len() {
             return Err(Error::InvalidParentLayout);
@@ -615,5 +655,8 @@ mod overflow_tests;
 mod inline_tests;
 #[cfg(test)]
 mod parent_data_tests;
+mod child_style;
+#[cfg(test)]
+mod child_style_tests;
 #[cfg(test)]
 mod tests;
