@@ -388,6 +388,13 @@ aspect suggestion。复用原内核及 cache 模式，没有第二套 intrinsic/
 正常 source、keyed builder、真实 glyph 与 CPU/GPU 完整参考均验证有限用例；
 临时输入 payload 增大，没有帧时收益或完整 RenderBox/CSS contribution 一致性声明。
 
+后续 [Flex automatic minimum](RETAINED_FLEX_AUTOMATIC_MINIMUM.md) 区分 authored
+preferred size、content suggestion 和 ratio-transferred suggestion，修复普通内容与
+replaced image 的自动最小尺寸，并按真实 BorderBox/ContentBox 转移比例。显式 cross
+尺寸保留本轴限制，自动 cross 尺寸使用最终 main size 与内容最小值；复用现有 image
+classification 和 source/layout/CPU/GPU 链路，不新增公共样式字段。浏览器参考保留
+规范与 Chromium 的明确差异；临时 FlexItem 增大，无完整 CSS 一致性或帧时收益声明。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

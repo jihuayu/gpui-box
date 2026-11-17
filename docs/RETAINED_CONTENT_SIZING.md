@@ -1,5 +1,9 @@
 # Explicit content contributions in the public layout protocol
 
+Follow-up: [Flex automatic minima](RETAINED_FLEX_AUTOMATIC_MINIMUM.md) distinguishes
+authored preferred sizes from ratio-transferred suggestions in ordinary Flex;
+the sizing mode remains a separate input and no broader CSS conformance follows.
+
 Status: experimental framework protocol, 2026-11-17. Extends
 [selected child assignments](RETAINED_CHILD_ASSIGNMENTS.md). Complete RenderBox,
 all intrinsic algorithms and full RFC acceptance remain open.

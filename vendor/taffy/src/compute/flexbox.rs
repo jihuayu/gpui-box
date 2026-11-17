@@ -23,6 +23,9 @@ use super::common::alignment::apply_alignment_fallback;
 use super::common::scrollable_overflow::compute_scrollable_overflow_contribution;
 use super::common::sizing_keyword::{resolve_sizing_keyword, SizingKeywordResolution};
 
+#[cfg(all(test, feature = "taffy_tree"))]
+mod auto_min_tests;
+
 /// The intermediate results of a flexbox calculation for a single item
 struct FlexItem {
     /// The identifier for the associated node
@@ -42,6 +45,10 @@ struct FlexItem {
     max_size: Size<Option<f32>>,
     /// The aspect ratio of this item
     aspect_ratio: Option<f32>,
+    /// Replaced content and ordinary content use different automatic minima.
+    is_replaced: bool,
+    /// Insets outside the box to which the authored preferred ratio applies.
+    ratio_adjustment: Size<f32>,
     /// The cross-alignment of this item
     align_self: AlignSelf,
 
@@ -118,6 +125,27 @@ struct FlexItem {
 }
 
 impl FlexItem {
+    fn transfer_size(&self, value: f32, from: crate::AbsoluteAxis) -> Option<f32> {
+        self.aspect_ratio.map(|ratio| match from {
+            crate::AbsoluteAxis::Horizontal => {
+                (value - self.ratio_adjustment.width).max(0.0) / ratio + self.ratio_adjustment.height
+            }
+            crate::AbsoluteAxis::Vertical => {
+                (value - self.ratio_adjustment.height).max(0.0) * ratio + self.ratio_adjustment.width
+            }
+        })
+    }
+
+    fn transfer_limits(&self, size: Size<Option<f32>>, enabled: bool) -> Size<Option<f32>> {
+        if !enabled {
+            return size;
+        }
+        Size {
+            width: size.width.or_else(|| size.height.and_then(|v| self.transfer_size(v, crate::AbsoluteAxis::Vertical))),
+            height: size.height.or_else(|| size.width.and_then(|v| self.transfer_size(v, crate::AbsoluteAxis::Horizontal))),
+        }
+    }
+
     /// Returns true if the item is a <https://www.w3.org/TR/css-overflow-3/#scroll-container>
     fn is_scroll_container(&self) -> bool {
         self.overflow.x.is_scroll_container() | self.overflow.y.is_scroll_container()
@@ -857,7 +885,6 @@ fn generate_anonymous_flex_items(
                 size: child_style
                     .size()
                     .maybe_resolve(percent_resolution_size, |val, basis| tree.calc(val, basis))
-                    .maybe_apply_aspect_ratio(aspect_ratio)
                     .maybe_add(box_sizing_adjustment),
                 size_style: child_style.size(),
                 min_size: child_style
@@ -869,6 +896,8 @@ fn generate_anonymous_flex_items(
                     .maybe_resolve(percent_resolution_size, |val, basis| tree.calc(val, basis))
                     .maybe_add(box_sizing_adjustment),
                 aspect_ratio,
+                is_replaced: child_style.is_replaced(),
+                ratio_adjustment: box_sizing_adjustment,
 
                 relative_inset: if child_style.position() == Position::Relative {
                     let inset = child_style.inset().zip_size(constants.node_inner_size, |p, s| {
@@ -957,6 +986,28 @@ fn determine_available_space(
     Size { width, height }
 }
 
+/// In horizontal writing, a replaced item's intrinsic inline extent determines
+/// its automatic block contribution through the preferred ratio. Measuring the
+/// raw natural block extent instead can apply the bitmap's content ratio to a
+/// different (e.g. border-box) authored ratio box.
+fn measure_item_main(
+    tree: &mut impl LayoutFlexboxContainer,
+    child: &FlexItem,
+    dir: FlexDirection,
+    known: Size<Option<f32>>,
+    parent: Size<Option<f32>>,
+    available: Size<AvailableSpace>,
+) -> f32 {
+    if dir.is_column() && child.is_replaced && child.aspect_ratio.is_some() && known.width.is_none() {
+        let width = tree.measure_child_size(
+            child.node, known, parent, available, SizingMode::ContentSize, crate::AbsoluteAxis::Horizontal, Line::FALSE,
+        );
+        child.transfer_size(width, crate::AbsoluteAxis::Horizontal).unwrap()
+    } else {
+        tree.measure_child_size(child.node, known, parent, available, SizingMode::ContentSize, dir.main_axis(), Line::FALSE)
+    }
+}
+
 /// Determine the flex base size and hypothetical main size of each item.
 ///
 /// # [9.2. Line Length Determination](https://www.w3.org/TR/css-flexbox-1/#line-sizing)
@@ -1033,8 +1084,10 @@ fn determine_flex_base_size(
         // Available space for child sizing (excluding the child's margins)
         // Min/max sizes transferred through the aspect ratio are taken into account here
         // https://github.com/w3c/csswg-drafts/issues/10997
-        let transferred_min_size = child.min_size.maybe_apply_aspect_ratio(child.aspect_ratio);
-        let transferred_max_size = child.max_size.maybe_apply_aspect_ratio(child.aspect_ratio);
+        // A definite preferred cross size is clamped by its own limits, not by
+        // a main-axis limit transferred back through the preferred ratio.
+        let transferred_min_size = child.transfer_limits(child.min_size, child.size.cross(dir).is_none());
+        let transferred_max_size = child.transfer_limits(child.max_size, child.size.cross(dir).is_none());
         let child_min_cross = transferred_min_size.cross(dir);
         let child_max_cross = transferred_max_size.cross(dir);
 
@@ -1192,9 +1245,9 @@ fn determine_flex_base_size(
             // is calculated by transferring that cross size through the aspect ratio (case B
             // above), and is therefore definite.
             if child_cross_size_is_definite {
-                if let (Some(ratio), Some(cross)) = (child.aspect_ratio, child_known_dimensions.cross(dir)) {
+                if let Some(size) = child_known_dimensions.cross(dir).and_then(|cross| child.transfer_size(cross, dir.cross_axis())) {
                     child.flex_basis_is_definite = true;
-                    break 'flex_basis if dir.is_row() { cross * ratio } else { cross / ratio };
+                    break 'flex_basis size;
                 }
             }
 
@@ -1220,14 +1273,11 @@ fn determine_flex_base_size(
                 .with_cross(dir, cross_axis_available_space);
 
             debug_log!("COMPUTE CHILD BASE SIZE:");
-            break 'flex_basis tree.measure_child_size(
-                child.node,
+            break 'flex_basis measure_item_main(
+                tree, child, dir,
                 child_known_dimensions,
                 child_parent_size,
                 child_available_space,
-                SizingMode::ContentSize,
-                dir.main_axis(),
-                Line::FALSE,
             );
         };
 
@@ -1263,21 +1313,32 @@ fn determine_flex_base_size(
                 let child_available_space = Size::MIN_CONTENT.with_cross(dir, cross_axis_available_space);
 
                 debug_log!("COMPUTE CHILD MIN SIZE:");
-                tree.measure_child_size(
-                    child.node,
+                measure_item_main(
+                    tree, child, dir,
                     child_known_dimensions,
                     child_parent_size,
                     child_available_space,
-                    SizingMode::ContentSize,
-                    dir.main_axis(),
-                    Line::FALSE,
                 )
             };
 
             // 4.5. Automatic Minimum Size of Flex Items
             // https://www.w3.org/TR/css-flexbox-1/#min-size-auto
-            let clamped_min_content_size =
-                min_content_main_size.maybe_min(child.size.main(dir)).maybe_min(transferred_max_size.main(dir));
+            let transfer = |cross: f32| child.transfer_size(cross, dir.cross_axis()).unwrap();
+            let transferred = child.aspect_ratio.and_then(|_| {
+                child.size.cross(dir).maybe_clamp(child.min_size.cross(dir), child.max_size.cross(dir)).map(transfer)
+            });
+            let content = if child.aspect_ratio.is_some() {
+                min_content_main_size
+                    .maybe_clamp(child.min_size.cross(dir).map(transfer), child.max_size.cross(dir).map(transfer))
+            } else {
+                min_content_main_size
+            };
+            let suggestion = match transferred {
+                Some(transferred) if child.is_replaced => content.min(transferred),
+                Some(transferred) => content.max(transferred),
+                None => content,
+            };
+            let clamped_min_content_size = suggestion.maybe_min(child.size.main(dir)).maybe_min(child.max_size.main(dir));
             clamped_min_content_size.maybe_max(padding_border_axes_sums.main(dir))
         });
 
@@ -1705,9 +1766,9 @@ fn determine_container_main_size(
                                     // `determine_flex_base_size` does: an item measured wider than its
                                     // max-width wraps onto fewer lines and under-reports its height.
                                     let transferred_min_size =
-                                        item.min_size.maybe_apply_aspect_ratio(item.aspect_ratio);
+                                        item.transfer_limits(item.min_size, item.size.cross(dir).is_none());
                                     let transferred_max_size =
-                                        item.max_size.maybe_apply_aspect_ratio(item.aspect_ratio);
+                                        item.transfer_limits(item.max_size, item.size.cross(dir).is_none());
                                     ckd.set_cross(
                                         dir,
                                         ckd.cross(dir).maybe_clamp(
@@ -1724,14 +1785,11 @@ fn determine_container_main_size(
                                 // Either the min- or max- content size depending on which constraint we are sizing under.
                                 // TODO: Optimise by using already computed values where available
                                 debug_log!("COMPUTE CHILD BASE SIZE (for intrinsic main size):");
-                                let measured_main_size = tree.measure_child_size(
-                                    item.node,
+                                let measured_main_size = measure_item_main(
+                                    tree, item, dir,
                                     child_known_dimensions,
                                     constants.node_inner_size,
                                     child_available_space,
-                                    SizingMode::ContentSize,
-                                    dir.main_axis(),
-                                    Line::FALSE,
                                 );
 
                                 // A known cross size is transferred through the item's aspect-ratio
@@ -2089,8 +2147,8 @@ fn determine_hypothetical_cross_size(
 
         // Sizes transferred through the aspect ratio clamp the hypothetical cross size
         // https://github.com/w3c/csswg-drafts/issues/10997
-        let transferred_min_cross = child.min_size.maybe_apply_aspect_ratio(child.aspect_ratio).cross(constants.dir);
-        let transferred_max_cross = child.max_size.maybe_apply_aspect_ratio(child.aspect_ratio).cross(constants.dir);
+        let transferred_min_cross = child.transfer_limits(child.min_size, child.size.cross(constants.dir).is_none()).cross(constants.dir);
+        let transferred_max_cross = child.transfer_limits(child.max_size, child.size.cross(constants.dir).is_none()).cross(constants.dir);
 
         let child_cross = child
             .size
@@ -2127,7 +2185,7 @@ fn determine_hypothetical_cross_size(
         };
 
         let child_inner_cross = child_cross.unwrap_or_else(|| {
-            tree.compute_child_layout(
+            let measured = tree.compute_child_layout(
                 child.node,
                 LayoutInput {
                     size_bounds: crate::tree::SizeBounds::NONE,
@@ -2148,9 +2206,32 @@ fn determine_hypothetical_cross_size(
                 },
             )
             .size
-            .get_abs(constants.dir.cross_axis())
-            .maybe_clamp(transferred_min_cross, transferred_max_cross)
-            .max(padding_border_sum)
+            .get_abs(constants.dir.cross_axis());
+            let auto_content_minimum = constants.is_row
+                && !child.is_replaced
+                && !child.overflow.y.is_scroll_container()
+                && min_style.cross(constants.dir).is_auto();
+            let cross = if let Some(ratio_cross) =
+                child.transfer_size(child.target_size.main(constants.dir), constants.dir.main_axis())
+            {
+                // A non-replaced box's ratio-dependent automatic block size
+                // retains its content minimum unless overflow is scrollable.
+                if auto_content_minimum {
+                    ratio_cross.max(measured)
+                } else {
+                    ratio_cross
+                }
+            } else {
+                measured
+            };
+            // A transferred maximum cannot reduce this axis's automatic
+            // content minimum. An explicit maximum on this axis still can.
+            let maximum = if auto_content_minimum && max_style.cross(constants.dir).is_auto() {
+                transferred_max_cross.map(|max| max.max(measured))
+            } else {
+                transferred_max_cross
+            };
+            cross.maybe_clamp(transferred_min_cross, maximum).max(padding_border_sum)
         });
         let child_outer_cross = child_inner_cross + child.margin.cross_axis_sum(constants.dir);
 

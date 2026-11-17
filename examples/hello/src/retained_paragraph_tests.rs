@@ -20,6 +20,84 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
     ParagraphSnapshot::shape(system, text, font("Noto Sans CJK SC"), 16.0, 32.0).unwrap()
 }
 
+#[test]
+fn flex_ratio_automatic_minimum_preserves_real_text_content_and_cpu_glyph_pixels() {
+    let system = text_system();
+    let paragraph = shape(&system, "longword 中文");
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let paint = TextPaint {
+        resource: raster.prepare(paragraph.clone(), 1.0).unwrap(),
+        color: 0x00ffffff,
+    };
+    let root_style = LayoutStyle::row()
+        .size(LayoutDimension::Px(30.0), LayoutDimension::Px(160.0))
+        .align_items(LayoutAlignItems::Start);
+    let mut tree = UiTree::new_layout(root_style.clone(), 0).unwrap();
+    let leaf = tree
+        .append_layout(tree.root(), LayoutStyle::row(), 0)
+        .unwrap();
+    let mut full = UiTree::new_layout(root_style, 0).unwrap();
+    full.set_frame_build_policy(FrameBuildPolicy::Full);
+    let control = full
+        .append_layout(full.root(), LayoutStyle::row(), 0)
+        .unwrap();
+    for (owner, node) in [(&mut tree, leaf), (&mut full, control)] {
+        let mut tx = Transaction::default();
+        tx.text(node, Some(paint.clone()));
+        owner.commit(tx, BackendCapabilities::default()).unwrap();
+    }
+    fn pixels(frame: FramePacket) -> Vec<u8> {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [400, 160],
+                scale: 1.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(4096).unwrap() {}
+        job.into_frame().unwrap().pixels().to_vec()
+    }
+    let mut old = None;
+    for height in [20.0, 80.0, 20.0] {
+        let width = paragraph.min_content_width().max(height * 2.0);
+        for (owner, node, ratio) in [(&mut tree, leaf, true), (&mut full, control, false)] {
+            let mut style = LayoutStyle::row().size(
+                if ratio {
+                    LayoutDimension::Auto
+                } else {
+                    LayoutDimension::Px(width)
+                },
+                LayoutDimension::Px(height),
+            );
+            if ratio {
+                style.aspect_ratio = Some(2.0);
+            } else {
+                style.flex_shrink = 0.0;
+            }
+            let mut tx = Transaction::default();
+            tx.layout_style(node, style);
+            owner.commit(tx, BackendCapabilities::default()).unwrap();
+        }
+        let frame = tree.local_frame([400.0, 160.0]).unwrap();
+        let reference = full.frame([400.0, 160.0]).unwrap();
+        assert_eq!(
+            tree.layout_result(leaf).unwrap(),
+            full.layout_result(control).unwrap()
+        );
+        assert_eq!(tree.layout_result(leaf).unwrap().size, [width, height]);
+        assert_eq!(pixels(frame.resolve()), pixels(reference));
+        old.get_or_insert(frame);
+    }
+    let old = old.unwrap();
+    let expected = pixels(old.resolve());
+    drop((tree, full, paint, paragraph, system, raster));
+    assert_eq!(pixels(old.resolve()), expected);
+}
+
 #[derive(Debug)]
 struct StyleBasisParagraph {
     selected: bool,

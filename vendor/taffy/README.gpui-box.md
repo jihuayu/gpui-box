@@ -12,6 +12,11 @@ local test artifacts and ignored.
 
 ## Local changes
 
+- Flex preserves authored-size provenance, distinguishes replaced/ordinary
+  automatic minima and transfers preferred ratios through the actual ratio box.
+  Explicit cross sizes and automatic content minima retain their own limits.
+  See [contract and independent reference](../../docs/RETAINED_FLEX_AUTOMATIC_MINIMUM.md).
+
 - ContentSize direct-child entry skips the queried node's own preferred keyword
   resolution; owned custom/ConstraintBox sizing suppresses its aspect suggestion
   in that mode. CustomLayoutInput exposes the invocation mode to pure/full plans.

@@ -1079,6 +1079,8 @@ mod baseline_tests;
 #[cfg(test)]
 mod box_constraints_tests;
 #[cfg(test)]
+mod auto_min_tests;
+#[cfg(test)]
 mod constraint_box_tests;
 #[cfg(test)]
 mod containment_tests;

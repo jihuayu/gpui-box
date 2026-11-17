@@ -1,0 +1,197 @@
+{
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36",
+  "cases": 816,
+  "fields": [
+    "replaced",
+    "direction",
+    "cross",
+    "limit",
+    "model",
+    "constraint"
+  ],
+  "tolerance": 0.02,
+  "expectedMatches": 804,
+  "deviations": [
+    {
+      "replaced": false,
+      "direction": "row",
+      "cross": 20,
+      "limit": "cross-max",
+      "model": "plain",
+      "constraint": "definite",
+      "actual": [
+        0,
+        0,
+        100,
+        20
+      ],
+      "expectedWidth": 60
+    },
+    {
+      "replaced": false,
+      "direction": "row",
+      "cross": 20,
+      "limit": "cross-max",
+      "model": "border",
+      "constraint": "definite",
+      "actual": [
+        0,
+        0,
+        114,
+        20
+      ],
+      "expectedWidth": 60
+    },
+    {
+      "replaced": false,
+      "direction": "row",
+      "cross": 20,
+      "limit": "cross-max",
+      "model": "content",
+      "constraint": "definite",
+      "actual": [
+        0,
+        0,
+        114,
+        34
+      ],
+      "expectedWidth": 74
+    },
+    {
+      "replaced": false,
+      "direction": "row",
+      "cross": 80,
+      "limit": "cross-max",
+      "model": "plain",
+      "constraint": "definite",
+      "actual": [
+        0,
+        0,
+        100,
+        30
+      ],
+      "expectedWidth": 60
+    },
+    {
+      "replaced": false,
+      "direction": "row",
+      "cross": 80,
+      "limit": "cross-max",
+      "model": "border",
+      "constraint": "definite",
+      "actual": [
+        0,
+        0,
+        114,
+        30
+      ],
+      "expectedWidth": 60
+    },
+    {
+      "replaced": false,
+      "direction": "row",
+      "cross": 80,
+      "limit": "cross-max",
+      "model": "content",
+      "constraint": "definite",
+      "actual": [
+        0,
+        0,
+        114,
+        44
+      ],
+      "expectedWidth": 74
+    },
+    {
+      "replaced": false,
+      "direction": "row-reverse",
+      "cross": 20,
+      "limit": "cross-max",
+      "model": "plain",
+      "constraint": "definite",
+      "actual": [
+        0,
+        0,
+        100,
+        20
+      ],
+      "expectedWidth": 60
+    },
+    {
+      "replaced": false,
+      "direction": "row-reverse",
+      "cross": 20,
+      "limit": "cross-max",
+      "model": "border",
+      "constraint": "definite",
+      "actual": [
+        0,
+        0,
+        114,
+        20
+      ],
+      "expectedWidth": 60
+    },
+    {
+      "replaced": false,
+      "direction": "row-reverse",
+      "cross": 20,
+      "limit": "cross-max",
+      "model": "content",
+      "constraint": "definite",
+      "actual": [
+        0,
+        0,
+        114,
+        34
+      ],
+      "expectedWidth": 74
+    },
+    {
+      "replaced": false,
+      "direction": "row-reverse",
+      "cross": 80,
+      "limit": "cross-max",
+      "model": "plain",
+      "constraint": "definite",
+      "actual": [
+        0,
+        0,
+        100,
+        30
+      ],
+      "expectedWidth": 60
+    },
+    {
+      "replaced": false,
+      "direction": "row-reverse",
+      "cross": 80,
+      "limit": "cross-max",
+      "model": "border",
+      "constraint": "definite",
+      "actual": [
+        0,
+        0,
+        114,
+        30
+      ],
+      "expectedWidth": 60
+    },
+    {
+      "replaced": false,
+      "direction": "row-reverse",
+      "cross": 80,
+      "limit": "cross-max",
+      "model": "content",
+      "constraint": "definite",
+      "actual": [
+        0,
+        0,
+        114,
+        44
+      ],
+      "expectedWidth": 74
+    }
+  ],
+  "reason": "CSS Flexbox4.5 clamps the content size suggestion by definite cross limits transferred through the ratio; Chromium145 retains the natural width in these cases."
+}
