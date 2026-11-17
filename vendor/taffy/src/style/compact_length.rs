@@ -216,10 +216,12 @@ mod inner {
 
 use inner::CompactLengthInner;
 
-/// A representation of a length as a compact 64-bit tagged pointer
+/// A compact tagged length. The optional owned `affine` feature adds a second
+/// f32 coefficient (16 bytes including 64-bit alignment); no external ownership
+/// or expression table is required. Without it the original 8-byte layout stays.
 #[derive(Copy, Clone, PartialEq, Debug)]
-#[repr(transparent)]
-pub struct CompactLength(CompactLengthInner);
+#[cfg_attr(not(feature = "affine"), repr(transparent))]
+pub struct CompactLength(CompactLengthInner, #[cfg(feature = "affine")] f32);
 
 /// Tag layout
 ///
@@ -241,6 +243,25 @@ pub struct CompactLength(CompactLengthInner);
 /// (`min-content`, `max-content`, `fit-content`, `fit-content()`, `stretch`) and clear for `auto`,
 /// `fr` and `content`. The remaining high bits distinguish variants within a class.
 impl CompactLength {
+    const fn from_inner(value: CompactLengthInner) -> Self {
+        Self(value, #[cfg(feature = "affine")] 0.0)
+    }
+    /// Owned px + percent * basis, without external pointers or registries.
+    #[cfg(feature = "affine")]
+    pub const fn affine(px: f32, percent: f32) -> Self {
+        Self(CompactLengthInner::from_val(px, Self::AFFINE_TAG), percent)
+    }
+    /// Owned mixed fit-content limit.
+    #[cfg(feature = "affine")]
+    pub const fn fit_content_affine(px: f32, percent: f32) -> Self {
+        Self(CompactLengthInner::from_val(px, Self::FIT_CONTENT_AFFINE_TAG), percent)
+    }
+    /// Owned coefficients; valid only for the two affine tags.
+    #[cfg(feature = "affine")]
+    pub fn affine_parts(self) -> (f32, f32) { (self.value(), self.1) }
+    /// Resolve a mixed value once its percentage basis is definite.
+    #[cfg(feature = "affine")]
+    pub fn resolve_affine(self, basis: f32) -> f32 { self.value() + self.1 * basis }
     /// Bit set for all non-pointer (i.e. not `calc()`) tags
     pub const NON_POINTER_BIT: usize = 0b0001;
     /// Bit set for all tags that are not a plain length, percentage or calc() value
@@ -256,6 +277,12 @@ impl CompactLength {
     /// The tag indicating a fit-content() value with a calc() limit
     #[cfg(feature = "calc")]
     pub const FIT_CONTENT_CALC_TAG: usize = 0b0000_0110;
+    /// An owned mixed length with percentage dependence.
+    #[cfg(feature = "affine")]
+    pub const AFFINE_TAG: usize = 0b0010_0101;
+    /// A fit-content limit with owned mixed coefficients.
+    #[cfg(feature = "affine")]
+    pub const FIT_CONTENT_AFFINE_TAG: usize = 0b0010_1111;
     /// The tag indicating a length value
     pub const LENGTH_TAG: usize = 0b0000_0001;
     /// The tag indicating a percentage value
@@ -285,7 +312,7 @@ impl CompactLength {
     /// to in their application (pixels, logical pixels, mm, etc) as they see fit.
     #[inline(always)]
     pub const fn length(val: f32) -> Self {
-        Self(CompactLengthInner::from_val(val, Self::LENGTH_TAG))
+        Self::from_inner(CompactLengthInner::from_val(val, Self::LENGTH_TAG))
     }
 
     /// A percentage length relative to the size of the containing block.
@@ -293,7 +320,7 @@ impl CompactLength {
     /// **NOTE: percentages are represented as a f32 value in the range [0.0, 1.0] NOT the range [0.0, 100.0]**
     #[inline(always)]
     pub const fn percent(val: f32) -> Self {
-        Self(CompactLengthInner::from_val(val, Self::PERCENT_TAG))
+        Self::from_inner(CompactLengthInner::from_val(val, Self::PERCENT_TAG))
     }
 
     /// A `calc()` value. The value passed here is treated as an opaque handle to
@@ -305,7 +332,7 @@ impl CompactLength {
     pub fn calc(ptr: *const ()) -> Self {
         assert_ne!(ptr as u64, 0);
         assert_eq!(ptr as u64 & 0b111, 0);
-        Self(CompactLengthInner::from_ptr(ptr, Self::CALC_TAG))
+        Self::from_inner(CompactLengthInner::from_ptr(ptr, Self::CALC_TAG))
     }
 
     /// A `fit-content(calc())` value. The value passed here is treated as an opaque handle to
@@ -317,14 +344,14 @@ impl CompactLength {
     pub fn fit_content_calc(ptr: *const ()) -> Self {
         assert_ne!(ptr as u64, 0);
         assert_eq!(ptr as u64 & 0b111, 0);
-        Self(CompactLengthInner::from_ptr(ptr, Self::FIT_CONTENT_CALC_TAG))
+        Self::from_inner(CompactLengthInner::from_ptr(ptr, Self::FIT_CONTENT_CALC_TAG))
     }
 
     /// The dimension should be automatically computed according to algorithm-specific rules
     /// regarding the default size of boxes.
     #[inline(always)]
     pub const fn auto() -> Self {
-        Self(CompactLengthInner::from_tag(Self::AUTO_TAG))
+        Self::from_inner(CompactLengthInner::from_tag(Self::AUTO_TAG))
     }
 
     /// The dimension as a fraction of the total available grid space (`fr` units in CSS)
@@ -332,21 +359,21 @@ impl CompactLength {
     /// Spec: <https://www.w3.org/TR/css3-grid-layout/#fr-unit>
     #[inline(always)]
     pub const fn fr(val: f32) -> Self {
-        Self(CompactLengthInner::from_val(val, Self::FR_TAG))
+        Self::from_inner(CompactLengthInner::from_val(val, Self::FR_TAG))
     }
 
     /// The size should be the "min-content" size.
     /// This is the smallest size that can fit the item's contents with ALL soft line-wrapping opportunities taken
     #[inline(always)]
     pub const fn min_content() -> Self {
-        Self(CompactLengthInner::from_tag(Self::MIN_CONTENT_TAG))
+        Self::from_inner(CompactLengthInner::from_tag(Self::MIN_CONTENT_TAG))
     }
 
     /// The size should be the "max-content" size.
     /// This is the smallest size that can fit the item's contents with NO soft line-wrapping opportunities taken
     #[inline(always)]
     pub const fn max_content() -> Self {
-        Self(CompactLengthInner::from_tag(Self::MAX_CONTENT_TAG))
+        Self::from_inner(CompactLengthInner::from_tag(Self::MAX_CONTENT_TAG))
     }
 
     /// The size should be computed according to the "fit content" formula:
@@ -360,7 +387,7 @@ impl CompactLength {
     /// by the min-content and max-content sizes.
     #[inline(always)]
     pub const fn fit_content_px(limit: f32) -> Self {
-        Self(CompactLengthInner::from_val(limit, Self::FIT_CONTENT_PX_TAG))
+        Self::from_inner(CompactLengthInner::from_val(limit, Self::FIT_CONTENT_PX_TAG))
     }
 
     /// The size should be computed according to the "fit content" formula:
@@ -374,7 +401,7 @@ impl CompactLength {
     /// by the min-content and max-content sizes.
     #[inline(always)]
     pub const fn fit_content_percent(limit: f32) -> Self {
-        Self(CompactLengthInner::from_val(limit, Self::FIT_CONTENT_PERCENT_TAG))
+        Self::from_inner(CompactLengthInner::from_val(limit, Self::FIT_CONTENT_PERCENT_TAG))
     }
 
     /// The size should be computed according to the "fit content" formula:
@@ -385,7 +412,7 @@ impl CompactLength {
     ///    - `stretch` is the "stretch-fit" size (the size the box would take if it filled the available space)
     #[inline(always)]
     pub const fn fit_content_keyword() -> Self {
-        Self(CompactLengthInner::from_tag(Self::FIT_CONTENT_KEYWORD_TAG))
+        Self::from_inner(CompactLengthInner::from_tag(Self::FIT_CONTENT_KEYWORD_TAG))
     }
 
     /// The size should be the "stretch-fit" size: the size the box would take
@@ -393,7 +420,7 @@ impl CompactLength {
     /// (<https://www.w3.org/TR/css-sizing-4/#stretch-fit-sizing>)
     #[inline(always)]
     pub const fn stretch() -> Self {
-        Self(CompactLengthInner::from_tag(Self::STRETCH_TAG))
+        Self::from_inner(CompactLengthInner::from_tag(Self::STRETCH_TAG))
     }
 
     /// The size should be an automatic size based on the box's content
@@ -402,7 +429,7 @@ impl CompactLength {
     /// This keyword is only valid for `flex-basis`. In any other context it behaves as [`auto`](Self::auto).
     #[inline(always)]
     pub const fn content() -> Self {
-        Self(CompactLengthInner::from_tag(Self::CONTENT_TAG))
+        Self::from_inner(CompactLengthInner::from_tag(Self::CONTENT_TAG))
     }
 
     /// Get the primary tag
@@ -436,6 +463,15 @@ impl CompactLength {
     #[inline(always)]
     pub fn is_fit_content_calc(self) -> bool {
         self.tag() & (Self::NON_POINTER_BIT | Self::KEYWORD_BIT) == Self::KEYWORD_BIT
+    }
+
+    /// Whether this value is an owned mixed fit-content limit.
+    #[inline(always)]
+    pub fn is_fit_content_affine(self) -> bool {
+        #[cfg(feature = "affine")]
+        { self.tag() == Self::FIT_CONTENT_AFFINE_TAG }
+        #[cfg(not(feature = "affine"))]
+        { false }
     }
 
     /// Returns true if the value holds a calc() pointer: either a plain calc() value or a
@@ -484,7 +520,7 @@ impl CompactLength {
     /// Returns true if the value is a fit-content(...) value
     #[inline(always)]
     pub fn is_fit_content(self) -> bool {
-        matches!(self.tag(), Self::FIT_CONTENT_PX_TAG | Self::FIT_CONTENT_PERCENT_TAG) || self.is_fit_content_calc()
+        matches!(self.tag(), Self::FIT_CONTENT_PX_TAG | Self::FIT_CONTENT_PERCENT_TAG) || self.is_fit_content_affine() || self.is_fit_content_calc()
     }
 
     /// Returns true if the value is min-content, max-content, fit-content, fit-content(...), or stretch
@@ -492,14 +528,14 @@ impl CompactLength {
     pub fn is_sizing_keyword(self) -> bool {
         const MASK: usize =
             CompactLength::NON_POINTER_BIT | CompactLength::KEYWORD_BIT | CompactLength::SIZING_KEYWORD_BIT;
-        self.tag() & MASK == MASK || self.is_fit_content_calc()
+        self.tag() & MASK == MASK || self.is_fit_content_affine() || self.is_fit_content_calc()
     }
 
     /// Returns true if the value is max-content or a fit-content(...) value
     #[inline(always)]
     pub fn is_max_or_fit_content(self) -> bool {
         matches!(self.tag(), Self::MAX_CONTENT_TAG | Self::FIT_CONTENT_PX_TAG | Self::FIT_CONTENT_PERCENT_TAG)
-            || self.is_fit_content_calc()
+            || self.is_fit_content_affine() || self.is_fit_content_calc()
     }
 
     /// Returns true if the max track sizing function is `MaxContent`, `FitContent` or `Auto` else false.
@@ -513,7 +549,7 @@ impl CompactLength {
                 | CompactLength::MAX_CONTENT_TAG
                 | CompactLength::FIT_CONTENT_PX_TAG
                 | CompactLength::FIT_CONTENT_PERCENT_TAG
-        ) || self.is_fit_content_calc()
+        ) || self.is_fit_content_affine() || self.is_fit_content_calc()
     }
 
     /// Returns true if the min track sizing function is `MinContent` or `MaxContent`, else false.
@@ -532,7 +568,7 @@ impl CompactLength {
                 | Self::MAX_CONTENT_TAG
                 | Self::FIT_CONTENT_PX_TAG
                 | Self::FIT_CONTENT_PERCENT_TAG
-        ) || self.is_fit_content_calc()
+        ) || self.is_fit_content_affine() || self.is_fit_content_calc()
     }
 
     /// Returns true if the value is and fr value
@@ -557,6 +593,8 @@ impl CompactLength {
     ) -> Option<f32> {
         match self.tag() {
             CompactLength::PERCENT_TAG => Some(self.value() * parent_size),
+            #[cfg(feature = "affine")]
+            Self::AFFINE_TAG => Some(self.resolve_affine(parent_size).max(0.0)),
             #[cfg(feature = "calc")]
             _ if self.is_plain_calc() => Some(calc_resolver(self.0.ptr(), parent_size)),
             _ => None,
@@ -597,10 +635,23 @@ impl TaffyFitContent for CompactLength {
         match lp.0.tag() {
             Self::LENGTH_TAG => Self::fit_content_px(value),
             Self::PERCENT_TAG => Self::fit_content_percent(value),
+            #[cfg(feature = "affine")]
+            Self::AFFINE_TAG => Self::fit_content_affine(value, lp.0.1),
             #[cfg(feature = "calc")]
             _ if lp.0.is_plain_calc() => Self::fit_content_calc(lp.0.calc_value()),
             _ => unreachable!(),
         }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl CompactLength {
+    fn serialize_owned<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        #[cfg(feature = "affine")]
+        if matches!(self.tag(), Self::AFFINE_TAG | Self::FIT_CONTENT_AFFINE_TAG) {
+            return serde::Serialize::serialize(&(self.0.serialized(), self.1), serializer);
+        }
+        serializer.serialize_u64(self.0.serialized())
     }
 }
 
@@ -615,12 +666,12 @@ impl serde::Serialize for CompactLength {
             if self.has_calc() {
                 Err(serde::ser::Error::custom("Cannot serialize Calc value"))
             } else {
-                serializer.serialize_u64(self.0.serialized())
+                self.serialize_owned(serializer)
             }
         }
 
         #[cfg(not(feature = "calc"))]
-        serializer.serialize_u64(self.0.serialized())
+        self.serialize_owned(serializer)
     }
 }
 
@@ -630,8 +681,26 @@ impl<'de> serde::Deserialize<'de> for CompactLength {
     where
         D: serde::Deserializer<'de>,
     {
-        let bits: u64 = u64::deserialize(deserializer)?;
-        let value = Self(CompactLengthInner::from_serialized(bits));
+        #[cfg(feature = "affine")]
+        let (bits, coefficient) = {
+            #[derive(serde::Deserialize)]
+            #[serde(untagged)]
+            enum Owned { Plain(u64), Affine((u64, f32)) }
+            match Owned::deserialize(deserializer)? { Owned::Plain(bits) => (bits, 0.0), Owned::Affine(pair) => pair }
+        };
+        #[cfg(not(feature = "affine"))]
+        let bits = u64::deserialize(deserializer)?;
+        let value = Self::from_inner(CompactLengthInner::from_serialized(bits));
+        #[cfg(feature = "affine")]
+        let value = {
+            let mut value = value;
+            value.1 = coefficient;
+            if matches!(value.tag(), Self::AFFINE_TAG | Self::FIT_CONTENT_AFFINE_TAG) {
+                return Ok(value);
+            }
+            if coefficient != 0.0 { return Err(serde::de::Error::custom("Unexpected affine coefficient")); }
+            value
+        };
         // Note: validation intentionally excludes the CALC_TAG as deserializing calc() values is not supported.
         // All of the accepted tags have `NON_POINTER_BIT` set, so a calc() tag can never pass validation.
         if matches!(
@@ -661,7 +730,7 @@ mod tests {
 
     impl CompactLength {
         fn from_raw_tag(tag: usize) -> Self {
-            Self(CompactLengthInner::from_tag(tag))
+            Self::from_inner(CompactLengthInner::from_tag(tag))
         }
     }
 
@@ -681,6 +750,8 @@ mod tests {
     #[test]
     fn tags_are_unique_and_fit_in_a_byte() {
         let mut all: Vec<usize> = NON_PERCENTAGE_TAGS.iter().chain(PERCENTAGE_TAGS).copied().collect();
+        #[cfg(feature = "affine")]
+        all.extend([CompactLength::AFFINE_TAG, CompactLength::FIT_CONTENT_AFFINE_TAG]);
         #[cfg(feature = "calc")]
         all.push(CompactLength::CALC_TAG);
         #[cfg(feature = "calc")]
@@ -688,7 +759,7 @@ mod tests {
         assert!(all.iter().all(|tag| *tag <= 0xFF));
         all.sort_unstable();
         all.dedup();
-        assert_eq!(all.len(), NON_PERCENTAGE_TAGS.len() + PERCENTAGE_TAGS.len() + 2 * cfg!(feature = "calc") as usize);
+        assert_eq!(all.len(), NON_PERCENTAGE_TAGS.len() + PERCENTAGE_TAGS.len() + 2 * cfg!(feature = "calc") as usize + 2 * cfg!(feature = "affine") as usize);
     }
 
     #[test]

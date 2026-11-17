@@ -15,6 +15,12 @@ pub use grid::{
 pub enum Length {
     Px(f32),
     Percent(f32),
+    /// px + percent * the property's percentage basis. Negative results are
+    /// allowed for margin/inset, floored at zero for padding/border/gap.
+    Calc {
+        px: f32,
+        percent: f32,
+    },
     Auto,
 }
 
@@ -25,6 +31,9 @@ impl Length {
     pub const fn percent(value: f32) -> Self {
         Self::Percent(value)
     }
+    pub const fn calc(px: f32, percent: f32) -> Self {
+        Self::Calc { px, percent }
+    }
     pub const fn auto() -> Self {
         Self::Auto
     }
@@ -33,6 +42,7 @@ impl Length {
         match self {
             Self::Px(value) => taffy::LengthPercentageAuto::length(value),
             Self::Percent(value) => taffy::LengthPercentageAuto::percent(value),
+            Self::Calc { px, percent } => taffy::LengthPercentageAuto::affine(px, percent),
             Self::Auto => taffy::LengthPercentageAuto::auto(),
         }
     }
@@ -41,12 +51,16 @@ impl Length {
         match self {
             Self::Px(value) => Ok(taffy::LengthPercentage::length(value)),
             Self::Percent(value) => Ok(taffy::LengthPercentage::percent(value)),
+            Self::Calc { px, percent } => Ok(taffy::LengthPercentage::affine(px, percent)),
             Self::Auto => Err(Error::InvalidStyle),
         }
     }
 
     fn validate(self, allow_auto: bool, allow_negative: bool) -> Result<(), Error> {
         match self {
+            Self::Calc { px, percent } if !px.is_finite() || !percent.is_finite() => {
+                Err(Error::InvalidStyle)
+            }
             Self::Px(value) | Self::Percent(value) if !value.is_finite() => {
                 Err(Error::InvalidStyle)
             }
@@ -66,12 +80,22 @@ impl Length {
 pub enum Dimension {
     Px(f32),
     Percent(f32),
+    /// Owned linear calc, nonnegative used value. Percentage dependence is
+    /// retained even for a zero coefficient; indefinite basis stays unresolved.
+    Calc {
+        px: f32,
+        percent: f32,
+    },
     Auto,
     MinContent,
     MaxContent,
     FitContent,
     FitContentPx(f32),
     FitContentPercent(f32),
+    FitContentCalc {
+        px: f32,
+        percent: f32,
+    },
     Stretch,
     /// Content-based flex basis. Rejected for width/height; use Auto there.
     Content,
@@ -82,6 +106,7 @@ impl From<Length> for Dimension {
         match value {
             Length::Px(value) => Self::Px(value),
             Length::Percent(value) => Self::Percent(value),
+            Length::Calc { px, percent } => Self::Calc { px, percent },
             Length::Auto => Self::Auto,
         }
     }
@@ -93,6 +118,12 @@ impl Dimension {
     }
     pub const fn percent(value: f32) -> Self {
         Self::Percent(value)
+    }
+    pub const fn calc(px: f32, percent: f32) -> Self {
+        Self::Calc { px, percent }
+    }
+    pub const fn fit_content_calc(px: f32, percent: f32) -> Self {
+        Self::FitContentCalc { px, percent }
     }
     pub const fn auto() -> Self {
         Self::Auto
@@ -123,12 +154,16 @@ impl Dimension {
         match self {
             Self::Px(value) => taffy::Dimension::length(value),
             Self::Percent(value) => taffy::Dimension::percent(value),
+            Self::Calc { px, percent } => taffy::Dimension::affine(px, percent),
             Self::Auto => taffy::Dimension::auto(),
             Self::MinContent => taffy::Dimension::min_content(),
             Self::MaxContent => taffy::Dimension::max_content(),
             Self::FitContent => taffy::Dimension::fit_content(),
             Self::FitContentPx(limit) => taffy::Dimension::fit_content_px(limit),
             Self::FitContentPercent(limit) => taffy::Dimension::fit_content_percent(limit),
+            Self::FitContentCalc { px, percent } => {
+                taffy::Dimension::fit_content_affine(px, percent)
+            }
             Self::Stretch => taffy::Dimension::stretch(),
             Self::Content => taffy::Dimension::content(),
         }
@@ -136,6 +171,11 @@ impl Dimension {
 
     fn validate(self) -> Result<(), Error> {
         match self {
+            Self::Calc { px, percent } | Self::FitContentCalc { px, percent }
+                if !px.is_finite() || !percent.is_finite() =>
+            {
+                Err(Error::InvalidStyle)
+            }
             Self::Px(value)
             | Self::Percent(value)
             | Self::FitContentPx(value)
@@ -1224,6 +1264,8 @@ mod auto_min_tests;
 mod baseline_tests;
 #[cfg(test)]
 mod box_constraints_tests;
+#[cfg(test)]
+mod calc_tests;
 #[cfg(test)]
 mod constraint_box_tests;
 #[cfg(test)]

@@ -1,0 +1,37 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Owned linear calc geometry reference</title>
+<style>html,body{margin:0;padding:0}body{position:relative;width:400px;height:400px}.host{position:absolute;left:0;top:0;width:180px;height:160px;padding:calc(2px + 1%);gap:calc(3px + 1%);box-sizing:border-box;align-items:start;align-content:start;justify-content:start}.item{display:flex;flex-direction:column;box-sizing:border-box;min-width:0;padding:calc(1px + 1%);margin:0 calc(-2px + 1%);border:1px solid transparent}.content{width:300px;flex-shrink:0}</style>
+<body><script>
+window.referenceReady=(async()=>{
+  const cases=[];
+  for(const kind of ['row','row-reverse','column','grid','grid-fit','grid-repeat','absolute'])
+  for(const rtl of [false,true])
+  for(const width of [120,180,260])
+  for(const negative of [false,true])
+  for(const model of ['border-box','content-box']) {
+    const host=document.createElement('div');host.className='host';
+    Object.assign(host.style,{display:kind.startsWith('grid')?'grid':'flex',flexDirection:kind==='row-reverse'?'row-reverse':kind==='column'?'column':'row',direction:rtl?'rtl':'ltr',width:`${width}px`});
+    if(kind==='grid')Object.assign(host.style,{gridTemplateColumns:'minmax(calc(2px + 5%),1fr) calc(20px + 20%)',gridAutoRows:'auto'});
+    if(kind==='grid-fit')host.style.gridTemplateColumns='fit-content(calc(20px + 20%)) 1fr';
+    if(kind==='grid-repeat')host.style.gridTemplateColumns='repeat(auto-fit,minmax(calc(20px + 10%),1fr))';
+    for(let i=0;i<3;i++){
+      const item=document.createElement('div');item.className='item';item.style.boxSizing=model;
+      const value=negative?'calc(-100px + 10%)':'calc(-8px + 30%)';
+      if(kind==='row'||kind==='row-reverse')Object.assign(item.style,{flexBasis:value,flexGrow:`${i+1}`,minWidth:'calc(-5px + 10%)',maxWidth:'calc(50px + 30%)'});
+      if(kind==='column')Object.assign(item.style,{width:value,minHeight:'calc(-5px + 5%)',height:'calc(5px + 20%)',flexShrink:'0'});
+      if(kind==='absolute')Object.assign(item.style,{position:'absolute',left:`calc(${i*20}px + 5%)`,top:`calc(${i*25}px + 5%)`,width:value,height:'calc(3px + 20%)'});
+      const content=document.createElement('div');content.className='content';item.append(content);host.append(item);
+    }
+    document.body.append(host);
+    for(const update of [false,true]) {
+      [...host.children].forEach((item,i)=>item.firstChild.style.height=`${[20,30,40][i]+(update?30:0)}px`);
+      const r=host.getBoundingClientRect();
+      const actual=[r.width,r.height,...[...host.children].flatMap(item=>{const b=item.getBoundingClientRect();return[b.x-r.x,b.y-r.y,b.width,b.height]})];
+      cases.push({kind,rtl,width,negative,model,update,actual});
+    }
+    host.remove();
+  }
+  return{userAgent:navigator.userAgent,cases};
+})();
+</script>

@@ -114,6 +114,7 @@ fn validate_flex(style: &Style) -> Result<(), Error> {
     let lp = |value: taffy::LengthPercentage| match value.expand() {
         taffy::style::ExpandedLengthPercentage::Length(v)
         | taffy::style::ExpandedLengthPercentage::Percent(v) => valid(v),
+        _ => false,
     };
     let dimension = |value: taffy::Dimension| match value.expand() {
         taffy::style::ExpandedDimension::Length(v)

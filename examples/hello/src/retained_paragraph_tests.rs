@@ -21,6 +21,140 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 }
 
 #[test]
+fn owned_calc_real_glyphs_follow_mixed_width_and_padding() {
+    owned_calc_real_glyphs(false);
+}
+#[cfg(feature = "retained-wgpu")]
+#[test]
+#[ignore = "requires a WGPU adapter; run explicitly"]
+fn hardware_owned_calc_real_glyphs_match_numeric_reference() {
+    owned_calc_real_glyphs(true);
+}
+fn owned_calc_real_glyphs(hardware: bool) {
+    use gpui_box::retained::logical::LogicalUi;
+    let system = text_system();
+    let paragraph = shape(&system, "one two three four five 中文段落 longword");
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let paint = TextPaint {
+        resource: raster.prepare(paragraph.clone(), 1.0).unwrap(),
+        color: 0x00ffffff,
+    };
+    #[cfg(feature = "retained-wgpu")]
+    let mut gpu = hardware.then(|| wgpu::WgpuFrameRenderer::new(2).unwrap());
+    #[cfg(feature = "retained-wgpu")]
+    if let Some(gpu) = &gpu {
+        eprintln!("owned calc glyph adapter: {:?}", gpu.adapter_info());
+    }
+    #[cfg(not(feature = "retained-wgpu"))]
+    assert!(!hardware);
+    let root = || LayoutStyle::column().size(LayoutDimension::Percent(1.0), LayoutDimension::Auto);
+    fn pixels(frame: FramePacket) -> Vec<u8> {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [300, 800],
+                scale: 1.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 4 * 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(4096).unwrap() {}
+        job.into_frame().unwrap().pixels().to_vec()
+    }
+    for local in [false, true] {
+        let mut ui = LogicalUi::new_layout(root(), 0, BackendCapabilities::default()).unwrap();
+        let scope = ui.root_scope();
+        let node = ui
+            .append_render_layout(
+                scope,
+                ui.root_render(),
+                LayoutStyle::row()
+                    .size(LayoutDimension::calc(-12.0, 0.75), LayoutDimension::Auto)
+                    .padding(LayoutEdges::all(LayoutLength::calc(2.0, 0.01))),
+                0,
+            )
+            .unwrap();
+        ui.edit(
+            |_| Ok(()),
+            |(), edit| {
+                edit.properties().text(node, Some(paint.clone()));
+                Ok(())
+            },
+        )
+        .unwrap();
+        let mut old = None;
+        for w in [120.0, 240.0, 180.0, 120.0] {
+            let input = LayoutConstraints::new(
+                LayoutAvailableSpace::Definite(w),
+                LayoutAvailableSpace::Unbounded,
+            );
+            let frame = if local {
+                ui.local_frame_in_viewport(input, [300.0, 800.0])
+                    .unwrap()
+                    .resolve()
+            } else {
+                ui.frame_in_viewport(input, [300.0, 800.0]).unwrap()
+            };
+            let width = w * 0.75 - 12.0;
+            let inset = 2.0 + w * 0.01;
+            let content = width - 2.0 * inset;
+            assert!(
+                (ui.layout_result(node).unwrap().size[1]
+                    - paragraph.layout(Some(content)).unwrap().size[1]
+                    - 2.0 * inset)
+                    .abs()
+                    < 0.02
+            );
+            assert!(
+                (ui.layout_result(node).unwrap().baseline.unwrap()
+                    - paragraph.first_baseline()
+                    - inset)
+                    .abs()
+                    < 0.02
+            );
+            let mut control = UiTree::new_layout(root(), 0).unwrap();
+            control.set_frame_build_policy(FrameBuildPolicy::Full);
+            let n = control
+                .append_layout(
+                    control.root(),
+                    LayoutStyle::row()
+                        .size(LayoutDimension::Px(width), LayoutDimension::Auto)
+                        .padding(LayoutEdges::all(LayoutLength::Px(inset))),
+                    0,
+                )
+                .unwrap();
+            let mut tx = Transaction::default();
+            tx.text(n, Some(paint.clone()));
+            control.commit(tx, BackendCapabilities::default()).unwrap();
+            let reference = control.frame_in_viewport(input, [300.0, 800.0]).unwrap();
+            #[cfg(feature = "retained-wgpu")]
+            if let Some(gpu) = &mut gpu {
+                gpu.submit(&frame, [300, 800], 1.0).unwrap().unwrap();
+                assert!(
+                    gpu.image().unwrap().as_raw()
+                        == gpu
+                            .reference_image(&reference, [300, 800], 1.0)
+                            .unwrap()
+                            .as_raw()
+                );
+            }
+            assert!(pixels(frame.clone()) == pixels(reference));
+            old.get_or_insert(frame);
+        }
+        let old = old.unwrap();
+        let expected = pixels(old.clone());
+        drop(ui);
+        assert_eq!(pixels(old), expected);
+    }
+    #[cfg(feature = "retained-wgpu")]
+    if let Some(gpu) = &mut gpu {
+        gpu.finish().unwrap();
+    }
+}
+
+#[test]
 fn public_grid_real_paragraphs_match_independently_positioned_cpu_glyphs() {
     public_grid_real_paragraphs(false);
 }

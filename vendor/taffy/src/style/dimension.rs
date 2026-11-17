@@ -39,6 +39,9 @@ impl FromCss for LengthPercentage {
 from_str_from_css!(LengthPercentage);
 
 impl LengthPercentage {
+    /// Owned mixed logical length; percentage dependence is retained even for 0%.
+    #[cfg(feature = "affine")]
+    pub const fn affine(px: f32, percent: f32) -> Self { Self(CompactLength::affine(px, percent)) }
     /// An absolute length in some abstract units. Users of Taffy may define what they correspond
     /// to in their application (pixels, logical pixels, mm, etc) as they see fit.
     #[inline(always)]
@@ -84,6 +87,8 @@ impl LengthPercentage {
     /// with the raw [`CompactLength`] tagged-pointer representation directly.
     pub fn expand(self) -> ExpandedLengthPercentage {
         match self.0.tag() {
+            #[cfg(feature = "affine")]
+            CompactLength::AFFINE_TAG => { let (px, percent) = self.0.affine_parts(); ExpandedLengthPercentage::Affine(px, percent) },
             CompactLength::LENGTH_TAG => ExpandedLengthPercentage::Length(self.0.value()),
             CompactLength::PERCENT_TAG => ExpandedLengthPercentage::Percent(self.0.value()),
             #[cfg(feature = "calc")]
@@ -99,6 +104,9 @@ impl LengthPercentage {
 /// using the [`From`] implementation.
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum ExpandedLengthPercentage {
+    /// Owned px + percent * basis.
+    #[cfg(feature = "affine")]
+    Affine(f32, f32),
     /// An absolute length (see [`LengthPercentage::length`])
     Length(f32),
     /// A percentage length (see [`LengthPercentage::percent`])
@@ -118,6 +126,8 @@ impl From<LengthPercentage> for ExpandedLengthPercentage {
 impl From<ExpandedLengthPercentage> for LengthPercentage {
     fn from(value: ExpandedLengthPercentage) -> Self {
         match value {
+            #[cfg(feature = "affine")]
+            ExpandedLengthPercentage::Affine(px, percent) => Self::affine(px, percent),
             ExpandedLengthPercentage::Length(val) => Self::length(val),
             ExpandedLengthPercentage::Percent(val) => Self::percent(val),
             #[cfg(feature = "calc")]
@@ -134,7 +144,7 @@ impl<'de> serde::Deserialize<'de> for LengthPercentage {
     {
         let inner = CompactLength::deserialize(deserializer)?;
         // Note: validation intentionally excludes the CALC_TAG as deserializing calc() values is not supported
-        if matches!(inner.tag(), CompactLength::LENGTH_TAG | CompactLength::PERCENT_TAG) {
+        if owned_affine_tag(inner, false) || matches!(inner.tag(), CompactLength::LENGTH_TAG | CompactLength::PERCENT_TAG) {
             Ok(Self(inner))
         } else {
             Err(serde::de::Error::custom("Invalid tag"))
@@ -185,6 +195,9 @@ impl FromCss for LengthPercentageAuto {
 from_str_from_css!(LengthPercentageAuto);
 
 impl LengthPercentageAuto {
+    /// Owned mixed logical length; percentage dependence is retained even for 0%.
+    #[cfg(feature = "affine")]
+    pub const fn affine(px: f32, percent: f32) -> Self { Self(CompactLength::affine(px, percent)) }
     /// An absolute length in some abstract units. Users of Taffy may define what they correspond
     /// to in their application (pixels, logical pixels, mm, etc) as they see fit.
     #[inline(always)]
@@ -239,6 +252,8 @@ impl LengthPercentageAuto {
         match self.0.tag() {
             CompactLength::LENGTH_TAG => Some(self.0.value()),
             CompactLength::PERCENT_TAG => Some(context * self.0.value()),
+            #[cfg(feature = "affine")]
+            CompactLength::AFFINE_TAG => Some(self.0.resolve_affine(context)),
             CompactLength::AUTO_TAG => None,
             #[cfg(feature = "calc")]
             _ if self.0.is_plain_calc() => Some(calc_resolver(self.0.calc_value(), context)),
@@ -259,6 +274,8 @@ impl LengthPercentageAuto {
     /// with the raw [`CompactLength`] tagged-pointer representation directly.
     pub fn expand(self) -> ExpandedLengthPercentageAuto {
         match self.0.tag() {
+            #[cfg(feature = "affine")]
+            CompactLength::AFFINE_TAG => { let (px, percent) = self.0.affine_parts(); ExpandedLengthPercentageAuto::Affine(px, percent) },
             CompactLength::LENGTH_TAG => ExpandedLengthPercentageAuto::Length(self.0.value()),
             CompactLength::PERCENT_TAG => ExpandedLengthPercentageAuto::Percent(self.0.value()),
             CompactLength::AUTO_TAG => ExpandedLengthPercentageAuto::Auto,
@@ -275,6 +292,9 @@ impl LengthPercentageAuto {
 /// [`LengthPercentageAuto`] using the [`From`] implementation.
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum ExpandedLengthPercentageAuto {
+    /// Owned px + percent * basis.
+    #[cfg(feature = "affine")]
+    Affine(f32, f32),
     /// An absolute length (see [`LengthPercentageAuto::length`])
     Length(f32),
     /// A percentage length (see [`LengthPercentageAuto::percent`])
@@ -296,6 +316,8 @@ impl From<LengthPercentageAuto> for ExpandedLengthPercentageAuto {
 impl From<ExpandedLengthPercentageAuto> for LengthPercentageAuto {
     fn from(value: ExpandedLengthPercentageAuto) -> Self {
         match value {
+            #[cfg(feature = "affine")]
+            ExpandedLengthPercentageAuto::Affine(px, percent) => Self::affine(px, percent),
             ExpandedLengthPercentageAuto::Length(val) => Self::length(val),
             ExpandedLengthPercentageAuto::Percent(val) => Self::percent(val),
             ExpandedLengthPercentageAuto::Auto => Self::auto(),
@@ -313,7 +335,7 @@ impl<'de> serde::Deserialize<'de> for LengthPercentageAuto {
     {
         let inner = CompactLength::deserialize(deserializer)?;
         // Note: validation intentionally excludes the CALC_TAG as deserializing calc() values is not supported
-        if matches!(inner.tag(), CompactLength::LENGTH_TAG | CompactLength::PERCENT_TAG | CompactLength::AUTO_TAG) {
+        if owned_affine_tag(inner, false) || matches!(inner.tag(), CompactLength::LENGTH_TAG | CompactLength::PERCENT_TAG | CompactLength::AUTO_TAG) {
             Ok(Self(inner))
         } else {
             Err(serde::de::Error::custom("Invalid tag"))
@@ -386,6 +408,12 @@ impl FromCss for Dimension {
 from_str_from_css!(Dimension);
 
 impl Dimension {
+    /// Fit-content with an owned mixed limit.
+    #[cfg(feature = "affine")]
+    pub const fn fit_content_affine(px: f32, percent: f32) -> Self { Self(CompactLength::fit_content_affine(px, percent)) }
+    /// Owned mixed logical length; percentage dependence is retained even for 0%.
+    #[cfg(feature = "affine")]
+    pub const fn affine(px: f32, percent: f32) -> Self { Self(CompactLength::affine(px, percent)) }
     /// An absolute length in some abstract units. Users of Taffy may define what they correspond
     /// to in their application (pixels, logical pixels, mm, etc) as they see fit.
     #[inline(always)]
@@ -558,6 +586,10 @@ impl Dimension {
     /// with the raw [`CompactLength`] tagged-pointer representation directly.
     pub fn expand(self) -> ExpandedDimension {
         match self.0.tag() {
+            #[cfg(feature = "affine")]
+            CompactLength::FIT_CONTENT_AFFINE_TAG => { let (px, percent) = self.0.affine_parts(); ExpandedDimension::FitContentAffine(px, percent) },
+            #[cfg(feature = "affine")]
+            CompactLength::AFFINE_TAG => { let (px, percent) = self.0.affine_parts(); ExpandedDimension::Affine(px, percent) },
             CompactLength::LENGTH_TAG => ExpandedDimension::Length(self.0.value()),
             CompactLength::PERCENT_TAG => ExpandedDimension::Percent(self.0.value()),
             CompactLength::AUTO_TAG => ExpandedDimension::Auto,
@@ -583,6 +615,12 @@ impl Dimension {
 /// [`From`] implementation.
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum ExpandedDimension {
+    /// Owned mixed fit-content limit.
+    #[cfg(feature = "affine")]
+    FitContentAffine(f32, f32),
+    /// Owned px + percent * basis.
+    #[cfg(feature = "affine")]
+    Affine(f32, f32),
     /// An absolute length (see [`Dimension::length`])
     Length(f32),
     /// A percentage length (see [`Dimension::percent`])
@@ -621,6 +659,10 @@ impl From<Dimension> for ExpandedDimension {
 impl From<ExpandedDimension> for Dimension {
     fn from(value: ExpandedDimension) -> Self {
         match value {
+            #[cfg(feature = "affine")]
+            ExpandedDimension::FitContentAffine(px, percent) => Self::fit_content_affine(px, percent),
+            #[cfg(feature = "affine")]
+            ExpandedDimension::Affine(px, percent) => Self::affine(px, percent),
             ExpandedDimension::Length(val) => Self::length(val),
             ExpandedDimension::Percent(val) => Self::percent(val),
             ExpandedDimension::Auto => Self::auto(),
@@ -647,7 +689,7 @@ impl<'de> serde::Deserialize<'de> for Dimension {
     {
         let inner = CompactLength::deserialize(deserializer)?;
         // Note: validation intentionally excludes the CALC_TAG as deserializing calc() values is not supported
-        if matches!(
+        if owned_affine_tag(inner, true) || matches!(
             inner.tag(),
             CompactLength::LENGTH_TAG
                 | CompactLength::PERCENT_TAG
@@ -759,4 +801,12 @@ mod expand_tests {
         assert_eq!(Dimension::from(ExpandedDimension::FitContentCalc(handle)), Dimension::fit_content_calc(handle));
         assert_eq!(LengthPercentageAuto::calc(handle).expand(), ExpandedLengthPercentageAuto::Calc(handle));
     }
+}
+
+#[cfg(feature = "serde")]
+fn owned_affine_tag(value: CompactLength, fit: bool) -> bool {
+    #[cfg(feature = "affine")]
+    { value.tag() == CompactLength::AFFINE_TAG || (fit && value.tag() == CompactLength::FIT_CONTENT_AFFINE_TAG) }
+    #[cfg(not(feature = "affine"))]
+    { let _ = (value, fit); false }
 }

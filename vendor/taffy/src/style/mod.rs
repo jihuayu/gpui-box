@@ -3,6 +3,8 @@ mod alignment;
 mod available_space;
 mod compact_length;
 mod dimension;
+#[cfg(all(test, feature = "affine"))]
+mod affine_tests;
 
 #[cfg(feature = "block_layout")]
 mod block;
@@ -1829,15 +1831,16 @@ mod tests {
 
         // Dimensions and aggregations of Dimensions
         assert_type_size::<f32>(4);
-        assert_type_size::<LengthPercentage>(8);
-        assert_type_size::<LengthPercentageAuto>(8);
-        assert_type_size::<Dimension>(8);
-        assert_type_size::<Size<LengthPercentage>>(16);
-        assert_type_size::<Size<LengthPercentageAuto>>(16);
-        assert_type_size::<Size<Dimension>>(16);
-        assert_type_size::<Rect<LengthPercentage>>(32);
-        assert_type_size::<Rect<LengthPercentageAuto>>(32);
-        assert_type_size::<Rect<Dimension>>(32);
+        let length_size = if cfg!(feature = "affine") { 16 } else { 8 };
+        assert_type_size::<LengthPercentage>(length_size);
+        assert_type_size::<LengthPercentageAuto>(length_size);
+        assert_type_size::<Dimension>(length_size);
+        assert_type_size::<Size<LengthPercentage>>(length_size * 2);
+        assert_type_size::<Size<LengthPercentageAuto>>(length_size * 2);
+        assert_type_size::<Size<Dimension>>(length_size * 2);
+        assert_type_size::<Rect<LengthPercentage>>(length_size * 4);
+        assert_type_size::<Rect<LengthPercentageAuto>>(length_size * 4);
+        assert_type_size::<Rect<Dimension>>(length_size * 4);
 
         // Alignment — `AlignContent` and `AlignItems` are structs of two `#[repr(u8)]` enums
         // (position keyword + safety modifier). Niche-packing in the safety byte (only 2 of
@@ -1855,9 +1858,9 @@ mod tests {
 
         // CSS Grid Container
         assert_type_size::<GridAutoFlow>(1);
-        assert_type_size::<MinTrackSizingFunction>(8);
-        assert_type_size::<MaxTrackSizingFunction>(8);
-        assert_type_size::<TrackSizingFunction>(16);
+        assert_type_size::<MinTrackSizingFunction>(length_size);
+        assert_type_size::<MaxTrackSizingFunction>(length_size);
+        assert_type_size::<TrackSizingFunction>(length_size * 2);
         assert_type_size::<Vec<TrackSizingFunction>>(24);
         assert_type_size::<Vec<GridTemplateComponent<S>>>(24);
 
@@ -1867,12 +1870,12 @@ mod tests {
         assert_type_size::<Line<GridPlacement<String>>>(64);
         // Two Option<f32> intrinsic inner sizes add 16 bytes to every style.
         assert_type_size::<Size<Option<f32>>>(16);
-        assert_type_size::<Style<String>>(576);
+        assert_type_size::<Style<String>>(if cfg!(feature = "affine") { 776 } else { 576 });
 
         // String-type dependent (Arc<str>)
         assert_type_size::<GridTemplateComponent<Arc<str>>>(56);
         assert_type_size::<GridPlacement<Arc<str>>>(24);
         assert_type_size::<Line<GridPlacement<Arc<str>>>>(48);
-        assert_type_size::<Style<Arc<str>>>(544);
+        assert_type_size::<Style<Arc<str>>>(if cfg!(feature = "affine") { 744 } else { 544 });
     }
 }

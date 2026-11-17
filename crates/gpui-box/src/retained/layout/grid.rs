@@ -6,6 +6,7 @@ use super::*;
 pub enum GridMinTrack {
     Px(f32),
     Percent(f32),
+    Calc { px: f32, percent: f32 },
     Auto,
     MinContent,
     MaxContent,
@@ -14,12 +15,14 @@ pub enum GridMinTrack {
 pub enum GridMaxTrack {
     Px(f32),
     Percent(f32),
+    Calc { px: f32, percent: f32 },
     Fr(f32),
     Auto,
     MinContent,
     MaxContent,
     FitContentPx(f32),
     FitContentPercent(f32),
+    FitContentCalc { px: f32, percent: f32 },
 }
 /// Separate min/max types prevent a fractional minimum or fit-content minimum.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -36,6 +39,18 @@ impl GridTrack {
     }
     pub const fn percent(value: f32) -> Self {
         Self::minmax(GridMinTrack::Percent(value), GridMaxTrack::Percent(value))
+    }
+    pub const fn calc(px: f32, percent: f32) -> Self {
+        Self::minmax(
+            GridMinTrack::Calc { px, percent },
+            GridMaxTrack::Calc { px, percent },
+        )
+    }
+    pub const fn fit_content_calc(px: f32, percent: f32) -> Self {
+        Self::minmax(
+            GridMinTrack::Auto,
+            GridMaxTrack::FitContentCalc { px, percent },
+        )
     }
     /// CSS fr has an automatic minimum; use minmax(Px(0), Fr(n)) to allow shrink.
     pub const fn fr(value: f32) -> Self {
@@ -59,10 +74,30 @@ impl GridTrack {
     fn validate(self) -> Result<(), Error> {
         if matches!(
             self.max,
-            GridMaxTrack::FitContentPx(_) | GridMaxTrack::FitContentPercent(_)
+            GridMaxTrack::FitContentPx(_)
+                | GridMaxTrack::FitContentPercent(_)
+                | GridMaxTrack::FitContentCalc { .. }
         ) && self.min != GridMinTrack::Auto
         {
             // fit-content() is a complete track function, not a minmax() bound.
+            return Err(Error::InvalidStyle);
+        }
+        let min_calc = if let GridMinTrack::Calc { px, percent } = self.min {
+            Some((px, percent))
+        } else {
+            None
+        };
+        let max_calc = match self.max {
+            GridMaxTrack::Calc { px, percent } | GridMaxTrack::FitContentCalc { px, percent } => {
+                Some((px, percent))
+            }
+            _ => None,
+        };
+        if [min_calc, max_calc]
+            .into_iter()
+            .flatten()
+            .any(|(px, percent)| !px.is_finite() || !percent.is_finite())
+        {
             return Err(Error::InvalidStyle);
         }
         let min = match self.min {
@@ -87,8 +122,13 @@ impl GridTrack {
         Ok(())
     }
     fn fixed_component(self) -> bool {
-        matches!(self.min, GridMinTrack::Px(_) | GridMinTrack::Percent(_))
-            || matches!(self.max, GridMaxTrack::Px(_) | GridMaxTrack::Percent(_))
+        matches!(
+            self.min,
+            GridMinTrack::Px(_) | GridMinTrack::Percent(_) | GridMinTrack::Calc { .. }
+        ) || matches!(
+            self.max,
+            GridMaxTrack::Px(_) | GridMaxTrack::Percent(_) | GridMaxTrack::Calc { .. }
+        )
     }
     fn to_taffy(self) -> taffy::TrackSizingFunction {
         use taffy::{MaxTrackSizingFunction as Max, MinTrackSizingFunction as Min};
@@ -96,6 +136,7 @@ impl GridTrack {
             min: match self.min {
                 GridMinTrack::Px(v) => Min::length(v),
                 GridMinTrack::Percent(v) => Min::percent(v),
+                GridMinTrack::Calc { px, percent } => Min::affine(px, percent),
                 GridMinTrack::Auto => Min::auto(),
                 GridMinTrack::MinContent => Min::min_content(),
                 GridMinTrack::MaxContent => Min::max_content(),
@@ -103,12 +144,16 @@ impl GridTrack {
             max: match self.max {
                 GridMaxTrack::Px(v) => Max::length(v),
                 GridMaxTrack::Percent(v) => Max::percent(v),
+                GridMaxTrack::Calc { px, percent } => Max::affine(px, percent),
                 GridMaxTrack::Fr(v) => Max::fr(v),
                 GridMaxTrack::Auto => Max::auto(),
                 GridMaxTrack::MinContent => Max::min_content(),
                 GridMaxTrack::MaxContent => Max::max_content(),
                 GridMaxTrack::FitContentPx(v) => Max::fit_content_px(v),
                 GridMaxTrack::FitContentPercent(v) => Max::fit_content_percent(v),
+                GridMaxTrack::FitContentCalc { px, percent } => {
+                    Max::fit_content_affine(px, percent)
+                }
             },
         }
     }

@@ -828,7 +828,7 @@ impl<'de> serde::Deserialize<'de> for MaxTrackSizingFunction {
     {
         let inner = CompactLength::deserialize(deserializer)?;
         // Note: validation intentionally excludes the CALC_TAG as deserializing calc() values is not supported
-        if matches!(
+        if owned_affine_tag(inner, true) || matches!(
             inner.tag(),
             CompactLength::LENGTH_TAG
                 | CompactLength::PERCENT_TAG
@@ -847,6 +847,12 @@ impl<'de> serde::Deserialize<'de> for MaxTrackSizingFunction {
 }
 
 impl MaxTrackSizingFunction {
+    /// Fit-content track with owned mixed limit.
+    #[cfg(feature = "affine")]
+    pub const fn fit_content_affine(px: f32, percent: f32) -> Self { Self(CompactLength::fit_content_affine(px, percent)) }
+    /// Owned mixed track length.
+    #[cfg(feature = "affine")]
+    pub const fn affine(px: f32, percent: f32) -> Self { Self(CompactLength::affine(px, percent)) }
     /// An absolute length in some abstract units. Users of Taffy may define what they correspond
     /// to in their application (pixels, logical pixels, mm, etc) as they see fit.
     #[inline(always)]
@@ -1008,6 +1014,8 @@ impl MaxTrackSizingFunction {
         match self.0.tag() {
             CompactLength::LENGTH_TAG => true,
             CompactLength::PERCENT_TAG => parent_size.is_some(),
+            #[cfg(feature = "affine")]
+            CompactLength::AFFINE_TAG => parent_size.is_some(),
             #[cfg(feature = "calc")]
             _ if self.0.is_plain_calc() => parent_size.is_some(),
             _ => false,
@@ -1026,6 +1034,8 @@ impl MaxTrackSizingFunction {
         match self.0.tag() {
             CompactLength::LENGTH_TAG => Some(self.0.value()),
             CompactLength::PERCENT_TAG => parent_size.map(|size| self.0.value() * size),
+            #[cfg(feature = "affine")]
+            CompactLength::AFFINE_TAG => parent_size.map(|size| self.0.resolve_affine(size).max(0.0)),
             #[cfg(feature = "calc")]
             _ if self.0.is_plain_calc() => parent_size.map(|size| calc_resolver(self.0.calc_value(), size)),
             _ => None,
@@ -1046,6 +1056,8 @@ impl MaxTrackSizingFunction {
         match self.0.tag() {
             CompactLength::FIT_CONTENT_PX_TAG => Some(self.0.value()),
             CompactLength::FIT_CONTENT_PERCENT_TAG => parent_size.map(|size| self.0.value() * size),
+            #[cfg(feature = "affine")]
+            CompactLength::FIT_CONTENT_AFFINE_TAG => parent_size.map(|size| self.0.resolve_affine(size).max(0.0)),
             #[cfg(feature = "calc")]
             _ if self.0.is_fit_content_calc() => parent_size.map(|size| calc_resolver(self.0.calc_value(), size)),
             _ => None,
@@ -1067,6 +1079,8 @@ impl MaxTrackSizingFunction {
         match self.0.tag() {
             CompactLength::FIT_CONTENT_PX_TAG => Some(self.0.value()),
             CompactLength::FIT_CONTENT_PERCENT_TAG => parent_size.map(|size| self.0.value() * size),
+            #[cfg(feature = "affine")]
+            CompactLength::FIT_CONTENT_AFFINE_TAG => parent_size.map(|size| self.0.resolve_affine(size).max(0.0)),
             #[cfg(feature = "calc")]
             _ if self.0.is_fit_content_calc() => parent_size.map(|size| calc_resolver(self.0.calc_value(), size)),
             _ => self.definite_value(parent_size, calc_resolver),
@@ -1097,6 +1111,10 @@ impl MaxTrackSizingFunction {
     /// with the raw [`CompactLength`] tagged-pointer representation directly.
     pub fn expand(self) -> ExpandedMaxTrackSizingFunction {
         match self.0.tag() {
+            #[cfg(feature = "affine")]
+            CompactLength::FIT_CONTENT_AFFINE_TAG => { let (px, percent) = self.0.affine_parts(); ExpandedMaxTrackSizingFunction::FitContentAffine(px, percent) },
+            #[cfg(feature = "affine")]
+            CompactLength::AFFINE_TAG => { let (px, percent) = self.0.affine_parts(); ExpandedMaxTrackSizingFunction::Affine(px, percent) },
             CompactLength::LENGTH_TAG => ExpandedMaxTrackSizingFunction::Length(self.0.value()),
             CompactLength::PERCENT_TAG => ExpandedMaxTrackSizingFunction::Percent(self.0.value()),
             CompactLength::AUTO_TAG => ExpandedMaxTrackSizingFunction::Auto,
@@ -1120,6 +1138,12 @@ impl MaxTrackSizingFunction {
 /// [`MaxTrackSizingFunction`] using the [`From`] implementation.
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum ExpandedMaxTrackSizingFunction {
+    /// Fit-content with owned mixed limit.
+    #[cfg(feature = "affine")]
+    FitContentAffine(f32, f32),
+    /// Owned px + percent * basis.
+    #[cfg(feature = "affine")]
+    Affine(f32, f32),
     /// An absolute length (see [`MaxTrackSizingFunction::length`])
     Length(f32),
     /// A percentage length (see [`MaxTrackSizingFunction::percent`])
@@ -1155,6 +1179,10 @@ impl From<MaxTrackSizingFunction> for ExpandedMaxTrackSizingFunction {
 impl From<ExpandedMaxTrackSizingFunction> for MaxTrackSizingFunction {
     fn from(value: ExpandedMaxTrackSizingFunction) -> Self {
         match value {
+            #[cfg(feature = "affine")]
+            ExpandedMaxTrackSizingFunction::FitContentAffine(px, percent) => Self::fit_content_affine(px, percent),
+            #[cfg(feature = "affine")]
+            ExpandedMaxTrackSizingFunction::Affine(px, percent) => Self::affine(px, percent),
             ExpandedMaxTrackSizingFunction::Length(val) => Self::length(val),
             ExpandedMaxTrackSizingFunction::Percent(val) => Self::percent(val),
             ExpandedMaxTrackSizingFunction::Auto => Self::auto(),
@@ -1221,7 +1249,7 @@ impl From<Dimension> for MinTrackSizingFunction {
             | CompactLength::FIT_CONTENT_KEYWORD_TAG
             | CompactLength::STRETCH_TAG
             | CompactLength::CONTENT_TAG => Self::auto(),
-            _ if input.0.is_fit_content_calc() => Self::auto(),
+            _ if input.0.is_fit_content() => Self::auto(),
             _ => Self(input.0),
         }
     }
@@ -1265,7 +1293,7 @@ impl<'de> serde::Deserialize<'de> for MinTrackSizingFunction {
     {
         let inner = CompactLength::deserialize(deserializer)?;
         // Note: validation intentionally excludes the CALC_TAG as deserializing calc() values is not supported
-        if matches!(
+        if owned_affine_tag(inner, false) || matches!(
             inner.tag(),
             CompactLength::LENGTH_TAG
                 | CompactLength::PERCENT_TAG
@@ -1283,6 +1311,9 @@ impl<'de> serde::Deserialize<'de> for MinTrackSizingFunction {
 }
 
 impl MinTrackSizingFunction {
+    /// Owned mixed track length.
+    #[cfg(feature = "affine")]
+    pub const fn affine(px: f32, percent: f32) -> Self { Self(CompactLength::affine(px, percent)) }
     /// An absolute length in some abstract units. Users of Taffy may define what they correspond
     /// to in their application (pixels, logical pixels, mm, etc) as they see fit.
     #[inline(always)]
@@ -1396,6 +1427,8 @@ impl MinTrackSizingFunction {
         match self.0.tag() {
             CompactLength::LENGTH_TAG => Some(self.0.value()),
             CompactLength::PERCENT_TAG => parent_size.map(|size| self.0.value() * size),
+            #[cfg(feature = "affine")]
+            CompactLength::AFFINE_TAG => parent_size.map(|size| self.0.resolve_affine(size).max(0.0)),
             #[cfg(feature = "calc")]
             _ if self.0.is_plain_calc() => parent_size.map(|size| calc_resolver(self.0.calc_value(), size)),
             _ => None,
@@ -1426,6 +1459,8 @@ impl MinTrackSizingFunction {
     /// with the raw [`CompactLength`] tagged-pointer representation directly.
     pub fn expand(self) -> ExpandedMinTrackSizingFunction {
         match self.0.tag() {
+            #[cfg(feature = "affine")]
+            CompactLength::AFFINE_TAG => { let (px, percent) = self.0.affine_parts(); ExpandedMinTrackSizingFunction::Affine(px, percent) },
             CompactLength::LENGTH_TAG => ExpandedMinTrackSizingFunction::Length(self.0.value()),
             CompactLength::PERCENT_TAG => ExpandedMinTrackSizingFunction::Percent(self.0.value()),
             CompactLength::AUTO_TAG => ExpandedMinTrackSizingFunction::Auto,
@@ -1444,6 +1479,9 @@ impl MinTrackSizingFunction {
 /// [`MinTrackSizingFunction`] using the [`From`] implementation.
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum ExpandedMinTrackSizingFunction {
+    /// Owned px + percent * basis.
+    #[cfg(feature = "affine")]
+    Affine(f32, f32),
     /// An absolute length (see [`MinTrackSizingFunction::length`])
     Length(f32),
     /// A percentage length (see [`MinTrackSizingFunction::percent`])
@@ -1469,6 +1507,8 @@ impl From<MinTrackSizingFunction> for ExpandedMinTrackSizingFunction {
 impl From<ExpandedMinTrackSizingFunction> for MinTrackSizingFunction {
     fn from(value: ExpandedMinTrackSizingFunction) -> Self {
         match value {
+            #[cfg(feature = "affine")]
+            ExpandedMinTrackSizingFunction::Affine(px, percent) => Self::affine(px, percent),
             ExpandedMinTrackSizingFunction::Length(val) => Self::length(val),
             ExpandedMinTrackSizingFunction::Percent(val) => Self::percent(val),
             ExpandedMinTrackSizingFunction::Auto => Self::auto(),
@@ -1975,4 +2015,12 @@ mod expand_tests {
         );
         assert_eq!(MinTrackSizingFunction::calc(handle).expand(), ExpandedMinTrackSizingFunction::Calc(handle));
     }
+}
+
+#[cfg(feature = "serde")]
+fn owned_affine_tag(value: CompactLength, fit: bool) -> bool {
+    #[cfg(feature = "affine")]
+    { value.tag() == CompactLength::AFFINE_TAG || (fit && value.tag() == CompactLength::FIT_CONTENT_AFFINE_TAG) }
+    #[cfg(not(feature = "affine"))]
+    { let _ = (value, fit); false }
 }

@@ -152,7 +152,7 @@ fn prove(
     }
     let definite = matches!(
         style.size.width.expand(),
-        D::Length(_) | D::Percent(_) | D::Stretch
+        D::Length(_) | D::Percent(_) | D::Affine(_, _) | D::Stretch
     );
     let Some(parent) = parent else {
         return Ok(definite);
@@ -243,7 +243,7 @@ fn independent_row_items(
                 },
             ]
             .iter()
-            .any(|v| matches!(v.expand(), D::Percent(_)));
+            .any(|v| matches!(v.expand(), D::Percent(_) | D::Affine(_, _)));
             if incoming && needs_percentage && percentage_proof.is_none() {
                 percentage_proof = Some(definite_flex_inline_chain(
                     context,
@@ -255,6 +255,7 @@ fn independent_row_items(
             let numeric = |v: taffy::Dimension| match v.expand() {
                 D::Length(x) => x.is_finite() && x >= 0.0,
                 D::Percent(x) => percentages && x.is_finite() && x >= 0.0,
+                D::Affine(px, percent) => percentages && px.is_finite() && percent.is_finite(),
                 _ => false,
             };
             let basis = numeric(style.flex_basis)
@@ -298,7 +299,10 @@ fn definite_flex_inline_chain(
             valid = false;
             break;
         }
-        let numeric = matches!(style.size.width.expand(), D::Length(_) | D::Percent(_));
+        let numeric = matches!(
+            style.size.width.expand(),
+            D::Length(_) | D::Percent(_) | D::Affine(_, _)
+        );
         let Some(parent) = parent else {
             valid &= numeric || style.size.width.is_stretch();
             continue;

@@ -73,6 +73,8 @@ fn dimension(value: taffy::Dimension) -> Result<LayoutDimension, Error> {
     Ok(match value.expand() {
         D::Length(v) => LayoutDimension::Px(v),
         D::Percent(v) => LayoutDimension::Percent(v),
+        D::Affine(px, percent) => LayoutDimension::Calc { px, percent },
+        D::FitContentAffine(px, percent) => LayoutDimension::FitContentCalc { px, percent },
         D::Auto => LayoutDimension::Auto,
         D::MinContent => LayoutDimension::MinContent,
         D::MaxContent => LayoutDimension::MaxContent,
@@ -96,6 +98,7 @@ fn auto_length(value: taffy::LengthPercentageAuto) -> Result<LayoutLength, Error
     Ok(match value.expand() {
         L::Length(v) => LayoutLength::Px(v),
         L::Percent(v) => LayoutLength::Percent(v),
+        L::Affine(px, percent) => LayoutLength::Calc { px, percent },
         L::Auto => LayoutLength::Auto,
         _ => return Err(Error::InvalidParentLayout),
     })
@@ -106,6 +109,7 @@ fn length_value(value: taffy::LengthPercentage) -> Result<LayoutLength, Error> {
     Ok(match value.expand() {
         L::Length(v) => LayoutLength::Px(v),
         L::Percent(v) => LayoutLength::Percent(v),
+        L::Affine(px, percent) => LayoutLength::Calc { px, percent },
         _ => return Err(Error::InvalidParentLayout),
     })
 }

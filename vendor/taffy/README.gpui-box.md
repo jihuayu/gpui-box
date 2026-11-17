@@ -12,6 +12,13 @@ local test artifacts and ignored.
 
 ## Local changes
 
+- Optional `affine` owned px+percentage coefficients extend length/Dimension,
+  mixed fit-content and Grid track resolution without external pointer state.
+  The framework enables it; feature-unified GPUI types also grow:64-bit lengths
+  8→16bytes and Style<String>576→776. Plain serde encoding is preserved, owned
+  pairs round-trip; default feature-disabled representation remains unchanged.
+  See [contract, costs and evidence](../../docs/RETAINED_OWNED_CALC.md).
+
 - Grid minimum outer contribution is floored at resolved padding+border even
   with explicit/automatic zero minima. Independent browser references exposed
   fit-content tracks smaller than their border-box floor; the standalone

@@ -492,6 +492,17 @@ Count／AutoFit／AutoFill、implicit patterns与dense flow。公共justify_item
 Grid item内部分配证明仍拒绝。Named lines/areas、subgrid、Grid last-baseline／竖排、calc、
 广泛CSS及持续GPU/CPU/可见呈现验收继续开放，不能把这一阶段称为完整CSS Grid。
 
+后续 [owned linear calc](RETAINED_OWNED_CALC.md) 将px＋percent两系数按值保存在公共
+Length/Dimension、fit-content与Grid min/max/fit limits中，lower到项目内Taffy可选affine
+tags，不借用外部pointer calc resolver或global expression registry。百分比基准缺失仍未解析，
+margin/inset有符号，尺寸／padding／gap／track等非负域在解析后floor0；custom child-style
+保持未解析值，普通Row builder/query复用definite链＋live anchor证明。336组浏览器几何
+在0.1px内匹配（实际最大0.08，累积取整差异明记），typed/P0/rollback、ConstraintBox、
+真实Noto及CPU/GPU数值参考覆盖有限链路。内存代价明确：64位Taffy length8→16bytes、
+Style<String>576→776；Cargo feature统一使同workspace GPUI也受影响。无帧时／peak memory
+收益声明，普通standalone不启用affine保持原尺寸。复杂calc函数／单位、广泛cyclic/intrinsic、
+完整RenderBox、自动调度、incremental candidates与持续可见呈现验收仍开放。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

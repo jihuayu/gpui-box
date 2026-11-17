@@ -72,6 +72,7 @@ fn resolved(value: LayoutLength, width: Option<f32>) -> Result<f32, Error> {
     match value {
         LayoutLength::Px(v) => Ok(v),
         LayoutLength::Percent(v) => Ok(v * width.unwrap_or(0.0)),
+        LayoutLength::Calc { px, percent } => Ok(width.map_or(0.0, |w| px + percent * w)),
         LayoutLength::Auto => Err(Error::InvalidParentLayout),
     }
 }
@@ -400,6 +401,8 @@ fn effective_item_styles_preserve_unresolved_values_and_replaced_image_classific
         LayoutDimension::FitContent,
         LayoutDimension::FitContentPx(30.0),
         LayoutDimension::FitContentPercent(0.7),
+        LayoutDimension::calc(-4.0, 0.5),
+        LayoutDimension::fit_content_calc(12.0, 0.5),
         LayoutDimension::Stretch,
     ];
     let alignments = [
@@ -441,7 +444,7 @@ fn effective_item_styles_preserve_unresolved_values_and_replaced_image_classific
             bottom: LayoutLength::Px(3.0),
         };
         style.inset = style.margin;
-        style.padding = LayoutEdges::all(LayoutLength::Percent(0.02));
+        style.padding = LayoutEdges::all(LayoutLength::calc(1.0, 0.02));
         style.border = LayoutEdges::all(LayoutLength::Px(1.0));
         style.position = LayoutPosition::Relative;
         style.box_sizing = LayoutBoxSizing::ContentBox;

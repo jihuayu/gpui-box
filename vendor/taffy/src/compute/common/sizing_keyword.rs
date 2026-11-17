@@ -41,6 +41,11 @@ pub(crate) fn resolve_sizing_keyword(
         }
         CompactLength::FIT_CONTENT_PERCENT_TAG => percent_resolution_basis
             .map(|basis| SizingKeywordResolution::Measure(AvailableSpace::Definite(basis * style.value()))),
+        #[cfg(feature = "affine")]
+        CompactLength::FIT_CONTENT_AFFINE_TAG => percent_resolution_basis.map(|basis| {
+            let raw = style.into_raw();
+            SizingKeywordResolution::Measure(AvailableSpace::Definite(raw.resolve_affine(basis).max(0.0)))
+        }),
         CompactLength::FIT_CONTENT_KEYWORD_TAG => {
             stretch_size.map(|size| SizingKeywordResolution::Measure(AvailableSpace::Definite(size)))
         }

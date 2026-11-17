@@ -32,6 +32,8 @@ impl MaybeResolve<Option<f32>, Option<f32>> for LengthPercentage {
         match self.0.tag() {
             CompactLength::LENGTH_TAG => Some(self.0.value()),
             CompactLength::PERCENT_TAG => context.map(|dim| dim * self.0.value()),
+            #[cfg(feature = "affine")]
+            CompactLength::AFFINE_TAG => context.map(|dim| self.0.resolve_affine(dim).max(0.0)),
             #[cfg(feature = "calc")]
             _ if self.0.is_plain_calc() => context.map(|dim| calc(self.0.calc_value(), dim)),
             _ => unreachable!(),
@@ -47,6 +49,8 @@ impl MaybeResolve<Option<f32>, Option<f32>> for LengthPercentageAuto {
             CompactLength::AUTO_TAG => None,
             CompactLength::LENGTH_TAG => Some(self.0.value()),
             CompactLength::PERCENT_TAG => context.map(|dim| dim * self.0.value()),
+            #[cfg(feature = "affine")]
+            CompactLength::AFFINE_TAG => context.map(|dim| self.0.resolve_affine(dim)),
             #[cfg(feature = "calc")]
             _ if self.0.is_plain_calc() => context.map(|dim| calc(self.0.calc_value(), dim)),
             _ => unreachable!(),
@@ -65,6 +69,8 @@ impl MaybeResolve<Option<f32>, Option<f32>> for Dimension {
             CompactLength::CONTENT_TAG => None,
             CompactLength::LENGTH_TAG => Some(self.0.value()),
             CompactLength::PERCENT_TAG => context.map(|dim| dim * self.0.value()),
+            #[cfg(feature = "affine")]
+            CompactLength::AFFINE_TAG => context.map(|dim| self.0.resolve_affine(dim).max(0.0)),
             #[cfg(feature = "calc")]
             _ if self.0.is_plain_calc() => context.map(|dim| calc(self.0.calc_value(), dim)),
             // Intrinsic sizing keywords cannot be resolved to a definite size out of context.
