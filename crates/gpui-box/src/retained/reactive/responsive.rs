@@ -26,6 +26,7 @@ pub(in crate::retained) struct Draft<'a> {
     has_queries: bool,
     layout_runs: u64,
     layout_stats: LayoutStats,
+    observations: Vec<(NodeId, f32, layout_dependencies::InlineDependencies)>,
 }
 
 fn add_stats(total: &mut LayoutStats, next: LayoutStats) {
@@ -126,17 +127,16 @@ impl Draft<'_> {
             add_stats(&mut self.layout_stats, stats);
         }
         let tree = self.preview.as_ref().unwrap_or(&runtime.tree);
-        let layout = tree.layout.layout(tree.node(node)?.layout)?;
-        let width = (layout.size.width
-            - layout.padding.left
-            - layout.padding.right
-            - layout.border.left
-            - layout.border.right
-            - layout.scrollbar_size.width)
-            .max(0.0);
-        if !width.is_finite() {
-            return Err(Error::InvalidFrame);
-        }
+        let width = crate::retained::responsive::layout_queries::observed_inline_size(
+            tree,
+            node,
+            self.constraints,
+        )?;
+        self.observations.push((
+            node,
+            width,
+            layout_dependencies::InlineDependencies::capture(tree, node)?,
+        ));
         Ok(width)
     }
 }
@@ -229,6 +229,7 @@ impl ReactiveUi {
             has_queries,
             layout_runs: 0,
             layout_stats: LayoutStats::default(),
+            observations: vec![],
         };
         let changed_styles = plan(&mut draft)?;
         let Draft {
@@ -236,6 +237,7 @@ impl ReactiveUi {
             preview,
             mut layout_runs,
             mut layout_stats,
+            observations,
             ..
         } = draft;
         let publish_sources = transaction.writes != 0;
@@ -290,6 +292,17 @@ impl ReactiveUi {
         if let Some((runs, stats)) = final_stats {
             layout_runs += runs;
             add_stats(&mut layout_stats, stats);
+        }
+        for (host, width, dependencies) in observations {
+            if crate::retained::responsive::layout_queries::observed_inline_size(
+                tree,
+                host,
+                constraints,
+            )? != width
+                || !dependencies.matches(tree, host)?
+            {
+                return Err(Error::UnsafeContainerQuery);
+            }
         }
         if let Some(candidate) = candidate {
             self.tree = candidate;

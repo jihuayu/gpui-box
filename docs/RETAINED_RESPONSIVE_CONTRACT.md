@@ -124,3 +124,10 @@ and gutter-deflated content_size. Container queries, parent slots/builders,
 paragraph metrics and image/glyph paint now agree on that content width, with
 RTL origin handling and288 independent browser geometry cases. This provides
 explicit reservations; automatic appearance and native chrome remain open.
+
+The later [ordinary container-query stage](RETAINED_ORDINARY_CONTAINER_QUERIES.md)
+extends ContainerInline to ordinary uncontained content-sized hosts through
+complete independent Column/Tight-box/width-phase chains with a live external
+anchor. Actual content widths, nested rule DAGs, computed feedback checks,
+scope-owned sessions and final standalone observations reuse existing contracts.
+This does not implement arbitrary Row/wrap/aspect feedback or automatic scheduling.

@@ -66,6 +66,20 @@ pub(super) fn column_inline_allocation_chain(
     prove(context, node, style, &mut Default::default(), true)
 }
 
+/// A syntactic percentage/stretch root needs an actual external width before
+/// content construction or uncontained content queries may rely on the chain.
+pub(super) fn has_external_inline_anchor(
+    tree: &UiTree,
+    constraints: LayoutConstraints,
+) -> Result<bool, Error> {
+    use taffy::style::ExpandedDimension as D;
+    Ok(matches!(
+        tree.node(tree.root)?.style.size.width.expand(),
+        D::Length(_)
+    ) || matches!(constraints.width, layout::AvailableSpace::Definite(_))
+        || constraints.bounds.min.width == constraints.bounds.max.width)
+}
+
 fn prove(
     context: &impl InlineContext,
     node: NodeId,

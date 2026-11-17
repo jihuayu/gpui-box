@@ -21,6 +21,124 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 }
 
 #[test]
+fn ordinary_container_query_uses_content_width_and_real_paragraph_height_without_containment() {
+    use gpui_box::retained::{logical::LogicalUi, responsive::*};
+    let system = text_system();
+    let paragraph = shape(&system, "one two three four five 中文段落 longword");
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let paint = TextPaint {
+        resource: raster.prepare(paragraph.clone(), 1.0).unwrap(),
+        color: 0x00ffffff,
+    };
+    let root_style =
+        LayoutStyle::column().size(LayoutDimension::Percent(1.0), LayoutDimension::Auto);
+    let host_style = LayoutStyle::column()
+        .padding(LayoutEdges::all(LayoutLength::Px(3.0)))
+        .overflow(LayoutOverflow::Visible, LayoutOverflow::Scroll)
+        .scrollbar_width(6.0);
+    let narrow = LayoutStyle::row();
+    let wide = LayoutStyle::row().size(LayoutDimension::Percent(0.5), LayoutDimension::Auto);
+    fn pixels(frame: FramePacket) -> Vec<u8> {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [200, 600],
+                scale: 1.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 4 * 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(4096).unwrap() {}
+        job.into_frame().unwrap().pixels().to_vec()
+    }
+    for local in [false, true] {
+        let mut ui =
+            LogicalUi::new_layout(root_style.clone(), 0, BackendCapabilities::default()).unwrap();
+        let scope = ui.root_scope();
+        let root = ui.root_render();
+        let host = ui
+            .append_render_layout(scope, root, host_style.clone(), 0)
+            .unwrap();
+        let text = ui
+            .append_render_layout(scope, host, narrow.clone(), 0)
+            .unwrap();
+        let source = ui.state(scope, 993, || narrow.clone()).unwrap();
+        ui.edit(
+            |_| Ok(()),
+            |(), edit| {
+                edit.properties().text(text, Some(paint.clone()));
+                Ok(())
+            },
+        )
+        .unwrap();
+        let mut responsive = LayoutResponsiveBindings::new();
+        responsive
+            .bind_container(
+                &mut ui,
+                source,
+                text,
+                host,
+                LayoutBreakpointStyles::new(narrow.clone(), vec![(100.0, wide.clone())]).unwrap(),
+            )
+            .unwrap();
+        let mut old = None;
+        for width in [80.0, 112.0, 140.0, 80.0] {
+            let constraints = LayoutConstraints::new(
+                LayoutAvailableSpace::Definite(width),
+                LayoutAvailableSpace::Unbounded,
+            );
+            let env = LayoutEnvironment::new([500.0, 600.0]);
+            let frame = if local {
+                responsive
+                    .local_frame_in_viewport(&mut ui, &env, constraints, [200.0, 600.0])
+                    .unwrap()
+                    .frame
+                    .resolve()
+            } else {
+                responsive
+                    .frame_in_viewport(&mut ui, &env, constraints, [200.0, 600.0])
+                    .unwrap()
+                    .frame
+            };
+            let selected = if width < 112.0 {
+                narrow.clone()
+            } else {
+                wide.clone()
+            };
+            let mut full = UiTree::new_layout(root_style.clone(), 0).unwrap();
+            full.set_frame_build_policy(FrameBuildPolicy::Full);
+            let a = full
+                .append_layout(full.root(), host_style.clone(), 0)
+                .unwrap();
+            let b = full.append_layout(a, selected, 0).unwrap();
+            let mut tx = Transaction::default();
+            tx.text(b, Some(paint.clone()));
+            full.commit(tx, BackendCapabilities::default()).unwrap();
+            let reference = full.frame_in_viewport(constraints, [200.0, 600.0]).unwrap();
+            assert_eq!(
+                ui.layout_result(host).unwrap(),
+                full.layout_result(a).unwrap()
+            );
+            assert_eq!(
+                ui.layout_result(text).unwrap(),
+                full.layout_result(b).unwrap()
+            );
+            assert!(
+                pixels(frame.clone()) == pixels(reference),
+                "local={local} width={width}"
+            );
+            old.get_or_insert(frame);
+        }
+        let old = old.unwrap();
+        let expected = pixels(old.clone());
+        drop(ui);
+        assert_eq!(pixels(old), expected);
+    }
+}
+
+#[test]
 fn public_scrollbar_gutters_keep_real_text_wrap_baselines_and_paint_in_agreement() {
     scrollbar_text_controls(false);
 }

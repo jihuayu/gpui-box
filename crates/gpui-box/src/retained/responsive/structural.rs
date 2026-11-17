@@ -96,19 +96,11 @@ impl QueryContext for FinalContext<'_> {
 }
 
 fn inline_size(tree: &UiTree, node: NodeId) -> Result<f32, Error> {
-    let layout = tree.layout.layout(tree.node(node)?.layout)?;
-    let width = (layout.size.width
-        - layout.padding.left
-        - layout.padding.right
-        - layout.border.left
-        - layout.border.right
-        - layout.scrollbar_size.width)
-        .max(0.0);
-    if width.is_finite() {
-        Ok(width)
-    } else {
-        Err(Error::InvalidFrame)
-    }
+    layout_queries::observed_inline_size(
+        tree,
+        node,
+        tree.layout_constraints.ok_or(Error::UnsafeContainerQuery)?,
+    )
 }
 
 impl Observation {

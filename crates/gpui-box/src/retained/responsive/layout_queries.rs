@@ -249,11 +249,12 @@ fn validate_query_host(
     let mut ancestor = Some(host);
     while let Some(node) = ancestor {
         if ui.tree().node(node)?.parent_layout.is_some() {
-            return if column_inline_chain(ui, rules, host, style)?
+            return if (column_inline_chain(ui, rules, host, style)?
                 && (validate_inline_extent(style).is_ok()
                     || style
                         .contain
-                        .contains(taffy::Contain::INLINE_SIZE | taffy::Contain::LAYOUT))
+                        .contains(taffy::Contain::INLINE_SIZE | taffy::Contain::LAYOUT)))
+                || inline_chain(ui, rules, host, style, true)?
             {
                 Ok(())
             } else {
@@ -281,7 +282,10 @@ fn external_inline_extent(
         .contain
         .contains(taffy::Contain::INLINE_SIZE | taffy::Contain::LAYOUT)
     {
-        return Ok(false);
+        // Ordinary content-sized hosts can query descendants when the complete
+        // incoming chain fixes inline allocation independently of their height.
+        // Unlike a local used-width shortcut, this reaches the external root.
+        return inline_chain(ui, rules, host, style, true);
     }
     // Inline containment cuts content-width contributions. The column chain
     // proves auto heights cannot feed a cross-axis width through an ancestor.
@@ -309,6 +313,16 @@ fn column_inline_chain(
     node: NodeId,
     style: &Style,
 ) -> Result<bool, Error> {
+    inline_chain(ui, rules, node, style, false)
+}
+
+fn inline_chain(
+    ui: &impl QueryContext,
+    rules: &[Rule<'_>],
+    node: NodeId,
+    style: &Style,
+    incoming: bool,
+) -> Result<bool, Error> {
     struct Context<'a, 'b, C> {
         ui: &'a C,
         rules: &'a [Rule<'b>],
@@ -321,7 +335,44 @@ fn column_inline_chain(
             possible_styles(self.ui, self.rules, node)
         }
     }
-    layout_dependencies::column_inline_chain(&Context { ui, rules }, node, style)
+    let context = Context { ui, rules };
+    if incoming {
+        layout_dependencies::column_inline_allocation_chain(&context, node, style)
+    } else {
+        layout_dependencies::column_inline_chain(&context, node, style)
+    }
+}
+
+/// Read actual content width without manufacturing an anchor from a previous
+/// shrink-wrapped result. Fixed extents and explicit containment keep their
+/// prior contracts; ordinary complete-chain hosts require live external input.
+pub(in crate::retained) fn observed_inline_size(
+    tree: &UiTree,
+    node: NodeId,
+    constraints: LayoutConstraints,
+) -> Result<f32, Error> {
+    let style = &tree.node(node)?.style;
+    if validate_inline_extent(style).is_err()
+        && !style
+            .contain
+            .contains(taffy::Contain::INLINE_SIZE | taffy::Contain::LAYOUT)
+        && !layout_dependencies::has_external_inline_anchor(tree, constraints)?
+    {
+        return Err(Error::UnsafeContainerQuery);
+    }
+    let layout = tree.layout.layout(tree.node(node)?.layout)?;
+    let width = (layout.size.width
+        - layout.padding.left
+        - layout.padding.right
+        - layout.border.left
+        - layout.border.right
+        - layout.scrollbar_size.width)
+        .max(0.0);
+    if width.is_finite() {
+        Ok(width)
+    } else {
+        Err(Error::InvalidFrame)
+    }
 }
 
 fn validate_inline_extent(style: &Style) -> Result<(), Error> {
@@ -374,5 +425,7 @@ fn validate_inline_extent(style: &Style) -> Result<(), Error> {
 
 #[cfg(test)]
 mod atomic_tests;
+#[cfg(test)]
+mod ordinary_tests;
 #[cfg(test)]
 mod tests;

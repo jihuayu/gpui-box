@@ -452,6 +452,15 @@ content_size 扣除 gutter。默认0保持overlay分配；Scroll预留、LTR右�
 真实glyph／CPU／GPU参考验证有限场景。公共payload和dirty检查有成本，没有帧时收益声明；
 自动appearance、OS metrics/native chrome、完整CSS/RenderBox及持续呈现验收仍开放。
 
+后续 [普通容器查询](RETAINED_ORDINARY_CONTAINER_QUERIES.md) 将既有 ContainerInline
+扩展到未隔离内容尺寸host：完整Column／Tight-box／独立width phase链加真实外部inline
+锚点证明查询宽度不受后代高度反馈。读取实际content width，保留与incoming slot／环境／
+paint viewport的区别；嵌套规则按producer DAG结算，computed self-feedback拒绝。Scope-owned
+session可与普通inline builder组合，后续source事务自动更新；standalone draft另在final
+candidate复验width及custom algorithm/order，发布前失败保持旧sources/tree/frame/effects。
+不新增公共签名或内核格式，proof扫描／style复制／observation vector有成本，无帧时收益声明。
+通用Row/wrap/aspect/full-axis反馈、自动跨builder调度和完整RenderBox仍开放。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

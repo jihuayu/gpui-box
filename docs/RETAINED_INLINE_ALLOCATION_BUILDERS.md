@@ -144,3 +144,8 @@ Broad intrinsic/percentage/cycle/Flex/Grid/Block/writing-mode consistency and
 primitive/effect/native lifecycle also retain separate gates. Modern desktop
 heavy-effects GPU, CPU sustained complete-frame delivery, sustained60/120Hz and
 display-visible input tails are not established by these finite tests.
+
+[Ordinary content-width queries](RETAINED_ORDINARY_CONTAINER_QUERIES.md) now reuse
+this complete-chain proof and shared external-inline-anchor guard in existing
+ContainerInline rules. They read used content width, while this builder keeps
+its incoming border-box input. Both compose in atomic scoped responsive sessions.

@@ -505,11 +505,14 @@ fn final_writer_replacement_target_removal_or_dependency_proof_change_rejects_at
                         edit.bind(source, Property::layout_style(leaf))?;
                     }
                     1 => edit.remove(leaf)?,
-                    _ => edit.properties().layout_style(
-                        host,
-                        LayoutStyle::column()
-                            .size(LayoutDimension::Px(80.0), LayoutDimension::Auto),
-                    ),
+                    _ => {
+                        let mut style = LayoutStyle::column()
+                            .size(LayoutDimension::Px(80.0), LayoutDimension::Auto);
+                        // Removing min=max alone is now safe under a proven
+                        // Column chain. Aspect coupling still invalidates it.
+                        style.aspect_ratio = Some(2.0);
+                        edit.properties().layout_style(host, style);
+                    }
                 }
                 Ok(())
             },

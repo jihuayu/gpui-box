@@ -696,7 +696,9 @@ fn viewport_derived_invalid_host_proof_rolls_back_without_query_publication() {
         .computed(scope, 2, &[viewport.dependency()], move |input| {
             Ok(
                 if input.read(viewport)?.flex_direction == LayoutFlexDirection::Column {
-                    LayoutStyle::column()
+                    // Ordinary stretched Columns now have an independent
+                    // width proof. Nonstretched auto width remains feedback.
+                    LayoutStyle::column().align_self(LayoutAlignSelf::Start)
                 } else {
                     host_style.clone()
                 },

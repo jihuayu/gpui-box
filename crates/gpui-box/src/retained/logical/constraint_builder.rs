@@ -304,16 +304,10 @@ pub(super) fn inline_allocation_input(
     // A percentage/stretch root in indefinite or intrinsic space can still
     // shrink-wrap descendants. The authored Column proof alone cannot turn
     // that unresolved root width into an independent external allocation.
-    use taffy::style::ExpandedDimension as D;
     let constraints = tree
         .layout_constraints
         .ok_or(Error::UnsafeConstraintBuilder)?;
-    if !matches!(
-        tree.node(tree.root)?.style.size.width.expand(),
-        D::Length(_)
-    ) && !matches!(constraints.width, layout::AvailableSpace::Definite(_))
-        && constraints.bounds.min.width != constraints.bounds.max.width
-    {
+    if !layout_dependencies::has_external_inline_anchor(tree, constraints)? {
         return Err(Error::UnsafeConstraintBuilder);
     }
     let input = tree
