@@ -20,6 +20,110 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
     ParagraphSnapshot::shape(system, text, font("Noto Sans CJK SC"), 16.0, 32.0).unwrap()
 }
 
+#[test]
+fn ordinary_inline_allocation_builder_selects_keyed_real_text_without_size_containment() {
+    use gpui_box::retained::logical::LogicalUi;
+    let system = text_system();
+    let paragraph = shape(&system, "one two three four 中文段落 longword");
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let paint = TextPaint {
+        resource: raster.prepare(paragraph.clone(), 1.0).unwrap(),
+        color: 0x00ffffff,
+    };
+    let root_style =
+        LayoutStyle::column().size(LayoutDimension::Percent(1.0), LayoutDimension::Auto);
+    let host_style = LayoutStyle::column().padding(LayoutEdges::all(LayoutLength::Px(5.0)));
+    let footer_style = LayoutStyle::row()
+        .size(LayoutDimension::Px(20.0), LayoutDimension::Px(10.0))
+        .flex_shrink(0.0);
+    let mut ui =
+        LogicalUi::new_layout(root_style.clone(), 0, BackendCapabilities::default()).unwrap();
+    let root = ui.root_render();
+    let scope = ui.root_scope();
+    let host = ui
+        .append_render_layout(scope, root, host_style.clone(), 0)
+        .unwrap();
+    let footer = ui
+        .append_render_layout(scope, root, footer_style.clone(), 0xff0000ff)
+        .unwrap();
+    fn pixels(frame: FramePacket) -> Vec<u8> {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [200, 600],
+                scale: 1.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 4 * 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(4096).unwrap() {}
+        job.into_frame().unwrap().pixels().to_vec()
+    }
+    let mut old = None;
+    for width in [80.0, 140.0, 80.0] {
+        let constraints = LayoutConstraints::new(
+            LayoutAvailableSpace::Definite(width),
+            LayoutAvailableSpace::Unbounded,
+        );
+        let (commit, frame) = ui
+            .edit_local_frame(
+                constraints,
+                [200.0, 600.0],
+                |_| Ok(()),
+                |(), edit| {
+                    edit.inline_allocation_builder(host, |input, edit| {
+                        assert_eq!(input.known_width, Some(width));
+                        let branch = edit.reconcile_keys(
+                            scope,
+                            &[u64::from(input.known_width.unwrap() > 100.0)],
+                        )?[0];
+                        let nodes = edit.renders(branch)?;
+                        let text = if let Some(node) = nodes.first() {
+                            *node
+                        } else {
+                            edit.append_layout(branch, host, LayoutStyle::row(), 0)?
+                        };
+                        edit.properties().text(text, Some(paint.clone()));
+                        Ok(text)
+                    })
+                },
+            )
+            .unwrap();
+        let text = commit.result.value;
+        let mut full = UiTree::new_layout(root_style.clone(), 0).unwrap();
+        full.set_frame_build_policy(FrameBuildPolicy::Full);
+        let a = full
+            .append_layout(full.root(), host_style.clone(), 0)
+            .unwrap();
+        let b = full.append_layout(a, LayoutStyle::row(), 0).unwrap();
+        let c = full
+            .append_layout(full.root(), footer_style.clone(), 0xff0000ff)
+            .unwrap();
+        let mut tx = Transaction::default();
+        tx.text(b, Some(paint.clone()));
+        full.commit(tx, BackendCapabilities::default()).unwrap();
+        let reference = full.frame_in_viewport(constraints, [200.0, 600.0]).unwrap();
+        for (node, control) in [(host, a), (text, b), (footer, c)] {
+            assert_eq!(
+                ui.layout_result(node).unwrap(),
+                full.layout_result(control).unwrap()
+            );
+        }
+        assert_eq!(
+            ui.layout_result(host).unwrap().size[1],
+            paragraph.layout(Some(width - 10.0)).unwrap().size[1] + 10.0
+        );
+        let actual = pixels(frame.resolve());
+        assert_eq!(actual, pixels(reference));
+        old.get_or_insert((frame, actual));
+    }
+    let (old, expected) = old.unwrap();
+    drop((ui, paint, raster, paragraph, system));
+    assert_eq!(pixels(old.resolve()), expected);
+}
+
 #[derive(Debug, Clone, Copy)]
 struct ScalarParagraphParent(f32);
 impl ScalarParagraphParent {

@@ -432,6 +432,17 @@ height仍先选定inline size。原leaf callback经包装复用同一算法，�
 临时content input增加optional enum，既有full/partial exact key与原子失败边界复用；
 公共query clone/candidate成本仍在，不据callback减少推导帧时/尾延迟已改善。
 
+后续 [ordinary inline allocation builder](RETAINED_INLINE_ALLOCATION_BUILDERS.md)
+新增 `LogicalEdit::inline_allocation_builder`，普通未隔离 Flex/ConstraintBox host
+按实际 incoming border-box 横向输入构建 keyed 后代，再由内容推导高度并更新父兄弟。
+输入补齐 sizing mode、known width 与 definiteness，不暴露 block size。完整 Column／
+Tight-box／独立宽度分配链及真实外部横向锚点证明依赖方向；无界空间下未解析的百分比
+root 和 Row/wrap/aspect ancestry 保守拒绝，固定 used width 不能代替 incoming proof。
+项目内 Taffy 的 opt-in 最终输入记录复用 exact cache，final draft 重测并复验后退役，
+下一普通同值帧0 layout；重复 builder 本身仍有观察布局。源／绑定／keyed／effect／
+frame 复用同一原子发布，真实文字和 CPU/GPU 完整参考验证有限场景。新增稀疏 map、
+preview、扫描和 cache 成本，没有性能收益声明；任意 full-axis feedback 和自动调度仍开放。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

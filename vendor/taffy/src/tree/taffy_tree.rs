@@ -50,6 +50,9 @@ mod parent_data_tests;
 #[cfg(all(test, feature = "flexbox"))]
 #[path = "dry_measure_tests.rs"]
 mod dry_measure_tests;
+#[cfg(all(test, feature = "flexbox"))]
+#[path = "tracked_input_tests.rs"]
+mod tracked_input_tests;
 
 /// An error that occurs while trying to access or modify a node's children by index.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -192,6 +195,9 @@ pub struct TaffyTree<NodeContext = ()> {
     /// Incoming final inputs for size-contained boundaries. These are parent
     /// assignments, not the measured box size, and survive cached ancestors.
     contained_layout_inputs: SecondaryMap<DefaultKey, LayoutInput>,
+    /// Opt-in incoming final assignments for dependency-checked construction.
+    tracked_layout_nodes: SecondaryMap<DefaultKey, ()>,
+    tracked_layout_inputs: SecondaryMap<DefaultKey, LayoutInput>,
     /// Index needed before the first layout, including hidden boundaries.
     size_contained_nodes: SecondaryMap<DefaultKey, ()>,
     /// Nodes whose external pure measurement depends on exact query modes.
@@ -271,11 +277,11 @@ impl<NodeContext> TraverseTree for TaffyTree<NodeContext> {}
 // CacheTree impl for TaffyTree
 impl<NodeContext> CacheTree for TaffyTree<NodeContext> {
     fn cache_get(&mut self, node_id: NodeId, input: &LayoutInput) -> Option<LayoutOutput> {
-        self.cached_layout(node_id, input, !self.custom_layouts.is_empty() || !self.exact_measure_nodes.is_empty())
+        self.cached_layout(node_id, input, !self.custom_layouts.is_empty() || !self.exact_measure_nodes.is_empty() || !self.tracked_layout_nodes.is_empty())
     }
 
     fn cache_store(&mut self, node_id: NodeId, input: &LayoutInput, layout_output: LayoutOutput) {
-        self.store_cached_layout(node_id, input, layout_output, !self.custom_layouts.is_empty() || !self.exact_measure_nodes.is_empty())
+        self.store_cached_layout(node_id, input, layout_output, !self.custom_layouts.is_empty() || !self.exact_measure_nodes.is_empty() || !self.tracked_layout_nodes.is_empty())
     }
 
     fn cache_clear(&mut self, node_id: NodeId) {
@@ -425,6 +431,13 @@ where
         });
         if inputs.run_mode == RunMode::PerformLayout && !self.scratch_baselines {
             let style = &self.taffy.nodes[node_id.into()].style;
+            if self.taffy.tracked_layout_nodes.contains_key(node_id.into()) {
+                if style.display != Display::None {
+                    self.taffy.tracked_layout_inputs.insert(node_id.into(), inputs);
+                } else {
+                    self.taffy.tracked_layout_inputs.remove(node_id.into());
+                }
+            }
             if style.display != Display::None && style.contain.size_containment() == (Size { width: true, height: true }) {
                 self.taffy.contained_layout_inputs.insert(node_id.into(), inputs);
             } else {
@@ -500,6 +513,7 @@ where
             return;
         }
         self.taffy.contained_layout_inputs.remove(node.into());
+        self.taffy.tracked_layout_inputs.remove(node.into());
     }
     fn get_parent_data(&self, node: NodeId) -> Option<&crate::tree::CustomParentData> {
         self.taffy.parent_data.get(node.into())
@@ -841,6 +855,8 @@ impl<NodeContext> TaffyTree<NodeContext> {
             constraint_box_inputs: SecondaryMap::new(),
             custom_child_inputs: SecondaryMap::new(),
             contained_layout_inputs: SecondaryMap::new(),
+            tracked_layout_nodes: SecondaryMap::new(),
+            tracked_layout_inputs: SecondaryMap::new(),
             size_contained_nodes: SecondaryMap::new(),
             exact_measure_nodes: SecondaryMap::new(),
             exact_layout_inputs: SecondaryMap::new(),
@@ -882,6 +898,37 @@ impl<NodeContext> TaffyTree<NodeContext> {
         if enabled { self.exact_measure_nodes.insert(key, ()); }
         else { self.exact_measure_nodes.remove(key); }
         self.mark_dirty(node)
+    }
+
+    /// Observe this node's actual incoming final assignment without size
+    /// containment. This does not prove independence from descendant content.
+    /// Callers must establish their own dependency contract before construction.
+    /// Opt-in enables exact invocation keys, including cached ancestors.
+    pub fn set_track_layout_input(&mut self, node: NodeId, enabled: bool) -> TaffyResult<()> {
+        let key = node.into();
+        if !self.nodes.contains_key(key) { return Err(TaffyError::InvalidInputNode(node)); }
+        if self.tracked_layout_nodes.contains_key(key) == enabled { return Ok(()); }
+        if enabled { self.tracked_layout_nodes.insert(key, ()); }
+        else {
+            self.tracked_layout_nodes.remove(key);
+            self.tracked_layout_inputs.remove(key);
+        }
+        self.mark_dirty(node)
+    }
+
+    /// Last final incoming assignment. Dirty trees may expose the previous
+    /// observation; size/baseline probes never replace it. Hidden nodes return
+    /// None after layout, while the authored observation capability survives.
+    pub fn tracked_layout_input(&self, node: NodeId) -> TaffyResult<Option<LayoutInput>> {
+        if !self.nodes.contains_key(node.into()) { return Err(TaffyError::InvalidInputNode(node)); }
+        Ok(self.tracked_layout_inputs.get(node.into()).copied())
+    }
+
+    /// Retire all construction observations at the owning transaction boundary.
+    /// Existing exact cache records remain valid until ordinary invalidation.
+    pub fn clear_tracked_layout_inputs(&mut self) {
+        self.tracked_layout_nodes.clear();
+        self.tracked_layout_inputs.clear();
     }
 
     /// Replace a child's immutable direct-parent metadata. Clones coalesce;
@@ -1020,6 +1067,8 @@ impl<NodeContext> TaffyTree<NodeContext> {
         self.constraint_box_inputs.clear();
         self.custom_child_inputs.clear();
         self.contained_layout_inputs.clear();
+        self.tracked_layout_nodes.clear();
+        self.tracked_layout_inputs.clear();
         self.size_contained_nodes.clear();
         self.exact_measure_nodes.clear();
         self.exact_layout_inputs.clear();
@@ -1055,6 +1104,8 @@ impl<NodeContext> TaffyTree<NodeContext> {
         let _ = self.constraint_box_inputs.remove(key);
         let _ = self.custom_child_inputs.remove(key);
         let _ = self.contained_layout_inputs.remove(key);
+        let _ = self.tracked_layout_nodes.remove(key);
+        let _ = self.tracked_layout_inputs.remove(key);
         let _ = self.size_contained_nodes.remove(key);
         let _ = self.exact_measure_nodes.remove(key);
         let _ = self.exact_layout_inputs.remove(key);
@@ -1275,6 +1326,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
         if style.display == Display::None || style.contain.size_containment() != (Size { width: true, height: true }) {
             self.contained_layout_inputs.remove(node.into());
         }
+        if style.display == Display::None { self.tracked_layout_inputs.remove(node.into()); }
         if matches!(style.display, Display::ConstraintBox { .. }) {
             self.constraint_boxes.insert(node.into(), ());
         } else {
@@ -1418,7 +1470,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
         // Custom descendants and contained structural boundaries observe input
         // metadata omitted by ordinary CSS size caches, including through a
         // cached Flex ancestor. Keep exact keys throughout those invocations.
-        let exact_measure = !self.custom_layouts.is_empty() || !self.size_contained_nodes.is_empty() || !self.exact_measure_nodes.is_empty();
+        let exact_measure = !self.custom_layouts.is_empty() || !self.size_contained_nodes.is_empty() || !self.exact_measure_nodes.is_empty() || !self.tracked_layout_nodes.is_empty();
         let mut taffy_view = TaffyView {
             taffy: self, measure_function, layout_observer, layout_error: None, exact_measure, scratch_baselines: false,
         };
@@ -1485,7 +1537,7 @@ impl<NodeContext> TaffyTree<NodeContext> {
         self.validate_layout_subtree(node_id)?;
         inputs.run_mode = RunMode::ComputeSize;
         inputs.vertical_margins_are_collapsible = crate::Line::FALSE;
-        let exact_measure = !self.custom_layouts.is_empty() || !self.size_contained_nodes.is_empty() || !self.exact_measure_nodes.is_empty();
+        let exact_measure = !self.custom_layouts.is_empty() || !self.size_contained_nodes.is_empty() || !self.exact_measure_nodes.is_empty() || !self.tracked_layout_nodes.is_empty();
         let mut view = TaffyView {
             taffy: self, measure_function, layout_observer: |_, _, _| {}, layout_error: None, exact_measure, scratch_baselines: false,
         };

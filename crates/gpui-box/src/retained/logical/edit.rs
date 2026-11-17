@@ -169,6 +169,39 @@ impl LogicalEdit<'_, '_, '_> {
         Ok(preview)
     }
 
+    /// Observe the incoming inline assignment of an ordinary content-sized
+    /// host, without containment. A complete Column/Tight-box/independent-width
+    /// chain must keep descendant block-size changes out of inline allocation.
+    /// No final used height or block opportunity is observable.
+    pub fn inline_allocation_builder<R>(
+        &mut self,
+        host: NodeId,
+        build: impl FnOnce(InlineConstraintBuilderInput, &mut Self) -> Result<R, Error>,
+    ) -> Result<R, Error> {
+        self.settle_automatic_rules()?;
+        let (constraints, viewport) = self
+            .frame_environment
+            .ok_or(Error::UnsafeConstraintBuilder)?;
+        let removed = self.retired_outputs()?;
+        let mut preview = self.render.preview(self.capabilities, &removed)?;
+        super::constraint_builder::validate_inline_allocation_host(&preview, host)?;
+        preview
+            .layout
+            .set_track_layout_input(preview.node(host)?.layout, true)?;
+        preview.prepare_layout_environment(constraints, viewport)?;
+        preview.compute_layout(constraints)?;
+        let input = super::constraint_builder::inline_allocation_input(&preview, host)?;
+        let dependencies = layout_dependencies::InlineDependencies::capture(&preview, host)?;
+        self.constraint_inputs
+            .push(super::constraint_builder::Observation::InlineAllocation(
+                host,
+                input,
+                dependencies,
+            ));
+        drop(preview);
+        build(input, self)
+    }
+
     fn retired_scopes(&self) -> Result<BTreeSet<ScopeId>, Error> {
         let mut dead = BTreeSet::new();
         let mut stack: Vec<_> = self.removed_scopes.iter().copied().collect();
@@ -716,6 +749,22 @@ impl LogicalUi {
             },
             (validate.is_some() || frame_environment.is_some()).then_some({
                 |tree: &mut UiTree| {
+                    for input in constraint_inputs.borrow().iter() {
+                        if let super::constraint_builder::Observation::InlineAllocation(
+                            host,
+                            _,
+                            _,
+                        ) = input
+                        {
+                            let layout = tree.node(*host)?.layout;
+                            tree.layout.set_track_layout_input(layout, true)?;
+                            tree.layout_dirty |= tree.layout.dirty(layout)?;
+                            // Even a structurally unchanged builder must run
+                            // the observation pass; cached frame output alone
+                            // cannot populate a newly opted-in input record.
+                            tree.dirty |= tree.layout_dirty;
+                        }
+                    }
                     if let Some(validate) = validate {
                         validate(tree)?;
                     } else if let Some((constraints, viewport)) = frame_environment {
@@ -730,6 +779,7 @@ impl LogicalUi {
                     for input in responsive_inputs.borrow().iter() {
                         input.validate(tree)?;
                     }
+                    tree.layout.clear_tracked_layout_inputs();
                     Ok(())
                 }
             }),

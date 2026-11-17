@@ -188,3 +188,9 @@ conformance, incremental candidate/proof dispatch/rollback, global cache budgets
 and timing. Full resource/effect/native lifecycle, modern desktop GPU effects,
 CPU smooth complete-frame delivery, sustained 60/120Hz and display-visible input
 tails retain their separate acceptance gates.
+
+Later [ordinary inline allocation builders](RETAINED_INLINE_ALLOCATION_BUILDERS.md)
+support uncontained normal Column hosts through proven Tight-box/independent-width
+chains with an external inline anchor. They observe only incoming inline inputs
+and let block height follow content. This narrows the ordinary construction gap;
+it does not provide general full-axis or Row/wrap/aspect feedback construction.

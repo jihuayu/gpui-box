@@ -159,3 +159,10 @@ now allow this proof to cross enforced width-only allocation edges. The parent's
 own inline independence is still proven; atomic input observations additionally
 retain custom snapshot and layout-ordered child identities. Arbitrary custom
 parents remain unproven, and this is not a full-axis/general builder scheduler.
+
+The subsequent [ordinary inline allocation builder](RETAINED_INLINE_ALLOCATION_BUILDERS.md)
+reads an ordinary host's incoming border-box assignment without containment.
+It uses a stricter complete-chain proof plus an external inline anchor, rather
+than the local fixed-used-width shortcut described here. Both inline inputs now
+carry sizing mode, selected width and its percentage definiteness. This is a
+separate API; the outgoing contained-slot semantics above remain unchanged.

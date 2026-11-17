@@ -23,7 +23,11 @@ pub struct ConstraintBuilderInput {
 /// from the selected child content without becoming a structural dependency.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct InlineConstraintBuilderInput {
-    /// Hard minimum border-box width of the direct child slot.
+    pub sizing_mode: LayoutSizingMode,
+    /// Parent-selected border-box width, independently of tight/loose bounds.
+    pub known_width: Option<f32>,
+    pub known_width_is_definite: bool,
+    /// Hard minimum border-box width of the observed assignment.
     pub min: f32,
     /// Hard maximum width, possibly positive infinity. This is not a used size.
     pub max: f32,
@@ -41,6 +45,11 @@ pub(super) enum Observation {
         layout_dependencies::InlineDependencies,
     ),
     Allocation(NodeId, ConstraintBuilderInput, AllocationDependencies),
+    InlineAllocation(
+        NodeId,
+        InlineConstraintBuilderInput,
+        layout_dependencies::InlineDependencies,
+    ),
 }
 impl Observation {
     pub(super) fn validate(&self, tree: &UiTree) -> Result<(), Error> {
@@ -52,6 +61,10 @@ impl Observation {
             Self::Allocation(node, previous, dependencies) => {
                 AllocationDependencies::capture(tree, *node)? == *dependencies
                     && allocation_input(tree, *node)? == *previous
+            }
+            Self::InlineAllocation(node, previous, dependencies) => {
+                inline_allocation_input(tree, *node)? == *previous
+                    && dependencies.matches(tree, *node)?
             }
         };
         if equal {
@@ -261,6 +274,58 @@ pub(super) fn inline_input(
     validate_inline_host(tree, host)?;
     let input = read_input(tree, host)?;
     Ok(InlineConstraintBuilderInput {
+        sizing_mode: input.sizing_mode,
+        known_width: input.known_size.width,
+        known_width_is_definite: input.known_size_is_definite.width,
+        min: input.constraints.bounds.min.width,
+        max: input.constraints.bounds.max.width,
+        available: input.constraints.width,
+        percentage_basis: input.percentage_basis.width,
+    })
+}
+
+pub(super) fn validate_inline_allocation_host(tree: &UiTree, host: NodeId) -> Result<(), Error> {
+    let node = tree.node(host)?;
+    if !matches!(
+        node.style.display,
+        taffy::Display::Flex | taffy::Display::ConstraintBox { .. }
+    ) || !layout_dependencies::column_inline_allocation_chain(tree, host, &node.style)?
+    {
+        return Err(Error::UnsafeConstraintBuilder);
+    }
+    Ok(())
+}
+
+pub(super) fn inline_allocation_input(
+    tree: &UiTree,
+    host: NodeId,
+) -> Result<InlineConstraintBuilderInput, Error> {
+    validate_inline_allocation_host(tree, host)?;
+    // A percentage/stretch root in indefinite or intrinsic space can still
+    // shrink-wrap descendants. The authored Column proof alone cannot turn
+    // that unresolved root width into an independent external allocation.
+    use taffy::style::ExpandedDimension as D;
+    let constraints = tree
+        .layout_constraints
+        .ok_or(Error::UnsafeConstraintBuilder)?;
+    if !matches!(
+        tree.node(tree.root)?.style.size.width.expand(),
+        D::Length(_)
+    ) && !matches!(constraints.width, layout::AvailableSpace::Definite(_))
+        && constraints.bounds.min.width != constraints.bounds.max.width
+    {
+        return Err(Error::UnsafeConstraintBuilder);
+    }
+    let input = tree
+        .layout
+        .tracked_layout_input(tree.node(host)?.layout)?
+        .ok_or(Error::UnsafeConstraintBuilder)?;
+    let input = builder_input(input);
+    input.constraints.validate()?;
+    Ok(InlineConstraintBuilderInput {
+        sizing_mode: input.sizing_mode,
+        known_width: input.known_size.width,
+        known_width_is_definite: input.known_size_is_definite.width,
         min: input.constraints.bounds.min.width,
         max: input.constraints.bounds.max.width,
         available: input.constraints.width,
@@ -280,6 +345,8 @@ fn read_input(tree: &UiTree, host: NodeId) -> Result<ConstraintBuilderInput, Err
 
 #[cfg(test)]
 mod allocation_tests;
+#[cfg(test)]
+mod inline_allocation_tests;
 #[cfg(test)]
 mod inline_tests;
 #[cfg(test)]

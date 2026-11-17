@@ -52,7 +52,18 @@ pub(super) fn column_inline_chain(
     node: NodeId,
     style: &Style,
 ) -> Result<bool, Error> {
-    prove(context, node, style, &mut Default::default())
+    prove(context, node, style, &mut Default::default(), false)
+}
+
+/// Incoming soft space and percentage basis depend on the entire ancestor
+/// chain, even when the host's own CSS width is locked. A local fixed-width
+/// boundary proves used content width, not these observable parent inputs.
+pub(super) fn column_inline_allocation_chain(
+    context: &impl InlineContext,
+    node: NodeId,
+    style: &Style,
+) -> Result<bool, Error> {
+    prove(context, node, style, &mut Default::default(), true)
 }
 
 fn prove(
@@ -60,6 +71,7 @@ fn prove(
     node: NodeId,
     style: &Style,
     memo: &mut std::collections::HashMap<NodeId, bool>,
+    incoming: bool,
 ) -> Result<bool, Error> {
     use taffy::style::{ExpandedDimension as D, ExpandedLengthPercentageAuto as A};
     if style.position.is_out_of_flow()
@@ -81,7 +93,7 @@ fn prove(
         if !delegate.has_inline_layout() {
             return Ok(false);
         }
-        return prove_alternatives(context, parent, memo);
+        return prove_alternatives(context, parent, memo, incoming);
     }
     if style.aspect_ratio.is_some()
         || style.min_size.width.is_sizing_keyword()
@@ -101,7 +113,8 @@ fn prove(
     // With numeric inline insets its content width is independent of parent
     // height/allocation, including a Row/wrap/aspect ancestor. A non-CSS box
     // edge can override authored width with hard bounds, so it cannot stop here.
-    if fixed_inline_content(style)
+    if !incoming
+        && fixed_inline_content(style)
         && parents
             .iter()
             .all(|parent| matches!(parent.display, taffy::Display::Flex | taffy::Display::None))
@@ -140,19 +153,20 @@ fn prove(
             _ => return Ok(false),
         }
     }
-    prove_alternatives(context, parent, memo)
+    prove_alternatives(context, parent, memo, incoming)
 }
 
 fn prove_alternatives(
     context: &impl InlineContext,
     parent: NodeId,
     memo: &mut std::collections::HashMap<NodeId, bool>,
+    incoming: bool,
 ) -> Result<bool, Error> {
     if let Some(valid) = memo.get(&parent) {
         return Ok(*valid);
     }
     for parent_style in &context.styles(parent)? {
-        if !prove(context, parent, parent_style, memo)? {
+        if !prove(context, parent, parent_style, memo, incoming)? {
             memo.insert(parent, false);
             return Ok(false);
         }
