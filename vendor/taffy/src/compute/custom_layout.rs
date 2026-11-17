@@ -28,6 +28,13 @@ impl<T: LayoutPartialTree> CustomAllocationChildren for AllocationChildren<'_, T
         }
         Ok(self.tree.get_parent_data(self.tree.get_child_id(self.parent, child)))
     }
+    fn style(&self, child: usize) -> Result<crate::tree::CustomChildStyle, TaffyError> {
+        if child >= self.len() {
+            return Err(TaffyError::InvalidCustomLayout);
+        }
+        self.tree.get_custom_child_style(self.tree.get_child_id(self.parent, child))
+            .ok_or(TaffyError::InvalidCustomLayout)
+    }
 }
 impl<T: LayoutPartialTree> CustomLayoutChildren for Children<'_, T> {
     fn len(&self) -> usize {
@@ -203,6 +210,16 @@ mod tests {
     #[derive(Debug)]
     struct StyleSized;
     impl CustomLayout for StyleSized {
+        fn allocate(&self, _: LayoutInput, children: &dyn CustomAllocationChildren) -> Result<Option<crate::util::sys::Vec<LayoutInput>>, TaffyError> {
+            assert!(children.style(children.len()).is_err());
+            let style = children.style(0)?;
+            let width = 20.0 + style.flex_grow * 10.0;
+            Ok(Some(vec![LayoutInput {
+                known_dimensions: Size { width: Some(width), height: None },
+                available_space: Size::MAX_CONTENT,
+                ..LayoutInput::HIDDEN
+            }]))
+        }
         fn layout(&self, input: CustomLayoutInput, children: &mut dyn CustomLayoutChildren) -> Result<CustomLayoutOutput, TaffyError> {
             assert!(children.style(children.len()).is_err());
             let style = children.style(0)?;
@@ -224,7 +241,7 @@ mod tests {
     }
 
     #[test]
-    fn measured_child_style_inputs_invalidate_normal_and_exact_parent_caches() {
+    fn allocated_child_style_inputs_invalidate_normal_and_exact_parent_caches() {
         let mut tree = TaffyTree::<()>::new();
         tree.disable_rounding();
         let mut style = Style {

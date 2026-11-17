@@ -1,8 +1,13 @@
 # Owned custom parent layout
 
+Follow-up 2026-11-17: [independent allocation styles](RETAINED_ALLOCATION_STYLES.md)
+adds child item-style reads to the full allocation phase with effective sibling
+style observations. General content feedback and complete RenderBox stay open.
+
 Follow-up 2026-11-17: [measured item styles](RETAINED_CHILD_STYLE.md) exposes
-owned direct-child item inputs to ParentMeasure/ParentLayout. Independent phases
-remain restricted; arbitrary child-style allocation proofs are still open.
+owned direct-child item inputs to ParentMeasure/ParentLayout. The independent
+allocation-style follow-up above extends this original measured-only stage;
+width-only phases and general content-feedback proofs remain restricted.
 
 Follow-up 2026-11-17: [pure content leaves](RETAINED_CONTENT_MEASURE.md) now allow
 owned constraint-dependent custom measurement beneath these parent algorithms,

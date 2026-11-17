@@ -1,5 +1,10 @@
 # Item styles in measured parent policies
 
+Follow-up 2026-11-17: [independent allocation styles](RETAINED_ALLOCATION_STYLES.md)
+extends the full allocator with this input domain and adds conservative effective
+sibling-style structural observations. Restrictions below describe the original
+measured-only stage; width-only phases and content measurement remain separate.
+
 Status: experimental framework contract, 2026-11-17. Extends pure parent
 measurement and generic content leaves. Full RenderBox and full RFC acceptance
 remain open.

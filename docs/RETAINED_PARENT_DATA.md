@@ -1,8 +1,13 @@
 # Immutable child metadata for owned parent layouts
 
+Follow-up: [independent item-style allocation](RETAINED_ALLOCATION_STYLES.md)
+adds read-only styles alongside metadata and captures all effective sibling
+styles for structural observations. No child measurement is exposed.
+
 Follow-up: [item-style reads](RETAINED_CHILD_STYLE.md) now serve measured parent
-policies. Independent allocators still cannot read style or content; statements
-below about their restricted dependency domain remain applicable.
+policies. The original stage below restricted independent allocators to metadata;
+the allocation-style follow-up above supersedes that style restriction while
+preserving the prohibition on content measurement.
 
 Follow-up: [pure parent metrics](RETAINED_DRY_PARENT_MEASURE.md) reads the same
 authored child metadata and enforced assignments without a placement list;

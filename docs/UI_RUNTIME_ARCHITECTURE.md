@@ -367,6 +367,12 @@ direct-child item inputs，包括未解析尺寸/边距、basis/grow/shrink、�
 统一内核执行；自定义 ParentPlacement 的 margin metadata 继续为0，不自动套用 CSS
 margin/relative placement。无新增持久样式副本，无本轮性能改善声明。
 
+后续 [independent allocation styles](RETAINED_ALLOCATION_STYLES.md) 使完整独立
+allocator 可读同一 unresolved item inputs，但仍不能测量内容。builder 最终观察扩充为
+每个 allocator ancestor 的所有 direct-child effective styles，包括图片派生的
+replaced/aspect 和兄弟节点；即使数值 allocation 相等也重验输入。inline-only phase
+和一般 feedback/query 证明不放宽；临时样式复制/扫描成本明确保留，无性能收益声明。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

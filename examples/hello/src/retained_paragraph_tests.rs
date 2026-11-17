@@ -22,6 +22,29 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 
 #[derive(Debug)]
 struct StyleBasisParagraph;
+impl ParentAllocationLayout for StyleBasisParagraph {
+    fn allocate_children(
+        &self,
+        _: ParentAllocationInput,
+        children: &dyn ParentAllocationChildren,
+    ) -> Result<Vec<ChildLayoutInput>, gpui_box::retained::Error> {
+        (0..children.len())
+            .map(|child| {
+                let LayoutDimension::Px(width) = children.style(child)?.flex_basis else {
+                    return Err(gpui_box::retained::Error::InvalidParentLayout);
+                };
+                Ok(ChildLayoutInput {
+                    constraints: LayoutConstraints::new(
+                        LayoutAvailableSpace::Definite(width),
+                        LayoutAvailableSpace::Unbounded,
+                    )
+                    .with_bounds(BoxConstraints::new([width, 0.0], [width, f32::INFINITY])),
+                    percentage_basis: LayoutSize::new(Some(width), None),
+                })
+            })
+            .collect()
+    }
+}
 impl ParentLayout for StyleBasisParagraph {
     fn layout(
         &self,
@@ -59,6 +82,13 @@ impl ParentLayout for StyleBasisParagraph {
 
 #[test]
 fn measured_parent_reads_child_basis_and_rewraps_actual_glyphs_on_style_updates() {
+    style_basis_glyph_case(false);
+}
+#[test]
+fn independent_parent_reads_child_basis_and_rewraps_actual_glyphs_on_style_updates() {
+    style_basis_glyph_case(true);
+}
+fn style_basis_glyph_case(independent: bool) {
     let system = text_system();
     let paragraph = shape(&system, "one two three four five six 中文段落");
     let mut raster = GlyphRasterizer::new(Arc::clone(&system));
@@ -95,7 +125,11 @@ fn measured_parent_reads_child_basis_and_rewraps_actual_glyphs_on_style_updates(
         .append_layout(full.root(), footer_style, 0xff0000ff)
         .unwrap();
     let mut tx = Transaction::default();
-    tx.parent_layout(host, Some(ParentLayoutSnapshot::new(StyleBasisParagraph)));
+    let mut snapshot = ParentLayoutSnapshot::new(StyleBasisParagraph);
+    if independent {
+        snapshot = snapshot.with_allocation_layout(StyleBasisParagraph);
+    }
+    tx.parent_layout(host, Some(snapshot));
     tree.commit(tx, BackendCapabilities::default()).unwrap();
     fn pixels(frame: FramePacket) -> Vec<u8> {
         let mut job = software::SoftwareJob::new(

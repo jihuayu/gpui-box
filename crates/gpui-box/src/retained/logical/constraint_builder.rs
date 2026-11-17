@@ -65,12 +65,12 @@ impl Observation {
 /// containment cut under ordinary Flex. Numeric equality cannot prove absence of
 /// content -> parent -> builder feedback. Styles and ordered child lists remain
 /// dependencies even when a replacement happens to return equal numbers.
-/// Direct-child metadata on every independent allocator is an input too; host
+/// Direct-child metadata/effective styles on independent allocators are inputs; host
 /// descendants remain free to change because they cannot affect incoming slots.
 #[derive(PartialEq)]
 pub(super) struct AllocationDependencies(
     Vec<(NodeId, Style, Option<ParentLayoutSnapshot>, Vec<NodeId>)>,
-    Vec<(NodeId, Option<ParentData>)>,
+    Vec<(NodeId, Style, Option<ParentData>)>,
 );
 impl AllocationDependencies {
     pub(super) fn capture(tree: &UiTree, host: NodeId) -> Result<Self, Error> {
@@ -138,7 +138,12 @@ impl AllocationDependencies {
                 .is_some_and(ParentLayoutSnapshot::has_allocation_layout)
             {
                 for &child in &children {
-                    data.push((child, tree.node(child)?.parent_data.clone()));
+                    let node = tree.node(child)?;
+                    data.push((
+                        child,
+                        measure::effective_style(&node.style, node.measure.as_ref()),
+                        node.parent_data.clone(),
+                    ));
                 }
             }
             records.push((id, style.clone(), node.parent_layout.clone(), children));

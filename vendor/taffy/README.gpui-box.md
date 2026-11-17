@@ -12,10 +12,16 @@ local test artifacts and ignored.
 
 ## Local changes
 
+- Independent CustomAllocationChildren now shares the unresolved item-style
+  view, without child measurement. The framework captures effective sibling
+  styles in final structural observations. See
+  [allocation-style contract](../../docs/RETAINED_ALLOCATION_STYLES.md).
+
 - CustomLayoutChildren::style returns owned unresolved item inputs from the real
-  node style, including hidden/replaced classification. Independent allocators
-  do not gain this capability. External low-level adapters default to an explicit
-  unsupported error. No per-node storage/cache format is added. See
+  node style, including hidden/replaced classification. The allocation follow-up
+  above extends the same view to independent full allocators. External low-level
+  adapters default to an explicit unsupported error. No per-node storage/cache
+  format is added. See
   [framework contract](../../docs/RETAINED_CHILD_STYLE.md).
 
 - `set_exact_measure` records external content-measurement cache requirements in

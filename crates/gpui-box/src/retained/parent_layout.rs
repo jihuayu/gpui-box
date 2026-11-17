@@ -20,8 +20,8 @@ impl ParentData {
     }
 }
 
-/// Independent allocation can read authored direct-child metadata without
-/// measuring content, inspecting styles or accessing mutable application state.
+/// Independent allocation can read immutable direct-child metadata and item
+/// style inputs, without measuring content or accessing mutable UI state.
 pub trait ParentAllocationChildren {
     fn len(&self) -> usize;
     fn is_empty(&self) -> bool {
@@ -29,6 +29,12 @@ pub trait ParentAllocationChildren {
     }
     /// Owned handle; borrowing a value through get() cannot outlive the handle.
     fn parent_data(&self, child: usize) -> Result<Option<ParentData>, Error>;
+    /// Unresolved item inputs in layout order. Intrinsic keywords are data,
+    /// not permission to measure content. Final builder observations include
+    /// all siblings' effective styles, even if an allocator ignores a field.
+    fn style(&self, _child: usize) -> Result<ChildLayoutStyle, Error> {
+        Err(Error::InvalidParentLayout)
+    }
 }
 
 /// Content-box inputs after the host's normal sizing and inset rules.
@@ -147,8 +153,7 @@ pub trait ParentLayoutChildren {
         Ok(None)
     }
     /// Read direct-child style in current layout order, without measuring it.
-    /// Available only to measured phases, never independent allocators. The
-    /// default rejects unsupported external implementations explicitly.
+    /// The default rejects unsupported external implementations explicitly.
     fn style(&self, _child: usize) -> Result<ChildLayoutStyle, Error> {
         Err(Error::InvalidParentLayout)
     }
@@ -298,8 +303,9 @@ pub struct ParentAllocationInput {
 }
 
 /// Pure assignment from incoming constraints and owned immutable configuration.
-/// No child styles, measurements or measured host dimensions are available.
-/// Override allocate_children to additionally observe immutable parent data.
+/// Unresolved child item styles and metadata are readable; child measurement
+/// and measured host dimensions are unavailable.
+/// Override allocate_children to observe item styles and immutable parent data.
 /// Return one complete input per direct child in layout order, including hidden
 /// nodes. Loose/unbounded/intrinsic inputs remain distinct and supported.
 pub trait ParentAllocationLayout: std::fmt::Debug + Send + Sync + 'static {
@@ -517,6 +523,9 @@ impl ParentAllocationChildren for AllocationChildren<'_> {
     fn parent_data(&self, child: usize) -> Result<Option<ParentData>, Error> {
         Ok(self.0.parent_data(child)?.cloned().map(ParentData))
     }
+    fn style(&self, child: usize) -> Result<ChildLayoutStyle, Error> {
+        ChildLayoutStyle::from_taffy(self.0.style(child)?)
+    }
 }
 impl taffy::tree::CustomLayout for Adapter {
     fn measure(
@@ -658,5 +667,7 @@ mod parent_data_tests;
 mod child_style;
 #[cfg(test)]
 mod child_style_tests;
+#[cfg(test)]
+mod allocation_style_tests;
 #[cfg(test)]
 mod tests;

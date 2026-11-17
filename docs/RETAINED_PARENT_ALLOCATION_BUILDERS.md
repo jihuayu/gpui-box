@@ -1,5 +1,10 @@
 # Independent parent intervals and content-sized construction
 
+Follow-up 2026-11-17: [independent item styles](RETAINED_ALLOCATION_STYLES.md)
+extends allocate_children with unresolved style reads, still without measurement.
+Builder observations retain all effective sibling styles as well as metadata,
+including image-derived replaced/aspect inputs and nested allocator ancestors.
+
 Follow-up 2026-11-17: [parent data](RETAINED_PARENT_DATA.md) adds the optional
 `allocate_children(input, &dyn ParentAllocationChildren)` entry with immutable
 typed metadata. Its default calls the existing count-only allocate method.

@@ -7,9 +7,9 @@ use core::any::Any;
 #[cfg(feature = "std")]
 use std::sync::Arc;
 
-/// Owned item-facing style inputs for a measured parent policy. Values remain
+/// Owned item-facing style inputs for a parent policy. Values remain
 /// unresolved; reading them does not measure content or assign child geometry.
-/// Independent allocation deliberately has no access to this input domain.
+/// Independent allocation may inspect these inputs without resolving content.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CustomChildStyle {
     /// Whether the child generates no box.
@@ -86,7 +86,7 @@ impl PartialEq for CustomParentData {
     }
 }
 
-/// Read-only direct-child metadata, without style or measurement capability.
+/// Read-only direct-child metadata and unresolved style, without measurement.
 pub trait CustomAllocationChildren {
     /// Direct children in layout order, including hidden children.
     fn len(&self) -> usize;
@@ -96,6 +96,11 @@ pub trait CustomAllocationChildren {
     }
     /// Metadata remains attached to a node when it moves to another parent.
     fn parent_data(&self, child: usize) -> Result<Option<&CustomParentData>, TaffyError>;
+    /// Same unresolved effective item inputs as the measured parent phase.
+    /// Reading intrinsic keywords must not invoke child measurement.
+    fn style(&self, _child: usize) -> Result<CustomChildStyle, TaffyError> {
+        Err(TaffyError::InvalidCustomLayout)
+    }
 }
 
 /// Content-box inputs after the common host box model has resolved sizing.
@@ -188,8 +193,8 @@ pub trait CustomLayout: core::fmt::Debug + Send + Sync {
         Ok(None)
     }
     /// Independent assignments from the incoming border-box input, before host
-    /// measurement/sizing. Only child order/count and immutable parent data are
-    /// observable. No child styles or measurement capability is given.
+    /// measurement/sizing. Only child order/count, immutable parent data and
+    /// unresolved item styles are observable. No measurement is possible.
     /// Slots are enforced throughout this invocation, including intrinsic
     /// probes and final placement. None preserves the measured-parent protocol.
     fn allocate(
