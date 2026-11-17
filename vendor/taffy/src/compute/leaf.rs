@@ -27,6 +27,7 @@ where
     MeasureFunction: FnMut(Size<Option<f32>>, Size<AvailableSpace>) -> Size<f32>,
 {
     let LayoutInput { known_dimensions, parent_size, available_space, sizing_mode, run_mode, .. } = inputs;
+    let intrinsic_fallback = style.contain_intrinsic_size().map(|value| value.unwrap_or(0.0));
 
     // Note: both horizontal and vertical percentage padding/borders are resolved against the container's inline size (i.e. width).
     // This is not a bug, but is how CSS is specified (see: https://developer.mozilla.org/en-US/docs/Web/CSS/padding#values)
@@ -108,7 +109,7 @@ where
                         );
                         let contained = style.contain().size_containment().get_abs(axis);
                         Some(if contained {
-                            content_box_inset.sum_axes().get_abs(axis)
+                            intrinsic_fallback.get_abs(axis) + content_box_inset.sum_axes().get_abs(axis)
                         } else {
                             measured.get_abs(axis) + content_box_inset.sum_axes().get_abs(axis)
                         })
@@ -129,20 +130,19 @@ where
     let padding_border_floor = inputs.size_bounds.floor(pb_sum);
     node_size = node_size.maybe_clamp(node_min_size, node_max_size);
 
-    // Contained auto axes use an empty content contribution before measuring
+    // Contained auto axes use their intrinsic inner fallback before measuring
     // the other axis. In particular, inline containment must wrap a paragraph
     // against its actual used width rather than the ancestor's available width.
     let contained = style.contain().size_containment();
     if contained.width || contained.height {
-        let empty_size = content_box_inset
-            .sum_axes()
+        let contained_size = (intrinsic_fallback + content_box_inset.sum_axes())
             .maybe_clamp(node_min_size, node_max_size)
             .maybe_max(padding_border_floor.map(Some));
         node_size = node_size
             .maybe_apply_aspect_ratio(aspect_ratio)
             .or(Size {
-                width: contained.width.then_some(empty_size.width),
-                height: contained.height.then_some(empty_size.height),
+                width: contained.width.then_some(contained_size.width),
+                height: contained.height.then_some(contained_size.height),
             })
             .maybe_apply_aspect_ratio(aspect_ratio);
     }
@@ -218,8 +218,8 @@ where
         available_space,
     );
     let contribution = Size {
-        width: if contained.width { 0.0 } else { measured_size.width },
-        height: if contained.height { 0.0 } else { measured_size.height },
+        width: if contained.width { intrinsic_fallback.width } else { measured_size.width },
+        height: if contained.height { intrinsic_fallback.height } else { measured_size.height },
     };
     let clamped_size = known_dimensions
         .or(node_size)

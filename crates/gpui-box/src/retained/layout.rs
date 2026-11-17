@@ -646,6 +646,10 @@ pub struct LayoutStyle {
     pub order: i32,
     pub display: LayoutDisplay,
     pub container_type: ContainerType,
+    /// Intrinsic content-box fallback on each size-contained physical axis.
+    /// None uses empty content; finite nonnegative lengths include explicit
+    /// zero. Uncontained axes ignore this value. No remembered-size lifecycle.
+    pub contain_intrinsic_size: LayoutSize<Option<f32>>,
     pub direction: LayoutDirection,
     pub position: LayoutPosition,
     pub inset: Edges,
@@ -679,6 +683,7 @@ impl Default for LayoutStyle {
             order: 0,
             display: LayoutDisplay::Flex,
             container_type: ContainerType::Normal,
+            contain_intrinsic_size: LayoutSize::new(None, None),
             direction: LayoutDirection::Ltr,
             position: LayoutPosition::Static,
             inset: Edges::all(Length::Auto),
@@ -732,6 +737,10 @@ impl LayoutStyle {
     }
     pub fn container_type(mut self, container_type: ContainerType) -> Self {
         self.container_type = container_type;
+        self
+    }
+    pub fn contain_intrinsic_size(mut self, width: Option<f32>, height: Option<f32>) -> Self {
+        self.contain_intrinsic_size = LayoutSize::new(width, height);
         self
     }
     pub fn order(mut self, order: i32) -> Self {
@@ -903,6 +912,16 @@ impl LayoutStyle {
             return Err(Error::InvalidStyle);
         }
         self.flex_basis.validate()?;
+        if [
+            self.contain_intrinsic_size.width,
+            self.contain_intrinsic_size.height,
+        ]
+        .into_iter()
+        .flatten()
+        .any(|value| !value.is_finite() || value < 0.0)
+        {
+            return Err(Error::InvalidStyle);
+        }
         let gap = self.main_cross_gap.unwrap_or(self.gap);
         gap.width.validate(false, false)?;
         gap.height.validate(false, false)?;
@@ -922,6 +941,10 @@ impl LayoutStyle {
     pub(crate) fn to_taffy(&self) -> Result<taffy::Style, Error> {
         self.validate()?;
         Ok(taffy::Style {
+            contain_intrinsic_size: taffy::Size {
+                width: self.contain_intrinsic_size.width,
+                height: self.contain_intrinsic_size.height,
+            },
             contain: match self.container_type {
                 ContainerType::Normal => taffy::Contain::NONE,
                 ContainerType::InlineSize => taffy::Contain::LAYOUT | taffy::Contain::INLINE_SIZE,
@@ -1075,13 +1098,15 @@ impl LayoutStyle {
 #[cfg(test)]
 mod alignment_tests;
 #[cfg(test)]
+mod auto_min_tests;
+#[cfg(test)]
 mod baseline_tests;
 #[cfg(test)]
 mod box_constraints_tests;
 #[cfg(test)]
-mod auto_min_tests;
-#[cfg(test)]
 mod constraint_box_tests;
+#[cfg(test)]
+mod containment_fallback_tests;
 #[cfg(test)]
 mod containment_tests;
 #[cfg(test)]

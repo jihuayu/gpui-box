@@ -18,6 +18,79 @@ fn rules(base: LayoutStyle, width: f32, wider: LayoutStyle) -> LayoutBreakpointS
 }
 
 #[test]
+fn intrinsic_fallback_edits_reschedule_queries_without_turning_fallback_into_a_safety_proof() {
+    let mut ui = setup();
+    let scope = ui.root_scope();
+    let initial = LayoutStyle::column()
+        .container_type(LayoutContainerType::Size)
+        .align_self(LayoutAlignSelf::Start)
+        .contain_intrinsic_size(Some(60.0), Some(25.0));
+    let host = ui
+        .append_render_layout(scope, ui.root_render(), initial.clone(), 0)
+        .unwrap();
+    let narrow = LayoutStyle::row()
+        .size(LayoutDimension::Px(10.0), LayoutDimension::Px(10.0))
+        .flex_shrink(0.0);
+    let wide = narrow
+        .clone()
+        .size(LayoutDimension::Px(180.0), LayoutDimension::Px(70.0));
+    let child = ui
+        .append_render_layout(scope, host, narrow.clone(), 1)
+        .unwrap();
+    let source = ui.state(scope, 999, || narrow.clone()).unwrap();
+    let host_source = ui.state(scope, 1000, || initial.clone()).unwrap();
+    ui.bind(host_source, reactive::Property::layout_style(host))
+        .unwrap();
+    let mut responsive = LayoutResponsiveBindings::new();
+    responsive
+        .bind_container(&mut ui, source, child, host, rules(narrow, 80.0, wide))
+        .unwrap();
+    for width in [60.0, 100.0, 60.0] {
+        ui.transaction(|tx| {
+            tx.set(
+                host_source,
+                initial
+                    .clone()
+                    .contain_intrinsic_size(Some(width), Some(25.0)),
+            )?;
+            Ok(())
+        })
+        .unwrap();
+        responsive
+            .frame(&mut ui, &LayoutEnvironment::new([300.0, 120.0]))
+            .unwrap();
+        assert_eq!(ui.layout_result(host).unwrap().size, [width, 25.0]);
+        assert_eq!(
+            ui.layout_result(child).unwrap().size,
+            if width >= 80.0 {
+                [180.0, 70.0]
+            } else {
+                [10.0, 10.0]
+            }
+        );
+        assert_eq!(
+            responsive
+                .frame(&mut ui, &LayoutEnvironment::new([300.0, 120.0]))
+                .unwrap()
+                .layout_runs,
+            0
+        );
+    }
+    ui.transaction(|tx| {
+        tx.set(
+            host_source,
+            initial.container_type(LayoutContainerType::InlineSize),
+        )?;
+        Ok(())
+    })
+    .unwrap();
+    assert!(matches!(
+        responsive.frame(&mut ui, &LayoutEnvironment::new([300.0, 120.0])),
+        Err(Error::UnsafeContainerQuery)
+    ));
+}
+
+#[test]
 fn nested_queries_run_in_dependency_order_with_auto_height_and_no_idle_work() {
     let mut ui = setup();
     let scope = ui.root_scope();

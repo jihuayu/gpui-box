@@ -98,6 +98,13 @@ fn validate_flex(style: &Style) -> Result<(), Error> {
     if ![style.flex_grow, style.flex_shrink, style.scrollbar_width]
         .into_iter()
         .all(valid)
+        || [
+            style.contain_intrinsic_size.width,
+            style.contain_intrinsic_size.height,
+        ]
+        .into_iter()
+        .flatten()
+        .any(|value| !valid(value))
         || style
             .aspect_ratio
             .is_some_and(|value| !value.is_finite() || value <= 0.0)

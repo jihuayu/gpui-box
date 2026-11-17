@@ -1,5 +1,11 @@
 # Size containment and fluid container queries
 
+Follow-up (2026-11-17): [explicit intrinsic inner fallbacks](RETAINED_CONTAINMENT_FALLBACK.md)
+adds per-axis `LayoutStyle.contain_intrinsic_size` to avoid mandatory empty-content
+contributions. It preserves normal descendant layout and outside allocation;
+the remembered-size/skipping lifecycle remains open. Historical counts and
+empty-content descriptions below describe the original containment stage.
+
 Follow-up (2026-11-16): [atomic responsive evaluation](RETAINED_ATOMIC_RESPONSIVE.md)
 supersedes the intermediate-publication and missing-public-local-output limits
 below for `LayoutResponsiveBindings`. Private stages now publish final output

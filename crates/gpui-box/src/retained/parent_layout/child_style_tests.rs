@@ -452,6 +452,7 @@ fn effective_item_styles_preserve_unresolved_values_and_replaced_image_classific
         ][i % 3];
         style.overflow = LayoutSize::new(LayoutOverflow::Scroll, LayoutOverflow::Hidden);
         style.aspect_ratio = Some(2.0);
+        style.contain_intrinsic_size = LayoutSize::new(Some(i as f32), Some(25.0));
         let mut tx = Transaction::default();
         tx.layout_style(leaf, style.clone());
         tree.commit(tx, BackendCapabilities::default()).unwrap();
@@ -472,6 +473,7 @@ fn effective_item_styles_preserve_unresolved_values_and_replaced_image_classific
         assert_eq!(item.position, style.position);
         assert_eq!(item.box_sizing, style.box_sizing);
         assert_eq!(item.aspect_ratio, style.aspect_ratio);
+        assert_eq!(item.contain_intrinsic_size, style.contain_intrinsic_size);
         assert_eq!(item.overflow, style.overflow);
         assert_eq!(
             item.size_containment,

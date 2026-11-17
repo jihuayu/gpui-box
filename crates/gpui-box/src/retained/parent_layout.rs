@@ -206,6 +206,8 @@ pub struct ChildLayoutStyle {
     pub overflow: LayoutSize<LayoutOverflow>,
     pub scrollbar_width: f32,
     pub size_containment: LayoutSize<bool>,
+    /// Intrinsic inner fallbacks; independent of preferred size and allocation.
+    pub contain_intrinsic_size: LayoutSize<Option<f32>>,
     pub layout_containment: bool,
     pub paint_containment: bool,
     pub is_replaced: bool,

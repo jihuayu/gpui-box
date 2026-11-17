@@ -1,9 +1,10 @@
-//! Size containment uses the box's empty-content size without hiding children.
+//! Size containment substitutes intrinsic inner sizes without hiding children.
 use crate::geometry::Size;
 use crate::style::CoreStyle;
 use crate::tree::{LayoutInput, RunMode};
 
-/// Resolve only contained axes using the same box model as a zero-content leaf.
+/// Resolve only contained axes through the shared leaf box model, including
+/// explicit intrinsic inner fallbacks (empty content when absent).
 /// Uncontained axes remain unresolved so that content still participates there.
 /// A known dimension supplied by the parent always wins. Final layout still
 /// runs the normal container algorithm for children, overflow and out-of-flow.
@@ -17,10 +18,16 @@ pub(crate) fn contained_size(
         return Size::NONE;
     }
     let empty = crate::compute::compute_leaf_layout(
-        LayoutInput { run_mode: RunMode::ComputeSize, ..inputs },
+        LayoutInput {
+            run_mode: RunMode::ComputeSize,
+            ..inputs
+        },
         style,
         calc,
         |_, _| Size::ZERO,
     );
-    Size { width: axes.width.then_some(empty.size.width), height: axes.height.then_some(empty.size.height) }
+    Size {
+        width: axes.width.then_some(empty.size.width),
+        height: axes.height.then_some(empty.size.height),
+    }
 }

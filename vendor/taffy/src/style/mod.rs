@@ -206,6 +206,13 @@ pub trait CoreStyle {
     fn contain(&self) -> Contain {
         Contain::NONE
     }
+    /// Explicit intrinsic content-box size on size-contained axes. None uses
+    /// empty content. Values on uncontained axes have no effect. Callers must
+    /// provide finite, nonnegative lengths; remembered sizes are host policy.
+    #[inline(always)]
+    fn contain_intrinsic_size(&self) -> Size<Option<f32>> {
+        Size::NONE
+    }
 }
 
 /// The styles of an out-of-flow (`position: absolute` / `position: fixed`) box that are read by
@@ -768,6 +775,9 @@ pub struct Style<S: CheapCloneStr = DefaultCheapStr> {
     pub scrollbar_width: f32,
     /// The layout-affecting parts of the CSS `contain` property
     pub contain: Contain,
+    /// Explicit intrinsic inner sizes on size-contained axes (not preferred
+    /// sizes). Finite, nonnegative lengths; no percentages or remembered sizes.
+    pub contain_intrinsic_size: Size<Option<f32>>,
 
     #[cfg(feature = "float_layout")]
     /// Should the box be floated
@@ -919,6 +929,7 @@ impl<S: CheapCloneStr> Style<S> {
         overflow: Point { x: Overflow::Visible, y: Overflow::Visible },
         scrollbar_width: 0.0,
         contain: Contain::NONE,
+        contain_intrinsic_size: Size::NONE,
         #[cfg(feature = "float_layout")]
         float: Float::None,
         #[cfg(feature = "float_layout")]
@@ -1070,6 +1081,10 @@ impl<S: CheapCloneStr> CoreStyle for Style<S> {
     fn contain(&self) -> Contain {
         self.contain
     }
+    #[inline(always)]
+    fn contain_intrinsic_size(&self) -> Size<Option<f32>> {
+        self.contain_intrinsic_size
+    }
 }
 
 impl<S: CheapCloneStr> OofItemStyle for Style<S> {
@@ -1177,6 +1192,10 @@ impl<T: CoreStyle> CoreStyle for &'_ T {
     #[inline(always)]
     fn contain(&self) -> Contain {
         (*self).contain()
+    }
+    #[inline(always)]
+    fn contain_intrinsic_size(&self) -> Size<Option<f32>> {
+        (*self).contain_intrinsic_size()
     }
 }
 
@@ -1682,6 +1701,7 @@ mod tests {
             overflow: Default::default(),
             scrollbar_width: 0.0,
             contain: Default::default(),
+            contain_intrinsic_size: Default::default(),
             position: Default::default(),
             #[cfg(feature = "flexbox")]
             flex_direction: Default::default(),
@@ -1845,14 +1865,14 @@ mod tests {
         assert_type_size::<GridTemplateComponent<String>>(56);
         assert_type_size::<GridPlacement<String>>(32);
         assert_type_size::<Line<GridPlacement<String>>>(64);
-        // ConstraintBox's payload consumes the old padding; both configurations
-        // now use 560 bytes (the non-balance configuration previously used 552).
-        assert_type_size::<Style<String>>(560);
+        // Two Option<f32> intrinsic inner sizes add 16 bytes to every style.
+        assert_type_size::<Size<Option<f32>>>(16);
+        assert_type_size::<Style<String>>(576);
 
         // String-type dependent (Arc<str>)
         assert_type_size::<GridTemplateComponent<Arc<str>>>(56);
         assert_type_size::<GridPlacement<Arc<str>>>(24);
         assert_type_size::<Line<GridPlacement<Arc<str>>>>(48);
-        assert_type_size::<Style<Arc<str>>>(528);
+        assert_type_size::<Style<Arc<str>>>(544);
     }
 }

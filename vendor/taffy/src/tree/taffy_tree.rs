@@ -522,6 +522,7 @@ where
             overflow: style.overflow,
             scrollbar_width: style.scrollbar_width,
             contain: style.contain,
+            contain_intrinsic_size: style.contain_intrinsic_size,
             is_replaced: style.item_is_replaced,
             is_compressible_replaced: style.item_is_replaced || style.item_is_compressible_replaced,
             #[cfg(feature = "flexbox")]
@@ -1982,6 +1983,86 @@ mod tests {
         )
         .unwrap();
         assert_eq!(tree.layout(root).unwrap().size, Size { width: 0.0, height: 40.0 });
+    }
+
+    #[test]
+    fn intrinsic_containment_fallback_uses_shared_box_model_in_all_containers() {
+        for display in [Display::Flex, Display::Grid, Display::Block] {
+            for contain in [
+                crate::Contain::NONE,
+                crate::Contain::INLINE_SIZE,
+                crate::Contain::SIZE,
+            ] {
+                let mut tree: TaffyTree<()> = TaffyTree::new();
+                tree.disable_rounding();
+                let child = tree
+                    .new_leaf(Style {
+                        size: Size {
+                            width: length(80.0),
+                            height: length(30.0),
+                        },
+                        flex_shrink: 0.0,
+                        ..Style::default()
+                    })
+                    .unwrap();
+                let root = tree
+                    .new_with_children(
+                        Style {
+                            display,
+                            contain,
+                            contain_intrinsic_size: Size {
+                                width: Some(50.0),
+                                height: Some(20.0),
+                            },
+                            padding: crate::Rect {
+                                left: length(2.0),
+                                right: length(2.0),
+                                top: length(2.0),
+                                bottom: length(2.0),
+                            },
+                            ..Style::default()
+                        },
+                        &[child],
+                    )
+                    .unwrap();
+                tree.compute_layout(root, Size::MAX_CONTENT).unwrap();
+                assert_eq!(
+                    tree.layout(root).unwrap().size,
+                    Size {
+                        width: if contain == crate::Contain::NONE {
+                            84.0
+                        } else {
+                            54.0
+                        },
+                        height: if contain == crate::Contain::SIZE {
+                            24.0
+                        } else {
+                            34.0
+                        },
+                    },
+                    "{display:?}/{contain:?}"
+                );
+                assert_eq!(
+                    tree.layout(child).unwrap().size,
+                    Size {
+                        width: 80.0,
+                        height: 30.0
+                    }
+                );
+                let mut next = tree.style(root).unwrap().clone();
+                next.contain_intrinsic_size.width = Some(65.0);
+                tree.set_style(root, next).unwrap();
+                tree.compute_layout(root, Size::MAX_CONTENT).unwrap();
+                assert_eq!(
+                    tree.layout(root).unwrap().size.width,
+                    if contain == crate::Contain::NONE {
+                        84.0
+                    } else {
+                        69.0
+                    }
+                );
+            }
+        }
     }
 
     #[test]

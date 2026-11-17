@@ -223,6 +223,58 @@ fn snapshot(mode: LayoutSizingMode) -> ParentLayoutSnapshot {
 }
 
 #[test]
+fn intrinsic_fallback_survives_owned_parent_and_constraint_box_content_queries() {
+    for custom in [false, true] {
+        for kind in [LayoutContainerType::InlineSize, LayoutContainerType::Size] {
+            let mut style = LayoutStyle::column()
+                .container_type(kind)
+                .contain_intrinsic_size(Some(60.0), Some(25.0))
+                .padding(LayoutEdges::all(LayoutLength::Px(2.0)));
+            if !custom {
+                style.display = LayoutDisplay::ConstraintBox {
+                    width: ConstraintFit::Loose,
+                    height: ConstraintFit::Loose,
+                };
+            }
+            let mut tree = UiTree::new_layout(style, 0).unwrap();
+            let root = tree.root();
+            let leaf = natural(&mut tree, root);
+            if custom {
+                let mut tx = Transaction::default();
+                tx.parent_layout(root, Some(snapshot(LayoutSizingMode::Inherent)));
+                tree.commit(tx, BackendCapabilities::default()).unwrap();
+            }
+            let expected = [
+                64.0,
+                if kind == LayoutContainerType::Size {
+                    29.0
+                } else {
+                    14.0
+                },
+            ];
+            for mode in [LayoutSizingMode::Content, LayoutSizingMode::Inherent] {
+                let input = query(mode, LayoutAvailableSpace::MaxContent);
+                assert_eq!(
+                    tree.dry_measure_node_baselines(root, input).unwrap().size,
+                    expected,
+                    "{custom}/{kind:?}/{mode:?}"
+                );
+                let mut tight = input;
+                tight.constraints.bounds = BoxConstraints::tight([40.0, 20.0]);
+                assert_eq!(
+                    tree.dry_measure_node_baselines(root, tight).unwrap().size,
+                    [40.0, 20.0]
+                );
+            }
+            let frame = tree.frame([300.0, 200.0]).unwrap();
+            assert_eq!(tree.layout_result(root).unwrap().size, expected);
+            assert!(frame.items.iter().any(|item| item.node == leaf));
+            assert_eq!(tree.layout_result(root).unwrap().baseline, None);
+        }
+    }
+}
+
+#[test]
 fn sizing_mode_survives_public_round_trip_and_owned_parent_callback_inputs() {
     for mode in [LayoutSizingMode::Content, LayoutSizingMode::Inherent] {
         let input = query(mode, LayoutAvailableSpace::MaxContent);

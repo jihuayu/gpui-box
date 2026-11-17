@@ -42,6 +42,8 @@ pub struct CustomChildStyle {
     pub scrollbar_width: f32,
     /// Layout-affecting containment flags.
     pub contain: crate::Contain,
+    /// Explicit intrinsic inner fallbacks, before box insets and allocation.
+    pub contain_intrinsic_size: Size<Option<f32>>,
     /// Effective replaced-element classification, including measured images.
     pub is_replaced: bool,
     /// Effective compressible classification.

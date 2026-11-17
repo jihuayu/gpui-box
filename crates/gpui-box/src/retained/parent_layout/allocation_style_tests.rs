@@ -262,7 +262,7 @@ fn independent_style_allocations_build_wrapped_flex_with_full_cpu_reference() {
 #[test]
 fn every_sibling_effective_style_is_an_observed_dependency_even_for_equal_allocations() {
     for local in [false, true] {
-        for mutation in 0..5 {
+        for mutation in 0..6 {
             let (mut ui, hosts) = fixture();
             let scope = ui.root_scope();
             let old = ui
@@ -290,6 +290,10 @@ fn every_sibling_effective_style_is_an_observed_dependency_even_for_equal_alloca
                         3 => edit
                             .properties()
                             .image(target, Some(ImageResource::rgba8([2, 1], vec![255; 8])?)),
+                        5 => edit.properties().layout_style(
+                            target,
+                            style(2.0).contain_intrinsic_size(Some(70.0), Some(25.0)),
+                        ),
                         _ => edit.properties().layout_style(target, style(3.0)),
                     }
                     Ok(())

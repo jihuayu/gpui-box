@@ -114,6 +114,7 @@ pub fn compute_constraint_box_layout(
         overflow: style.overflow(),
         scrollbar_width: style.scrollbar_width(),
         contain: style.contain(),
+        contain_intrinsic_size: style.contain_intrinsic_size(),
         box_sizing: crate::BoxSizing::BorderBox,
         direction: style.direction(),
         ..crate::Style::DEFAULT

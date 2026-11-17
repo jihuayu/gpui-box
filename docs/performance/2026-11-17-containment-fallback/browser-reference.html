@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Explicit intrinsic containment fallback reference</title>
+<style>body {margin:0} .host {display:flex;align-items:start;justify-content:start} .item {display:flex;flex-direction:column;box-sizing:border-box} .content {width:180px;height:90px;flex-shrink:0}</style>
+<body><script>
+window.referenceReady = (async () => {
+  const cases=[];
+  for(const direction of ['row','row-reverse','column','column-reverse'])
+  for(const contain of ['none','inline-size','size'])
+  for(const fallback of ['none','0px 0px','60px 25px','none 25px','60px none'])
+  for(const model of ['border','content'])
+  for(const limit of ['none','preferred','min','max','intrinsic','shrink','grow']) {
+    const host=document.createElement('div');host.className='host';
+    host.style.cssText+=`;flex-direction:${direction};width:300px;height:200px`;
+    if(limit==='shrink') host.style[direction.startsWith('row')?'width':'height']='30px';
+    const item=document.createElement('div');item.className='item';
+    item.style.cssText+=`;padding:3px;border:2px solid transparent;contain:${contain==='none'?'none':`layout ${contain}`};contain-intrinsic-size:${fallback};box-sizing:${model}-box`;
+    if(limit==='preferred'){item.style.width='80px';item.style.height='40px';}
+    if(limit==='min'){item.style.minWidth='100px';item.style.minHeight='50px';}
+    if(limit==='max'){item.style.maxWidth='40px';item.style.maxHeight='20px';}
+    if(limit==='intrinsic'){item.style.minWidth='min-content';item.style.maxWidth='max-content';}
+    if(limit==='shrink'){item.style.minWidth='0';item.style.minHeight='0';}
+    if(limit==='grow') item.style.flexGrow='1';
+    const content=document.createElement('div');content.className='content';item.append(content);
+    host.append(item);document.body.append(host);
+    const h=host.getBoundingClientRect(),r=item.getBoundingClientRect(),c=content.getBoundingClientRect();
+    cases.push({direction,contain,fallback,model,limit,actual:[r.x-h.x,r.y-h.y,r.width,r.height,c.width,c.height]});
+    host.remove();
+  }
+  const ratioCases=[];
+  for(const replaced of [false,true]) for(const ratio of [null,2]) {
+    const item=document.createElement(replaced?'img':'div');
+    item.style.cssText=`display:flex;width:max-content;contain:layout size;contain-intrinsic-size:60px 25px;aspect-ratio:${ratio??'auto'}`;
+    if(replaced) {item.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"/>');await item.decode();}
+    document.body.append(item);const r=item.getBoundingClientRect();
+    ratioCases.push({replaced,ratio,actual:[r.width,r.height]});item.remove();
+  }
+  return {userAgent:navigator.userAgent,cases,ratioCases};
+})();
+</script>

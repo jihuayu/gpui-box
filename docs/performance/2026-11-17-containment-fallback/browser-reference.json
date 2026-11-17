@@ -1,0 +1,46 @@
+{
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36",
+  "cases": 840,
+  "fields": [
+    "direction",
+    "contain",
+    "fallback",
+    "model",
+    "limit"
+  ],
+  "tolerance": 0.02,
+  "ratioCases": [
+    {
+      "replaced": false,
+      "ratio": null,
+      "actual": [
+        60,
+        25
+      ]
+    },
+    {
+      "replaced": false,
+      "ratio": 2,
+      "actual": [
+        60,
+        30
+      ]
+    },
+    {
+      "replaced": true,
+      "ratio": null,
+      "actual": [
+        60,
+        25
+      ]
+    },
+    {
+      "replaced": true,
+      "ratio": 2,
+      "actual": [
+        60,
+        30
+      ]
+    }
+  ]
+}

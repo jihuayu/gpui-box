@@ -479,6 +479,7 @@ pub fn compute_custom_layout(
         .maybe_apply_aspect_ratio(ratio)
         .maybe_add(adjustment);
     let contain = style.contain();
+    let contain_intrinsic_size = style.contain_intrinsic_size();
     let scrollbar_width = style.scrollbar_width();
     let direction = style.direction();
     drop(style);
@@ -524,6 +525,7 @@ pub fn compute_custom_layout(
         overflow,
         scrollbar_width,
         contain,
+        contain_intrinsic_size,
         box_sizing: BoxSizing::BorderBox,
         direction,
         ..crate::Style::DEFAULT

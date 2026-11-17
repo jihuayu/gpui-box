@@ -54,6 +54,7 @@ impl ChildLayoutStyle {
             overflow: LayoutSize::new(overflow(value.overflow.x)?, overflow(value.overflow.y)?),
             scrollbar_width: value.scrollbar_width,
             size_containment: from_size(containment),
+            contain_intrinsic_size: from_size(value.contain_intrinsic_size),
             layout_containment: value.contain.contains(taffy::Contain::LAYOUT),
             paint_containment: value.contain.contains(taffy::Contain::PAINT),
             is_replaced: value.is_replaced,

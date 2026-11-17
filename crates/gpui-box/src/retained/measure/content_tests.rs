@@ -60,6 +60,36 @@ fn install(tree: &mut UiTree, node: NodeId, snapshot: Option<MeasureSnapshot>) {
     tx.measure(node, snapshot);
     tree.commit(tx, BackendCapabilities::default()).unwrap();
 }
+
+#[test]
+fn inline_containment_fallback_wraps_real_content_protocol_at_used_inner_width() {
+    for width in [20.0, 40.0, 100.0] {
+        let mut tree = UiTree::new_layout(
+            LayoutStyle::column()
+                .container_type(LayoutContainerType::InlineSize)
+                .contain_intrinsic_size(Some(width), Some(999.0))
+                .padding(LayoutEdges::all(LayoutLength::Px(2.0))),
+            0,
+        )
+        .unwrap();
+        let root = tree.root();
+        let (content, queries) = cells(10);
+        install(&mut tree, root, Some(content));
+        tree.frame([300.0, 200.0]).unwrap();
+        assert_eq!(
+            tree.layout_result(root).unwrap().size,
+            [width + 4.0, (10.0 / (width / 10.0)).ceil() * 8.0 + 4.0]
+        );
+        assert!(
+            queries
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|input| input.available.width == LayoutAvailableSpace::Definite(width))
+        );
+        assert_eq!(tree.layout_result(root).unwrap().baseline, None);
+    }
+}
 fn populate(tree: &mut UiTree, node: NodeId, count: usize) {
     for _ in 0..count {
         let cell = tree.append_layout(node, fixed(10.0, 8.0), 0).unwrap();

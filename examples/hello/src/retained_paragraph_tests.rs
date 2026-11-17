@@ -21,6 +21,69 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
 }
 
 #[test]
+fn intrinsic_fallback_wraps_shaped_text_and_keeps_complete_cpu_glyph_pixels() {
+    let system = text_system();
+    let paragraph = shape(&system, "one two 中文 paragraph second line");
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let paint = TextPaint {
+        resource: raster.prepare(paragraph.clone(), 1.0).unwrap(),
+        color: 0x00ffffff,
+    };
+    let mut tree = UiTree::new_layout(LayoutStyle::column(), 0).unwrap();
+    let mut full = UiTree::new_layout(LayoutStyle::column(), 0).unwrap();
+    full.set_frame_build_policy(FrameBuildPolicy::Full);
+    for owner in [&mut tree, &mut full] {
+        let mut tx = Transaction::default();
+        tx.text(owner.root(), Some(paint.clone()));
+        owner.commit(tx, BackendCapabilities::default()).unwrap();
+    }
+    fn pixels(frame: FramePacket) -> Vec<u8> {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [320, 320],
+                scale: 1.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(4096).unwrap() {}
+        job.into_frame().unwrap().pixels().to_vec()
+    }
+    let mut old = None;
+    for width in [50.0, 120.0, 50.0] {
+        for (owner, fallback) in [(&mut tree, true), (&mut full, false)] {
+            let mut style = LayoutStyle::column().padding(LayoutEdges::all(LayoutLength::Px(2.0)));
+            if fallback {
+                style = style
+                    .container_type(LayoutContainerType::InlineSize)
+                    .contain_intrinsic_size(Some(width), Some(999.0));
+            } else {
+                style.size.width = LayoutDimension::Px(width + 4.0);
+            }
+            let mut tx = Transaction::default();
+            tx.layout_style(owner.root(), style);
+            owner.commit(tx, BackendCapabilities::default()).unwrap();
+        }
+        let frame = tree.local_frame([320.0, 320.0]).unwrap();
+        let reference = full.frame([320.0, 320.0]).unwrap();
+        assert_eq!(
+            tree.layout_result(tree.root()).unwrap().size,
+            full.layout_result(full.root()).unwrap().size
+        );
+        assert_eq!(tree.layout_result(tree.root()).unwrap().baseline, None);
+        assert_eq!(pixels(frame.resolve()), pixels(reference));
+        old.get_or_insert(frame);
+    }
+    let old = old.unwrap();
+    let expected = pixels(old.resolve());
+    drop((tree, full, paint, paragraph, system, raster));
+    assert_eq!(pixels(old.resolve()), expected);
+}
+
+#[test]
 fn flex_ratio_automatic_minimum_preserves_real_text_content_and_cpu_glyph_pixels() {
     let system = text_system();
     let paragraph = shape(&system, "longword 中文");
