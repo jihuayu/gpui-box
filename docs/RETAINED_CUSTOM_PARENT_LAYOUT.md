@@ -1,5 +1,10 @@
 # Owned custom parent layout
 
+Follow-up: [parent selected-size provenance](RETAINED_PARENT_DEFINITENESS.md)
+adds per-axis known_size_is_definite to measured/final callbacks and inline
+provenance to ParentInlineInput. Final bases preserve incoming indefinite widths;
+complete input literals require the new fields. Full RenderBox remains open.
+
 Follow-up: [content sizing](RETAINED_CONTENT_SIZING.md) makes sizing_mode explicit
 in child measurements/placements, parent callback inputs and independent phases;
 the shared keyword entry no longer resolves own styles in Content mode.

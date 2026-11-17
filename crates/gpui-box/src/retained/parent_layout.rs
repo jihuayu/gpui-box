@@ -65,6 +65,10 @@ pub trait ParentAllocationChildren {
 pub struct ParentLayoutInput {
     pub sizing_mode: LayoutSizingMode,
     pub known_size: LayoutSize<Option<f32>>,
+    /// Whether each selected content extent establishes a percentage basis.
+    /// A content-derived final height can be known while still indefinite.
+    /// Flags on absent dimensions are normalized to true and have no effect.
+    pub known_size_is_definite: LayoutSize<bool>,
     pub available: LayoutSize<layout::AvailableSpace>,
     pub percentage_basis: LayoutSize<Option<f32>>,
 }
@@ -322,6 +326,8 @@ pub trait ParentLayout: std::fmt::Debug + Send + Sync + 'static {
 pub struct ParentInlineInput {
     pub sizing_mode: LayoutSizingMode,
     pub known_width: Option<f32>,
+    /// Same inline selected-size provenance as the measured parent phase.
+    pub known_width_is_definite: bool,
     pub available: layout::AvailableSpace,
     pub percentage_basis: Option<f32>,
 }
@@ -578,6 +584,7 @@ impl Adapter {
                     ParentInlineInput {
                         sizing_mode: input.sizing_mode,
                         known_width: input.known_size.width,
+                        known_width_is_definite: input.known_size_is_definite.width,
                         available: input.available.width,
                         percentage_basis: input.percentage_basis.width,
                     },
@@ -619,6 +626,7 @@ impl taffy::tree::CustomLayout for Adapter {
         let input = ParentLayoutInput {
             sizing_mode: LayoutSizingMode::from_taffy(input.sizing_mode),
             known_size: from_size(input.known_size),
+            known_size_is_definite: from_size(input.known_size_is_definite),
             available: from_size(input.available.map(space)),
             percentage_basis: from_size(input.percentage_basis),
         };
@@ -682,6 +690,7 @@ impl taffy::tree::CustomLayout for Adapter {
         let input = ParentLayoutInput {
             sizing_mode: LayoutSizingMode::from_taffy(input.sizing_mode),
             known_size: from_size(input.known_size),
+            known_size_is_definite: from_size(input.known_size_is_definite),
             available: from_size(input.available.map(space)),
             percentage_basis: from_size(input.percentage_basis),
         };
@@ -746,6 +755,8 @@ mod child_style;
 mod child_style_tests;
 #[cfg(test)]
 mod content_sizing_tests;
+#[cfg(test)]
+mod definiteness_tests;
 #[cfg(test)]
 mod dry_baseline_tests;
 #[cfg(test)]

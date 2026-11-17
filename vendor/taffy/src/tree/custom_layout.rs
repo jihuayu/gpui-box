@@ -112,6 +112,10 @@ pub struct CustomLayoutInput {
     pub sizing_mode: crate::SizingMode,
     /// Assigned content dimensions. Returned size must preserve these values.
     pub known_size: Size<Option<f32>>,
+    /// Whether each known content extent establishes a percentage basis.
+    /// Content-derived dimensions can be numerically known but indefinite.
+    /// Absent dimensions normalize to true; their flag has no semantic effect.
+    pub known_size_is_definite: Size<bool>,
     /// Soft content space, preserving intrinsic and normal indefinite modes.
     pub available: Size<AvailableSpace>,
     /// Established content-box percentage bases, independent of soft space.

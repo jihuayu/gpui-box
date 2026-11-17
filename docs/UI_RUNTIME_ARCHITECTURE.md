@@ -410,6 +410,14 @@ selected-size definiteness，避免把 content-derived height 当成百分比 ga
 额外标量判断与必要的一次 line collection 有成本，未测帧时或密集布局尾延迟；
 浏览器几何匹配与单列 MinContent 的规范差异分别记录，完整 CSS 与总目标仍未完成。
 
+后续 [owned parent definiteness](RETAINED_PARENT_DEFINITENESS.md) 把逐轴已选尺寸
+来源传入 ParentMeasure/ParentLayout 与 inline phase，补齐只有 incoming child/full
+allocator 能表达确定性的缺口。共同 custom-parent 与 ConstraintBox 最终阶段不再
+无条件将已有 width 当成百分比基准，child padding/border 元数据也使用同一真实基准。
+普通自动 inline width 选定与硬 tight 分配继续按原规则建立确定性；内容推导 height
+虽在最终 callback 已知仍保持不确定。临时 input 新增 bool 字段，完整 literals 需迁移，
+未新增持久树/GPU/packet字段或测量轮次；完整 RenderBox、CSS 与性能验收继续开放。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

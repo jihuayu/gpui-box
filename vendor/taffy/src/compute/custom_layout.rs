@@ -426,6 +426,9 @@ mod tests {
     }
 }
 
+#[cfg(all(test, feature = "flexbox", feature = "taffy_tree"))]
+mod definiteness_tests;
+
 /// Apply an owned algorithm inside the host's standard sizing/inset model.
 /// An error can follow internal child writes; callers needing atomic mutation
 /// must run this on a private candidate. Failed outputs are never cached.
@@ -495,6 +498,10 @@ pub fn compute_custom_layout(
         max: max.zip_map(min, |v, min| v.unwrap_or(f32::INFINITY).max(min.unwrap_or(0.0))),
     }
     .available(inputs.available_space);
+    // Only an incoming selected dimension can carry an indefinite flag.
+    // Dimensions resolved from the host's own numeric style are definite.
+    inputs.known_dimensions_are_definite = inputs.known_dimensions_are_definite
+        .zip_map(inputs.known_dimensions, |definite, known| definite || known.is_none());
     inputs.known_dimensions = inputs
         .size_bounds
         .min
@@ -546,7 +553,13 @@ pub fn compute_custom_layout(
                     .zip_map(inputs.known_dimensions_are_definite, |v, definite| if definite { v } else { None })
                     .maybe_sub(inset_size)
                     .maybe_max(Size::ZERO);
-                match measure_content(tree, node, delegate, CustomLayoutInput { sizing_mode: inputs.sizing_mode, known_size, available, percentage_basis }, allocations.as_deref()) {
+                match measure_content(tree, node, delegate, CustomLayoutInput {
+                    sizing_mode: inputs.sizing_mode,
+                    known_size,
+                    known_size_is_definite: inputs.known_dimensions_are_definite,
+                    available,
+                    percentage_basis,
+                }, allocations.as_deref()) {
                     Ok(plan) => plan.size,
                     Err(value) => {
                         error = Some(value);
@@ -566,7 +579,9 @@ pub fn compute_custom_layout(
     }
     let inner = (output.size - inset_size).map(|v| v.max(0.0));
     let percentage_basis = Size {
-        width: Some(inner.width),
+        width: inputs.known_dimensions.width
+            .filter(|_| inputs.known_dimensions_are_definite.width)
+            .map(|_| inner.width),
         height: inputs
             .known_dimensions
             .height
@@ -576,6 +591,7 @@ pub fn compute_custom_layout(
     let final_input = CustomLayoutInput {
         sizing_mode: inputs.sizing_mode,
         known_size: inner.map(Some),
+        known_size_is_definite: percentage_basis.map(|basis| basis.is_some()),
         available: inner.map(crate::AvailableSpace::Definite),
         percentage_basis,
     };

@@ -494,6 +494,25 @@ vendor default223 / project217; framework library Clippy and vendor
 no-default/alloc-Flex/all-features checks pass. Scoped formatting and diff
 checks pass; suites overlap and ignored tests are not counted as passed.
 
+The [owned parent provenance stage](RETAINED_PARENT_DEFINITENESS.md) adds
+known_size_is_definite to ParentMeasure/ParentLayout inputs and inline width
+provenance to ParentInlineInput. The common custom-parent and ConstraintBox
+final paths preserve explicitly indefinite incoming widths instead of treating
+all used widths as percentage bases; published child padding/border uses the
+same actual basis. Normal auto inline selection and hard-tight assignments keep
+their existing authority, while a known final content-derived height remains
+indefinite. Normal typed sources, dry/cache queries, pure policy rejection with
+atomic rollback, real paragraphs and complete CPU/GPU numeric controls validate
+the finite protocol. Temporary callback structs gain bools; persistent node,
+style/cache/GPU/packet formats and callback-pass count do not grow. Full RenderBox,
+general content feedback, scheduling and performance acceptance remain open.
+See [verification](performance/2026-11-17-parent-definiteness/README.md).
+Verified: retained420; text/WGPU453 passed,26 ignored; hello43 passed,2 ignored;
+explicit NVIDIA/Vulkan case1 with10 complete-pixel submit comparisons;
+vendor default224 / project218; framework library Clippy and vendor
+no-default/alloc-Flex/all-features checks pass. Scoped rustfmt and diff checks
+pass. Suites overlap; ignored hardware cases are not passing evidence.
+
 The [validation-cache stage](RETAINED_VALIDATION_CACHE.md) reuses consumer checks
 for cache-owned immutable pages and stable node indices, with full fallback for
 identity/order/scale changes and complete effect-reference checks on effect-map edits.

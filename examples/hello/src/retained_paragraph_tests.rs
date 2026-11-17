@@ -20,6 +20,193 @@ fn shape(system: &WindowTextSystem, text: &str) -> ParagraphSnapshot {
     ParagraphSnapshot::shape(system, text, font("Noto Sans CJK SC"), 16.0, 32.0).unwrap()
 }
 
+#[derive(Debug, Clone, Copy)]
+struct PercentageParagraphParent;
+impl PercentageParagraphParent {
+    fn slot(input: ParentLayoutInput) -> ChildLayoutInput {
+        assert_eq!(
+            input.known_size_is_definite.width,
+            input.known_size.width.is_none() || input.percentage_basis.width.is_some()
+        );
+        ChildLayoutInput {
+            percentage_basis: input.percentage_basis,
+            ..ChildLayoutInput::default()
+        }
+    }
+}
+impl ParentMeasure for PercentageParagraphParent {
+    fn measure(
+        &self,
+        input: ParentLayoutInput,
+        children: &mut dyn ParentLayoutChildren,
+    ) -> Result<ParentMeasureOutput, Error> {
+        let child = children.measure_baselines(0, Self::slot(input))?;
+        Ok(ParentMeasureOutput {
+            size: [
+                input.known_size.width.unwrap_or(child.size[0]),
+                input.known_size.height.unwrap_or(child.size[1]),
+            ],
+            baseline: child.baseline,
+            last_baseline: child.last_baseline,
+        })
+    }
+}
+impl ParentLayout for PercentageParagraphParent {
+    fn layout(
+        &self,
+        input: ParentLayoutInput,
+        children: &mut dyn ParentLayoutChildren,
+    ) -> Result<ParentLayoutOutput, Error> {
+        let value = self.measure(input, children)?;
+        Ok(ParentLayoutOutput {
+            size: value.size,
+            baseline: value.baseline,
+            last_baseline: value.last_baseline,
+            placements: vec![ParentPlacement {
+                child: 0,
+                input: Self::slot(input),
+                origin: [0.0; 2],
+            }],
+        })
+    }
+}
+#[derive(Debug, Clone, Copy)]
+struct SelectedParagraphParent(bool);
+impl ParentLayout for SelectedParagraphParent {
+    fn layout(
+        &self,
+        input: ParentLayoutInput,
+        children: &mut dyn ParentLayoutChildren,
+    ) -> Result<ParentLayoutOutput, Error> {
+        let slot = ChildLayoutInput::default().with_known_size(
+            LayoutSize::new(Some(144.0), Some(400.0)),
+            LayoutSize::new(self.0, false),
+        );
+        let child = children.measure_baselines(0, slot)?;
+        Ok(ParentLayoutOutput {
+            size: [
+                input.known_size.width.unwrap_or(child.size[0]),
+                input.known_size.height.unwrap_or(child.size[1]),
+            ],
+            baseline: child.baseline,
+            last_baseline: child.last_baseline,
+            placements: vec![ParentPlacement {
+                child: 0,
+                input: slot,
+                origin: [0.0; 2],
+            }],
+        })
+    }
+}
+
+#[test]
+fn owned_parent_selected_indefinite_inline_size_preserves_true_paragraph_wrapping_and_cpu_glyphs() {
+    let system = text_system();
+    let paragraph = shape(&system, "one two 中文 longword second line");
+    let natural = paragraph.layout(None).unwrap().size[0];
+    assert!(natural > 70.0);
+    let mut raster = GlyphRasterizer::new(Arc::clone(&system));
+    let paint = TextPaint {
+        resource: raster.prepare(paragraph.clone(), 1.0).unwrap(),
+        color: 0x00ffffff,
+    };
+    let root_style =
+        LayoutStyle::column().size(LayoutDimension::Px(300.0), LayoutDimension::Px(550.0));
+    let host_style = LayoutStyle::column().padding(LayoutEdges::all(LayoutLength::Px(2.0)));
+    let mut tree = UiTree::new_layout(root_style.clone(), 0).unwrap();
+    let host = tree
+        .append_layout(tree.root(), host_style.clone(), 0)
+        .unwrap();
+    let leaf = tree
+        .append_layout(
+            host,
+            LayoutStyle::row().size(LayoutDimension::Percent(0.5), LayoutDimension::Auto),
+            0,
+        )
+        .unwrap();
+    let mut tx = Transaction::default();
+    tx.text(leaf, Some(paint.clone()));
+    tx.parent_layout(
+        host,
+        Some(
+            ParentLayoutSnapshot::new(PercentageParagraphParent)
+                .with_measure(PercentageParagraphParent),
+        ),
+    );
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    fn pixels(frame: FramePacket) -> Vec<u8> {
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: [320, 600],
+                scale: 1.0,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 4 * 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(4096).unwrap() {}
+        job.into_frame().unwrap().pixels().to_vec()
+    }
+    let mut old = None;
+    for definite in [false, true, false] {
+        let mut tx = Transaction::default();
+        tx.parent_layout(
+            tree.root(),
+            Some(ParentLayoutSnapshot::new(SelectedParagraphParent(definite))),
+        );
+        tree.commit(tx, BackendCapabilities::default()).unwrap();
+        let frame = tree.local_frame([320.0, 600.0]).unwrap();
+        let width = if definite { 70.0 } else { natural };
+        let mut full = UiTree::new_layout(root_style.clone(), 0).unwrap();
+        full.set_frame_build_policy(FrameBuildPolicy::Full);
+        let a = full
+            .append_layout(
+                full.root(),
+                host_style
+                    .clone()
+                    .size(LayoutDimension::Px(144.0), LayoutDimension::Px(400.0))
+                    .flex_shrink(0.0),
+                0,
+            )
+            .unwrap();
+        let b = full
+            .append_layout(
+                a,
+                LayoutStyle::row().size(LayoutDimension::Px(width), LayoutDimension::Auto),
+                0,
+            )
+            .unwrap();
+        let mut tx = Transaction::default();
+        tx.text(b, Some(paint.clone()));
+        tx.parent_layout(
+            a,
+            Some(
+                ParentLayoutSnapshot::new(PercentageParagraphParent)
+                    .with_measure(PercentageParagraphParent),
+            ),
+        );
+        full.commit(tx, BackendCapabilities::default()).unwrap();
+        let control = full.frame([320.0, 600.0]).unwrap();
+        assert!((tree.layout_result(leaf).unwrap().size[0] - width).abs() < 0.01);
+        assert_eq!(
+            tree.layout_result(leaf).unwrap(),
+            full.layout_result(b).unwrap()
+        );
+        assert_eq!(
+            tree.layout_result(host).unwrap(),
+            full.layout_result(a).unwrap()
+        );
+        assert_eq!(pixels(frame.resolve()), pixels(control));
+        old.get_or_insert(frame);
+    }
+    let old = old.unwrap();
+    let expected = pixels(old.resolve());
+    drop((tree, paint, raster, paragraph, system));
+    assert_eq!(pixels(old.resolve()), expected);
+}
+
 #[test]
 fn cyclic_percentage_gap_keeps_shaped_paragraph_positions_and_complete_cpu_pixels() {
     let system = text_system();

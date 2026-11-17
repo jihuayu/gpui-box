@@ -1,5 +1,10 @@
 # Selected child sizes and independent percentage definiteness
 
+Follow-up: [measured parent provenance](RETAINED_PARENT_DEFINITENESS.md) carries
+the same domain through content-box callbacks and inline allocation, and fixes
+final custom-parent/ConstraintBox bases that previously promoted every used
+width to definite. This extends the original incoming child-assignment stage.
+
 Follow-up: [explicit content sizing](RETAINED_CONTENT_SIZING.md) adds sizing_mode
 to ChildLayoutInput and parent/builder callback inputs, distinguishing own-style
 participation from selected size and Min/MaxContent space. Defaults stay Inherent.

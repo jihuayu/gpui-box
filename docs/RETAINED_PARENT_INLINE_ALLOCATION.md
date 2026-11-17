@@ -1,5 +1,10 @@
 # Independent inline allocation for custom parents
 
+Follow-up: [parent provenance](RETAINED_PARENT_DEFINITENESS.md) adds
+known_width_is_definite to ParentInlineInput. It describes the selected host
+width independently of numerical size/soft opportunity. ChildInlineAllocation's
+tight child-width contract stays separate; complete input literals must migrate.
+
 Status: implemented experimental framework contract, 2026-11-17. Full RenderBox,
 automatic builder/query scheduling and full RFC acceptance remain open.
 

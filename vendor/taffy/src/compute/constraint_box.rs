@@ -76,6 +76,8 @@ pub fn compute_constraint_box_layout(
     // Resolve authored limits before choosing the content measurement space.
     // The wrapper's parent (CSS or box protocol) still owns its outer bounds.
     inputs.available_space = effective_bounds.available(inputs.available_space);
+    inputs.known_dimensions_are_definite = inputs.known_dimensions_are_definite
+        .zip_map(inputs.known_dimensions, |definite, known| definite || known.is_none());
     inputs.known_dimensions = inputs
         .size_bounds
         .min
@@ -162,10 +164,13 @@ pub fn compute_constraint_box_layout(
         size_bounds: bounds,
         known_dimensions: tight_dimensions(bounds),
         known_dimensions_are_definite: Size { width: true, height: true },
-        // Actual inline size is a percentage basis. A content-derived height
-        // remains indefinite unless Tight explicitly assigns it to the child.
+        // A normally selected inline size establishes a percentage basis;
+        // an explicitly indefinite incoming assignment must stay indefinite.
+        // A content-derived height remains indefinite unless Tight assigns it.
         parent_size: Size {
-            width: Some(inner.width),
+            width: inputs.known_dimensions.width
+                .filter(|_| inputs.known_dimensions_are_definite.width)
+                .map(|_| inner.width),
             height: inputs
                 .known_dimensions
                 .height
@@ -185,8 +190,8 @@ pub fn compute_constraint_box_layout(
     let mut child_output = layout_child(tree, child, child_input);
     let child_style = tree.get_core_container_style(child);
     let hidden = child_style.box_generation_mode() == crate::BoxGenerationMode::None;
-    let child_padding = child_style.padding().resolve_or_zero(Some(inner.width), |v, b| tree.resolve_calc_value(v, b));
-    let child_border = child_style.border().resolve_or_zero(Some(inner.width), |v, b| tree.resolve_calc_value(v, b));
+    let child_padding = child_style.padding().resolve_or_zero(child_input.parent_size.width, |v, b| tree.resolve_calc_value(v, b));
+    let child_border = child_style.border().resolve_or_zero(child_input.parent_size.width, |v, b| tree.resolve_calc_value(v, b));
     let child_overflow = child_style.overflow();
     let child_contain = child_style.contain();
     let child_gutter = Size {
