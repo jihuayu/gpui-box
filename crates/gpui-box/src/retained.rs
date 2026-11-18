@@ -73,6 +73,7 @@ pub use pixel_snap::PixelSnap;
 mod edit;
 pub mod reactive;
 pub mod responsive;
+pub mod style;
 pub mod ui_ir;
 pub use edit::{TreeEdit, TreeEditCommit};
 mod structure;

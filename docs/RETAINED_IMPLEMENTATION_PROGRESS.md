@@ -3,6 +3,22 @@
 The active implementation goal covers the complete runtime requested on
 2026-11-11. Work continues in `codex/rendering-performance-research`.
 
+The [typed style composition stage](RETAINED_TYPED_STYLE_COMPOSITION.md) adds
+owned immutable StyleRef definitions, typed atomic rules, ordered whole-rule
+overrides, Initial, pure state/environment conditions and winner diagnostics.
+Shorthands normalize before duplicate checks and composition; all branches and
+final combined output validate. UI input schema2 carries styles/state/environment
+and separates authored from effective records. Atomic normal publication, P0/P1/
+P2/layout routing, replay/recovery and old frames are preserved. Eight regular
+core cases and one real-Noto case were added; retained510passed/1ignored,
+text/WGPU543/40, hello55/9 and framework library Clippy pass. Explicit GTX1650Ti/
+Vulkan style4 and glyph5 complete-pixel submissions match direct ordinary full
+trees. See [evidence](performance/2026-11-18-style-composition/README.md).
+Full-graph resolution/copies, winner-map allocation and existing candidate/global
+validation costs remain. Tokens/themes/parts/inheritance, automatic event state,
+binding/handler/focus, macros/ABI and automatic builder scheduling remain open;
+no new timing/memory/sustained-performance qualification follows.
+
 The [owned primitive UI input stage](RETAINED_OWNED_UI_INPUT.md) starts the
 source-side UiSnapshot/UiBatch/UiDocument boundary, distinct from render packets.
 Framework LayoutStyle and ID-based resources feed the ordinary retained
@@ -10,11 +26,11 @@ transaction/layout/publication path; exact baselines/sequences, bounded last-bat
 replay, generation tombstones and full snapshot recovery preserve atomic state.
 Messages are transferable, owner remains local; each publication owns its external
 hit mapping. This is experimental Rust input, not complete semantic UI IR or a
-frozen wire/foreign ABI. Logical scopes/bindings/handlers/semantics/StyleRef and
+frozen wire/foreign ABI. Logical scopes/bindings/handlers/semantics and
 Store/Command/macros remain separate missing contracts. Candidate/source graph
 copies, global validation and unbudgeted resource registry costs are explicit;
 no throughput or sustained native performance claim follows from this API.
-Verified: retained502passed/1ignored; text/WGPU535/39; hello54/8; explicit
+At that input stage: retained502passed/1ignored; text/WGPU535/39; hello54/8; explicit
 GTX1650Ti/Vulkan mixed4 and actual text/resource transition8 complete-pixel
 submissions match direct ordinary full trees. Framework library Clippy and
 scoped framework/text format/diff pass. Ten regular core cases, one real-glyph

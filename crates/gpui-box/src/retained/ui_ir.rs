@@ -1,6 +1,8 @@
 //! Owned UI input records. These are not paint commands or a stable wire ABI.
 //! All messages use framework-owned values and resource IDs; the owner adapter
 //! validates final state and publishes through the ordinary retained tree.
+use super::responsive::LayoutEnvironment;
+use super::style::{StyleError, StyleRef, StyleState};
 use super::*;
 use std::collections::{BTreeMap, BTreeSet};
 mod runtime;
@@ -8,7 +10,7 @@ pub use runtime::{UiDocument, UiPublication, UiResources};
 #[cfg(test)]
 mod tests;
 
-pub const UI_SCHEMA_VERSION: u32 = 1;
+pub const UI_SCHEMA_VERSION: u32 = 2;
 
 /// Client identity within one runtime epoch. Slots may be reused only with a
 /// strictly greater generation, including after snapshot recovery.
@@ -78,6 +80,9 @@ pub struct UiNode {
     pub layout: LayoutStyle,
     pub properties: UiProperties,
     pub content: UiContent,
+    /// Applied after the authored base, in order. An empty list keeps the base.
+    pub styles: Vec<StyleRef>,
+    pub style_state: StyleState,
 }
 impl UiNode {
     pub fn new(id: UiNodeId, layout: LayoutStyle) -> Self {
@@ -87,13 +92,15 @@ impl UiNode {
             layout,
             properties: UiProperties::default(),
             content: UiContent::Box,
+            styles: vec![],
+            style_state: StyleState::default(),
         }
     }
 }
 
 /// Full recoverable source state, including tombstones for retired slots.
 /// Resource bytes/handlers remain outside this record and must be installed by
-/// the receiving host before accepting it. Schema 1 is experimental Rust data.
+/// the receiving host before accepting it. Schema 2 is experimental Rust data.
 #[derive(Clone, Debug, PartialEq)]
 pub struct UiSnapshot {
     pub schema: u32,
@@ -104,6 +111,8 @@ pub struct UiSnapshot {
     pub root: UiNodeId,
     pub nodes: Vec<UiNode>,
     pub generations: Vec<(u64, u64)>,
+    /// Pure condition input; distinct from layout constraints and paint viewport.
+    pub style_environment: LayoutEnvironment,
 }
 impl UiSnapshot {
     /// Initial revision zero, next sequence one. Duplicate IDs/slots are
@@ -119,6 +128,7 @@ impl UiSnapshot {
             root,
             nodes,
             generations,
+            style_environment: LayoutEnvironment::new([0.0; 2]),
         }
     }
 }
@@ -142,6 +152,15 @@ pub enum UiOperation {
         node: UiNodeId,
         value: Vec<UiNodeId>,
     },
+    Styles {
+        node: UiNodeId,
+        value: Vec<StyleRef>,
+    },
+    StyleState {
+        node: UiNodeId,
+        value: StyleState,
+    },
+    StyleEnvironment(LayoutEnvironment),
     /// Remove the subtree in the final draft child graph. Move a surviving
     /// child out of that graph before removing its old host.
     RemoveSubtree(UiNodeId),
@@ -171,6 +190,9 @@ pub struct UiLimits {
     /// Authored explicit/implicit track entries and flat repeat fragments in
     /// one style. Expanded solver work retains the kernel's own finite limits.
     pub max_grid_track_entries: usize,
+    pub max_styles_per_node: usize,
+    pub max_style_declarations_per_node: usize,
+    pub max_style_cases_per_node: usize,
 }
 impl Default for UiLimits {
     fn default() -> Self {
@@ -182,6 +204,9 @@ impl Default for UiLimits {
             max_generation_slots: 200_000,
             max_children_per_node: 100_000,
             max_grid_track_entries: 4_096,
+            max_styles_per_node: 64,
+            max_style_declarations_per_node: 1_024,
+            max_style_cases_per_node: 4_096,
         }
     }
 }
@@ -214,6 +239,7 @@ pub enum UiError {
     MissingResource(UiResourceId),
     ResourceConflict(UiResourceId),
     UnsupportedContent,
+    Style(StyleError),
     Retained(Error),
 }
 impl From<Error> for UiError {
@@ -316,7 +342,7 @@ fn validate_style_bounds(style: &LayoutStyle, limits: UiLimits) -> Result<(), Ui
     Ok(())
 }
 
-fn validate_properties(p: &UiProperties) -> Result<(), UiError> {
+pub(in crate::retained) fn validate_properties(p: &UiProperties) -> Result<(), UiError> {
     if p.translation.iter().any(|v| !v.is_finite()) {
         return Err(Error::InvalidTranslation.into());
     }
@@ -358,8 +384,63 @@ fn validate_payload_bounds(node: &UiNode, limits: UiLimits) -> Result<(), UiErro
     {
         return Err(UiError::LimitExceeded);
     }
+    validate_style_refs(&node.styles, limits)?;
     validate_style_bounds(&node.layout, limits)?;
     node.layout.validate()?;
     validate_properties(&node.properties)?;
     validate_content(&node.content)
+}
+
+fn validate_style_refs(styles: &[StyleRef], limits: UiLimits) -> Result<(), UiError> {
+    if styles.len() > limits.max_styles_per_node {
+        return Err(UiError::LimitExceeded);
+    }
+    let (mut declarations, mut cases) = (0usize, 0usize);
+    for style in styles {
+        let work = style.work();
+        declarations = declarations
+            .checked_add(work.0)
+            .ok_or(UiError::LimitExceeded)?;
+        cases = cases.checked_add(work.1).ok_or(UiError::LimitExceeded)?;
+        if work.2 > limits.max_grid_track_entries || work.3 > limits.max_shadows_per_node {
+            return Err(UiError::LimitExceeded);
+        }
+        if declarations > limits.max_style_declarations_per_node
+            || cases > limits.max_style_cases_per_node
+        {
+            return Err(UiError::LimitExceeded);
+        }
+    }
+    Ok(())
+}
+
+fn resolve_styles(
+    nodes: &BTreeMap<UiNodeId, UiNode>,
+    environment: &LayoutEnvironment,
+    limits: UiLimits,
+) -> Result<BTreeMap<UiNodeId, UiNode>, UiError> {
+    environment.validate()?;
+    nodes
+        .iter()
+        .map(|(&id, node)| {
+            let mut resolved = node.clone();
+            if !node.styles.is_empty() {
+                let output = style::resolve(
+                    &node.layout,
+                    &node.properties,
+                    &node.styles,
+                    environment,
+                    node.style_state,
+                )
+                .map_err(UiError::Style)?;
+                resolved.layout = output.layout;
+                resolved.properties = output.properties;
+                // Do not retain a second style-reference list in the adapter's
+                // resolved values. Authored nodes keep their declarations/state.
+                resolved.styles.clear();
+            }
+            validate_payload_bounds(&resolved, limits)?;
+            Ok((id, resolved))
+        })
+        .collect()
 }

@@ -71,6 +71,8 @@ pub struct UiDocument {
     next_sequence: u64,
     root: UiNodeId,
     nodes: BTreeMap<UiNodeId, UiNode>,
+    resolved_nodes: BTreeMap<UiNodeId, UiNode>,
+    style_environment: LayoutEnvironment,
     generations: BTreeMap<u64, u64>,
     mapping: BTreeMap<UiNodeId, NodeId>,
     resources: BTreeMap<UiResourceId, Resource>,
@@ -91,6 +93,7 @@ impl UiDocument {
         viewport: [f32; 2],
     ) -> Result<(Self, UiPublication), UiError> {
         validate_header(snapshot.schema, snapshot.runtime, snapshot.epoch)?;
+        snapshot.style_environment.validate()?;
         if snapshot.next_sequence == 0 {
             return Err(UiError::InvalidRevision);
         }
@@ -125,15 +128,17 @@ impl UiDocument {
             }
         }
         validate_graph(snapshot.root, &nodes, limits)?;
+        let resolved_nodes = resolve_styles(&nodes, &snapshot.style_environment, limits)?;
+        validate_graph(snapshot.root, &resolved_nodes, limits)?;
         let pinned = pin_resources(&nodes, resources, &BTreeMap::new())?;
-        let root_node = &nodes[&snapshot.root];
+        let root_node = &resolved_nodes[&snapshot.root];
         let mut tree = UiTree::new_layout(root_node.layout.clone(), root_node.properties.color)?;
         let mut mapping = BTreeMap::from([(snapshot.root, tree.root())]);
         let empty = BTreeMap::new();
         let result = stage(
             &mut tree,
             &empty,
-            &nodes,
+            &resolved_nodes,
             &mut mapping,
             &pinned,
             capabilities,
@@ -162,6 +167,8 @@ impl UiDocument {
                 next_sequence: snapshot.next_sequence,
                 root: snapshot.root,
                 nodes,
+                resolved_nodes,
+                style_environment: snapshot.style_environment,
                 generations,
                 mapping,
                 resources: pinned,
@@ -183,6 +190,14 @@ impl UiDocument {
     }
     pub fn node(&self, id: UiNodeId) -> Option<&UiNode> {
         self.nodes.get(&id)
+    }
+    /// Selected layout/visual values after ordered style composition. Authored
+    /// declarations and state remain available through node()/snapshot().
+    pub fn resolved_node(&self, id: UiNodeId) -> Option<&UiNode> {
+        self.resolved_nodes.get(&id)
+    }
+    pub fn style_environment(&self) -> &LayoutEnvironment {
+        &self.style_environment
     }
     pub fn layout_result(&self, id: UiNodeId) -> Result<LayoutResult, UiError> {
         let id = self.mapping.get(&id).ok_or(UiError::InvalidIdentity(id))?;
@@ -216,6 +231,7 @@ impl UiDocument {
                 .iter()
                 .map(|(&slot, &generation)| (slot, generation))
                 .collect(),
+            style_environment: self.style_environment.clone(),
         }
     }
 
@@ -257,6 +273,8 @@ impl UiDocument {
                 {
                     return Err(UiError::LimitExceeded);
                 }
+                UiOperation::Styles { value, .. } => validate_style_refs(value, self.limits)?,
+                UiOperation::StyleEnvironment(value) => value.validate()?,
                 _ => {}
             }
         }
@@ -303,6 +321,7 @@ impl UiDocument {
             return Err(UiError::LimitExceeded);
         }
         let mut nodes = self.nodes.clone();
+        let mut style_environment = self.style_environment.clone();
         let mut generations = self.generations.clone();
         let mut live_slots: BTreeSet<_> = nodes.keys().map(|id| id.slot).collect();
         let mut removed = BTreeSet::new();
@@ -348,6 +367,13 @@ impl UiDocument {
                     }
                     get_mut(&mut nodes, *node)?.children = value.clone()
                 }
+                UiOperation::Styles { node, value } => {
+                    get_mut(&mut nodes, *node)?.styles = value.clone()
+                }
+                UiOperation::StyleState { node, value } => {
+                    get_mut(&mut nodes, *node)?.style_state = *value
+                }
+                UiOperation::StyleEnvironment(value) => style_environment = value.clone(),
                 UiOperation::RemoveSubtree(id) => {
                     if *id == self.root || !nodes.contains_key(id) {
                         return Err(UiError::InvalidIdentity(*id));
@@ -372,18 +398,22 @@ impl UiDocument {
             node.children.retain(|id| !dead.contains(id));
         }
         validate_graph(self.root, &nodes, self.limits)?;
+        let resolved_nodes = resolve_styles(&nodes, &style_environment, self.limits)?;
+        validate_graph(self.root, &resolved_nodes, self.limits)?;
         let pinned = pin_resources(&nodes, resources, &self.resources)?;
         let mut mapping = self.mapping.clone();
         let commit = stage(
             &mut self.tree,
-            &self.nodes,
-            &nodes,
+            &self.resolved_nodes,
+            &resolved_nodes,
             &mut mapping,
             &pinned,
             capabilities,
             (constraints, viewport),
         )?;
         self.nodes = nodes;
+        self.resolved_nodes = resolved_nodes;
+        self.style_environment = style_environment;
         self.generations = generations;
         self.mapping = mapping;
         self.identities = identities(&self.mapping);

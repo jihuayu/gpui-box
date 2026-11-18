@@ -1,8 +1,8 @@
 # UI IR、Store、Command 与独立渲染动画架构
 
-状态：设计草案，已开始落地框架层；Rust 优先，预留 JS、Go。当前实现有与 Taffy 解耦的 `LayoutStyle` Flex/Grid/混合长度及测量协议，并开始接入拥有式 primitive UI 输入快照／批次。完整语义 UI IR、序列化/跨语言 ABI、Store/Command、组件宏、独立呈现仍未完成，总目标继续进行中。
+状态：设计草案，已开始落地框架层；Rust 优先，预留 JS、Go。当前实现有与 Taffy 解耦的 `LayoutStyle` Flex/Grid/混合长度及测量协议，拥有式 primitive UI 输入快照／批次，以及实验性的类型化样式组合和状态／环境条件。完整语义 UI IR、主题继承、序列化/跨语言 ABI、Store/Command、组件宏、独立呈现仍未完成，总目标继续进行中。
 
-更新日期：2026-11-17。实现对照取自 `codex/rendering-performance-research`。本文是架构映射与实现状态记录；实验能力与正式承诺仍分别列出。
+更新日期：2026-11-18。实现对照取自 `codex/rendering-performance-research`。本文是架构映射与实现状态记录；实验能力与正式承诺仍分别列出。
 
 ## 1. 要解决的问题
 
@@ -548,10 +548,16 @@ source/frame revision分离已实现；失败保持已提交tree/source/frame。
 映射，old frame不读新owner映射。Messages可跨线程，owner仍本地。
 
 这是第一条primitive输入边界，并非完整语义IR或固定wire format：scope/binding/handler/
-semantics/focus、StyleRef/tokens/theme、portable font/resource schema与JS/Go ABI仍无；
+semantics/focus、tokens/theme/inheritance、portable font/resource schema与JS/Go ABI仍无；
 LogicalUi仍独立管理作用域，暂不允许两种writer混用。接受批次仍clone source图和candidate、
 全图validation及完整geometry验证，resource table无byte-budget/eviction，不宣称吞吐改善。
 下文完整目标保持，不能由初版消息结构存在认定M2完成。
+
+后续[类型化样式阶段](RETAINED_TYPED_STYLE_COMPOSITION.md)将输入schema升为2：UiNode携带
+ordered StyleRefs／StyleState，UiSnapshot携带独立style_environment；普通原子batch可一起更新。
+UiDocument保留authored与effective两份记录，恢复时重新求值，再走既有P0–P5链路；不会把
+上次effective值写回base。当前每批全图resolution与双份validation，仍有clone和winner-map
+成本，没有增量planner／性能改善声明。Schema1明确拒绝，外语wire ABI尚未冻结。
 
 `UiSnapshot` 用于首次装载与恢复；`UiBatch` 包含 schema version、runtime epoch、base revision、batch sequence 和操作。先在草稿上校验最终拓扑、资源、属性和生命周期，再原子发布。失败时保留原树，不泄漏已分配但未提交的句柄。
 
@@ -768,6 +774,22 @@ Button::new("保存")
 事件闭包留在 Rust 前端注册表内，UI IR 只记录 HandlerId。JS/Go 将来使用相同 Command schema 和句柄语义，不要求共享 Rust 泛型对象的内存布局。
 
 ## 6. 样式 API：参考 StyleX，输出原生 Style IR
+
+### 当前落地范围
+
+[retained::style契约与ADR](RETAINED_TYPED_STYLE_COMPOSITION.md)已实现实验Rust数据模型：
+StyleRef／StyleDeclaration／StyleRule／StyleValue::Initial，以及纯StyleState／StyleCondition。
+覆盖当前LayoutStyle与common UiProperties，简写展开、同定义重复拒绝、有序整条规则替换、
+最后匹配case及winner诊断均有测试；不同实例的等值定义按值比较。
+条件包括五个显式state bool、逻辑viewport宽度区间、direction、reduced-motion／touch／pointer。
+Unknown capability不等于false；状态由frontend提供，disabled不等于禁用语义／事件。
+UI schema2接入source/effective原子发布，Flex／Grid／Calc、P1／P2及真实Noto换行的CPU输出
+与手工选值ordinary full tree对照；width／color和真实glyph的GPU完整像素亦通过对照。
+没有新增kernel算法或wall-time/FPS结论。
+
+以下含token/theme/parts、binding、inherit、宏及动画的写法和能力分层仍是设计；现StyleRef
+不提供这些占位能力，Style IR也未承诺稳定wire ABI。每批仍全图求值与验证；自动event state、
+容器条件调度、render域独立条件采样和预算化准备尚待接入。完整M2与总目标保持未完成。
 
 ### 6.1 借鉴范围
 

@@ -3,7 +3,11 @@
 Status: experimental Rust input model,2026-11-18. The complete RFC remains active.
 This implements a first source-level input boundary from
 [the runtime architecture](UI_RUNTIME_ARCHITECTURE.md), distinct from LocalFrame
-and FramePacket output. Schema1 is not a frozen wire format or foreign ABI.
+and FramePacket output. The initial schema1 was experimental Rust data;
+[typed style composition](RETAINED_TYPED_STYLE_COMPOSITION.md) advances the
+current model to schema2 and explicitly rejects schema1. Neither revision is a
+frozen wire format or foreign ABI. Original stage checks below describe the
+input-stage baseline; the linked style stage records current verification.
 
 ## Public inputs and owner adapter
 
@@ -15,6 +19,16 @@ Calc/ConstraintBox subset. Messages contain no Taffy Style, NodeId, Window, GPU
 object, raw pointer or custom callback. Message types are Send+Sync and an actual
 worker-created snapshot is accepted on another owner thread in tests. UiDocument
 itself stays owner-local and does not make the existing kernel transferable.
+
+Schema2 adds ordered immutable StyleRefs and StyleState to each UiNode, explicit
+style_environment to UiSnapshot, and Styles/StyleState/StyleEnvironment operations.
+UiDocument retains authored source separately from resolved layout/properties;
+node()/snapshot() return authored rules, resolved_node() returns effective values.
+It resolves with final state/environment, validates source/effective graphs and
+diffs previous effective output before ordinary atomic publication. Snapshot
+recovery recomputes styles. Environment defaults to zero logical viewport and
+unknown optional capabilities; it is not inferred from host constraints or paint
+viewport. The style contract documents supported conditions and overrides.
 
 Resource references use immutable IDs in one host-owned table. Image resources
 are decoded RGBA8; text resources are already prepared glyph/paragraph snapshots.
@@ -86,7 +100,8 @@ gpu_completed or displayed without those later events.
   the operation list. Child lists may reference a later Create. Node-record order
   in a snapshot is independent of tree/preorder. Same-slot replace requires a
   prior accepted removal, then a strictly greater generation in a later batch.
-- Layout, Properties, Content and Children replace their typed field/group;
+- Layout, Properties, Content, Children, Styles, StyleState and StyleEnvironment
+  replace their typed field/group;
   repeated valid writes take the final value. Each numeric/resource-metric
   declaration must be valid even if overwritten or removed later, matching the
   ordinary transaction contract and ensuring accepted replay values are reflexive
@@ -102,8 +117,8 @@ gpu_completed or displayed without those later events.
   transitions clear old image/text measurement owners in the same transaction;
   invalid image/text/fixed combinations do not leak transient measurements.
 - UiLimits caps nodes, operations, depth, children, shadows, authored Grid track
-  entries and remembered generation slots. It bounds receiver-owned structural
-  work, not total bytes/wall time. Repeat expansion retains kernel limits;
+  entries, styles/expanded atoms/cases and remembered generation slots. It bounds
+  receiver-owned structural work, not total bytes/wall time. Repeat expansion retains kernel limits;
   producer message allocations, registry bytes, clone memory, last replay payload,
   layout caches and old publications require separate budgets.
 
@@ -121,7 +136,8 @@ its own journal/rollback invariants. A closure-based builder scheduler cannot
 reorder/replay existing FnOnce callbacks without a new contract. This boundary
 enables a future declarative planner; it does not claim that planner exists.
 
-Costs: clone source graph/generation map/mapping, final graph/style validation,
+Costs: clone source/effective graphs/generation map/mapping, resolve all nodes,
+allocate style winners, final source/effective graph/style validation,
 candidate clone and complete geometry validation occur per accepted batch.
 Changed child lists remain sparse, while topology validation and source scans
 can still be full-tree. External hit maps are immutable complete maps per
@@ -131,7 +147,7 @@ rebuilds. No O(1), throughput, peak-memory or sustained frame-rate claim is made
 
 This is deliberately an initial primitive input boundary, not complete semantic
 UI IR. Missing: logical component ownership, binding/handler/semantics/focus
-records, StyleRef/token/theme cascade, portable text shaping/font schema,
+records, token/theme/inheritance cascade, portable text shaping/font schema,
 resource/device epochs, canonical encoding/decoding, foreign ABI, collection
 deltas, dynamic control-flow regions and automatic builder/query scheduling.
 The existing LogicalUi remains a separate owner for scopes/signals; mixing both

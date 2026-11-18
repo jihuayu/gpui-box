@@ -5,6 +5,8 @@ use gpui_box::retained::{reactive::*, text::*};
 use std::{borrow::Cow, sync::Arc};
 #[path = "retained_grid_policy_text_tests.rs"]
 mod grid_policy_text_tests;
+#[path = "retained_style_ir_text_tests.rs"]
+mod style_ir_text_tests;
 #[path = "retained_ui_ir_text_tests.rs"]
 mod ui_ir_text_tests;
 
