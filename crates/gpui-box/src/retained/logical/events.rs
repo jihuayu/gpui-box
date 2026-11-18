@@ -59,7 +59,7 @@ impl EventContext<'_, '_> {
         self.tasks.get(self.scope, key)
     }
     pub fn cancel_task(&mut self, key: u64) -> Result<bool, Error> {
-        Ok(self.tasks.cancel(self.scope, key))
+        self.tasks.cancel(self.scope, key)
     }
     /// Stop the remaining ancestor callbacks for this routed event only.
     pub fn stop_propagation(&mut self) {

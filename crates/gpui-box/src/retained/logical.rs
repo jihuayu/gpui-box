@@ -37,6 +37,7 @@ pub use events::{
 pub use tasks::{
     TaskApply, UiTask, UiTaskCapacity, UiTaskContext, UiTaskPool, UiTaskPoolStats, UiTaskStatus,
 };
+pub use tasks::{UiTaskEffect, UiTaskEffectStatus};
 
 #[derive(Clone)]
 struct LayoutSession {
@@ -218,7 +219,8 @@ impl LogicalUi {
         self.root
     }
     fn has_layout_session(&self) -> bool {
-        self.layout_session.is_some() || self.producer_session.is_some()
+        // Tasks also need logical settlement, even without layout producers.
+        self.layout_session.is_some() || self.producer_session.is_some() || self.tasks.has_effects()
     }
     pub fn layout_producer_stats(&self) -> LayoutProducerStats {
         self.producer_stats
@@ -260,7 +262,7 @@ impl LogicalUi {
                 LayoutConstraints::viewport(viewport[0], viewport[1]),
                 viewport,
             )
-        } else if self.producer_session.is_some() {
+        } else if self.has_layout_session() {
             self.edit_frame(
                 LayoutConstraints::viewport(viewport[0], viewport[1]),
                 viewport,
@@ -368,7 +370,7 @@ impl LogicalUi {
                 LayoutConstraints::viewport(viewport[0], viewport[1]),
                 viewport,
             )
-        } else if self.producer_session.is_some() {
+        } else if self.has_layout_session() {
             self.edit_local_frame(
                 LayoutConstraints::viewport(viewport[0], viewport[1]),
                 viewport,

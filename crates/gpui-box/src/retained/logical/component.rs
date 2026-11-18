@@ -46,6 +46,22 @@ pub struct ComponentContext<'a, 'edit, 'draft, 'tree> {
     host: NodeId,
 }
 impl ComponentContext<'_, '_, '_, '_> {
+    pub fn task_effect<I: Clone + PartialEq + 'static, T: Send + Sync + 'static>(
+        &mut self,
+        key: u64,
+        input: Signal<I>,
+        effect: UiTaskEffect<I, T>,
+    ) -> Result<(), Error> {
+        self.edit.task_effect(self.scope, key, input, effect)
+    }
+    pub fn task_effect_prop<I: Clone + PartialEq + 'static, T: Send + Sync + 'static>(
+        &mut self,
+        key: u64,
+        input: ReadProp<I>,
+        effect: UiTaskEffect<I, T>,
+    ) -> Result<(), Error> {
+        self.edit.task_effect_prop(self.scope, key, input, effect)
+    }
     pub fn start_task<T: Send + Sync + 'static>(
         &mut self,
         key: u64,

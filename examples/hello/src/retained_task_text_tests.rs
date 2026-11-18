@@ -23,25 +23,35 @@ fn pixels(frame: FramePacket) -> Vec<u8> {
 }
 #[test]
 fn scoped_task_real_noto_results_follow_flex_and_match_full_reference() {
-    run(false, false);
+    run(false, false, false);
 }
 #[cfg(feature = "retained-wgpu")]
 #[test]
 #[ignore = "requires WGPU adapter; run explicitly"]
 fn hardware_scoped_task_real_noto_matches_full_reference() {
-    run(true, false);
+    run(true, false, false);
 }
 #[test]
 fn event_task_real_noto_results_follow_flex_and_match_full_reference() {
-    run(false, true);
+    run(false, true, false);
 }
 #[cfg(feature = "retained-wgpu")]
 #[test]
 #[ignore = "requires WGPU adapter; run explicitly"]
 fn hardware_event_task_real_noto_matches_full_reference() {
-    run(true, true);
+    run(true, true, false);
 }
-fn run(hardware: bool, event_driven: bool) {
+#[test]
+fn task_effect_real_noto_results_follow_flex_and_match_full_reference() {
+    run(false, false, true);
+}
+#[cfg(feature = "retained-wgpu")]
+#[test]
+#[ignore = "requires WGPU adapter; run explicitly"]
+fn hardware_task_effect_real_noto_matches_full_reference() {
+    run(true, false, true);
+}
+fn run(hardware: bool, event_driven: bool, effect_driven: bool) {
     let system = text_system();
     let mut raster = GlyphRasterizer::new(system.clone());
     let paragraphs = [
@@ -90,6 +100,22 @@ fn run(hardware: bool, event_driven: bool) {
     let workers = std::rc::Rc::new(std::cell::RefCell::new(
         None::<UiTaskContext<(TextPaint, f32)>>,
     ));
+    let request = ui.state(scope, 2, || 0usize).unwrap();
+    let received = std::rc::Rc::new(std::cell::RefCell::new(vec![]));
+    if effect_driven {
+        let workers = workers.clone();
+        let received = received.clone();
+        ui.task_effect(
+            scope,
+            0,
+            request,
+            UiTaskEffect::new(move |input, worker| {
+                received.borrow_mut().push(input);
+                *workers.borrow_mut() = Some(worker);
+            }),
+        )
+        .unwrap();
+    }
     if event_driven {
         let workers = workers.clone();
         ui.edit_local_frame(
@@ -135,7 +161,15 @@ fn run(hardware: bool, event_driven: bool) {
     for (index, width) in [90.0, 145.0, 65.0].into_iter().enumerate() {
         let text = texts[index].clone();
         let color = [0xffffffff, 0xffaa33ff, 0x88ddffff][index];
-        let task = if event_driven {
+        let task = if effect_driven {
+            ui.transaction(|tx| {
+                tx.set(request, 99)?;
+                tx.set(request, index)
+            })
+            .unwrap();
+            assert_eq!(*received.borrow(), (0..=index).collect::<Vec<_>>());
+            ui.task::<(TextPaint, f32)>(scope, 0).unwrap().unwrap()
+        } else if event_driven {
             use gpui_box::retained::input::*;
             let mut router = UiInputRouter::new();
             router
@@ -227,23 +261,45 @@ fn run(hardware: bool, event_driven: bool) {
             );
         }
     }
-    let late = std::rc::Rc::new(std::cell::RefCell::new(None));
-    let slot = late.clone();
-    let task = ui
-        .start_task(scope, 0, move |cx: UiTaskContext<u32>| {
-            *slot.borrow_mut() = Some(cx)
-        })
+    if effect_driven {
+        // A changed request is pending when its owning component is removed.
+        ui.transaction(|tx| tx.set(request, 99)).unwrap();
+        let task = ui.task::<(TextPaint, f32)>(scope, 0).unwrap().unwrap();
+        ui.reconcile_keys(owner, &[]).unwrap();
+        assert_eq!(task.status(), UiTaskStatus::Cancelled);
+        assert!(
+            workers
+                .borrow_mut()
+                .take()
+                .unwrap()
+                .complete((
+                    TextPaint {
+                        resource: texts[0].clone(),
+                        color: 0xffffffff,
+                    },
+                    90.0
+                ))
+                .is_err()
+        );
+    } else {
+        let late = std::rc::Rc::new(std::cell::RefCell::new(None));
+        let slot = late.clone();
+        let task = ui
+            .start_task(scope, 0, move |cx: UiTaskContext<u32>| {
+                *slot.borrow_mut() = Some(cx)
+            })
+            .unwrap();
+        ui.edit(
+            |_| Ok(()),
+            |(), edit| {
+                edit.reconcile_keys(owner, &[])?;
+                Ok(())
+            },
+        )
         .unwrap();
-    ui.edit(
-        |_| Ok(()),
-        |(), edit| {
-            edit.reconcile_keys(owner, &[])?;
-            Ok(())
-        },
-    )
-    .unwrap();
-    assert_eq!(task.status(), UiTaskStatus::Cancelled);
-    assert_eq!(late.borrow_mut().take().unwrap().complete(8), Err(8));
+        assert_eq!(task.status(), UiTaskStatus::Cancelled);
+        assert_eq!(late.borrow_mut().take().unwrap().complete(8), Err(8));
+    }
     drop((ui, texts, paragraphs, raster, system));
     assert_eq!(pixels(old.resolve()), old_pixels);
     #[cfg(feature = "retained-wgpu")]

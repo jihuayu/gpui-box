@@ -675,7 +675,18 @@ impl LogicalUi {
                     .as_ref()
                     .map(|s| (s.constraints, s.viewport))
             })
-            .or(self.producer_session);
+            .or(self.producer_session)
+            .or_else(|| {
+                self.tasks
+                    .has_effects()
+                    .then(|| {
+                        self.ui
+                            .tree()
+                            .layout_constraints
+                            .zip(self.ui.tree().viewport)
+                    })
+                    .flatten()
+            });
         let mut layout_session = self.layout_session.clone();
         let mut inserted = BTreeMap::new();
         let mut inserted_order = vec![];
@@ -895,6 +906,11 @@ impl LogicalUi {
                 draft.retire_and_validate_providers(&dead)?;
                 draft.retire_and_validate_events(&dead)?;
                 draft.retire_tasks(&dead);
+                // Responsive/computed/props are now final and dead sources are
+                // retired. Capture task inputs once, before frame validation.
+                // Input defaults below only change render scroll geometry.
+                draft.settle_task_effects()?;
+                draft.validate_task_effects()?;
                 if input.is_some() {
                     *input_registry.borrow_mut() = Some(draft.event_registry().clone());
                     *controlled_scroll.borrow_mut() = draft.render.bound_scroll_nodes();

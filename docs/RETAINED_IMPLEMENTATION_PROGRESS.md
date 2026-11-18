@@ -10,6 +10,26 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [reactive task effect stage](ADR_RETAINED_TASK_EFFECTS.md) adds UiTaskEffect
+with explicit ordinary Signal/ReadProp input on LogicalUi/LogicalEdit/components.
+Final computed/prop/responsive values settle before capture; equal input/cloned
+factory preserve current work, changed input replaces once, retired scope never
+launches. Capacity failure commits latest source/UI, cancels old work and records
+WaitingForCapacity; explicit host capacity retry or later logical edit/frame
+production starts only latest input. Manual/event task keys cannot conflict.
+Failed candidates retain old source/task/frame; results still use explicit ready/
+apply_task/complete image installation. No new source graph/executor/timer is added.
+See [verification](performance/2026-11-19-task-effects/README.md).
+Settlement scans registrations and actual mutations clone sparse maps; no new
+performance/latency claim. Ambient async hooks/macros, automatic result callbacks,
+KeepAlive, priority/bytes, semantics/IME, full source unification and independent
+native presentation remain open. Complete RFC goal stays active.
+Final retained-only754passed/1ignored, text/WGPU789/67, each14compiler doctests;
+hello89/35. Explicit real-Noto task-effect GPU1passed with three complete images
+on GTX1650Ti/Vulkan/571.96. Library Clippy-Dwarnings, CPU desktop and retained-gpu
+harness checks, scoped format/diff,
+1,110local links and five WIP hashes pass. Final verification2026-11-19.
+
 The [event task stage](ADR_RETAINED_EVENT_TASKS.md) adds EventContext start_task,
 task and cancel_task using the registered handler's scope. Ordered callbacks share
 one task draft staged before producers, defaults and complete frame validation.

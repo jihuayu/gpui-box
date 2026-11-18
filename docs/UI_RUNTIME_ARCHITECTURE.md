@@ -1,6 +1,6 @@
 # UI IR、Store、Command 与独立渲染动画架构
 
-状态：设计草案，已开始落地框架层；Rust 优先，预留 JS、Go。当前实现有与 Taffy 解耦的 `LayoutStyle` Flex/Grid/混合长度及测量协议，拥有式 primitive UI 输入快照／批次、纯布局资源、类型化样式组合、显式采用完整帧的主指针／焦点／激活／滚动路由，以及单次构建计划和作用域持久布局 producer。显式 Rust 组件计划、业务 Store 快照／选择器、类型化 Command、作用域 Provider 和事件回调也已实验接入；完整语义 UI IR、主题继承、序列化/跨语言 ABI、组件宏、通用反馈与细粒度调度、任务作用域和独立呈现仍未完成，总目标继续进行中。
+状态：设计草案，已开始落地框架层；Rust 优先，预留 JS、Go。当前实现有与 Taffy 解耦的 `LayoutStyle` Flex/Grid/混合长度及测量协议，拥有式 primitive UI 输入快照／批次、纯布局资源、类型化样式组合、显式采用完整帧的主指针／焦点／激活／滚动路由，以及单次构建计划和作用域持久布局 producer。显式 Rust 组件计划、业务 Store 快照／选择器、类型化 Command、作用域 Provider、事件回调及有界短期任务／参数驱动任务效应也已实验接入；完整语义 UI IR、主题继承、序列化/跨语言 ABI、组件宏、通用反馈与细粒度调度、KeepAlive 激活世代和独立呈现仍未完成，总目标继续进行中。
 
 更新日期：2026-11-18。实现对照取自 `codex/rendering-performance-research`。本文是架构映射与实现状态记录；实验能力与正式承诺仍分别列出。
 
@@ -11,6 +11,8 @@
 同日后续：[共享任务接纳](ADR_RETAINED_UI_TASK_ADMISSION.md) 用 UiTaskPool 对待采用声明、worker 和 Ready 结果做数量上限；取消但仍运行的任务继续占位，容量释放唤醒宿主显式重试。默认64，可在任务存在前配置跨窗口共享 pool。这不是线程池／优先级调度或字节预算，不能据此推断 FPS／延迟保证。
 
 同日后续：[事件任务](ADR_RETAINED_EVENT_TASKS.md) 将 EventContext 的 start/task/cancel 与回调 source、producer、defaults、完整帧验证合入同一候选；handler scope 决定任务归属，失败不启动／误取消旧工作。同次 producer 卸载 scope 的新任务不会启动；ready/result 仍由 owner 显式处理。任务表只在实际变更时 COW，普通事件共享映射。KeepAlive／自动 hooks／独立呈现仍开放。
+
+同日后续：[参数驱动任务](ADR_RETAINED_TASK_EFFECTS.md) 增加 UiTaskEffect，以普通 Signal／ReadProp 的最终值驱动短期任务。组件、响应式 source 和退休结算后，同值保留、变化替换一次；容量满时采用最新 UI 状态并取消旧任务，宿主容量通知后显式重试。复用原 scope／admission／apply_task／host executor，没有另一套 source graph。结果回写仍显式，ambient async hooks、KeepAlive 和独立呈现继续开放。
 
 ## 1. 要解决的问题
 

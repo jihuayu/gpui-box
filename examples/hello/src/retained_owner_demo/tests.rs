@@ -1,5 +1,102 @@
 use super::*;
 use core::prelude::v1::test;
+
+#[gpui::test]
+fn owner_host_source_task_effect_replaces_work_and_installs_complete_cpu_result(
+    cx: &mut TestAppContext,
+) {
+    let platform = Arc::new(gpui_wgpu::CosmicTextSystem::new_without_system_fonts(
+        "Noto Sans CJK SC",
+    ));
+    let mut real_cx = TestAppContext::build_with_text_system(cx.dispatcher.clone(), None, platform);
+    let cx = &mut real_cx;
+    cx.text_system()
+        .add_fonts(vec![std::borrow::Cow::Borrowed(include_bytes!(
+            "../../assets/NotoSansSC-Regular.otf"
+        ))])
+        .unwrap();
+    let window = cx.open_window(size(px(600.0), px(460.0)), |window, cx| {
+        OwnerDemo::new(window, cx, true)
+    });
+    let view = window.root(cx).unwrap();
+    let cx = VisualTestContext::from_window(*window, cx).into_mut();
+    cx.run_until_parked();
+    let (old, waiter, launched, previous) = view.update(cx, |this, cx| {
+        let root = this.ui.root_scope();
+        let input = this.ui.state(root, 100, || 1u32).unwrap();
+        let color = this.ui.state(root, 101, || 0x223149ffu32).unwrap();
+        this.ui
+            .bind(color, Property::color(this.scroll_host))
+            .unwrap();
+        let launched = std::rc::Rc::new(std::cell::RefCell::new(vec![]));
+        let seen = launched.clone();
+        let executor = cx.background_executor().clone();
+        this.ui
+            .task_effect(
+                root,
+                30,
+                input,
+                UiTaskEffect::new(move |input, context: UiTaskContext<u32>| {
+                    seen.borrow_mut().push(input);
+                    executor
+                        .spawn(async move {
+                            let _ = context.complete(input * 10);
+                        })
+                        .detach();
+                }),
+            )
+            .unwrap();
+        let old = this.ui.task::<u32>(root, 30).unwrap().unwrap();
+        this.ui
+            .transaction(|tx| {
+                tx.set(input, 2)?;
+                tx.set(input, 9)
+            })
+            .unwrap();
+        let mut task = this.ui.task::<u32>(root, 30).unwrap().unwrap();
+        let count = this.count;
+        let previous = this.shown.as_ref().unwrap().frame.revision();
+        let waiter = cx.spawn(async move |view, cx| {
+            assert_eq!(task.ready().await, UiTaskStatus::Ready);
+            view.update(cx, |this, cx| {
+                assert!(matches!(
+                    this.ui
+                        .apply_task(&task, |value, tx| {
+                            tx.set(count, *value)?;
+                            tx.set(color, 0x117755ff)
+                        })
+                        .unwrap(),
+                    TaskApply::Applied(_)
+                ));
+                cx.notify();
+            })
+            .unwrap();
+        });
+        (old, waiter, launched, previous)
+    });
+    cx.run_until_parked();
+    assert_eq!(old.status(), UiTaskStatus::Cancelled);
+    assert_eq!(*launched.borrow(), [1, 9]);
+    view.read_with(cx, |this, _| {
+        assert_eq!(*this.ui.read(this.count).unwrap(), 90);
+        let shown = this.shown.as_ref().unwrap();
+        assert!(shown.frame.revision() > previous);
+        assert_eq!(
+            shown
+                .frame
+                .resolve_geometry(this.scroll_host)
+                .unwrap()
+                .fill_color,
+            0x117755ff
+        );
+        assert_eq!(this.router.scene_id(), Some(shown.scene.id()));
+        assert!(this.cpu_task.is_none() && this.pending.is_none() && this.ready.is_none());
+        assert!(this.error.is_none(), "{:?}", this.error);
+        assert_eq!(this.ui.task_pool().stats().in_use, 0);
+    });
+    drop(waiter);
+}
+
 #[gpui::test]
 fn native_owner_host_real_gpui_mouse_keyboard_scroll_and_outside_release(cx: &mut TestAppContext) {
     let platform = Arc::new(gpui_wgpu::CosmicTextSystem::new_without_system_fonts(

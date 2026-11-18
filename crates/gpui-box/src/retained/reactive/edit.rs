@@ -143,18 +143,26 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
         observation: &mut SourceObservation,
         signal: Signal<T>,
     ) -> Result<(), Error> {
-        let source = self.source(signal.id)?;
+        self.record_dependency(observation, signal.dependency())
+    }
+    pub(in crate::retained) fn record_dependency(
+        &self,
+        observation: &mut SourceObservation,
+        dependency: Dependency,
+    ) -> Result<(), Error> {
+        self.validate_live_dependency(dependency)?;
+        let source = self.source(dependency.0)?;
         let value = self
             .prepared
             .values
-            .get(&signal.id)
+            .get(&dependency.0)
             .unwrap_or(&source.value);
-        if let Some(previous) = observation.0.get(&signal.dependency()) {
+        if let Some(previous) = observation.0.get(&dependency) {
             if !previous.equal(value.as_ref()) {
                 return Err(Error::InvalidLayoutBuildPlan);
             }
         } else {
-            Rc::make_mut(&mut observation.0).insert(signal.dependency(), value.clone());
+            Rc::make_mut(&mut observation.0).insert(dependency, value.clone());
         }
         Ok(())
     }

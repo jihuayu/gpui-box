@@ -10,8 +10,10 @@ use std::{
     task::{Poll, Waker},
 };
 mod pool;
+mod watch;
 use pool::Permit;
 pub use pool::{UiTaskCapacity, UiTaskPool, UiTaskPoolStats};
+pub use watch::{UiTaskEffect, UiTaskEffectStatus};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum UiTaskStatus {
@@ -196,6 +198,7 @@ impl<T> Drop for UiTaskContext<T> {
 }
 trait Erased {
     fn as_any(&self) -> &dyn Any;
+    fn status(&self) -> UiTaskStatus;
 }
 struct Entry<T> {
     shared: Arc<Shared<T>>,
@@ -203,6 +206,9 @@ struct Entry<T> {
 impl<T: 'static> Erased for Entry<T> {
     fn as_any(&self) -> &dyn Any {
         self
+    }
+    fn status(&self) -> UiTaskStatus {
+        lock(&self.shared.0).status
     }
 }
 impl<T> Drop for Entry<T> {
@@ -214,13 +220,16 @@ impl<T> Drop for Entry<T> {
 pub(super) struct Registry {
     entries: Rc<BTreeMap<(ScopeId, u64), Rc<dyn Erased>>>,
     pool: UiTaskPool,
+    watches: Rc<BTreeMap<(ScopeId, u64), watch::Registration>>,
 }
 impl Registry {
     pub(super) fn clear(&mut self) {
         self.entries = Rc::default();
+        self.watches = Rc::default();
     }
     pub(super) fn retire(&mut self, dead: &BTreeSet<ScopeId>) {
         Rc::make_mut(&mut self.entries).retain(|(scope, _), _| !dead.contains(scope));
+        Rc::make_mut(&mut self.watches).retain(|(scope, _), _| !dead.contains(scope));
     }
     pub(super) fn get<T: 'static>(
         &self,
@@ -329,6 +338,15 @@ impl LogicalEdit<'_, '_, '_> {
         // Busy is recoverable within a candidate: callers may publish a loading
         // state rather than poison the entire component construction.
         self.validate_components()?;
+        if self
+            .tasks
+            .as_ref()
+            .unwrap_or(self.live_tasks)
+            .watches
+            .contains_key(&(scope, key))
+        {
+            return Err(Error::InvalidTask);
+        }
         let (task, launch) = self
             .tasks
             .get_or_insert_with(|| self.live_tasks.clone())
@@ -347,6 +365,15 @@ impl LogicalEdit<'_, '_, '_> {
     /// namespace, independent of source, effect and event keys.
     pub fn cancel_task(&mut self, scope: ScopeId, key: u64) -> Result<bool, Error> {
         self.scope(scope)?;
+        if self
+            .tasks
+            .as_ref()
+            .unwrap_or(self.live_tasks)
+            .watches
+            .contains_key(&(scope, key))
+        {
+            return Err(Error::InvalidTask);
+        }
         if !self
             .tasks
             .as_ref()
@@ -369,6 +396,7 @@ impl LogicalEdit<'_, '_, '_> {
         if registry
             .entries
             .keys()
+            .chain(registry.watches.keys())
             .any(|(scope, _)| dead.contains(scope))
         {
             self.tasks
@@ -398,6 +426,9 @@ impl EventTasks {
         key: u64,
         launch: impl FnOnce(UiTaskContext<T>) + 'static,
     ) -> Result<UiTask<T>, Error> {
+        if self.registry.watches.contains_key(&(scope, key)) {
+            return Err(Error::InvalidTask);
+        }
         let (task, launch) = self.registry.start(scope, key, launch)?;
         self.changed = true;
         self.launches.push(launch);
@@ -410,10 +441,13 @@ impl EventTasks {
     ) -> Result<Option<UiTask<T>>, Error> {
         self.registry.get(scope, key)
     }
-    pub(super) fn cancel(&mut self, scope: ScopeId, key: u64) -> bool {
+    pub(super) fn cancel(&mut self, scope: ScopeId, key: u64) -> Result<bool, Error> {
+        if self.registry.watches.contains_key(&(scope, key)) {
+            return Err(Error::InvalidTask);
+        }
         let changed = self.registry.cancel(scope, key);
         self.changed |= changed;
-        changed
+        Ok(changed)
     }
     pub(super) fn stage(self, edit: &mut LogicalEdit<'_, '_, '_>) {
         if self.changed {
@@ -426,7 +460,10 @@ impl LogicalUi {
     /// Configure admission before tasks are present/in flight. A pool may be
     /// shared across logical owners/windows. Migrating live work is rejected.
     pub fn set_task_pool(&mut self, pool: UiTaskPool) -> Result<(), Error> {
-        if !self.tasks.entries.is_empty() || self.tasks.pool.stats().in_use != 0 {
+        if !self.tasks.entries.is_empty()
+            || !self.tasks.watches.is_empty()
+            || self.tasks.pool.stats().in_use != 0
+        {
             return Err(Error::InvalidTaskPool);
         }
         self.tasks.pool = pool;

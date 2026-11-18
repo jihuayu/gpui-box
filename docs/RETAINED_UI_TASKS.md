@@ -9,14 +9,14 @@ The [decision and limits](ADR_RETAINED_UI_TASKS.md) describe ownership and costs
 `LogicalEdit::start_task(scope, key, launch)` replace one task in that scope/key.
 `ComponentContext::start_task(key, launch)` uses the component's scope. Mount runs
 once, so keyed reorder or prop changes do not automatically restart its task.
-Applications explicitly replace tasks for changed requests; automatic effect/
-hook task restarts remain future work.
+Applications can explicitly replace tasks for changed requests, or declare a
+reactive task with the typed input API below. Ambient async hooks remain open.
 
-The later [event task stage](ADR_RETAINED_EVENT_TASKS.md) adds these same operations
+The [event task stage](ADR_RETAINED_EVENT_TASKS.md) adds these same operations
 to EventContext. They use that handler's registered scope automatically. Start or
 cancel is part of the event's source/producer/default/frame candidate, including
-Busy fallback and retirement. This is explicit task replacement, not automatic
-effect/hook dependency tracking.
+Busy fallback and retirement. This provides explicit task replacement.
+Parameter-driven work uses task_effect.
 
 ```rust,ignore
 EventHandler::new(move |event, cx| {
@@ -82,6 +82,57 @@ match task.ready().await {
 The GPUI test in retained_owner_demo exercises this with the real host background
 executor and owner wake, followed by complete software-image and input-scene
 installation. No separate task pool or polling timer is added.
+
+## Tasks driven by current parameters
+
+`LogicalUi::task_effect(scope,key,input,effect)` and the matching LogicalEdit
+method declare an ordinary `Signal<I>` input. `task_effect_prop` accepts a
+component's `ReadProp<I>`; ComponentContext methods use its own scope. Mount once
+and follow future props without remounting. Multiple parameters can be combined
+through a pure computed source into one typed request.
+
+```rust,ignore
+let executor = cx.background_executor().clone();
+let effect = UiTaskEffect::new(move |request: PreviewRequest, context| {
+    executor.spawn(async move {
+        let output = prepare_preview(request);
+        let _ = context.complete(output);
+    }).detach();
+});
+ui.task_effect(scope, 4, request_signal, effect.clone())?;
+// Later source changes automatically replace this task for the final value.
+```
+
+Clone a factory to preserve its identity across redeclarations. Creating a new
+factory deliberately restarts even equal input. Final source equality, including
+computed values and props, is checked after producer/responsive settlement and
+scope retirement. Writes 1→2→1 retain the task; 1→2→3 replace it once with3. Only
+after full candidate/frame adoption and ordinary effects does the callback run.
+It must schedule owned work; the callback itself still executes on the owner.
+Inputs can be owner-local; move only selected Send data to the worker. Keep input
+values compact because cloning happens on the owner.
+
+`task_effect_status` returns Task(UiTaskStatus) or WaitingForCapacity. When a new
+input cannot be admitted, its UI/source state still commits, the old task cancels,
+and task::<T> returns None. Escaped old worker holds its slot until exit and its
+late completion rejects. The host uses the existing capacity receiver, then calls
+`retry_task_effects`; ordinary logical edits/frame production also retry waiting
+inputs once. There is no capacity polling timer, automatic wake-to-owner bridge
+or queued copy of each intermediate input. Only the latest input is retained.
+
+`remove_task_effect` removes the declaration and cancels its task transactionally.
+While registered, the key belongs to that declaration; explicit start/cancel on
+LogicalUi/LogicalEdit/EventContext returns InvalidTask. Retiring its scope removes
+it automatically. A surviving effect cannot keep a dependency from a retired
+scope: the candidate rejects and old state stays live.
+
+Ready results still use explicit `task.ready`/`apply_task` and host image/scene
+adoption. Applied/Abandoned/Cancelled terminal tasks do not automatically restart
+on unrelated edits or capacity retry; change an explicit request revision or
+replace the factory for deliberate retry. A post-commit effect panic leaves
+adopted state intact and cancels unlaunched work. This is a typed task effect,
+without ambient async hook/macro or automatic result callbacks. See
+[ordering, alternatives and owner costs](ADR_RETAINED_TASK_EFFECTS.md).
 
 ## Bounded work admission
 
@@ -172,7 +223,7 @@ user output destruction are not run while a task mutex is held.
 ## Remaining work
 
 This is scope-owned task/result lifetime, not KeepAlive activation generations,
-automatic async hooks, byte quotas, scheduling priority,
+ambient async hooks/macros, automatic result callbacks, byte quotas, scheduling priority,
 timeout/deduplication policy or independent native presentation. There is one
 current task per registered key and bounded work admission; applications can still
 create arbitrarily many inactive registry keys. Uncooperative cancelled workers
@@ -181,3 +232,5 @@ Sparse map clones and output destruction remain owner costs. No performance or
 sustained 60/120Hz claim is made.
 
 See [verification and reproduction](performance/2026-11-19-ui-tasks/README.md).
+Parameter-driven controls are recorded in
+[task effect verification](performance/2026-11-19-task-effects/README.md).
