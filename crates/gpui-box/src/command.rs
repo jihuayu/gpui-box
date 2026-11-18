@@ -187,6 +187,10 @@ impl<C: Command> Drop for CommandSender<C> {
     }
 }
 impl<C: Command> CommandSender<C> {
+    #[cfg(feature = "retained")]
+    pub(crate) fn same_channel(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.shared, &other.shared)
+    }
     pub fn send(&self, command: C) -> Result<CommandTicket<C>, CommandRejection<C>> {
         // Allocate before holding the queue lock. There is no handler invocation.
         let completion = Arc::new(Completion(Mutex::new(CompletionState {

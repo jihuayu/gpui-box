@@ -20,6 +20,32 @@ impl Command for SaveModel {
     type Output = ();
     type Error = gpui_box::store::StoreError;
 }
+struct DocumentStore;
+impl gpui_box::store::StoreKey for DocumentStore {
+    type State = Model;
+}
+struct ProviderLabel;
+impl Component for ProviderLabel {
+    type Props = (u32, TextPaint);
+    fn mount(
+        props: ReadProp<Self::Props>,
+        cx: &mut ComponentContext<'_, '_, '_, '_>,
+    ) -> Result<(), Error> {
+        let input = cx.use_store::<DocumentStore>()?;
+        let _command = cx.use_command::<SaveModel>()?;
+        let style = cx.select_store(0, input, |s| {
+            Ok(LayoutStyle::column()
+                .size(LayoutDimension::Px(s.width as f32), LayoutDimension::Auto))
+        })?;
+        let paint = cx.computed(1, &[props.dependency()], move |i| {
+            Ok(Some(i.read_prop(props)?.1.clone()))
+        })?;
+        let node = cx.append_layout(LayoutStyle::column(), 0x0000ffff)?;
+        cx.bind_selector(style, Property::layout_style(node))?;
+        cx.bind(paint, Property::text(node))?;
+        Ok(())
+    }
+}
 struct Label;
 impl Component for Label {
     type Props = (u32, TextPaint);
@@ -59,25 +85,35 @@ fn pixels(frame: FramePacket) -> Vec<u8> {
 }
 #[test]
 fn business_store_noto_complete_snapshot_updates_match_complete_reference() {
-    run(false, false);
+    run(false, false, false);
 }
 #[cfg(feature = "retained-wgpu")]
 #[test]
 #[ignore = "requires WGPU adapter; run explicitly"]
 fn hardware_business_store_noto_match_complete_reference() {
-    run(true, false);
+    run(true, false, false);
 }
 #[test]
 fn typed_commands_noto_store_adoption_matches_complete_reference() {
-    run(false, true);
+    run(false, true, false);
 }
 #[cfg(feature = "retained-wgpu")]
 #[test]
 #[ignore = "requires WGPU adapter; run explicitly"]
 fn hardware_typed_commands_noto_match_complete_reference() {
-    run(true, true);
+    run(true, true, false);
 }
-fn run(hardware: bool, commands: bool) {
+#[test]
+fn scoped_providers_noto_store_command_matches_complete_reference() {
+    run(false, true, true);
+}
+#[cfg(feature = "retained-wgpu")]
+#[test]
+#[ignore = "requires WGPU adapter; run explicitly"]
+fn hardware_scoped_providers_noto_match_complete_reference() {
+    run(true, true, true);
+}
+fn run(hardware: bool, commands: bool, providers: bool) {
     let system = text_system();
     let mut raster = GlyphRasterizer::new(system.clone());
     let long_paragraph = shape(&system, "one two three four 中文段落 long text");
@@ -96,6 +132,11 @@ fn run(hardware: bool, commands: bool) {
     let host = ui.root_render();
     let mut input = ui.attach_store(owner, 0, &writer.read_only()).unwrap();
     let (sender, mut receiver) = command_channel::<SaveModel>(2).unwrap();
+    if providers {
+        ui.provide_store::<DocumentStore>(owner, input.prop())
+            .unwrap();
+        ui.provide_command(owner, sender.clone()).unwrap();
+    }
     let selector = ui
         .select_store(owner, 1, input.prop(), |s| Ok((s.width, s.short, s.color)))
         .unwrap();
@@ -122,18 +163,18 @@ fn run(hardware: bool, commands: bool) {
                         count.set(count.get() + 1);
                         let (width, short, color) = *i.read_selector(selector)?;
                         let mut plan = ComponentPlan::new();
-                        plan.select::<Label>(
-                            site,
-                            host,
-                            0,
-                            (
-                                width,
-                                TextPaint {
-                                    resource: if short { s.clone() } else { l.clone() },
-                                    color,
-                                },
-                            ),
+                        let props = (
+                            width,
+                            TextPaint {
+                                resource: if short { s.clone() } else { l.clone() },
+                                color,
+                            },
                         );
+                        if providers {
+                            plan.select::<ProviderLabel>(site, host, 0, props);
+                        } else {
+                            plan.select::<Label>(site, host, 0, props);
+                        }
                         Ok(plan)
                     }),
                 )?;
@@ -146,6 +187,14 @@ fn run(hardware: bool, commands: bool) {
         .value;
     let scope = ui.children(site.scope()).unwrap()[0];
     let node = ui.renders(scope).unwrap()[0];
+    let sender = if providers {
+        ui.edit(|_| Ok(()), |(), edit| edit.use_command::<SaveModel>(scope))
+            .unwrap()
+            .result
+            .value
+    } else {
+        sender
+    };
     #[cfg(feature = "retained-wgpu")]
     let mut gpu = hardware.then(|| wgpu::WgpuFrameRenderer::new(2).unwrap());
     #[cfg(feature = "retained-wgpu")]

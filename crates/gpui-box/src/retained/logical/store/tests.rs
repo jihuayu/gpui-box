@@ -17,6 +17,27 @@ impl Command for SaveModel {
     type Output = ();
     type Error = crate::store::StoreError;
 }
+struct DocumentStore;
+impl crate::store::StoreKey for DocumentStore {
+    type State = Model;
+}
+struct ProviderRow;
+impl Component for ProviderRow {
+    type Props = (u32, u32);
+    fn mount(
+        _: ReadProp<Self::Props>,
+        cx: &mut ComponentContext<'_, '_, '_, '_>,
+    ) -> Result<(), Error> {
+        let input = cx.use_store::<DocumentStore>()?;
+        let _command = cx.use_command::<SaveModel>()?;
+        let style = cx.select_store(0, input, |s| Ok(fixed(s.width)))?;
+        let color = cx.select_store(1, input, |s| Ok(s.color))?;
+        let node = cx.append_layout(LayoutStyle::column(), 0)?;
+        cx.bind_selector(style, Property::layout_style(node))?;
+        cx.bind_selector(color, Property::color(node))?;
+        Ok(())
+    }
+}
 fn constraints() -> LayoutConstraints {
     LayoutConstraints::new(
         LayoutAvailableSpace::Unbounded,
@@ -65,25 +86,35 @@ impl Component for Row {
 }
 #[test]
 fn business_store_component_bridge_selects_one_revision_and_matches_complete_reference() {
-    run(false, false);
+    run(false, false, false);
 }
 #[cfg(feature = "retained-wgpu")]
 #[test]
 #[ignore = "requires WGPU adapter; run explicitly"]
 fn hardware_business_store_bridge_match_complete_reference() {
-    run(true, false);
+    run(true, false, false);
 }
 #[test]
 fn typed_commands_store_ui_adoption_matches_complete_reference() {
-    run(false, true);
+    run(false, true, false);
 }
 #[cfg(feature = "retained-wgpu")]
 #[test]
 #[ignore = "requires WGPU adapter; run explicitly"]
 fn hardware_typed_commands_store_ui_match_complete_reference() {
-    run(true, true);
+    run(true, true, false);
 }
-fn run(hardware: bool, commands: bool) {
+#[test]
+fn scoped_providers_store_command_ui_matches_complete_reference() {
+    run(false, true, true);
+}
+#[cfg(feature = "retained-wgpu")]
+#[test]
+#[ignore = "requires WGPU adapter; run explicitly"]
+fn hardware_scoped_providers_match_complete_reference() {
+    run(true, true, true);
+}
+fn run(hardware: bool, commands: bool, providers: bool) {
     let mut writer = StoreWriter::new(Model {
         width: 20,
         color: 0xff0000ff,
@@ -95,6 +126,11 @@ fn run(hardware: bool, commands: bool) {
     let host = ui.root_render();
     let mut input = ui.attach_store(owner, 0, &writer.read_only()).unwrap();
     let (sender, mut receiver) = command_channel::<SaveModel>(2).unwrap();
+    if providers {
+        ui.provide_store::<DocumentStore>(owner, input.prop())
+            .unwrap();
+        ui.provide_command(owner, sender.clone()).unwrap();
+    }
     let calls = Rc::new(Cell::new(0));
     let count = calls.clone();
     let row = ui
@@ -115,7 +151,11 @@ fn run(hardware: bool, commands: bool) {
                     ComponentProducer::new(move |i| {
                         count.set(count.get() + 1);
                         let mut plan = ComponentPlan::new();
-                        plan.select::<Row>(site, host, 0, *i.read_selector(row)?);
+                        if providers {
+                            plan.select::<ProviderRow>(site, host, 0, *i.read_selector(row)?);
+                        } else {
+                            plan.select::<Row>(site, host, 0, *i.read_selector(row)?);
+                        }
                         Ok(plan)
                     }),
                 )?;
@@ -128,6 +168,14 @@ fn run(hardware: bool, commands: bool) {
         .value;
     let scope = ui.children(site.scope()).unwrap()[0];
     let node = ui.renders(scope).unwrap()[0];
+    let sender = if providers {
+        ui.edit(|_| Ok(()), |(), edit| edit.use_command::<SaveModel>(scope))
+            .unwrap()
+            .result
+            .value
+    } else {
+        sender
+    };
     #[cfg(feature = "retained-wgpu")]
     let mut gpu = hardware.then(|| wgpu::WgpuFrameRenderer::new(2).unwrap());
     #[cfg(feature = "retained-wgpu")]

@@ -772,6 +772,15 @@ hooks 只能在组件初始化或同步自定义 hook 的固定调用路径上�
 
 组件参数显式区分 `ReadProp<T>` 与普通 `T`：前者是存活期内可更新的输入，后者是挂载参数。view 宏为 ReadProp 参数建立绑定；不能把动态值偷偷变成普通参数的首次快照。传入普通参数的动态来源需显式 snapshot 或改用 ReadProp，已挂载普通参数若必须改变，则显式更换组件 key 重新挂载。首版宁可要求类型标注，也不根据宏无法完整分析的函数实现猜测更新方式。
 
+后续 [scope Provider落地](RETAINED_SCOPED_PROVIDERS.md) 提供显式StoreKey、
+provide_store／provide_command与Context／LogicalEdit的use／try_use。按逻辑父scope就近解析，
+不按State类型猜Store身份；providers传已captured的UI ReadProp而不是挂载时独立采样业务。
+首次解析含optional absence固定到consumer lifetime，覆盖只影响新consumer；改变已声明身份
+需重挂载。缺必需依赖携带logical key path／Rust type name；错误不可catch后部分采用。
+Registry为稀疏Rc side table，复用candidate rollback／scope退休，存活alias不可引用已退休
+source；不新增Scope／RenderNode字段或schema。TLS／hook宏／event/task整合仍未完成，
+scan／copy／普通source/layout成本仍在，无FPS收益声明。
+
 ### 3.6 if：区域身份与分支挂载
 
 ```rust

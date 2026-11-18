@@ -11,6 +11,12 @@ use std::{
     task::{Context, Poll, Waker},
 };
 
+/// Explicit provider key. Different keys may name independent stores with the
+/// same State type; resolution never guesses identity from State alone.
+pub trait StoreKey: 'static {
+    type State: Send + Sync + 'static;
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StoreError {
     Poisoned,

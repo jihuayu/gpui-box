@@ -44,6 +44,8 @@ pub struct LogicalEdit<'a, 'draft, 'tree> {
     pub(super) live_producer_session: Option<(LayoutConstraints, [f32; 2])>,
     pub(super) producer_plan_skipped: bool,
     pub(super) component_failure: Option<std::rc::Rc<std::cell::Cell<bool>>>,
+    pub(super) live_providers: &'a super::provider::Registry,
+    pub(super) providers: Option<super::provider::Registry>,
 }
 impl LogicalEdit<'_, '_, '_> {
     pub(super) fn producer_logical_unchanged(&self) -> bool {
@@ -664,6 +666,7 @@ impl LogicalUi {
         let mut responsive_rules = None;
         let mut layout_producers = None;
         let mut producer_stats = LayoutProducerStats::default();
+        let mut providers = None;
         let constraint_inputs: std::cell::RefCell<Vec<super::constraint_builder::Observation>> =
             std::cell::RefCell::new(vec![]);
         let responsive_inputs: std::cell::RefCell<Vec<responsive::structural::FinalObservation>> =
@@ -718,6 +721,8 @@ impl LogicalUi {
                     live_producer_session: self.producer_session,
                     producer_plan_skipped: false,
                     component_failure: None,
+                    live_providers: &self.providers,
+                    providers: None,
                 };
                 let value = render(value, &mut draft)?;
                 draft.validate_components()?;
@@ -854,6 +859,7 @@ impl LogicalUi {
                 draft.validate_responsive_rules()?;
                 draft.settle_automatic_rules()?;
                 draft.validate_producer_sources()?;
+                draft.retire_and_validate_providers(&dead)?;
                 layout_session = draft.automatic_environment.take().map(|environment| {
                     let (constraints, viewport) = frame_environment.expect("captured frame input");
                     LayoutSession {
@@ -864,6 +870,7 @@ impl LogicalUi {
                 });
                 responsive_rules = draft.responsive_rules.take();
                 layout_producers = draft.layout_producers.take();
+                providers = draft.providers.take();
                 producer_stats = draft.producer_stats;
                 *responsive_inputs.borrow_mut() = draft
                     .responsive_inputs
@@ -984,6 +991,9 @@ impl LogicalUi {
         }
         if let Some(rules) = responsive_rules {
             self.responsive_rules = rules;
+        }
+        if let Some(providers) = providers {
+            self.providers = providers;
         }
         self.layout_session = layout_session;
         if let Some(producers) = layout_producers {

@@ -357,6 +357,11 @@ pub enum Error {
     InvalidPropBatch,
     InvalidComponent,
     InvalidStore,
+    InvalidProvider,
+    MissingProvider {
+        path: Vec<u64>,
+        dependency: &'static str,
+    },
     ReadonlySignal,
     UndeclaredDependency,
     SignalInUse,

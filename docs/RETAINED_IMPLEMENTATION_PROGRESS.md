@@ -10,6 +10,26 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [scoped provider stage](RETAINED_SCOPED_PROVIDERS.md) adds explicit StoreKey
+and scope-local Store-input/typed Command declarations with nearest logical-parent
+lookup. Consumers cache the first identity or optional absence; local overrides
+apply to new consumers, same identity redeclaration is idempotent, replacement
+requires remount. Context/LogicalEdit supply explicit use/try_use; missing required
+dependency reports logical key path and Rust type name. Sparse Rc registry adopts
+with ordinary candidate publication, retires by scope generation and rejects live
+aliases to retiring Store sources in both transactional/manual paths. Store
+providers share captured input rather than resampling business state. No per-node
+field/source schema/solver/renderer change; Error adds provider diagnostics. See
+[verification](performance/2026-11-18-scoped-providers/README.md).
+Registry copying/lifetime scans and existing source/producer/candidate/layout work
+remain. No FPS/memory claim. Hooks/macros, event/task lifecycle, KeepAlive, wire
+keys/schema, budgets and independent native presentation remain; full RFC active.
+No-default16passed/2compile-fail docs, retained683/1ignored, text/WGPU717/62 and
+hello77/28;9compile-fail docs pass in both core configurations. Explicit
+provider→Store→UI GPU compares3complete images and Noto3 on GTX1650Ti/Vulkan/571.96.
+Library Clippy -D warnings, complete retained-gpu harness, scoped format/diff,
+314local links and5WIP hashes pass. Final code covered; no native cadence inferred.
+
 The [typed Command stage](RETAINED_TYPED_COMMANDS.md) adds backend-independent
 Command/channel/Sender/Receiver/Ticket/Request with queue-qualified IDs, bounded
 queued+running admission, FIFO dispatch, owned reliable results and optional

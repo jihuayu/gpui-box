@@ -28,6 +28,7 @@ pub use component::{
 };
 mod store;
 pub use store::{StoreApply, StoreInput, StoreSelector};
+mod provider;
 
 #[derive(Clone)]
 struct LayoutSession {
@@ -99,6 +100,7 @@ pub struct LogicalUi {
     producer_stats: LayoutProducerStats,
     producer_revision: Option<u64>,
     producer_index: producers::ProducerIndex,
+    providers: provider::Registry,
 }
 
 impl LogicalUi {
@@ -189,6 +191,7 @@ impl LogicalUi {
             producer_stats: LayoutProducerStats::default(),
             producer_revision: None,
             producer_index: producers::ProducerIndex::default(),
+            providers: provider::Registry::default(),
         })
     }
 
@@ -598,6 +601,7 @@ impl LogicalUi {
             .collect();
         self.ui
             .validate_scope_disposal(&dead_sources, &dead_effects)?;
+        provider::validate_retirement(&self.providers, &removed, &dead_sources)?;
         // A surviving declaration must not retain a retired source or query
         // host. Scope-owned rules retire with their owner; cross-scope inputs
         // are otherwise ordinary live dependencies, not dangling metadata.
@@ -718,6 +722,7 @@ impl LogicalUi {
             self.ui.dispose_effect(*effect)?;
         }
         let request_frame = self.ui.apply_structure(prepared).request_frame;
+        self.providers.retain(|scope, _| !removed.contains(scope));
         self.render_owners
             .retain(|_, owner| !removed.contains(owner));
         let mut dead_sources = vec![];

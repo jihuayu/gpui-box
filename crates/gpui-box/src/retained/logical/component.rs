@@ -52,6 +52,38 @@ impl ComponentContext<'_, '_, '_, '_> {
     pub fn host(&self) -> NodeId {
         self.host
     }
+    pub fn provide_store<K: crate::store::StoreKey>(
+        &mut self,
+        input: ReadProp<crate::store::StoreSnapshot<K::State>>,
+    ) -> Result<(), Error> {
+        self.edit.provide_store::<K>(self.scope, input)
+    }
+    pub fn use_store<K: crate::store::StoreKey>(
+        &mut self,
+    ) -> Result<ReadProp<crate::store::StoreSnapshot<K::State>>, Error> {
+        self.edit.use_store::<K>(self.scope)
+    }
+    pub fn try_use_store<K: crate::store::StoreKey>(
+        &mut self,
+    ) -> Result<Option<ReadProp<crate::store::StoreSnapshot<K::State>>>, Error> {
+        self.edit.try_use_store::<K>(self.scope)
+    }
+    pub fn provide_command<C: crate::command::Command>(
+        &mut self,
+        sender: crate::command::CommandSender<C>,
+    ) -> Result<(), Error> {
+        self.edit.provide_command(self.scope, sender)
+    }
+    pub fn use_command<C: crate::command::Command>(
+        &mut self,
+    ) -> Result<crate::command::CommandSender<C>, Error> {
+        self.edit.use_command::<C>(self.scope)
+    }
+    pub fn try_use_command<C: crate::command::Command>(
+        &mut self,
+    ) -> Result<Option<crate::command::CommandSender<C>>, Error> {
+        self.edit.try_use_command::<C>(self.scope)
+    }
     pub fn state<T: PartialEq + 'static>(
         &mut self,
         key: u64,
@@ -205,9 +237,9 @@ pub(super) enum Identity {
     Site,
 }
 
-struct Attempt {
+pub(super) struct Attempt {
     failed: Rc<Cell<bool>>,
-    success: bool,
+    pub(super) success: bool,
 }
 impl Drop for Attempt {
     fn drop(&mut self) {
@@ -217,7 +249,7 @@ impl Drop for Attempt {
     }
 }
 impl LogicalEdit<'_, '_, '_> {
-    fn component_attempt(&mut self) -> Result<Attempt, Error> {
+    pub(super) fn component_attempt(&mut self) -> Result<Attempt, Error> {
         self.validate_components()?;
         Ok(Attempt {
             failed: self

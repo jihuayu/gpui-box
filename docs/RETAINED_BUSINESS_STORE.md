@@ -6,7 +6,8 @@ active. Implements the first business Store boundary from
 [component plans](RETAINED_COMPONENT_PLANS.md) and source/frame transaction.
 The follow-up [typed Command transport](RETAINED_TYPED_COMMANDS.md) supplies bounded
 requests/results/cancellation; execution policy, providers and cross-language
-Store schema remain separate work.
+Store schema remain separate work. [Scoped providers](RETAINED_SCOPED_PROVIDERS.md)
+now resolve explicit StoreKey to an existing captured UI input without resampling.
 
 ## Business ownership and complete revisions
 
@@ -133,7 +134,8 @@ is claimed. No solver/vendor/GPU format change; source input schema remains6.
 
 Implemented: one-writer complete Store revisions, read-only subscriptions and
 scoped explicit UI bridge/selectors. The follow-up Command stage adds queue/
-tickets/cancellation/results. Remaining: provider/StoreKey resolution, application collections
+tickets/cancellation/results, and scoped providers resolve StoreKey inputs.
+Remaining: application collections
 and task integration, multi-input coordinated admission, serialized cross-language
 schema, hooks/macros/KeepAlive, complete semantic input model, resource budgets and
 independent native presentation. Complete RFC stays active. "99%" is a figurative

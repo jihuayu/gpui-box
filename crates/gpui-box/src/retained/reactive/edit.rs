@@ -87,6 +87,16 @@ pub struct ReactiveEdit<'a, 'tree> {
     next_effect: &'a mut u64,
 }
 impl<'tree> ReactiveEdit<'_, 'tree> {
+    pub(in crate::retained) fn validate_live_dependency(
+        &self,
+        dependency: Dependency,
+    ) -> Result<(), Error> {
+        self.source(dependency.0)?;
+        if self.removed_sources.contains(&dependency.0) {
+            return Err(Error::InvalidSignal);
+        }
+        Ok(())
+    }
     /// Final source differences already settled by the transaction/computed
     /// machinery, plus retirements. No source-value equality scan is required.
     pub(in crate::retained) fn changed_dependencies(

@@ -114,9 +114,12 @@ bytes or completed results retained by application tickets. Callers still budget
 large payloads/results and external IO. No latency/FPS/memory reduction is claimed;
 no source schema, layout solver or GPU format change.
 
+The follow-up [scoped provider API](RETAINED_SCOPED_PROVIDERS.md) now resolves
+typed sending capabilities through logical ancestry, with fixed consumer identity.
+
 Implemented: typed bounded admission, IDs/status, FIFO dispatch, explicit reliable
 results, queued/running cancellation, close/abandon lifecycle and Store/UI evidence
-boundaries. Remaining: provider/command capability resolution, event handler/task
+boundaries; scoped providers add capability resolution. Remaining: event handler/task
 integration, per-object execution policy, protocol serialization across languages,
 resource byte/admission budgets, hooks/macros/KeepAlive and independent native
 presentation. Complete RFC remains active. "99%" is figurative ordinary smooth,
