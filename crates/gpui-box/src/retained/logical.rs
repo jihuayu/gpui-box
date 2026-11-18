@@ -9,6 +9,11 @@ use super::{
 use std::collections::BTreeSet;
 mod edit;
 pub use edit::LogicalEdit;
+mod build_plan;
+pub use build_plan::{
+    LayoutBuildInput, LayoutBuildKind, LayoutBuildLimits, LayoutBuildPlan, LayoutBuildQueue,
+    LayoutBuildStats, LayoutBuildTaskId,
+};
 mod constraint_builder;
 pub use constraint_builder::{ConstraintBuilderInput, InlineConstraintBuilderInput};
 mod environment;

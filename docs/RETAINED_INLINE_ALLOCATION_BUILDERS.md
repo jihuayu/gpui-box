@@ -11,6 +11,12 @@ numeric bases/limits exclude content feedback. The original Column-only scope
 below is historical; arbitrary content-dependent Row/ratio/intrinsic cases remain
 unproven. Final observations now include Row ordered children/effective item styles.
 
+The later [once-only build plan](RETAINED_LAYOUT_BUILD_PLAN.md) automatically
+orders requested parent/descendant tasks and accepts dynamically created keyed
+child hosts. Explicit prerequisites describe sibling work; this builder's proof
+and final input validation are unchanged. It does not register persistent
+subscriptions or discover arbitrary callback source read/write dependencies.
+
 ## Public contract
 
 `LogicalEdit::inline_allocation_builder(host, callback)` reads the ordinary

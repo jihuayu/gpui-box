@@ -3,6 +3,29 @@
 The active implementation goal covers the complete runtime requested on
 2026-11-11. Work continues in `codex/rendering-performance-research`.
 
+The [once-only layout build plan](RETAINED_LAYOUT_BUILD_PLAN.md) adds a
+transaction-scoped scheduler for all four existing builder kinds. Current render
+ancestry orders parents before descendants, explicit prerequisites order sibling
+work, and append-only callback queues accept newly created keyed child hosts.
+Callbacks can borrow transaction-local data and execute once outside intrinsic
+measurement. Complete queued-graph checks and final input/proof/order observations
+reject cycles, retroactive dependencies and late reparenting before atomic
+source/lifecycle/layout/frame adoption; caught plan failures still reject the edit.
+Nine regular core cases, one real-Noto case and two explicit GPU controls cover
+ordinary nested Flex, responsive rules, all input kinds, keyed state/effects and
+rollback. See [verification](performance/2026-11-18-layout-build-plan/README.md).
+Complete text/WGPU569passed/42ignored and hello57/10 pass; retained-only535/1
+preceded the final ninth test-only addition, then all9focused cases passed.
+Both explicit GTX1650Ti/Vulkan GPU controls pass4complete-image submissions,
+along with final framework library Clippy and scoped format/diff/link checks.
+Repeated inline input tracking still refreshes layout/local snapshots, including
+the equal-width GPU case; unchanged-plan skipping is not claimed.
+Repeated draft previews and full graph checks remain substantial costs; this is
+capability work with no timing or FPS gain claim. Persistent registrations,
+automatic source read/write dependency discovery, unchanged-callback skipping,
+general content feedback, full RenderBox and native common-interaction p99 remain
+open. The full RFC is active.
+
 The [adopted-frame input stage](RETAINED_UI_INPUT_ROUTING.md) adds backend-neutral
 interaction policy, handler IDs, primary capture/hover/press, focus/Tab and Enter/
 Space activation over an explicitly adopted immutable UiInputScene. Geometry,
@@ -19,7 +42,7 @@ See [evidence](performance/2026-11-18-ui-input-routing/README.md). Linear hit/pa
 allocation, input graph memory/rebuild/detection and normal feedback publication
 costs remain; no timing/FPS improvement is claimed. OS capture/focus, wheel/
 gestures/IME/accessibility, event acknowledgement and native sustained input p99
-remain open along with full RenderBox/automatic structural scheduling/full RFC.
+remain open along with full RenderBox/persistent structural scheduling/full RFC.
 
 The [incremental style planning stage](RETAINED_INCREMENTAL_STYLE_PLANNING.md)
 shares immutable authored/effective UI records, caches selected StylePlans and

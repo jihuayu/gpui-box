@@ -19,6 +19,12 @@ preserve real known dimensions separately from intervals and percentage bases;
 full constraint_builder returns the same extra fields for its outgoing slot.
 Uncontained feedback edges and complete RenderBox remain open.
 
+The later [once-only build plan](RETAINED_LAYOUT_BUILD_PLAN.md) schedules all
+four builder kinds from current render ancestry plus explicit prerequisites.
+Dynamic keyed descendants can append tasks in the same atomic frame edit.
+It retains these input/proof/final validation rules and does not replay callbacks;
+persistent automatic subscriptions and general content feedback remain open.
+
 ## Public contract
 
 `LogicalUi::edit_frame(constraints, viewport, sources, render)` combines source

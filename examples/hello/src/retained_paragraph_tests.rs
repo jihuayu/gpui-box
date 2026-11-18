@@ -3,6 +3,8 @@ use gpui::{TextRun, WindowTextSystem, font, px};
 use gpui_box::retained::{paragraph::ParagraphSnapshot, *};
 use gpui_box::retained::{reactive::*, text::*};
 use std::{borrow::Cow, sync::Arc};
+#[path = "retained_build_plan_text_tests.rs"]
+mod build_plan_text_tests;
 #[path = "retained_grid_policy_text_tests.rs"]
 mod grid_policy_text_tests;
 #[path = "retained_style_ir_text_tests.rs"]

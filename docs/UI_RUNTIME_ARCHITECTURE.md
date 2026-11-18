@@ -1,6 +1,6 @@
 # UI IR、Store、Command 与独立渲染动画架构
 
-状态：设计草案，已开始落地框架层；Rust 优先，预留 JS、Go。当前实现有与 Taffy 解耦的 `LayoutStyle` Flex/Grid/混合长度及测量协议，拥有式 primitive UI 输入快照／批次、类型化样式组合，以及显式采用完整帧的主指针／焦点／激活路由。完整语义 UI IR、主题继承、序列化/跨语言 ABI、Store/Command、组件宏、独立呈现仍未完成，总目标继续进行中。
+状态：设计草案，已开始落地框架层；Rust 优先，预留 JS、Go。当前实现有与 Taffy 解耦的 `LayoutStyle` Flex/Grid/混合长度及测量协议，拥有式 primitive UI 输入快照／批次、类型化样式组合、显式采用完整帧的主指针／焦点／激活路由，以及事务内单次布局构建计划。完整语义 UI IR、主题继承、序列化/跨语言 ABI、Store/Command、组件宏、持久构建订阅、独立呈现仍未完成，总目标继续进行中。
 
 更新日期：2026-11-18。实现对照取自 `codex/rendering-performance-research`。本文是架构映射与实现状态记录；实验能力与正式承诺仍分别列出。
 
@@ -182,7 +182,7 @@ min/max/available/percentage basis；InlineSize 约束盒在共享依赖证明�
 精确固定宽且 numeric inset 的 CSS 边界；最终复验输入和证明，宽度数值相等
 也不能掩盖依赖方向失效。preview 在 callback 前释放，嵌套不按深度保留整树。
 详见 [inline 构建契约](RETAINED_INLINE_CONSTRAINT_BUILDERS.md)。通用 full-axis content-sized builder、
-自动依赖调度和增量规划仍未实现，不能称为完整 Flutter RenderBox。
+持久自动订阅和通用结构增量规划仍未实现，不能称为完整 Flutter RenderBox。
 新增 `ParentLayoutSnapshot` 与纯 `ParentLayout` 父协议，通过 typed property 安装；
 公共输入包含 content 分配、available 和独立 percentage basis，算法只能测量真实
 直接子树并返回完整 child constraints/placement。子代可以继续使用真实 Flex、文字
@@ -219,8 +219,8 @@ axis、sizing/margin mode 与硬 bounds 全部匹配，保留基线/overflow 等
 binding 和 effect 参与同一次结算；sink/effect 只接收最终值。最终发布复验每次
 调用观察的 content width、选中 source、精确 writer 和依赖证明，新加 layout
 sink 也纳入检查；错误回滚，调用者捕获规则错误时仍恢复该次 source savepoint。
-这使已注册规则与结构构建可以在同一原子编辑中显式编排。跨 builder 自动依赖调度
-仍未实现。完整 preview、source map clone、computed 扫描
+这使已注册规则与结构构建可以在同一原子编辑中显式编排。后续 build plan 支持事务内
+祖先顺序与显式前置依赖，跨事件持久调度仍未实现。完整 preview、source map clone、computed 扫描
 排序及证明/DAG 复验仍增加成本，不能据此宣称端到端性能提高。详见
 [响应式结构构建契约与 ADR](RETAINED_STRUCTURAL_RESPONSIVE.md)。
 新增 `(ScopeId, key)` 归属的 `responsive_rule` / `remove_responsive_rule` 与
@@ -459,7 +459,7 @@ paint viewport的区别；嵌套规则按producer DAG结算，computed self-feed
 session可与普通inline builder组合，后续source事务自动更新；standalone draft另在final
 candidate复验width及custom algorithm/order，发布前失败保持旧sources/tree/frame/effects。
 不新增公共签名或内核格式，proof扫描／style复制／observation vector有成本，无帧时收益声明。
-通用Row/wrap/aspect/full-axis反馈、自动跨builder调度和完整RenderBox仍开放。
+通用Row/wrap/aspect/full-axis反馈、持久跨builder调度和完整RenderBox仍开放。
 
 后续 [content-independent Row proof](RETAINED_ROW_INLINE_ALLOCATION.md) 让同一
 inline builder／ContainerInline穿过Row／RowReverse及三种wrap，前提是父inline独立，
@@ -469,7 +469,7 @@ numeric/Auto max且无effective ratio。普通Flex仍决定分行／grow／shrin
 styles，图片派生ratio也参与；query DAG计入兄弟style producer并拒绝computed分配反馈。
 288组独立浏览器几何、真实glyph及CPU/GPU参考验证有限范围。公共API／内核格式不变，
 祖先兄弟扫描与Style副本增加成本，无帧时收益结论。通用content／percentage／ratio／
-intrinsic证明、full-axis反馈和自动调度仍未完成。
+intrinsic证明、full-axis反馈和持久自动调度仍未完成。
 
 后续 [definite percentage Row proof](RETAINED_PERCENTAGE_INLINE_ALLOCATION.md)
 扩展完整incoming链：普通Flex祖先加live外部root锚点证明百分比基准确定后，Row子项可用
@@ -501,7 +501,7 @@ margin/inset有符号，尺寸／padding／gap／track等非负域在解析后fl
 真实Noto及CPU/GPU数值参考覆盖有限链路。内存代价明确：64位Taffy length8→16bytes、
 Style<String>576→776；Cargo feature统一使同workspace GPUI也受影响。无帧时／peak memory
 收益声明，普通standalone不启用affine保持原尺寸。复杂calc函数／单位、广泛cyclic/intrinsic、
-完整RenderBox、自动调度、incremental candidates与持续可见呈现验收仍开放。
+完整RenderBox、持久自动调度、incremental candidates与持续可见呈现验收仍开放。
 
 后续 [Grid inline allocation](RETAINED_GRID_INLINE_ALLOCATION.md) 将既有inline builder／
 ContainerInline从Grid host扩展到可证明的普通Grid item：所有explicit/implicit columns有
@@ -513,7 +513,7 @@ Final observations记录full Grid Style、layout-order children和effective sibl
 计入Grid兄弟producer，computed反馈和读后等宽输入变化拒绝。新增1,152组浏览器、真实glyph
 及CPU/GPU完整参考验证有限范围。无新公共API／kernel pass，额外Style/track-vector复制和
 proof扫描成本继续，无帧时／内存收益声明。General intrinsic/ratio/implicit reachability／named
-placement证明、full-axis反馈、完整RenderBox和自动调度仍开放。
+placement证明、full-axis反馈、完整RenderBox和持久自动调度仍开放。
 
 后续 [不可变布局样式共享](RETAINED_SHARED_LAYOUT_STYLES.md) 让框架节点、Taffy节点、
 private candidates与builder观察共享lowered Style；写入替换snapshot，image推导metadata
@@ -527,6 +527,24 @@ grid_column／grid_row／justify_self，测量和独立分配读取同一未解�
 及alignment safety。既有完整effective style观察覆盖读后变化；normal Grid算法继续，
 custom parent仍选择自己的physical origins。Kernel view保留names，框架无对应类型时明确
 拒绝转换，不把名字/无效line或span静默归一化；没有扩大builder反馈证明或新增solver。
+
+后续 [事务内单次布局构建计划](RETAINED_LAYOUT_BUILD_PLAN.md) 提供
+`LayoutBuildPlan`／`LayoutBuildQueue` 与 `LogicalEdit::build_layout_plan`，
+覆盖 full/inline constraint、full/inline allocation 四类既有 builder。按当前 render
+祖先关系推导父先子后边，兄弟/source 前置关系显式传入 `after`；ready task 按 ID
+确定性选择。每次执行前结算捕获的 scope-owned responsive rules，预演当前草稿并验证
+全部已排队图；父回调可创建 keyed 子 host，通过只追加 queue 注册后代任务。
+回调可借用事务局部数据、仅执行一次，不在 Taffy intrinsic probe 内执行，也不重放到
+数值收敛。既有布局依赖证明不放宽，最终同时复验输入／proof／已执行的祖先与前置顺序。
+后续等宽 reparent 也不能反转顺序，循环／未知依赖／超限／回调失败使整个 edit 拒绝，
+捕获错误返回 Ok 不能发布半个计划。Source、keyed 生命周期、effects 与完整帧沿原边界采用。
+
+该计划仍是调用者请求的一次事务，不是跨事件持久组件 scheduler。一次任务一个 boxed
+callback，每轮重建 DAG 和草稿 preview，builder 自身布局预演与最终完整校验也保留；
+统计只计 planning preview，不代表总布局工作，结构上限不等于时间预算。未作时延／内存／
+FPS 改善声明。任意闭包读写依赖发现、持久 producer 注册／失效、未变回调跳过、通用
+intrinsic/full-axis feedback、完整 RenderBox 和 native 常见交互 p99 仍开放，详见
+[验证范围与复现](performance/2026-11-18-layout-build-plan/README.md)。
 
 UI IR 的最小数据集合：
 

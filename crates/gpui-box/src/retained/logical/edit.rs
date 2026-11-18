@@ -27,8 +27,40 @@ pub struct LogicalEdit<'a, 'draft, 'tree> {
     responsive_inputs: Vec<responsive::structural::Observation>,
     live_responsive_rules: &'a BTreeMap<(ScopeId, u64), responsive::LayoutBinding>,
     responsive_rules: Option<BTreeMap<(ScopeId, u64), responsive::LayoutBinding>>,
+    layout_build_running: bool,
+    layout_build_failed: bool,
+    layout_build_observations: Vec<super::build_plan::BuildObservation>,
 }
 impl LogicalEdit<'_, '_, '_> {
+    /// Schedule once-only keyed construction from current render ancestry and
+    /// explicit non-ancestral prerequisites. Failure poisons this outer edit;
+    /// catching it cannot publish a partially executed plan.
+    pub fn build_layout_plan(
+        &mut self,
+        plan: LayoutBuildPlan<'_>,
+    ) -> Result<LayoutBuildStats, Error> {
+        if self.layout_build_running || self.layout_build_failed || self.frame_environment.is_none()
+        {
+            self.layout_build_failed = true;
+            return Err(Error::InvalidLayoutBuildPlan);
+        }
+        self.layout_build_running = true;
+        let result = self.run_layout_build_plan(plan);
+        self.layout_build_running = false;
+        self.layout_build_failed |= result.is_err();
+        result
+    }
+    pub(super) fn build_plan_preview(&mut self) -> Result<UiTree, Error> {
+        self.settle_automatic_rules()?;
+        self.render
+            .preview(self.capabilities, &self.retired_outputs()?)
+    }
+    pub(super) fn observe_layout_build_order(
+        &mut self,
+        observation: super::build_plan::BuildObservation,
+    ) {
+        self.layout_build_observations.push(observation);
+    }
     /// Capture host inputs in this atomic frame edit and enable automatic
     /// settlement of scope-owned rules before builders and final publication.
     /// Ordinary source reads still see the current draft; use
@@ -563,6 +595,8 @@ impl LogicalUi {
             std::cell::RefCell::new(vec![]);
         let responsive_inputs: std::cell::RefCell<Vec<responsive::structural::FinalObservation>> =
             std::cell::RefCell::new(vec![]);
+        let build_observations: std::cell::RefCell<Vec<super::build_plan::BuildObservation>> =
+            std::cell::RefCell::new(vec![]);
         let capabilities = self.ui.capabilities();
         let pending = self.ui.edit_deferred_validated(
             sources,
@@ -594,8 +628,14 @@ impl LogicalUi {
                     responsive_inputs: vec![],
                     live_responsive_rules: &self.responsive_rules,
                     responsive_rules: None,
+                    layout_build_running: false,
+                    layout_build_failed: false,
+                    layout_build_observations: vec![],
                 };
                 let value = render(value, &mut draft)?;
+                if draft.layout_build_failed {
+                    return Err(Error::InvalidLayoutBuildPlan);
+                }
                 draft.retire_responsive_rules()?;
                 let mut dead = BTreeSet::new();
                 let mut stack: Vec<_> = draft.removed_scopes.iter().copied().collect();
@@ -745,6 +785,7 @@ impl LogicalUi {
                 added_sources = draft.added_sources;
                 added_effects = draft.added_effects;
                 *constraint_inputs.borrow_mut() = draft.constraint_inputs;
+                *build_observations.borrow_mut() = draft.layout_build_observations;
                 Ok(value)
             },
             (validate.is_some() || frame_environment.is_some()).then_some({
@@ -778,6 +819,9 @@ impl LogicalUi {
                     }
                     for input in responsive_inputs.borrow().iter() {
                         input.validate(tree)?;
+                    }
+                    for observation in build_observations.borrow().iter() {
+                        observation.validate(tree)?;
                     }
                     tree.layout.clear_tracked_layout_inputs();
                     Ok(())
