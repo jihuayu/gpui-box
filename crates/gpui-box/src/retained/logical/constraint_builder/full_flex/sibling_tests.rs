@@ -435,10 +435,9 @@ fn sibling_content_full_flex_wrapped_lines_and_content_measurers_keep_final_depe
 }
 
 #[test]
-fn sibling_content_full_flex_late_layout_task_cannot_retroactively_change_header_measurement() {
+fn sibling_content_full_flex_tasks_automatically_settle_header_before_remaining_body() {
     let (mut ui, header, leaf, host) = fixture(LayoutFlexDirection::Column);
     let constraints = LayoutConstraints::viewport(120.0, 90.0);
-    let before = ui.frame_in_viewport(constraints, [180.0; 2]).unwrap();
     let result = ui.edit_local_frame(
         constraints,
         [180.0; 2],
@@ -454,7 +453,7 @@ fn sibling_content_full_flex_late_layout_task_cannot_retroactively_change_header
                     let LayoutBuildInput::Full(input) = input else {
                         panic!()
                     };
-                    assert_eq!(input.known_size.height, Some(75.0));
+                    assert_eq!(input.known_size.height, Some(60.0));
                     Ok(())
                 },
             )?;
@@ -471,11 +470,8 @@ fn sibling_content_full_flex_late_layout_task_cannot_retroactively_change_header
             edit.build_layout_plan(plan)
         },
     );
-    assert!(matches!(result, Err(Error::UnsafeConstraintBuilder)));
-    assert_eq!(
-        pixels(before),
-        pixels(ui.frame_in_viewport(constraints, [180.0; 2]).unwrap())
-    );
+    assert_eq!(result.unwrap().0.result.value.tasks_executed, 2);
+    assert_eq!(ui.layout_result(host).unwrap().size, [120.0, 60.0]);
 }
 
 #[test]

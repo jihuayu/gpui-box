@@ -96,6 +96,25 @@ type AllocationParentDependency = (
     Vec<NodeId>,
 );
 impl AllocationDependencies {
+    /// Scheduling observes only the proven ordinary-Flex measurement domain.
+    /// A not-yet-valid path may be established by an earlier ancestor task;
+    /// ordinary builder validation still runs immediately before its callback.
+    pub(super) fn measured_task_nodes(
+        tree: &UiTree,
+        host: NodeId,
+        constraints: Option<LayoutConstraints>,
+    ) -> Result<BTreeSet<NodeId>, Error> {
+        match Self::capture_independent(tree, host) {
+            Ok(_) => return Ok(BTreeSet::new()),
+            Err(Error::UnsafeConstraintBuilder) => {}
+            Err(error) => return Err(error),
+        }
+        Ok(
+            full_flex::capture_with_constraints(tree, host, constraints)?
+                .map(|proof| proof.measured_nodes().collect())
+                .unwrap_or_default(),
+        )
+    }
     pub(super) fn capture(tree: &UiTree, host: NodeId) -> Result<Self, Error> {
         // Preserve the existing independent-parent/containment domain first:
         // it intentionally permits content-derived outer ancestors.

@@ -5,6 +5,11 @@ Extends [ordinary two-axis allocation](RETAINED_FULL_FLEX_ALLOCATION.md) using
 the same allocation_builder, Allocation plan/producer kind and final input
 recording. Source schema6 and public types are unchanged.
 
+Follow-up: [inferred measurement tasks](RETAINED_INFERRED_MEASUREMENT_TASKS.md)
+now derives title/subtree task prerequisites for a full Allocation task. Manual
+after below remains necessary for arbitrary nonlocal source/output writes, not
+for the proven host-in-measured-sibling relationship.
+
 ## Common UI behavior
 
 An ordinary Column can contain an automatically measured title/toolbar and a

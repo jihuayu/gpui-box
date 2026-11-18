@@ -15,6 +15,8 @@ mod full_flex_text_tests;
 mod grid_policy_text_tests;
 #[path = "retained_layout_resource_text_tests.rs"]
 mod layout_resource_text_tests;
+#[path = "retained_measurement_plan_text_tests.rs"]
+mod measurement_plan_text_tests;
 #[path = "retained_overflow_text_tests.rs"]
 mod overflow_text_tests;
 #[path = "retained_style_ir_text_tests.rs"]

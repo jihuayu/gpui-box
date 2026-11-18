@@ -3,6 +3,8 @@
 use super::*;
 
 #[cfg(test)]
+mod measurement_tests;
+#[cfg(test)]
 mod tests;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -24,7 +26,7 @@ pub enum LayoutBuildInput {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LayoutBuildLimits {
     pub max_tasks: usize,
-    /// Deduplicated explicit plus ancestry edges in each current plan graph.
+    /// Deduplicated explicit, ancestry and proven measurement edges per graph.
     pub max_dependency_edges: usize,
 }
 impl Default for LayoutBuildLimits {
@@ -60,7 +62,8 @@ struct Task<'tasks> {
 }
 /// Owns one transaction's pending callbacks. IDs are caller-chosen within this
 /// plan only. Render ancestry supplies automatic parent-before-child edges;
-/// after supplies sibling/source prerequisites that ancestry cannot infer.
+/// proven sibling measurements add prerequisites for full Allocation tasks.
+/// after supplies other source/output prerequisites that cannot be inferred.
 /// Callbacks may enqueue newly created descendant hosts before returning.
 pub struct LayoutBuildPlan<'tasks> {
     tasks: BTreeMap<LayoutBuildTaskId, Task<'tasks>>,
@@ -93,7 +96,14 @@ impl<'tasks> LayoutBuildQueue<'_, 'tasks> {
 /// No callbacks escape the transaction. Only final host ranks/prerequisites
 /// survive until ordinary complete layout validation checks the executed order.
 pub(super) struct BuildObservation {
-    tasks: BTreeMap<LayoutBuildTaskId, (NodeId, usize, BTreeSet<LayoutBuildTaskId>)>,
+    tasks: BTreeMap<LayoutBuildTaskId, ObservedTask>,
+    max_dependency_edges: usize,
+}
+struct ObservedTask {
+    host: NodeId,
+    rank: usize,
+    kind: LayoutBuildKind,
+    after: BTreeSet<LayoutBuildTaskId>,
 }
 impl BuildObservation {
     fn new(plan: &LayoutBuildPlan<'_>, completed: &BTreeMap<LayoutBuildTaskId, usize>) -> Self {
@@ -101,34 +111,98 @@ impl BuildObservation {
             tasks: plan
                 .tasks
                 .iter()
-                .map(|(&id, task)| (id, (task.host, completed[&id], task.after.clone())))
+                .map(|(&id, task)| {
+                    (
+                        id,
+                        ObservedTask {
+                            host: task.host,
+                            rank: completed[&id],
+                            kind: task.kind,
+                            after: task.after.clone(),
+                        },
+                    )
+                })
                 .collect(),
+            max_dependency_edges: plan.limits.max_dependency_edges,
         }
     }
     pub(super) fn validate(&self, tree: &UiTree) -> Result<(), Error> {
-        let hosts: BTreeMap<_, _> = self
-            .tasks
-            .values()
-            .map(|(host, rank, _)| (*host, *rank))
-            .collect();
-        for (host, rank, after) in self.tasks.values() {
-            if after.iter().any(|id| {
+        let (dependencies, _) = task_dependencies(
+            tree,
+            self.tasks
+                .iter()
+                .map(|(&id, task)| (id, task.host, task.kind, &task.after)),
+            tree.layout_constraints,
+            self.max_dependency_edges,
+        )?;
+        for (&id, task) in &self.tasks {
+            if dependencies[&id].iter().any(|id| {
                 self.tasks
                     .get(id)
-                    .is_none_or(|(_, before, _)| before >= rank)
+                    .is_none_or(|before| before.rank >= task.rank)
             }) {
                 return Err(Error::InvalidLayoutBuildPlan);
-            }
-            let mut parent = tree.node(*host)?.parent;
-            while let Some(node) = parent {
-                if hosts.get(&node).is_some_and(|before| before >= rank) {
-                    return Err(Error::InvalidLayoutBuildPlan);
-                }
-                parent = tree.node(node)?.parent;
             }
         }
         Ok(())
     }
+}
+
+type TaskDependencies = BTreeMap<LayoutBuildTaskId, BTreeSet<LayoutBuildTaskId>>;
+
+/// Derive structural and proven measurement prerequisites without running
+/// layout or callbacks. Reused by scheduling and final executed-order checks.
+fn task_dependencies<'a>(
+    tree: &UiTree,
+    tasks: impl Iterator<
+        Item = (
+            LayoutBuildTaskId,
+            NodeId,
+            LayoutBuildKind,
+            &'a BTreeSet<LayoutBuildTaskId>,
+        ),
+    >,
+    constraints: Option<LayoutConstraints>,
+    max_edges: usize,
+) -> Result<(TaskDependencies, usize), Error> {
+    let tasks: Vec<_> = tasks.collect();
+    let owners: BTreeMap<_, _> = tasks.iter().map(|(id, host, _, _)| (*host, *id)).collect();
+    let ids: BTreeSet<_> = tasks.iter().map(|(id, _, _, _)| *id).collect();
+    let mut dependencies = BTreeMap::new();
+    let mut edge_count = 0usize;
+    for (id, host, kind, explicit) in tasks {
+        tree.node(host)?;
+        if explicit.iter().any(|id| !ids.contains(id)) {
+            return Err(Error::InvalidLayoutBuildPlan);
+        }
+        let mut after = explicit.clone();
+        let mut parent = tree.node(host)?.parent;
+        while let Some(node) = parent {
+            if let Some(&dependency) = owners.get(&node) {
+                after.insert(dependency);
+            }
+            parent = tree.node(node)?.parent;
+        }
+        if kind == LayoutBuildKind::Allocation {
+            for node in super::constraint_builder::AllocationDependencies::measured_task_nodes(
+                tree,
+                host,
+                constraints,
+            )? {
+                if let Some(&dependency) = owners.get(&node) {
+                    after.insert(dependency);
+                }
+            }
+        }
+        edge_count = edge_count
+            .checked_add(after.len())
+            .ok_or(Error::LayoutBuildPlanLimit)?;
+        if edge_count > max_edges {
+            return Err(Error::LayoutBuildPlanLimit);
+        }
+        dependencies.insert(id, after);
+    }
+    Ok((dependencies, edge_count))
 }
 impl Default for LayoutBuildPlan<'_> {
     fn default() -> Self {
@@ -207,36 +281,20 @@ impl<'tasks> LayoutBuildPlan<'tasks> {
         &self,
         tree: &UiTree,
         completed: &BTreeMap<LayoutBuildTaskId, usize>,
+        constraints: Option<LayoutConstraints>,
     ) -> Result<(Vec<LayoutBuildTaskId>, usize), Error> {
         if self.invalid {
             return Err(Error::InvalidLayoutBuildPlan);
         }
-        let owners: BTreeMap<_, _> = self
-            .tasks
-            .iter()
-            .map(|(&id, task)| (task.host, id))
-            .collect();
-        let mut dependencies = BTreeMap::new();
-        let mut edge_count = 0usize;
-        for (&id, task) in &self.tasks {
-            tree.node(task.host)?;
-            if task.after.iter().any(|id| !self.tasks.contains_key(id)) {
-                return Err(Error::InvalidLayoutBuildPlan);
-            }
-            let mut after = task.after.clone();
-            let mut parent = tree.node(task.host)?.parent;
-            while let Some(node) = parent {
-                if let Some(&dependency) = owners.get(&node) {
-                    after.insert(dependency);
-                }
-                parent = tree.node(node)?.parent;
-            }
-            edge_count = edge_count
-                .checked_add(after.len())
-                .ok_or(Error::LayoutBuildPlanLimit)?;
-            if edge_count > self.limits.max_dependency_edges {
-                return Err(Error::LayoutBuildPlanLimit);
-            }
+        let (dependencies, edge_count) = task_dependencies(
+            tree,
+            self.tasks
+                .iter()
+                .map(|(&id, task)| (id, task.host, task.kind, &task.after)),
+            constraints,
+            self.limits.max_dependency_edges,
+        )?;
+        for (&id, after) in &dependencies {
             // A newly added ancestor or a reparent cannot retroactively precede
             // a task whose callback already consumed its input.
             if let Some(rank) = completed.get(&id)
@@ -248,7 +306,6 @@ impl<'tasks> LayoutBuildPlan<'tasks> {
             {
                 return Err(Error::InvalidLayoutBuildPlan);
             }
-            dependencies.insert(id, after);
         }
         let mut done: BTreeSet<_> = completed.keys().copied().collect();
         let mut order = vec![];
@@ -321,7 +378,11 @@ impl LogicalEdit<'_, '_, '_> {
             let preview = self.build_plan_preview()?;
             self.producer_render_revision = Some(preview.revision);
             stats.planning_previews += 1;
-            let (order, edges) = plan.order(&preview, &completed)?;
+            let (order, edges) = plan.order(
+                &preview,
+                &completed,
+                self.frame_environment.map(|(constraints, _)| constraints),
+            )?;
             drop(preview);
             stats.peak_dependency_edges = stats.peak_dependency_edges.max(edges);
             stats.peak_pending = stats.peak_pending.max(order.len());

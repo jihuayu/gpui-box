@@ -1,9 +1,15 @@
 # Scope-owned reusable layout producers
 
+Follow-up2026-11-18: [inferred measurement tasks](RETAINED_INFERRED_MEASUREMENT_TASKS.md)
+automatically orders tasks hosted in a measured sibling subtree before the
+dependent full Allocation producer, regardless of registration serials. The
+explicit prerequisite requirements below retain arbitrary nonlocal writes.
+
 Follow-up2026-11-18: [measured sibling inputs](RETAINED_MEASURED_FLEX_SIBLINGS.md)
 allows content-sized title/sidebar producers before a dependent full Allocation
-body. Use explicit after prerequisites; late sibling layout writes reject
-without callback replay. Output dependencies are not inferred automatically.
+body. That stage required explicit after; the newer inferred-task follow-up
+above supplies measured-subtree host edges. Arbitrary output dependencies still
+need after, and late sibling layout writes reject without callback replay.
 
 Follow-up2026-11-18: [ordinary full-axis Flex allocation](RETAINED_FULL_FLEX_ALLOCATION.md)
 extends LayoutBuildKind::Allocation to proven Row/Column chains without a

@@ -338,6 +338,14 @@ algorithm／metadata，在最终candidate与真实input一起复验。同数字�
 producer用既有after明确顺序，错误顺序拒绝而不回放。增加子树扫描和临时shared handle／
 child-list记录，未自动推导writer依赖；path自身内容反馈与完整RenderBox仍开放。
 
+后续[布局测量任务依赖](RETAINED_INFERRED_MEASUREMENT_TASKS.md)把上述sibling证明接到
+既有BuildPlan／producer：full Allocation任务自动等待host位于所观察同级子树内的任务，
+包括后来加入的descendant任务，不受registration／ID顺序影响。当前frame constraints与
+draft topology决定证明；排序不调用layout或用户回调。Ancestry／after／measurement边
+去重、共同计限额，cycle／retroactive predecessor拒绝，final executed-order复验同一
+图，普通完整input校验保留。任意跨子树写仍须after，未实现通用writer推导；重复proof／
+subtree扫描和private preview成本仍在，无时延／FPS收益声明。
+
 后续 [ParentData](RETAINED_PARENT_DATA.md) 把 direct child 的不可变 typed metadata
 独立于 CSS style 纳入父布局输入；独立分配器和测量阶段都可读取，普通 Flex 忽略。
 typed sink、事务合并、缓存失效、reparent/keyed 生命周期沿正常链路；builder proof

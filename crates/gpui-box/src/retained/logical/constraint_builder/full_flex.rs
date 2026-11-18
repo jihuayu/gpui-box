@@ -57,6 +57,14 @@ fn capture_content(
 /// measured content, whose complete layout inputs are observed separately.
 /// All path percentages have definite bases.
 pub(super) fn capture(tree: &UiTree, host: NodeId) -> Result<Option<Dependencies>, Error> {
+    capture_with_constraints(tree, host, tree.layout_constraints)
+}
+
+pub(super) fn capture_with_constraints(
+    tree: &UiTree,
+    host: NodeId,
+    constraints: Option<LayoutConstraints>,
+) -> Result<Option<Dependencies>, Error> {
     let mut path = vec![];
     let mut next = Some(host);
     while let Some(id) = next {
@@ -78,7 +86,6 @@ pub(super) fn capture(tree: &UiTree, host: NodeId) -> Result<Option<Dependencies
         return Ok(None);
     };
     let style = &tree.node(root)?.style;
-    let constraints = tree.layout_constraints;
     if !root_axis(
         style.size.width,
         constraints.map(|c| (c.width, c.bounds.min.width, c.bounds.max.width)),
@@ -136,6 +143,12 @@ pub(super) fn capture(tree: &UiTree, host: NodeId) -> Result<Option<Dependencies
         parents: records,
         measured_siblings,
     }))
+}
+
+impl Dependencies {
+    pub(super) fn measured_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
+        self.measured_siblings.iter().map(|record| record.node)
+    }
 }
 
 fn numeric(value: taffy::Dimension) -> bool {

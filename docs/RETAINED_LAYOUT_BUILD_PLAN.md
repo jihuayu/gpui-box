@@ -5,6 +5,11 @@ active. This adds transaction-scoped scheduling to the existing four builder
 protocols; it is not a complete persistent component scheduler or general layout
 feedback solver. Common nested Flex content is the first acceptance target.
 
+Follow-up: [inferred measurement prerequisites](RETAINED_INFERRED_MEASUREMENT_TASKS.md)
+adds proven content-dependent sibling subtree edges for full Allocation tasks,
+including dynamic descendants, shared edge limits and final executed-order
+validation. The ancestry/explicit-only description below is the original stage.
+
 The later [scope-owned producer stage](RETAINED_LAYOUT_PRODUCERS.md) adds a
 separate owned reusable callback contract, automatic future transaction/frame
 entry and tracked-source content-callback reuse. It targets this same planner;

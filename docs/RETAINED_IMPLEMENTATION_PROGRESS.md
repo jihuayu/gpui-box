@@ -10,6 +10,27 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [inferred measurement task stage](RETAINED_INFERRED_MEASUREMENT_TASKS.md)
+connects existing measured-sibling proofs to the normal once-only/persistent
+planner. Queued hosts in the measured sibling subtree precede a dependent full
+Allocation task, independent of registration/ID order; dynamic descendant tasks
+join the next graph. Ancestry/explicit/measurement edges share limits and
+deduplication. Cycles and retroactive predecessors reject without replay.
+Final callback-free order validation re-derives this graph in addition to normal
+complete builder input/resource/source/frame validation. The original independent
+parent/containment domain keeps precedence and source schema6 is unchanged.
+See [verification](performance/2026-11-18-inferred-measurement-tasks/README.md).
+Repeated proof/sibling scanning, graph construction and private previews/candidates
+remain; arbitrary nonlocal writes still need after, and general writer ownership,
+feedback/RenderBox, component integration and independent presentation stay open.
+No timing/FPS gain is claimed; the complete RFC remains active.
+Final retained599passed/1ignored, text/WGPU633/52 and hello67/18 pass. Logical
+filter112passed/10ignored includes the5new core cases, existing producer/keyed
+regressions and updated title-before-body case. Explicit numeric/Noto GPU pass
+6/3complete images on GTX1650Ti/Vulkan/571.96. Library Clippy -D warnings,
+complete retained-gpu harness, scoped format/diff,285local links and all5WIP
+hashes pass. Counts overlap; full runs cover the final shared graph validation.
+
 The [measured Flex sibling stage](RETAINED_MEASURED_FLEX_SIBLINGS.md) lets ordinary
 full-axis allocation builders compose an automatic content-sized title/toolbar/
 sidebar with a remaining-space body. Only the path child's contribution must
