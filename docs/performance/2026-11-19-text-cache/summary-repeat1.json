@@ -1,0 +1,63 @@
+[
+  {
+    "case": "preparation",
+    "count": 32,
+    "distinct": 1,
+    "uncached_p50_us": 334.09999999999997,
+    "uncached_p95_us": 404.6,
+    "cached_p50_us": 6.6000000000000005,
+    "cached_p95_us": 8.600000000000001,
+    "prepared_uncached": 1088,
+    "prepared_cached": 2,
+    "cached_entries": 2,
+    "accounted_payload": 18244
+  },
+  {
+    "case": "preparation",
+    "count": 300,
+    "distinct": 12,
+    "uncached_p50_us": 2719.8,
+    "uncached_p95_us": 3592.4,
+    "cached_p50_us": 91.8,
+    "cached_p95_us": 108.8,
+    "prepared_uncached": 10200,
+    "prepared_cached": 24,
+    "cached_entries": 24,
+    "accounted_payload": 219637
+  },
+  {
+    "case": "preparation",
+    "count": 300,
+    "distinct": 300,
+    "uncached_p50_us": 3100.4,
+    "uncached_p95_us": 3949.7000000000003,
+    "cached_p50_us": 3359.5,
+    "cached_p95_us": 4153.2,
+    "prepared_uncached": 10200,
+    "prepared_cached": 10200,
+    "cached_entries": 128,
+    "accounted_payload": 1338072
+  },
+  {
+    "case": "ui_flex",
+    "count": 8,
+    "distinct": 1,
+    "uncached_p50_us": 265.6,
+    "uncached_p95_us": 451.40000000000003,
+    "cached_p50_us": 69.3,
+    "cached_p95_us": 102.5,
+    "prepared_uncached": 272,
+    "prepared_cached": 2
+  },
+  {
+    "case": "ui_flex",
+    "count": 64,
+    "distinct": 1,
+    "uncached_p50_us": 1797.5,
+    "uncached_p95_us": 2321.3,
+    "cached_p50_us": 733.0,
+    "cached_p95_us": 1014.7000000000002,
+    "prepared_uncached": 2176,
+    "prepared_cached": 2
+  }
+]

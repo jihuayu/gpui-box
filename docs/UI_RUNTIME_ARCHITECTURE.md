@@ -51,6 +51,13 @@ layout排除在typography资源请求之外，宽度变化复用paragraph换行�
 由host显式输入。无provider的optional缺省也维持完整frame采用。富文本、IME/selection、
 portable字体schema、token表达式、预算准备与独立呈现仍未完成，没有新增帧时收益声明。
 
+同日后续：[owner文字准备缓存](ADR_RETAINED_TEXT_PREPARATION_CACHE.md) 在同一
+GpuiTextPreparer内按完整内容／字体／size／line-height／scale／revision和实际font epoch
+共享不可变资源，提供entry／accounted-payload双上限、LRU、清空／禁用与统计。相同label
+及近期字号切换可复用，miss／accounting／驱逐有额外成本；payload不含lazy wrap／GPU／
+共享缓存与allocator，不作为进程memory上限。旧frame在驱逐后仍可消费，普通source／
+Flex／完整采用契约不变；预算化准备、rich text和独立呈现仍开放。
+
 ## 1. 要解决的问题
 
 框架以 GPUI 为基础，提供一套比底层绘制更完整的界面抽象：应用用 Rust 编写时自然、可检查；以后用 JS 或 Go 编写时，复用同一个 UI 语义与渲染内核。

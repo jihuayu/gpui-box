@@ -5,7 +5,10 @@ use std::{
     sync::{Mutex, Weak},
 };
 mod component;
-pub use component::{GpuiTextPreparer, Text, TextPreparation, TextPreparer, TextProps};
+pub use component::{
+    GpuiTextPreparer, Text, TextCacheLimits, TextCacheStats, TextPreparation, TextPreparer,
+    TextProps,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct GlyphKey {
@@ -170,6 +173,20 @@ impl PartialEq for TextResource {
     }
 }
 impl TextResource {
+    pub(super) fn preparation_payload_bytes(&self) -> usize {
+        self.0.glyphs.values().fold(
+            self.0
+                .paragraph
+                .preparation_payload_bytes()
+                .saturating_add(std::mem::size_of::<Resource>()),
+            |bytes, glyph| {
+                bytes
+                    .saturating_add(std::mem::size_of::<GlyphKey>())
+                    .saturating_add(std::mem::size_of::<GlyphBitmap>())
+                    .saturating_add(glyph.mask.len())
+            },
+        )
+    }
     pub fn paragraph(&self) -> &ParagraphSnapshot {
         &self.0.paragraph
     }

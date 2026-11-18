@@ -6,6 +6,9 @@ use std::{
     fmt,
     rc::Rc,
 };
+mod cache;
+use cache::PreparationCache;
+pub use cache::{TextCacheLimits, TextCacheStats};
 
 /// Owner-local resource adapter, never invoked by layout or a renderer. It must
 /// return immutable resources from these explicit inputs; memoization is allowed.
@@ -44,14 +47,17 @@ pub struct GpuiTextPreparer {
     system: Rc<gpui::WindowTextSystem>,
     raster: RefCell<GlyphRasterizer>,
     prepared: Cell<u64>,
+    cache: RefCell<PreparationCache>,
 }
 impl GpuiTextPreparer {
     pub fn new(system: Rc<gpui::WindowTextSystem>) -> Self {
         let raster = GlyphRasterizer::new(Arc::clone(&system));
+        let cache = PreparationCache::new(system.font_epoch());
         Self {
             system,
             raster: RefCell::new(raster),
             prepared: Cell::new(0),
+            cache: RefCell::new(cache),
         }
     }
     pub fn prepared_resources(&self) -> u64 {
@@ -60,6 +66,17 @@ impl GpuiTextPreparer {
     pub fn rasterized_glyphs(&self) -> u64 {
         self.raster.borrow().rasterized_glyphs()
     }
+    pub fn cache_stats(&self) -> TextCacheStats {
+        self.cache.borrow().stats()
+    }
+    /// Limit retained preparation payloads. Zero entries or bytes disables
+    /// storage; current frame resources remain owned and usable after eviction.
+    pub fn set_cache_limits(&self, limits: TextCacheLimits) {
+        self.cache.borrow_mut().set_limits(limits);
+    }
+    pub fn clear_cache(&self) {
+        self.cache.borrow_mut().clear();
+    }
 }
 impl TextPreparer for GpuiTextPreparer {
     fn prepare(
@@ -67,9 +84,23 @@ impl TextPreparer for GpuiTextPreparer {
         text: &str,
         typography: &TextTypography,
         scale: f32,
-        _font_revision: u64,
+        font_revision: u64,
     ) -> Result<TextResource, Error> {
         typography.validate()?;
+        if !scale.is_finite() || scale <= 0.0 || !(1.0 / scale).is_finite() {
+            return Err(Error::InvalidTextResource);
+        }
+        let epoch = self.system.font_epoch();
+        if let Some(resource) =
+            self.cache
+                .borrow_mut()
+                .get(text, typography, scale, font_revision, epoch)
+        {
+            if self.system.font_epoch() != epoch {
+                return Err(Error::InvalidTextResource);
+            }
+            return Ok(resource);
+        }
         let mut font = gpui::font(typography.font.family.to_string());
         font.weight = gpui::FontWeight(typography.font.weight as f32);
         font.style = match typography.font.slant {
@@ -85,6 +116,14 @@ impl TextPreparer for GpuiTextPreparer {
             typography.line_height,
         )?;
         let resource = self.raster.borrow_mut().prepare(paragraph, scale)?;
+        self.cache.borrow_mut().insert(
+            text,
+            typography,
+            scale,
+            font_revision,
+            epoch,
+            resource.clone(),
+        );
         self.prepared.set(self.prepared.get().saturating_add(1));
         Ok(resource)
     }

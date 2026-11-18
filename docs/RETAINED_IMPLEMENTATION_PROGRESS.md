@@ -10,6 +10,24 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [bounded owner text cache](ADR_RETAINED_TEXT_PREPARATION_CACHE.md) reuses
+immutable prepared resources across ordinary Text consumers and recent typography
+changes. Full text/font/size/line-height/scale/revision identity and actual font
+epoch are explicit; LRU entry/accounted-payload bounds, clear/disable and stats
+expose policy and cost. Old frames retain resources after eviction. No new source
+graph/solver or renderer format; preparation remains owner-synchronous and misses
+can cost more. See [A/B and correctness](performance/2026-11-19-text-cache/README.md).
+Budgeted preparation, portable text resources and independent presentation stay
+open; complete RFC remains active.
+
+Final text/WGPU835passed/69ignored plus16compiler doctests, hello103/41;
+explicit repeated Noto GPU1passed/five full images at1.25scale. Library/harness
+Clippy, CPU desktop and retained-gpu harness pass. Scoped format/diff,309-doc/
+1,176-link traversal and five inherited WIP hashes pass. Two release A/B runs on
+Ryzen4800H:64 ordinary repeated Text/Flex updates1570.7–1797.5→663.7–733.0µs p50;
+300/12 preparation2514.3–2719.8→79.1–91.8µs. 300 distinct exceeds capacity and
+regresses2824.0–3100.4→2998.6–3359.5µs (6.2–8.4%). No FPS/display/tail guarantee.
+
 The [ordinary inherited Text stage](RETAINED_TEXT_COMPONENTS.md) adds pure text
 style data with per-property Inherit/Initial/Value, logical partial style scopes
 and an ordinary Text component. Family/weight/slant/size/line-height/foreground

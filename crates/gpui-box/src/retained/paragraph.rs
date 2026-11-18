@@ -150,6 +150,21 @@ impl ParagraphSnapshot {
     pub(super) fn shaped_lines(&self) -> &[ShapedLine] {
         &self.0.lines
     }
+    pub(super) fn preparation_payload_bytes(&self) -> usize {
+        let mut bytes =
+            std::mem::size_of::<Paragraph>() + std::mem::size_of_val(self.shaped_lines());
+        for line in self.shaped_lines() {
+            bytes = bytes
+                .saturating_add(line.len())
+                .saturating_add(std::mem::size_of::<gpui::LineLayout>());
+            for run in &line.runs {
+                bytes = bytes
+                    .saturating_add(std::mem::size_of_val(run))
+                    .saturating_add(std::mem::size_of_val(run.glyphs.as_slice()));
+            }
+        }
+        bytes
+    }
     pub fn line_height(&self) -> f32 {
         self.0.line_height
     }

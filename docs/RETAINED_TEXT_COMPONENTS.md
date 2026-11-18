@@ -101,7 +101,15 @@ still apply. Low-level already-prepared TextPaint and UiContent::Text retain
 their explicit values and do not acquire implicit style inheritance.
 
 Text preparation remains synchronous owner work and can be expensive for large
-content or many changed consumers. There is no new persistent shaping cache,
-budgeted PendingScene, OS subscription or independent native presentation.
+content or many changed consumers. Follow-up [bounded preparation caching](ADR_RETAINED_TEXT_PREPARATION_CACHE.md)
+shares immutable resources in one GpuiTextPreparer. The default 128 entries / 8 MiB
+accounted preparation payload can be changed with set_cache_limits(TextCacheLimits);
+zero entries/bytes disables storage, clear_cache releases cache references and
+cache_stats reports hits/misses/evictions/current ownership. Keys include complete
+typography/content/scale/revision and actual font epoch. Foreground/width do not
+invalidate preparation. Caller-held frames survive eviction. Payload accounting
+excludes lazy wrap/GPU/shared caches and allocator overhead; it is not a process
+memory bound. prepared_resources counts actual successful preparations, not hits.
+There is no budgeted PendingScene, OS subscription or independent presentation.
 See [verification](performance/2026-11-19-text-inheritance/README.md). No new
 FPS/latency or numerical success-rate claim is made.

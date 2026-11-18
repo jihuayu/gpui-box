@@ -87,6 +87,11 @@ path = "src/paragraph.rs"
 required-features = ["retained-text"]
 
 [[bin]]
+name = "text-preparation-perf"
+path = "src/text_preparation.rs"
+required-features = ["retained-text"]
+
+[[bin]]
 name = "virtual-list-metrics-perf"
 path = "src/virtual_list_metrics.rs"
 required-features = ["retained-runtime"]

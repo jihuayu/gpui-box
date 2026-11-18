@@ -35,6 +35,8 @@ mod store_text_tests;
 mod style_ir_text_tests;
 #[path = "retained_task_text_tests.rs"]
 mod task_text_tests;
+#[path = "retained_text_cache_tests.rs"]
+mod text_cache_tests;
 #[path = "retained_text_component_tests.rs"]
 mod text_component_tests;
 #[path = "retained_theme_text_tests.rs"]
