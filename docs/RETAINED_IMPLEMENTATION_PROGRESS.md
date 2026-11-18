@@ -3,6 +3,27 @@
 The active implementation goal covers the complete runtime requested on
 2026-11-11. Work continues in `codex/rendering-performance-research`.
 
+The [owned primitive UI input stage](RETAINED_OWNED_UI_INPUT.md) starts the
+source-side UiSnapshot/UiBatch/UiDocument boundary, distinct from render packets.
+Framework LayoutStyle and ID-based resources feed the ordinary retained
+transaction/layout/publication path; exact baselines/sequences, bounded last-batch
+replay, generation tombstones and full snapshot recovery preserve atomic state.
+Messages are transferable, owner remains local; each publication owns its external
+hit mapping. This is experimental Rust input, not complete semantic UI IR or a
+frozen wire/foreign ABI. Logical scopes/bindings/handlers/semantics/StyleRef and
+Store/Command/macros remain separate missing contracts. Candidate/source graph
+copies, global validation and unbudgeted resource registry costs are explicit;
+no throughput or sustained native performance claim follows from this API.
+Verified: retained502passed/1ignored; text/WGPU535/39; hello54/8; explicit
+GTX1650Ti/Vulkan mixed4 and actual text/resource transition8 complete-pixel
+submissions match direct ordinary full trees. Framework library Clippy and
+scoped framework/text format/diff pass. Ten regular core cases, one real-glyph
+case and two explicit hardware cases were added. No fresh vendor/browser run
+is claimed; schema/identity/replay/recovery/generation limits are covered in
+[evidence](performance/2026-11-18-owned-ui-input/README.md). Software Exact
+still rejects decorative shadows; hardware's extra CPU control explicitly
+allows their omission, without changing clip/opacity/text/hit geometry.
+
 The subsequent [GPU integration stage](RETAINED_GPU_INTEGRATION.md) connects
 FramePacket deltas to persistent quad allocations and bounded in-flight submits.
 The [clip, scroll and damage stage](RETAINED_PROPERTIES_DAMAGE.md) adds shared

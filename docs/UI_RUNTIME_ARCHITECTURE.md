@@ -1,6 +1,6 @@
 # UI IR、Store、Command 与独立渲染动画架构
 
-状态：设计草案，已开始落地框架层；Rust 优先，预留 JS、Go。当前实现已新增与 Taffy 解耦的 `LayoutStyle` Flex 契约、建树入口、动态布局属性事务和布局方向类型；其余拟议 UI IR、Store/Command、组件宏、独立呈现仍未实现，也没有改变原有总目标的验收状态。
+状态：设计草案，已开始落地框架层；Rust 优先，预留 JS、Go。当前实现有与 Taffy 解耦的 `LayoutStyle` Flex/Grid/混合长度及测量协议，并开始接入拥有式 primitive UI 输入快照／批次。完整语义 UI IR、序列化/跨语言 ABI、Store/Command、组件宏、独立呈现仍未完成，总目标继续进行中。
 
 更新日期：2026-11-17。实现对照取自 `codex/rendering-performance-research`。本文是架构映射与实现状态记录；实验能力与正式承诺仍分别列出。
 
@@ -539,6 +539,19 @@ UI IR 的最小数据集合：
 协议中不能出现 Rust 闭包、JS 对象指针、Go 指针、GPU 指针或要求布局线程同步执行的任意函数。动态测量由内置布局/文字服务或预先提交的测量结果满足。
 
 ### 3.2 快照、增量和事务
+
+2026-11-18实现：[拥有式UI输入](RETAINED_OWNED_UI_INPUT.md) 提供实验Rust
+`UiSnapshot`／`UiBatch`／`UiNode`／`UiDocument`，节点使用公共LayoutStyle和独立generation
+身份，Box／Fixed／Image／prepared Text内容通过resource ID接入普通持久树。Exact base与
+sequence校验、最后一批equal replay、generation tombstones、完整snapshot recovery及
+source/frame revision分离已实现；失败保持已提交tree/source/frame。发布携带自身外部命中
+映射，old frame不读新owner映射。Messages可跨线程，owner仍本地。
+
+这是第一条primitive输入边界，并非完整语义IR或固定wire format：scope/binding/handler/
+semantics/focus、StyleRef/tokens/theme、portable font/resource schema与JS/Go ABI仍无；
+LogicalUi仍独立管理作用域，暂不允许两种writer混用。接受批次仍clone source图和candidate、
+全图validation及完整geometry验证，resource table无byte-budget/eviction，不宣称吞吐改善。
+下文完整目标保持，不能由初版消息结构存在认定M2完成。
 
 `UiSnapshot` 用于首次装载与恢复；`UiBatch` 包含 schema version、runtime epoch、base revision、batch sequence 和操作。先在草稿上校验最终拓扑、资源、属性和生命周期，再原子发布。失败时保留原树，不泄漏已分配但未提交的句柄。
 
