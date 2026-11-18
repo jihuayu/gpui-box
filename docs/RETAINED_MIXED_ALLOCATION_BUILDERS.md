@@ -1,5 +1,10 @@
 # Mixed Flex and independent allocation builders
 
+Follow-up2026-11-18: [ordinary two-axis Flex allocation](RETAINED_FULL_FLEX_ALLOCATION.md)
+also supports proven content-independent ordinary Row/Column chains without a
+containment cut. The existing cut/custom-parent domain below keeps precedence;
+the follow-up is additive and still rejects unproven content feedback.
+
 Follow-up: [parent data](RETAINED_PARENT_DATA.md) adds authored immutable
 direct-child metadata to independent/custom algorithms and captures its handle
 identities in allocation-builder dependency proofs. This does not authorize

@@ -161,7 +161,8 @@ impl LogicalEdit<'_, '_, '_> {
     /// and allows content-derived size in both axes. Independent parent edges
     /// must reach the external root or a full Size containment boundary under
     /// ordinary Flex. Size-contained ConstraintBox outgoing slots also qualify.
-    /// Intrinsic resolution below the cut and arbitrary feedback edges reject.
+    /// Ordinary Flex also qualifies along a proven content-independent two-axis
+    /// allocation chain. Intrinsic/automatic feedback edges reject.
     /// Prerequisite child lists/algorithms must precede observation.
     pub fn allocation_builder<R>(
         &mut self,
@@ -174,11 +175,16 @@ impl LogicalEdit<'_, '_, '_> {
             .ok_or(Error::UnsafeConstraintBuilder)?;
         let removed = self.retired_outputs()?;
         let mut preview = self.render.preview(self.capabilities, &removed)?;
+        preview.prepare_layout_environment(constraints, viewport)?;
         let dependencies =
             super::constraint_builder::AllocationDependencies::capture(&preview, host)?;
-        preview.prepare_layout_environment(constraints, viewport)?;
+        if dependencies.tracks_input() {
+            preview
+                .layout
+                .set_track_layout_input(preview.node(host)?.layout, true)?;
+        }
         preview.compute_layout(constraints)?;
-        let input = super::constraint_builder::allocation_input(&preview, host)?;
+        let input = dependencies.input(&preview, host)?;
         drop(preview);
         self.constraint_inputs
             .push(super::constraint_builder::Observation::Allocation(
@@ -847,13 +853,21 @@ impl LogicalUi {
             (validate.is_some() || frame_environment.is_some()).then_some({
                 |tree: &mut UiTree| {
                     for input in constraint_inputs.borrow().iter() {
-                        if let super::constraint_builder::Observation::InlineAllocation(
-                            host,
-                            _,
-                            _,
-                        ) = input
-                        {
-                            let layout = tree.node(*host)?.layout;
+                        let tracked = match input {
+                            super::constraint_builder::Observation::InlineAllocation(
+                                host,
+                                _,
+                                _,
+                            ) => Some(*host),
+                            super::constraint_builder::Observation::Allocation(
+                                host,
+                                _,
+                                dependencies,
+                            ) if dependencies.tracks_input() => Some(*host),
+                            _ => None,
+                        };
+                        if let Some(host) = tracked {
+                            let layout = tree.node(host)?.layout;
                             tree.layout.set_track_layout_input(layout, true)?;
                             tree.layout_dirty |= tree.layout.dirty(layout)?;
                             // Even a structurally unchanged builder must run

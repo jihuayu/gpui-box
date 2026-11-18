@@ -321,6 +321,15 @@ ConstraintBox 也可交付其实际 loose/tight outgoing slot。输入新增 kno
 final incoming input，complete-input cache guard 防止祖先缓存掩盖输入变化。无隔离
 边界的普通反馈边、child-style 分配与完整 RenderBox 仍未完成，成本与限制见 ADR。
 
+后续[普通 Flex 两轴分配](RETAINED_FULL_FLEX_ALLOCATION.md)进一步扩展既有
+allocation_builder／Allocation producer：外部确定根宽高、每级主轴数值basis和显式
+minimum排除内容贡献，NoWrap交叉轴可stretch，Wrap要求数值cross size且无baseline
+共享组。四个Row/Column方向、RTL、百分比、padding/gutter复用真实内核分配，不自动
+插入containment。旧独立parent／containment证明优先保留；新分支用既有opt-in最终输入
+记录，完整known/definite/bounds/soft space/bases及ancestor/order/effective sibling styles
+在原子采用前复验。通用intrinsic/ratio/自动cross-line反馈、Grid/Block两轴证明与完整
+RenderBox仍开放；private preview/candidate与扫描成本仍在，无FPS收益声明。
+
 后续 [ParentData](RETAINED_PARENT_DATA.md) 把 direct child 的不可变 typed metadata
 独立于 CSS style 纳入父布局输入；独立分配器和测量阶段都可读取，普通 Flex 忽略。
 typed sink、事务合并、缓存失效、reparent/keyed 生命周期沿正常链路；builder proof

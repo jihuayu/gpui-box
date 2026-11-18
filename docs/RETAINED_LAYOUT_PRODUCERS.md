@@ -1,5 +1,10 @@
 # Scope-owned reusable layout producers
 
+Follow-up2026-11-18: [ordinary full-axis Flex allocation](RETAINED_FULL_FLEX_ALLOCATION.md)
+extends LayoutBuildKind::Allocation to proven Row/Column chains without a
+containment boundary. Registered producers reuse the same input recording,
+source observation and final atomic validation paths.
+
 Status: experimental Rust framework contract, 2026-11-18. The full RFC remains
 active. This builds on [once-only plans](RETAINED_LAYOUT_BUILD_PLAN.md) and
 [atomic local edits](RETAINED_ATOMIC_LOCAL_EDITS.md), using their existing four

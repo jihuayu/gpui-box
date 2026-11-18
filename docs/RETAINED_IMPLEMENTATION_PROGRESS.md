@@ -10,6 +10,28 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [ordinary full-axis Flex allocation stage](RETAINED_FULL_FLEX_ALLOCATION.md)
+extends the existing allocation_builder/Allocation tasks to content-independent
+Row/Column chains, without inserting containment or replacing Flex layout.
+Numeric main bases/explicit minima and externally sized root axes exclude
+intrinsic feedback; NoWrap allows cross stretch and wrapped lines require
+numeric cross sizes without baseline groups. Actual incoming full inputs use
+the existing opt-in kernel records/exact cache keys. Final ancestor/order/
+effective sibling-style proofs and complete inputs validate before atomic
+source/keyed/frame adoption. The original independent-parent/containment proof
+keeps precedence and its prior domain. Source schema6 is unchanged.
+See [verification](performance/2026-11-18-full-flex-allocation/README.md).
+Private previews/candidates, ancestor/sibling scanning and final geometry costs
+remain; general intrinsic/ratio/cross-line feedback, full RenderBox, component
+integration and independent presentation remain open. No timing/FPS gain is
+claimed; the complete RFC goal continues active.
+Final retained588passed/1ignored, text/WGPU622/50 and hello65/16 pass. The
+builder filter45passed/5ignored includes all5new core cases and original
+independent-parent/containment regressions. Explicit GPU controls pass24complete
+numeric-pane comparisons and3real-Noto images on GTX1650Ti/Vulkan/571.96.
+Library Clippy -D warnings, complete retained-gpu harness check, scoped format/
+diff,282local links and all5unrelated WIP hashes pass. Counts overlap.
+
 The [owned layout-resource stage](RETAINED_OWNED_LAYOUT_RESOURCES.md) closes a
 public input gap: UiDocument can now compose existing pure custom parents,
 direct-parent metadata and constraint-dependent content measurement, alongside

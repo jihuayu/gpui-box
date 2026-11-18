@@ -1,5 +1,9 @@
 # Independent parent intervals and content-sized construction
 
+Follow-up2026-11-18: [two-axis ordinary Flex inputs](RETAINED_FULL_FLEX_ALLOCATION.md)
+extend the same allocation_builder under independent numeric Row/Column
+allocation chains. No new parent algorithm, builder kind or source schema.
+
 Follow-up: [content sizing](RETAINED_CONTENT_SIZING.md) adds an explicit
 Inherent/Content mode to full/inline allocator inputs, returned child slots and
 full builder observations. Independent phases still cannot measure children.

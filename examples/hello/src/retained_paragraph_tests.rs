@@ -7,6 +7,8 @@ use std::{borrow::Cow, sync::Arc};
 mod build_plan_text_tests;
 #[path = "retained_focus_reveal_text_tests.rs"]
 mod focus_reveal_text_tests;
+#[path = "retained_full_flex_text_tests.rs"]
+mod full_flex_text_tests;
 #[path = "retained_grid_policy_text_tests.rs"]
 mod grid_policy_text_tests;
 #[path = "retained_layout_resource_text_tests.rs"]

@@ -60,7 +60,7 @@ impl Observation {
             }
             Self::Allocation(node, previous, dependencies) => {
                 AllocationDependencies::capture(tree, *node)? == *dependencies
-                    && allocation_input(tree, *node)? == *previous
+                    && dependencies.input(tree, *node)? == *previous
             }
             Self::InlineAllocation(node, previous, dependencies) => {
                 inline_allocation_input(tree, *node)? == *previous
@@ -82,10 +82,13 @@ impl Observation {
 /// Direct-child metadata/effective styles on independent allocators are inputs; host
 /// descendants remain free to change because they cannot affect incoming slots.
 #[derive(PartialEq)]
-pub(super) struct AllocationDependencies(
-    Vec<AllocationParentDependency>,
-    Vec<(NodeId, Arc<Style>, Option<ParentData>)>,
-);
+pub(super) enum AllocationDependencies {
+    Independent(
+        Vec<AllocationParentDependency>,
+        Vec<(NodeId, Arc<Style>, Option<ParentData>)>,
+    ),
+    Flex(full_flex::Dependencies),
+}
 type AllocationParentDependency = (
     NodeId,
     Arc<Style>,
@@ -94,6 +97,16 @@ type AllocationParentDependency = (
 );
 impl AllocationDependencies {
     pub(super) fn capture(tree: &UiTree, host: NodeId) -> Result<Self, Error> {
+        // Preserve the existing independent-parent/containment domain first:
+        // it intentionally permits content-derived outer ancestors.
+        Self::capture_independent(tree, host).or_else(|error| {
+            if error != Error::UnsafeConstraintBuilder {
+                return Err(error);
+            }
+            full_flex::capture(tree, host)?.map(Self::Flex).ok_or(error)
+        })
+    }
+    fn capture_independent(tree: &UiTree, host: NodeId) -> Result<Self, Error> {
         let mut records = vec![];
         let mut data = vec![];
         let mut next = Some(host);
@@ -169,7 +182,27 @@ impl AllocationDependencies {
             records.push((id, style.clone(), node.parent_layout.clone(), children));
             next = node.parent;
         }
-        Ok(Self(records, data))
+        Ok(Self::Independent(records, data))
+    }
+    pub(super) fn tracks_input(&self) -> bool {
+        matches!(self, Self::Flex(_))
+    }
+    pub(super) fn input(
+        &self,
+        tree: &UiTree,
+        host: NodeId,
+    ) -> Result<ConstraintBuilderInput, Error> {
+        if self.tracks_input() {
+            let input = tree
+                .layout
+                .tracked_layout_input(tree.node(host)?.layout)?
+                .ok_or(Error::UnsafeConstraintBuilder)?;
+            let input = builder_input(input);
+            input.constraints.validate()?;
+            Ok(input)
+        } else {
+            allocation_input(tree, host)
+        }
     }
 }
 
@@ -345,6 +378,7 @@ fn read_input(tree: &UiTree, host: NodeId) -> Result<ConstraintBuilderInput, Err
 
 #[cfg(test)]
 mod allocation_tests;
+mod full_flex;
 #[cfg(test)]
 mod inline_allocation_tests;
 #[cfg(test)]
