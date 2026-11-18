@@ -5,6 +5,12 @@ active. This adds transaction-scoped scheduling to the existing four builder
 protocols; it is not a complete persistent component scheduler or general layout
 feedback solver. Common nested Flex content is the first acceptance target.
 
+Follow-up: [source-driven Content tasks](RETAINED_CONTENT_PRODUCERS.md) adds
+Content kind/input without dimensions to the same planner and persistent
+producer protocol. It allows ordinary data-driven structure to participate in
+automatic natural sizing; the four dimension-reading protocols below keep their
+existing proofs. Exhaustive matches on the two Rust enums must handle Content.
+
 Follow-up: [inferred measurement prerequisites](RETAINED_INFERRED_MEASUREMENT_TASKS.md)
 adds proven content-dependent sibling subtree edges for full Allocation tasks,
 including dynamic descendants, shared edge limits and final executed-order

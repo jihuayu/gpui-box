@@ -10,6 +10,26 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [source-driven Content stage](RETAINED_CONTENT_PRODUCERS.md) adds Content
+kind/input to the existing build plan and persistent producer protocol. Ordinary
+data-dependent keyed structure/text can construct without first observing a
+layout slot, so automatic/intrinsic Flex/Grid parents need no allocation proof.
+The same ancestry/explicit/inferred measurement graph, dynamic descendant tasks,
+source observations/reverse index and atomic scope/effect/frame boundary apply.
+Dimension-reading kinds keep their proofs. Rust exhaustive enum matches need
+the new variant; source schema6 and vendor/renderer algorithms are unchanged.
+See [verification](performance/2026-11-18-content-producers/README.md).
+Per-task planning previews/DAG, candidate copies, coarse invalidation and full
+geometry costs remain. ReadProp/Branch/Match/KeepAlive/macros, Store/Command,
+component/source integration, output ownership, full RenderBox, budgets and
+independent native presentation remain active. No timing/FPS benefit is claimed.
+Final retained614passed/1ignored, text/WGPU648/54 and hello69/20 pass, including
+8new core cases and real-Noto CPU. Explicit keyed-list GPU compares6complete
+images and real-Noto GPU3 on GTX1650Ti/Vulkan/571.96. Library Clippy -D warnings,
+complete retained-gpu harness, scoped format/diff,293local links and all5WIP
+hashes pass. Complete suites and keyed-list GPU were rerun after the resize guard;
+real-Noto GPU/Clippy/harness also include that final production correction.
+
 The [full Grid/Flex allocation stage](RETAINED_FULL_GRID_ALLOCATION.md) extends
 the same full builder/Allocation task/persistent producer protocol across mixed
 ordinary Grid and Flex ancestry. Both Grid axes need independent numeric/fr

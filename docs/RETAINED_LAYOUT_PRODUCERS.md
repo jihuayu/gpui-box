@@ -1,5 +1,11 @@
 # Scope-owned reusable layout producers
 
+Follow-up2026-11-18: [Content producers](RETAINED_CONTENT_PRODUCERS.md) adds a
+source-driven kind without dimensions to this same registration/observation/
+scheduler boundary. Auto-size/intrinsic parents need no allocation proof for
+that kind. The four dimension-reading protocols below retain their contracts;
+complete component/source integration remains open.
+
 Follow-up2026-11-18: [inferred measurement tasks](RETAINED_INFERRED_MEASUREMENT_TASKS.md)
 automatically orders tasks hosted in a measured sibling subtree before the
 dependent full Allocation producer, regardless of registration serials. The

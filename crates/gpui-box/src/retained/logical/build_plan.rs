@@ -3,6 +3,8 @@
 use super::*;
 
 #[cfg(test)]
+mod content_tests;
+#[cfg(test)]
 mod measurement_tests;
 #[cfg(test)]
 mod tests;
@@ -12,6 +14,9 @@ pub struct LayoutBuildTaskId(pub u64);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LayoutBuildKind {
+    /// Construct from settled sources without observing layout dimensions.
+    /// Ordinary intrinsic/content-dependent parents need no allocation proof.
+    Content,
     Constraint,
     Allocation,
     InlineConstraint,
@@ -19,6 +24,8 @@ pub enum LayoutBuildKind {
 }
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LayoutBuildInput {
+    /// No dimensions are observed. Content is measured by normal final layout.
+    Content,
     Full(ConstraintBuilderInput),
     Inline(InlineConstraintBuilderInput),
 }
@@ -63,6 +70,7 @@ struct Task<'tasks> {
 /// Owns one transaction's pending callbacks. IDs are caller-chosen within this
 /// plan only. Render ancestry supplies automatic parent-before-child edges;
 /// proven sibling measurements add prerequisites for full Allocation tasks.
+/// Content tasks share this graph without observing layout dimensions.
 /// after supplies other source/output prerequisites that cannot be inferred.
 /// Callbacks may enqueue newly created descendant hosts before returning.
 pub struct LayoutBuildPlan<'tasks> {
@@ -396,6 +404,7 @@ impl LogicalEdit<'_, '_, '_> {
             let callback = task.callback.take().ok_or(Error::InvalidLayoutBuildPlan)?;
             let mut queue = LayoutBuildQueue { plan: &mut plan };
             match kind {
+                LayoutBuildKind::Content => callback(LayoutBuildInput::Content, self, &mut queue)?,
                 LayoutBuildKind::Constraint => self.constraint_builder(host, |input, edit| {
                     callback(LayoutBuildInput::Full(input), edit, &mut queue)
                 })?,

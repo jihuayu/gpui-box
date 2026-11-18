@@ -17,7 +17,9 @@ type ProducerCallback = dyn for<'a, 'draft, 'tree> Fn(
     &mut LogicalEdit<'a, 'draft, 'tree>,
 ) -> Result<(), Error>;
 
-/// Immutable callback identity. Reuse clones for keyed redeclaration; replacing
+/// Immutable callback identity. Content registrations read settled sources
+/// without layout input; the other kinds observe their proven assigned slots.
+/// Reuse clones for keyed redeclaration; replacing
 /// the handle invalidates the cached construction. Captures must be owner-local
 /// immutable data or signal handles; external mutable reads cannot be tracked.
 #[derive(Clone)]
@@ -251,6 +253,12 @@ impl LogicalEdit<'_, '_, '_> {
             Some((previous, sources)) => {
                 self.producer_logical_unchanged()
                     && self.producer_render_revision == self.live_producer_revision
+                    // Content observes no slot at this scheduler boundary,
+                    // but can explicitly invoke a nested dimension builder.
+                    // A changed frame must give that callback a new chance to
+                    // acquire/validate those inputs rather than reuse a marker.
+                    && (registration.kind != LayoutBuildKind::Content
+                        || self.frame_environment == self.live_producer_session)
                     && *previous == input
                     && self.render.matches_sources(sources)?
             }
