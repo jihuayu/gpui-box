@@ -911,6 +911,15 @@ inactive 期间 Command 仍可更新应用 Store；恢复时读取最新完整 r
 
 selector 的相等判断与订阅取消要有明确成本和生命周期。组件销毁取消订阅；业务 Store 不随组件销毁。线程间传递只读快照与消息，不共享可随意修改的状态。
 
+后续 [业务Store落地](RETAINED_BUSINESS_STORE.md) 增加不依赖retained／GPU的
+StoreWriter／ReadStore／StoreSnapshot／StoreRevision和latest-whole-state订阅。
+唯一writer按expected revision原子替换完整拥有式state，equal不产生新revision；wake在锁外，
+不在commit里执行UI selector。显式attach_store／apply_store把一个captured snapshot放进
+既有scope source／frame事务；StoreSelector共用computed equality cutoff和component观察。
+同一input的所有selectors固定读同一revision，failed UI采用不ack，允许重试或更新版恢复；
+成功scope退休取消视觉订阅而不关闭业务Store。无active布局session时保留普通request-frame／
+显式取帧协议。Command／provider／集合增量／wire schema仍开放，完整RFC未完成，无FPS声明。
+
 ## 5. Command：有结果、有生命周期的业务意图
 
 `Command` 表达业务行为，例如 `SaveDocument { id, draft, expected_revision }`，而不是向所有语言暴露任意 `SetStoreField`。

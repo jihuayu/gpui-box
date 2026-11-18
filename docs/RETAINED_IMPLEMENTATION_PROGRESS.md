@@ -10,6 +10,27 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [business Store stage](RETAINED_BUSINESS_STORE.md) adds backend-independent
+StoreWriter/ReadStore/immutable snapshots and versioned latest-whole-state
+subscriptions. Unique business writer commits expected revisions; equal state
+does not publish/wake. UI attach_store/apply_store bridges one captured snapshot
+through the existing source helper/transaction; StoreSelector reuses computed
+equality and ordinary bindings/component observations. Failed UI adoption keeps
+the old frame and does not acknowledge; a newer business revision remains pending.
+Scope-owned cancellation removes visual observation on successful retirement,
+leaving the application Store alive. No second graph or renderer/solver change;
+source schema6 remains, Error adds InvalidStore. See
+[verification](performance/2026-11-18-business-store/README.md).
+Command/tickets/provider resolution, persistent collections, coordinated inputs,
+wire schema, hooks/macros/KeepAlive, semantic input, budgets and independent
+presentation stay active. Whole-state equality/Arc retention, subscription wake
+scans and usual source/producer/candidate/layout costs remain; no FPS claim.
+Final no-default5passed/1compile-fail doc, retained661/1ignored, text/WGPU695/60
+and hello75/26;7compile-fail docs pass in both core configurations. Explicit
+Store bridge GPU compares3complete images and Noto3 on GTX1650Ti/Vulkan/571.96.
+Library Clippy -D warnings, complete retained-gpu harness, scoped format/diff,
+299local links and5WIP hashes pass. Final code covered; no native cadence inferred.
+
 The [component selection plan stage](RETAINED_COMPONENT_PLANS.md) adds owned
 ComponentPlan plus read-only ComponentInputs and automatic ComponentProducer.
 Explicit Rust branch/show/match/list selection uses ordinary Content source

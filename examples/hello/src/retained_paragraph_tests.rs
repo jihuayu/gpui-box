@@ -29,6 +29,8 @@ mod overflow_text_tests;
 mod prop_batch_text_tests;
 #[path = "retained_read_prop_text_tests.rs"]
 mod read_prop_text_tests;
+#[path = "retained_store_text_tests.rs"]
+mod store_text_tests;
 #[path = "retained_style_ir_text_tests.rs"]
 mod style_ir_text_tests;
 #[path = "retained_ui_ir_text_tests.rs"]

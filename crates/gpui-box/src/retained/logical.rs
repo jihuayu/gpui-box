@@ -26,6 +26,8 @@ mod component;
 pub use component::{
     Component, ComponentContext, ComponentInputs, ComponentPlan, ComponentProducer, ComponentSite,
 };
+mod store;
+pub use store::{StoreApply, StoreInput, StoreSelector};
 
 #[derive(Clone)]
 struct LayoutSession {

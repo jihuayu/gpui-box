@@ -87,6 +87,27 @@ impl ComponentContext<'_, '_, '_, '_> {
     pub fn read_prop<T: 'static>(&self, prop: ReadProp<T>) -> Result<&T, Error> {
         self.edit.read_prop(prop)
     }
+    pub fn read_selector<T: 'static>(&self, selector: StoreSelector<T>) -> Result<&T, Error> {
+        self.edit.read_selector(selector)
+    }
+    pub fn select_store<S: Send + Sync + 'static, T: PartialEq + 'static>(
+        &mut self,
+        key: u64,
+        input: ReadProp<crate::store::StoreSnapshot<S>>,
+        select: impl Fn(&S) -> Result<T, Error> + 'static,
+    ) -> Result<StoreSelector<T>, Error> {
+        if key == u64::MAX {
+            return Err(Error::InvalidComponent);
+        }
+        self.edit.select_store(self.scope, key, input, select)
+    }
+    pub fn bind_selector<T: 'static>(
+        &mut self,
+        selector: StoreSelector<T>,
+        property: Property<T>,
+    ) -> Result<BindingId, Error> {
+        self.edit.bind_selector(selector, property)
+    }
     pub fn bind<T: 'static>(
         &mut self,
         signal: Signal<T>,

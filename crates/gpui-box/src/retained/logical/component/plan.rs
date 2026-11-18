@@ -156,6 +156,9 @@ pub struct ComponentInputs<'a, 'edit, 'draft, 'tree> {
     edit: &'a LogicalEdit<'edit, 'draft, 'tree>,
 }
 impl ComponentInputs<'_, '_, '_, '_> {
+    pub fn read_selector<T: 'static>(&self, selector: StoreSelector<T>) -> Result<&T, Error> {
+        self.edit.read_selector(selector)
+    }
     pub fn read<T: 'static>(&self, signal: Signal<T>) -> Result<&T, Error> {
         self.edit.read(signal)
     }

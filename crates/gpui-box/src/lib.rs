@@ -9,6 +9,9 @@ pub const UPSTREAM_REVISION: &str = "f8cfc7ed9e57503def9479138894f3139f5400cc";
 /// The gpui-box package version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// Application-owned immutable business snapshots, independent of UI backends.
+pub mod store;
+
 /// Persistent UI state, transactional updates, and owned frame output.
 #[cfg(feature = "retained")]
 pub mod retained;

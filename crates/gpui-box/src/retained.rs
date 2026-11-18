@@ -356,6 +356,7 @@ pub enum Error {
     InvalidSignal,
     InvalidPropBatch,
     InvalidComponent,
+    InvalidStore,
     ReadonlySignal,
     UndeclaredDependency,
     SignalInUse,
