@@ -111,6 +111,7 @@ pub struct LogicalUi {
     producer_revision: Option<u64>,
     producer_index: producers::ProducerIndex,
     providers: provider::Registry,
+    has_theme_providers: bool,
     events: events::Registry,
     tasks: tasks::Registry,
     list_measurements:
@@ -214,6 +215,7 @@ impl LogicalUi {
             producer_revision: None,
             producer_index: producers::ProducerIndex::default(),
             providers: provider::Registry::default(),
+            has_theme_providers: false,
             events: events::Registry::default(),
             tasks: tasks::Registry::default(),
             list_measurements: Default::default(),
@@ -230,6 +232,7 @@ impl LogicalUi {
             || self.producer_session.is_some()
             || self.tasks.has_effects()
             || !self.list_measurements.is_empty()
+            || self.has_theme_providers
     }
     pub fn layout_producer_stats(&self) -> LayoutProducerStats {
         self.producer_stats

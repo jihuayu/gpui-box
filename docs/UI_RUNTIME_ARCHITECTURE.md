@@ -1,6 +1,6 @@
 # UI IR、Store、Command 与独立渲染动画架构
 
-状态：设计草案，已开始落地框架层；Rust 优先，预留 JS、Go。当前实现有与 Taffy 解耦的 `LayoutStyle` Flex/Grid/混合长度及测量协议，拥有式 primitive UI 输入快照／批次、纯布局资源、类型化样式组合、显式采用完整帧的主指针／焦点／激活／滚动路由，以及单次构建计划和作用域持久布局 producer。显式 Rust 组件计划、业务 Store 快照／选择器、类型化 Command、作用域 Provider、事件回调及有界短期任务／参数驱动任务效应也已实验接入；完整语义 UI IR、主题继承、序列化/跨语言 ABI、组件宏、通用反馈与细粒度调度、KeepAlive 激活世代和独立呈现仍未完成，总目标继续进行中。
+状态：设计草案，已开始落地框架层；Rust 优先，预留 JS、Go。当前实现有与 Taffy 解耦的 `LayoutStyle` Flex/Grid/混合长度及测量协议，拥有式 primitive UI 输入快照／批次、纯布局资源、类型化样式组合、显式采用完整帧的主指针／焦点／激活／滚动路由，以及单次构建计划和作用域持久布局 producer。显式 Rust 组件计划、业务 Store 快照／选择器、类型化 Command、作用域 Provider、事件回调及有界短期任务／参数驱动任务效应也已实验接入；完整语义 UI IR、完整主题 token 体系与自动文字继承、序列化/跨语言 ABI、组件宏、通用反馈与细粒度调度、KeepAlive 激活世代和独立呈现仍未完成，总目标继续进行中。
 
 更新日期：2026-11-18。实现对照取自 `codex/rendering-performance-research`。本文是架构映射与实现状态记录；实验能力与正式承诺仍分别列出。
 
@@ -36,6 +36,12 @@ baseline／batch查询复制所查询子树的去重联合，复用原Taffy算�
 只在私有树重映射。完整UI root查询保留全树clone和warm cache；普通最终layout／
 完整candidate与responsive preview复制未改变。避免局部查询复制无关分支，同时明确
 冷cache和大覆盖的成本；通用失效／预算cache与独立呈现仍未完成。
+
+同日后续：[类型化主题组](RETAINED_THEMES.md) 复用逻辑provider／source／computed
+接入最近作用域主题与只读selector，portal按逻辑祖先继承。ThemeScope不增加布局盒，
+同key／type／host更新theme与child Props保留组件状态；遗漏字段回到组defaults。
+Theme事务沿已建立约束进行完整frame校验。Named token／derived表达式IR、自动文字
+继承、parts／ThemePatch、系统订阅与独立renderer StyleEpoch仍开放，完整RFC未完成。
 
 ## 1. 要解决的问题
 

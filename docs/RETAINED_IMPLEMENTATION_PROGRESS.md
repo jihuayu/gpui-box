@@ -10,6 +10,25 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [typed theme group stage](RETAINED_THEMES.md) adds ThemeKey/ThemeGroup and
+nearest logical provider inheritance through the existing source graph. Pure
+selectors expose read-only values, preserving normal style/text/Flex transactions
+and equality. Transparent ThemeScope forwards live child Props with no render
+box/producer and retains state on theme change. Whole-group defaults reset omitted
+fields; source identity stays fixed for the provider lifetime, including portals.
+Theme-bearing updates validate complete frames under established constraints.
+Portable token-reference/derived-expression IR, automatic text inheritance,
+parts/patch/system subscription, PendingScene preparation and independent
+presentation remain open. No new FPS/latency claim; complete RFC remains active.
+See [decision](ADR_RETAINED_THEMES.md) and
+[verification](performance/2026-11-19-themes/README.md).
+Final retained-only795passed/1ignored, text/WGPU830/69, each16compiler doctests;
+hello96/39. Explicit real Noto GPU1passed/three complete1.25scale images on
+GTX1650Ti/Vulkan/571.96; simulated click installs a CPU image matching full Flex
+and adopts the matching input scene. Strict library Clippy, CPU desktop and
+retained-gpu harness checks pass. Scoped format/diff, focused304-doc/1,149-link
+validation and five inherited WIP baseline hashes pass.
+
 The [compact direct-child query stage](ADR_RETAINED_SUBTREE_QUERIES.md) replaces
 whole live Taffy clones for local dry size/axis/baseline/batched queries with a
 deduplicated queried-subtree union. Private node IDs remap, immutable inputs

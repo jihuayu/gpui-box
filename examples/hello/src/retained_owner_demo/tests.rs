@@ -2,6 +2,190 @@ use super::*;
 use core::prelude::v1::test;
 
 #[gpui::test]
+fn owner_host_theme_click_installs_complete_cpu_picture_with_same_component(
+    cx: &mut TestAppContext,
+) {
+    use gpui_box::retained::theme::*;
+    #[derive(Clone, PartialEq)]
+    struct Values {
+        width: f32,
+        color: u32,
+    }
+    impl Default for Values {
+        fn default() -> Self {
+            Self {
+                width: 80.0,
+                color: 0x225588ff,
+            }
+        }
+    }
+    struct AppTheme;
+    impl ThemeKey for AppTheme {
+        type Values = Values;
+    }
+    struct Button;
+    impl Component for Button {
+        type Props = Signal<ThemeGroup<AppTheme>>;
+        fn mount(
+            p: ReadProp<Self::Props>,
+            cx: &mut ComponentContext<'_, '_, '_, '_>,
+        ) -> Result<(), Error> {
+            let writer = *cx.read_prop(p)?;
+            let theme = cx.use_theme::<AppTheme>()?;
+            let node = cx.append_layout(LayoutStyle::column(), 0)?;
+            let style = cx.select_theme(0, theme, |v| {
+                Ok(LayoutStyle::column()
+                    .size(LayoutDimension::Px(v.width), LayoutDimension::Px(40.0))
+                    .flex_shrink(0.0))
+            })?;
+            let color = cx.select_theme(1, theme, |v| Ok(v.color))?;
+            cx.bind_prop(style, Property::layout_style(node))?;
+            cx.bind_prop(color, Property::color(node))?;
+            let handler = cx.event_handler(
+                0,
+                EventHandler::new(move |event, cx| {
+                    if event.kind == UiInputEventKind::Activate {
+                        cx.set(
+                            writer,
+                            ThemeGroup::<AppTheme>::create(|v| {
+                                v.width = 140.0;
+                                v.color = 0x117755ff;
+                            })?,
+                        )?;
+                    }
+                    Ok(())
+                }),
+            )?;
+            cx.interaction(
+                node,
+                Some(UiInteraction {
+                    focus: UiFocusPolicy::Tab,
+                    activate_handler: Some(handler),
+                    ..Default::default()
+                }),
+            )?;
+            Ok(())
+        }
+    }
+    let platform = Arc::new(gpui_wgpu::CosmicTextSystem::new_without_system_fonts(
+        "Noto Sans CJK SC",
+    ));
+    let mut real_cx = TestAppContext::build_with_text_system(cx.dispatcher.clone(), None, platform);
+    let cx = &mut real_cx;
+    cx.text_system()
+        .add_fonts(vec![std::borrow::Cow::Borrowed(include_bytes!(
+            "../../assets/NotoSansSC-Regular.otf"
+        ))])
+        .unwrap();
+    let window = cx.open_window(size(px(600.0), px(460.0)), |w, cx| {
+        OwnerDemo::new(w, cx, true)
+    });
+    let view = window.root(cx).unwrap();
+    let cx = VisualTestContext::from_window(*window, cx).into_mut();
+    cx.run_until_parked();
+    let (source, scope, node, initial) = view.update(cx, |this, cx| {
+        let root = this.ui.root_scope();
+        let render = this.ui.root_render();
+        let viewport = this.shown.as_ref().unwrap().viewport;
+        let source = this
+            .ui
+            .state(root, 100, || ThemeGroup::<AppTheme>::defaults().unwrap())
+            .unwrap();
+        let old = this.ui.renders(root).unwrap().to_vec();
+        let scope = this
+            .ui
+            .edit_local_frame(
+                LayoutConstraints::viewport(viewport[0], viewport[1]),
+                viewport,
+                |_| Ok(()),
+                |(), e| {
+                    for node in old {
+                        e.properties()
+                            .layout_style(node, LayoutStyle::column().display(LayoutDisplay::None));
+                    }
+                    e.provide_theme(root, source)?;
+                    let site = e.component_sites(root, &[1])?[0];
+                    Ok(e.components_at::<Button>(site, render, [(0, source)])?[0])
+                },
+            )
+            .unwrap()
+            .0
+            .result
+            .value;
+        let node = this.ui.renders(scope).unwrap()[0];
+        let initial = this.installs;
+        cx.notify();
+        (source, scope, node, initial)
+    });
+    cx.run_until_parked();
+    let click = view.read_with(cx, |this, _| {
+        let b = this
+            .shown
+            .as_ref()
+            .unwrap()
+            .frame
+            .resolve_geometry(node)
+            .unwrap()
+            .bounds;
+        this.bounds.unwrap().origin + point(px(b.x + 8.0), px(b.y + 8.0))
+    });
+    cx.simulate_click(click, Modifiers::default());
+    cx.run_until_parked();
+    view.read_with(cx, |this, _| {
+        assert!(this.installs > initial);
+        assert_eq!(this.ui.read(source).unwrap().values().width, 140.0);
+        assert_eq!(this.ui.renders(scope).unwrap(), [node]);
+        assert!(this.error.is_none(), "{:?}", this.error);
+        let shown = this.shown.as_ref().unwrap();
+        assert_eq!(this.router.scene_id(), Some(shown.scene.id()));
+        assert_eq!(this.ui.layout_result(node).unwrap().size, [140.0, 40.0]);
+        assert!(this.cpu_task.is_none() && this.pending.is_none() && this.ready.is_none());
+        let mut full = UiTree::new_layout(
+            LayoutStyle::column()
+                .size(
+                    LayoutDimension::Px(shown.viewport[0]),
+                    LayoutDimension::Px(shown.viewport[1]),
+                )
+                .padding(LayoutEdges::all(LayoutLength::Px(20.0)))
+                .gap(LayoutLength::Px(16.0), LayoutLength::Px(0.0)),
+            0x17202fff,
+        )
+        .unwrap();
+        full.append_layout(
+            full.root(),
+            LayoutStyle::column()
+                .size(LayoutDimension::Px(140.0), LayoutDimension::Px(40.0))
+                .flex_shrink(0.0),
+            0x117755ff,
+        )
+        .unwrap();
+        let mut job = software::SoftwareJob::new(
+            full.frame(shown.viewport).unwrap(),
+            software::SoftwareOptions {
+                size: shown.size,
+                scale: shown.scale,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 128 * 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(8192).unwrap() {}
+        let mut bytes = job.into_frame().unwrap().pixels().to_vec();
+        for p in bytes.as_chunks_mut::<4>().0 {
+            p.swap(0, 2);
+        }
+        let Raster::Image(image) = &shown.raster else {
+            panic!("CPU image expected")
+        };
+        assert!(
+            image.as_bytes(0).unwrap() == bytes.as_slice(),
+            "installed theme CPU picture differs from full Flex"
+        );
+    });
+}
+
+#[gpui::test]
 fn owner_host_measured_virtual_list_installs_ordinary_flex_cpu_picture(cx: &mut TestAppContext) {
     use gpui_box::retained::virtual_list::*;
     struct Row;

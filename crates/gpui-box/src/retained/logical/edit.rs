@@ -681,8 +681,7 @@ impl LogicalUi {
             })
             .or(self.producer_session)
             .or_else(|| {
-                self.tasks
-                    .has_effects()
+                (self.tasks.has_effects() || self.has_theme_providers)
                     .then(|| {
                         self.ui
                             .tree()
@@ -1133,6 +1132,7 @@ impl LogicalUi {
             self.responsive_rules = rules;
         }
         if let Some(providers) = providers {
+            self.has_theme_providers = super::provider::has_themes(&providers);
             self.providers = providers;
         }
         if let Some(events) = events {

@@ -46,6 +46,71 @@ pub struct ComponentContext<'a, 'edit, 'draft, 'tree> {
     host: NodeId,
 }
 impl ComponentContext<'_, '_, '_, '_> {
+    /// Internal transparent wrappers forward a live computed input to one
+    /// ordinary child scope at mount. No layout host/producer is required.
+    /// The input remains owned by the wrapper and retires with both scopes.
+    pub(in crate::retained) fn forward_child<C: Component>(
+        &mut self,
+        input: ReadProp<C::Props>,
+    ) -> Result<(), Error> {
+        let mut attempt = self.edit.component_attempt()?;
+        self.edit
+            .render
+            .validate_live_dependency(input.dependency())?;
+        let identity = Identity::Component {
+            kind: TypeId::of::<C>(),
+            host: self.host,
+        };
+        let scopes = self
+            .edit
+            .reconcile_scopes(self.scope, &[0], Some(identity))?;
+        if scopes.len() != 1 {
+            return Err(Error::InvalidComponent);
+        }
+        C::mount(
+            input,
+            &mut ComponentContext {
+                edit: self.edit,
+                scope: scopes[0],
+                host: self.host,
+            },
+        )?;
+        attempt.success = true;
+        Ok(())
+    }
+    pub fn provide_theme<K: theme::ThemeKey>(
+        &mut self,
+        input: Signal<theme::ThemeGroup<K>>,
+    ) -> Result<(), Error> {
+        self.edit.provide_theme(self.scope, input)
+    }
+    pub fn provide_theme_prop<K: theme::ThemeKey>(
+        &mut self,
+        input: ReadProp<theme::ThemeGroup<K>>,
+    ) -> Result<(), Error> {
+        self.edit.provide_theme_prop(self.scope, input)
+    }
+    pub fn use_theme<K: theme::ThemeKey>(
+        &mut self,
+    ) -> Result<ReadProp<theme::ThemeGroup<K>>, Error> {
+        self.edit.use_theme::<K>(self.scope)
+    }
+    pub fn try_use_theme<K: theme::ThemeKey>(
+        &mut self,
+    ) -> Result<Option<ReadProp<theme::ThemeGroup<K>>>, Error> {
+        self.edit.try_use_theme::<K>(self.scope)
+    }
+    pub fn select_theme<K: theme::ThemeKey, T: PartialEq + 'static>(
+        &mut self,
+        key: u64,
+        input: ReadProp<theme::ThemeGroup<K>>,
+        select: impl Fn(&K::Values) -> Result<T, Error> + 'static,
+    ) -> Result<ReadProp<T>, Error> {
+        if key == u64::MAX {
+            return Err(Error::InvalidComponent);
+        }
+        self.edit.select_theme(self.scope, key, input, select)
+    }
     pub(in crate::retained) fn register_list_measurement(
         &mut self,
         measure: Rc<dyn virtual_list::measurement::Measure>,

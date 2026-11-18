@@ -14,6 +14,7 @@ use std::{
 enum Key {
     Store(TypeId),
     Command(TypeId),
+    Theme(TypeId),
 }
 struct Entry {
     value: Box<dyn Any>,
@@ -25,6 +26,11 @@ pub(super) struct Environment {
     resolved: BTreeMap<Key, Option<Rc<Entry>>>,
 }
 pub(super) type Registry = BTreeMap<ScopeId, Rc<Environment>>;
+pub(super) fn has_themes(registry: &Registry) -> bool {
+    registry
+        .values()
+        .any(|env| env.provided.keys().any(|key| matches!(key, Key::Theme(_))))
+}
 
 pub(super) fn validate_retirement(
     registry: &Registry,
@@ -49,6 +55,96 @@ pub(super) fn validate_retirement(
 }
 
 impl LogicalEdit<'_, '_, '_> {
+    /// Provide an ordinary source's read-only theme view. Its identity remains
+    /// fixed for this provider lifetime; values change through normal source
+    /// transactions. Consumers cannot obtain the source's writer capability.
+    pub fn provide_theme<K: theme::ThemeKey>(
+        &mut self,
+        scope: ScopeId,
+        input: Signal<theme::ThemeGroup<K>>,
+    ) -> Result<(), Error> {
+        self.provide_theme_prop(
+            scope,
+            ReadProp {
+                signal: input,
+                owner_local: std::marker::PhantomData,
+            },
+        )
+    }
+    pub fn provide_theme_prop<K: theme::ThemeKey>(
+        &mut self,
+        scope: ScopeId,
+        input: ReadProp<theme::ThemeGroup<K>>,
+    ) -> Result<(), Error> {
+        let mut attempt = self.component_attempt()?;
+        self.render.validate_live_dependency(input.dependency())?;
+        self.render.read(input.signal)?;
+        self.declare_provider(
+            scope,
+            Key::Theme(TypeId::of::<K>()),
+            Entry {
+                value: Box::new(input),
+                dependency: Some(input.dependency()),
+            },
+            |old| {
+                old.downcast_ref::<ReadProp<theme::ThemeGroup<K>>>()
+                    .is_some_and(|old| *old == input)
+            },
+        )?;
+        attempt.success = true;
+        Ok(())
+    }
+    /// Resolve along logical scope ancestry, independent of render hosts and
+    /// portals. Provider identity is captured for this consumer lifetime.
+    pub fn try_use_theme<K: theme::ThemeKey>(
+        &mut self,
+        scope: ScopeId,
+    ) -> Result<Option<ReadProp<theme::ThemeGroup<K>>>, Error> {
+        let mut attempt = self.component_attempt()?;
+        let selected = self.resolve_provider(scope, Key::Theme(TypeId::of::<K>()))?;
+        let input = selected
+            .map(|entry| {
+                entry
+                    .value
+                    .downcast_ref::<ReadProp<theme::ThemeGroup<K>>>()
+                    .copied()
+                    .ok_or(Error::InvalidProvider)
+            })
+            .transpose()?;
+        if let Some(input) = input {
+            self.render.validate_live_dependency(input.dependency())?;
+        }
+        attempt.success = true;
+        Ok(input)
+    }
+    pub fn use_theme<K: theme::ThemeKey>(
+        &mut self,
+        scope: ScopeId,
+    ) -> Result<ReadProp<theme::ThemeGroup<K>>, Error> {
+        let mut attempt = self.component_attempt()?;
+        let input = self
+            .try_use_theme::<K>(scope)?
+            .ok_or_else(|| self.missing_provider(scope, type_name::<K>()))?;
+        attempt.success = true;
+        Ok(input)
+    }
+    /// Owner-local pure projection, equality filtered by the existing computed
+    /// graph. The returned handle exposes no writer; bind_prop consumes it.
+    pub fn select_theme<K: theme::ThemeKey, T: PartialEq + 'static>(
+        &mut self,
+        scope: ScopeId,
+        key: u64,
+        input: ReadProp<theme::ThemeGroup<K>>,
+        select: impl Fn(&K::Values) -> Result<T, Error> + 'static,
+    ) -> Result<ReadProp<T>, Error> {
+        let signal = self.computed(scope, key, &[input.dependency()], move |i| {
+            select(i.read_prop(input)?.values())
+        })?;
+        Ok(ReadProp {
+            signal,
+            owner_local: std::marker::PhantomData,
+        })
+    }
     fn providers(&self) -> &Registry {
         self.providers.as_ref().unwrap_or(self.live_providers)
     }
@@ -275,6 +371,22 @@ impl LogicalEdit<'_, '_, '_> {
     }
 }
 impl LogicalUi {
+    pub fn provide_theme<K: theme::ThemeKey>(
+        &mut self,
+        scope: ScopeId,
+        input: Signal<theme::ThemeGroup<K>>,
+    ) -> Result<(), Error> {
+        self.edit(|_| Ok(()), |(), edit| edit.provide_theme(scope, input))
+            .map(|_| ())
+    }
+    pub fn provide_theme_prop<K: theme::ThemeKey>(
+        &mut self,
+        scope: ScopeId,
+        input: ReadProp<theme::ThemeGroup<K>>,
+    ) -> Result<(), Error> {
+        self.edit(|_| Ok(()), |(), edit| edit.provide_theme_prop(scope, input))
+            .map(|_| ())
+    }
     pub fn provide_store<K: StoreKey>(
         &mut self,
         scope: ScopeId,

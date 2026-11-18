@@ -78,6 +78,7 @@ pub mod input;
 pub mod reactive;
 pub mod responsive;
 pub mod style;
+pub mod theme;
 pub mod ui_ir;
 pub use edit::{TreeEdit, TreeEditCommit};
 mod structure;
@@ -361,6 +362,7 @@ pub enum Error {
     VirtualListLimit,
     InvalidStore,
     InvalidProvider,
+    InvalidTheme,
     InvalidEventHandler,
     InvalidTask,
     InvalidTaskPool,

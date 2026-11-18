@@ -6,6 +6,11 @@ RFC remains active. Extends [components](RETAINED_TYPED_COMPONENTS.md),
 [typed Command transport](RETAINED_TYPED_COMMANDS.md). No global singleton or
 second source graph, layout box, renderer algorithm or source schema change.
 
+2026-11-19 follow-up: [typed complete theme groups](RETAINED_THEMES.md) reuse
+the same registry with a separate ThemeKey namespace, logical nearest-provider
+inheritance and ordinary read-only source projections. Transparent ThemeScope
+does not add a layout box; portable token expressions/text inheritance remain open.
+
 ## Keys, declarations and resolution
 
 `gpui_box::store::StoreKey` names one logical Store capability and associates its
