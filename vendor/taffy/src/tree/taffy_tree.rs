@@ -56,6 +56,9 @@ mod tracked_input_tests;
 #[cfg(all(test, feature = "flexbox"))]
 #[path = "shared_style_tests.rs"]
 mod shared_style_tests;
+#[cfg(all(test, feature = "grid"))]
+#[path = "grid_item_style_tests.rs"]
+mod grid_item_style_tests;
 
 /// An error that occurs while trying to access or modify a node's children by index.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -548,8 +551,14 @@ where
             flex_grow: style.flex_grow,
             #[cfg(feature = "flexbox")]
             flex_shrink: style.flex_shrink,
-            #[cfg(feature = "flexbox")]
+            #[cfg(any(feature = "flexbox", feature = "grid", feature = "block_layout"))]
             align_self: style.align_self,
+            #[cfg(any(feature = "grid", feature = "block_layout"))]
+            justify_self: style.justify_self,
+            #[cfg(feature = "grid")]
+            grid_column: style.grid_column.clone(),
+            #[cfg(feature = "grid")]
+            grid_row: style.grid_row.clone(),
         })
     }
     type CoreContainerStyle<'a>

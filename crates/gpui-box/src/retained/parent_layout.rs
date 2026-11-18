@@ -253,6 +253,11 @@ pub struct ChildLayoutStyle {
     pub flex_grow: f32,
     pub flex_shrink: f32,
     pub align_self: LayoutAlignment<LayoutAlignSelf>,
+    /// Unresolved inline-axis item alignment. The parent policy chooses how
+    /// to apply it; reading it does not enable automatic CSS Grid placement.
+    pub justify_self: LayoutAlignment<LayoutAlignSelf>,
+    pub grid_column: GridAxisPlacement,
+    pub grid_row: GridAxisPlacement,
 }
 
 /// Only direct children are addressable. Measurements never publish geometry.
@@ -835,6 +840,8 @@ mod definiteness_tests;
 mod dry_baseline_tests;
 #[cfg(test)]
 mod dry_tests;
+#[cfg(test)]
+mod grid_item_style_tests;
 #[cfg(test)]
 mod inline_tests;
 #[cfg(test)]

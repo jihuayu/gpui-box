@@ -10,7 +10,8 @@ use std::sync::Arc;
 /// Owned item-facing style inputs for a parent policy. Values remain
 /// unresolved; reading them does not measure content or assign child geometry.
 /// Independent allocation may inspect these inputs without resolving content.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(not(feature = "grid"), derive(Copy))]
 pub struct CustomChildStyle {
     /// Whether the child generates no box.
     pub hidden: bool,
@@ -58,8 +59,17 @@ pub struct CustomChildStyle {
     #[cfg(feature = "flexbox")]
     pub flex_shrink: f32,
     /// Optional item alignment.
-    #[cfg(feature = "flexbox")]
+    #[cfg(any(feature = "flexbox", feature = "grid", feature = "block_layout"))]
     pub align_self: Option<crate::AlignSelf>,
+    /// Optional inline-axis item alignment. Does not perform placement itself.
+    #[cfg(any(feature = "grid", feature = "block_layout"))]
+    pub justify_self: Option<crate::AlignSelf>,
+    /// Unresolved Grid column placement, including authored names.
+    #[cfg(feature = "grid")]
+    pub grid_column: crate::Line<crate::GridPlacement>,
+    /// Unresolved Grid row placement, including authored names.
+    #[cfg(feature = "grid")]
+    pub grid_row: crate::Line<crate::GridPlacement>,
 }
 
 /// Opaque, owned metadata attached to a child for its direct parent algorithm.

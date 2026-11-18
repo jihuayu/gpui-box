@@ -432,6 +432,10 @@ fn effective_item_styles_preserve_unresolved_values_and_replaced_image_classific
         style.flex_grow = i as f32;
         style.flex_shrink = 0.5;
         style.align_self = alignments[i];
+        style.justify_self = alignments[(i + 1) % alignments.len()];
+        style.grid_column =
+            GridAxisPlacement::new(GridPlacement::Line(-2), GridPlacement::Span((i + 1) as u16));
+        style.grid_row = GridAxisPlacement::new(GridPlacement::Auto, GridPlacement::Line(3));
         style.direction = if i % 2 == 0 {
             LayoutDirection::Rtl
         } else {
@@ -469,6 +473,9 @@ fn effective_item_styles_preserve_unresolved_values_and_replaced_image_classific
         assert_eq!(item.flex_grow, style.flex_grow);
         assert_eq!(item.flex_shrink, style.flex_shrink);
         assert_eq!(item.align_self, style.align_self);
+        assert_eq!(item.justify_self, style.justify_self);
+        assert_eq!(item.grid_column, style.grid_column);
+        assert_eq!(item.grid_row, style.grid_row);
         assert_eq!(item.margin, style.margin);
         assert_eq!(item.inset, style.inset);
         assert_eq!(item.padding, style.padding);

@@ -522,6 +522,12 @@ private candidates与builder观察共享lowered Style；写入替换snapshot，i
 tree/cache/topology复制和proof扫描继续。该阶段的CPU对照不替代native呈现／帧率验收，
 Arc也不改变Taffy Style因裸指针表示而非Send/Sync的现状。
 
+后续 [Grid item样式视图](RETAINED_GRID_ITEM_STYLE_VIEW.md) 为公共ChildLayoutStyle补上
+grid_column／grid_row／justify_self，测量和独立分配读取同一未解析的公共numeric placement
+及alignment safety。既有完整effective style观察覆盖读后变化；normal Grid算法继续，
+custom parent仍选择自己的physical origins。Kernel view保留names，框架无对应类型时明确
+拒绝转换，不把名字/无效line或span静默归一化；没有扩大builder反馈证明或新增solver。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

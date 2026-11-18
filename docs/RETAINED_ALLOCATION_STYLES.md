@@ -1,5 +1,10 @@
 # Item styles in independent child allocation
 
+Follow-up2026-11-18: [Grid item style inputs](RETAINED_GRID_ITEM_STYLE_VIEW.md)
+adds column/row placement and justify-self to the shared child-style view. Full
+effective style observations already cover these fields; equal-size late item
+changes still reject after builder consumption. No new feedback proof is added.
+
 Follow-up: [selected child assignments](RETAINED_CHILD_ASSIGNMENTS.md) preserves
 known size/definiteness in returned/read child inputs, independently of hard
 intervals and percentage bases. The dependency domain below remains unchanged.

@@ -745,6 +745,24 @@ measure15.7%/17.5% and create+measure28.1%/26.5%. Raw per-process p50/p95/max,
 source harness and binary hashes are saved; no individual-sample/p99, peak/RSS,
 live-layout-only or native presentation claim is made.
 
+The [Grid item style-view stage](RETAINED_GRID_ITEM_STYLE_VIEW.md) extends the
+same framework-owned ChildLayoutStyle with numeric column/row placements and
+justify-self/safety in measured and independent parent phases. The kernel view
+preserves authored names and becomes Clone when Grid is enabled; the public
+numeric model explicitly rejects names/line0/span0 rather than losing input.
+Full effective-style observations already cover equal-size late changes.
+Test-only explicit-cell clients match normal Grid geometry, CPU pixels and
+actual Noto wrapping/baselines; no new runtime solver or feedback proof is added.
+Verified: retained492passed/1ignored, text/WGPU525/38, hello53/7; vendor
+default233/affine+serde238/project-affine229passed; alloc+tree+Grid/Flex/Block+
+affine and all-features checks, framework library Clippy and scoped format/diff
+pass. Explicit GTX1650Ti/Vulkan item5 and actual
+glyph8 complete-pixel submissions match normal full Grid. Three regular core,
+one vendor and one real-text case plus two hardware cases were added. No timing
+or memory/FPS gain is claimed. Public named styles, general Grid/custom/full-axis
+feedback, RenderBox, automatic scheduling, incremental planning and full native
+performance acceptance remain open.
+
 The [validation-cache stage](RETAINED_VALIDATION_CACHE.md) reuses consumer checks
 for cache-owned immutable pages and stable node indices, with full fallback for
 identity/order/scale changes and complete effect-reference checks on effect-map edits.

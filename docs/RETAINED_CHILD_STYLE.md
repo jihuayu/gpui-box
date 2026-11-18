@@ -1,5 +1,10 @@
 # Item styles in measured parent policies
 
+Follow-up2026-11-18: [Grid item style inputs](RETAINED_GRID_ITEM_STYLE_VIEW.md)
+adds numeric column/row placement and inline justify-self to this same view,
+including the already-extended independent allocation phase. Ordinary Grid
+placement and custom physical placement remain separate policies.
+
 Follow-up 2026-11-17: [independent allocation styles](RETAINED_ALLOCATION_STYLES.md)
 extends the full allocator with this input domain and adds conservative effective
 sibling-style structural observations. Restrictions below describe the original

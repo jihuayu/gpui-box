@@ -3,30 +3,6 @@ use super::*;
 
 impl ChildLayoutStyle {
     pub(super) fn from_taffy(value: taffy::tree::CustomChildStyle) -> Result<Self, Error> {
-        use taffy::AlignItemsKeyword as K;
-        let align_self = match value.align_self {
-            None => LayoutAlignSelf::Auto.into(),
-            Some(alignment) => LayoutAlignment {
-                position: match alignment.keyword {
-                    K::Normal => LayoutAlignSelf::Normal,
-                    K::Start => LayoutAlignSelf::Start,
-                    K::End => LayoutAlignSelf::End,
-                    K::FlexStart => LayoutAlignSelf::FlexStart,
-                    K::FlexEnd => LayoutAlignSelf::FlexEnd,
-                    K::SelfStart => LayoutAlignSelf::SelfStart,
-                    K::SelfEnd => LayoutAlignSelf::SelfEnd,
-                    K::Center => LayoutAlignSelf::Center,
-                    K::Stretch => LayoutAlignSelf::Stretch,
-                    K::Baseline => LayoutAlignSelf::Baseline,
-                    K::LastBaseline => LayoutAlignSelf::LastBaseline,
-                },
-                overflow: match alignment.safety {
-                    taffy::AlignmentSafety::Default => LayoutAlignmentOverflow::Default,
-                    taffy::AlignmentSafety::Safe => LayoutAlignmentOverflow::Safe,
-                    taffy::AlignmentSafety::Unsafe => LayoutAlignmentOverflow::Unsafe,
-                },
-            },
-        };
         let containment = value.contain.size_containment();
         Ok(Self {
             hidden: value.hidden,
@@ -62,9 +38,56 @@ impl ChildLayoutStyle {
             flex_basis: dimension(value.flex_basis)?,
             flex_grow: value.flex_grow,
             flex_shrink: value.flex_shrink,
-            align_self,
+            align_self: alignment(value.align_self),
+            justify_self: alignment(value.justify_self),
+            grid_column: grid_axis(value.grid_column)?,
+            grid_row: grid_axis(value.grid_row)?,
         })
     }
+}
+
+fn alignment(value: Option<taffy::AlignSelf>) -> LayoutAlignment<LayoutAlignSelf> {
+    use taffy::AlignItemsKeyword as K;
+    match value {
+        None => LayoutAlignSelf::Auto.into(),
+        Some(alignment) => LayoutAlignment {
+            position: match alignment.keyword {
+                K::Normal => LayoutAlignSelf::Normal,
+                K::Start => LayoutAlignSelf::Start,
+                K::End => LayoutAlignSelf::End,
+                K::FlexStart => LayoutAlignSelf::FlexStart,
+                K::FlexEnd => LayoutAlignSelf::FlexEnd,
+                K::SelfStart => LayoutAlignSelf::SelfStart,
+                K::SelfEnd => LayoutAlignSelf::SelfEnd,
+                K::Center => LayoutAlignSelf::Center,
+                K::Stretch => LayoutAlignSelf::Stretch,
+                K::Baseline => LayoutAlignSelf::Baseline,
+                K::LastBaseline => LayoutAlignSelf::LastBaseline,
+            },
+            overflow: match alignment.safety {
+                taffy::AlignmentSafety::Default => LayoutAlignmentOverflow::Default,
+                taffy::AlignmentSafety::Safe => LayoutAlignmentOverflow::Safe,
+                taffy::AlignmentSafety::Unsafe => LayoutAlignmentOverflow::Unsafe,
+            },
+        },
+    }
+}
+
+fn grid_axis(value: taffy::Line<taffy::GridPlacement>) -> Result<GridAxisPlacement, Error> {
+    let placement = |value| match value {
+        taffy::GridPlacement::Auto => Ok(GridPlacement::Auto),
+        taffy::GridPlacement::Line(line) if line.as_i16() != 0 => {
+            Ok(GridPlacement::Line(line.as_i16()))
+        }
+        taffy::GridPlacement::Span(span) if span > 0 => Ok(GridPlacement::Span(span)),
+        // Named placement has no framework-owned representation yet. Do not
+        // silently drop names or normalize invalid legacy numeric declarations.
+        _ => Err(Error::InvalidParentLayout),
+    };
+    Ok(GridAxisPlacement::new(
+        placement(value.start)?,
+        placement(value.end)?,
+    ))
 }
 
 #[allow(unreachable_patterns)] // calc may be enabled by a downstream dependency

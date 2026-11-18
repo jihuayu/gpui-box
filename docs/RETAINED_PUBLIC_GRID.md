@@ -68,6 +68,11 @@ parent edge. Ordinary item queries/builders inside content-dependent Grid tracks
 remain rejected. Track dependency analysis and custom item-style access to Grid
 placement are future work; this does not silently inherit Row-only proofs.
 
+Later [Grid item style inputs](RETAINED_GRID_ITEM_STYLE_VIEW.md) exposes numeric
+placement and justify-self in custom measured/independent parent policies.
+Those policies still choose physical placement; this does not prove general
+content-dependent Grid item allocation or add a second Grid solver.
+
 Follow-up: [Grid inline allocation](RETAINED_GRID_INLINE_ALLOCATION.md) now proves
 content-independent definite/fractional columns across Grid parent edges, with
 explicit implicit-column patterns, live root anchors, sibling/track observations
