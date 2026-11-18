@@ -288,10 +288,12 @@ impl UiInputRouter {
                     )
                 };
                 self.set_focus(next, true, &mut effects);
+                self.reveal_focus(&mut effects);
             }
             UiInput::Focus(target) => {
                 self.cancel(&mut effects);
                 self.set_focus(target, true, &mut effects);
+                self.reveal_focus(&mut effects);
             }
             UiInput::KeyDown { key, repeat } => {
                 if !repeat
@@ -325,6 +327,17 @@ impl UiInputRouter {
     }
     fn graph(&self) -> &InputGraph {
         &self.scene.as_ref().unwrap().0.graph
+    }
+    fn reveal_focus(&self, effects: &mut UiInputEffects) {
+        if let Some(target) = self.focus {
+            let (scene, evidence) = self.scene.as_ref().unwrap();
+            effects.focus_reveals.push(UiFocusReveal {
+                scene: scene.id,
+                evidence: *evidence,
+                target,
+                route: scene.graph.path(target).into(),
+            });
+        }
     }
     fn dispatch(
         &self,

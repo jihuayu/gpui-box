@@ -87,9 +87,9 @@ pub(in crate::retained) fn states(
 }
 
 impl UiDocument {
-    /// Plan wheel deltas and ordinary style feedback together, preserving every
-    /// unrelated authored field. Sequential events accumulate against latest
-    /// committed offsets even while the host still displays an older scene.
+    /// Plan wheel deltas, focus reveal and style feedback together, preserving
+    /// unrelated authored fields. Wheel deltas use current committed offsets;
+    /// focus reveal runs after this batch's final style/layout settlement.
     pub fn plan_input_scroll(
         &self,
         effects: &UiInputEffects,
@@ -175,6 +175,29 @@ impl UiDocument {
             (self.node(node)?.properties.scroll != value)
                 .then_some(UiOperation::Scroll { node, value })
         }));
+        // Focus reveal is a post-layout intent, not an absolute offset computed
+        // from adopted (possibly old) geometry. The exact-base batch protects
+        // this validation until apply; final draft policy is checked there too.
+        for request in &effects.focus_reveals {
+            if request.scene.runtime != current.id.runtime {
+                return Err(UiInputError::WrongRuntime);
+            }
+            if request.scene.epoch != current.id.epoch {
+                return Err(UiInputError::WrongEpoch);
+            }
+            if request.scene.tree != current.id.tree
+                || request.scene.source_revision > current.id.source_revision
+                || request.scene.source_revision == current.id.source_revision
+                    && request.scene != current.id
+                || !current.graph.focusable(request.target)
+                || current.graph.path(request.target).as_slice() != request.route.as_ref()
+            {
+                return Err(UiInputError::StaleScrollRoute);
+            }
+            operations.push(UiOperation::ScrollIntoView {
+                node: request.target,
+            });
+        }
         let revision = self
             .revision()
             .checked_add(1)

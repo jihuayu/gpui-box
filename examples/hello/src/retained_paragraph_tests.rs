@@ -5,6 +5,8 @@ use gpui_box::retained::{reactive::*, text::*};
 use std::{borrow::Cow, sync::Arc};
 #[path = "retained_build_plan_text_tests.rs"]
 mod build_plan_text_tests;
+#[path = "retained_focus_reveal_text_tests.rs"]
+mod focus_reveal_text_tests;
 #[path = "retained_grid_policy_text_tests.rs"]
 mod grid_policy_text_tests;
 #[path = "retained_overflow_text_tests.rs"]

@@ -145,14 +145,19 @@ impl UiDocument {
         let mut tree = UiTree::new_layout(root_node.layout.clone(), root_node.properties.color)?;
         let mut mapping = BTreeMap::from([(snapshot.root, tree.root())]);
         let empty = BTreeMap::new();
-        let result = stage(
+        let (result, _) = stage(
             &mut tree,
             &empty,
             &resolved_nodes,
             &mut mapping,
             &pinned,
             capabilities,
-            (constraints, viewport),
+            reveal::RevealFrame {
+                constraints,
+                viewport,
+                targets: &[],
+                authored: &nodes,
+            },
         )?;
         let frame = tree
             .published_local_frame()
@@ -391,6 +396,7 @@ impl UiDocument {
         let mut generations = self.generations.clone();
         let mut live_slots: BTreeSet<_> = nodes.keys().map(|id| id.slot).collect();
         let mut removed = BTreeSet::new();
+        let mut reveals = vec![];
         for operation in &batch.operations {
             match operation {
                 UiOperation::Create(node) => {
@@ -430,6 +436,7 @@ impl UiDocument {
                     }
                     get_mut(&mut nodes, *node, &mut touched)?.properties.scroll = *value;
                 }
+                UiOperation::ScrollIntoView { node } => reveals.push(*node),
                 UiOperation::Content { node, value } => {
                     validate_content(value)?;
                     get_mut(&mut nodes, *node, &mut touched)?.content = value.clone()
@@ -495,7 +502,7 @@ impl UiDocument {
             }
         }
         let mut style_cache = self.style_cache.clone();
-        let (resolved_nodes, mut planning) = style_cache.update(
+        let (mut resolved_nodes, mut planning) = style_cache.update(
             (&self.nodes, &self.resolved_nodes, &self.style_environment),
             &nodes,
             &style_environment,
@@ -516,19 +523,45 @@ impl UiDocument {
         } else {
             Arc::new(input::InputGraph::build(self.root, &resolved_nodes))
         };
+        for target in &reveals {
+            if !input_graph.eligible(*target) {
+                return Err(UiError::IneligibleReveal(*target));
+            }
+        }
         // Style resolution changes layout/visual values only and validates
         // selected payloads; it cannot invalidate the source graph's edges.
         let pinned = pin_resources(&nodes, resources, &self.resources)?;
         let mut mapping = self.mapping.clone();
-        let commit = stage(
+        let (commit, revealed_offsets) = stage(
             &mut self.tree,
             &self.resolved_nodes,
             &resolved_nodes,
             &mut mapping,
             &pinned,
             capabilities,
-            (constraints, viewport),
+            reveal::RevealFrame {
+                constraints,
+                viewport,
+                targets: &reveals,
+                authored: &nodes,
+            },
         )?;
+        // Reveal only writes hosts with no authored style Scroll writer. Thus
+        // the same narrow offset is both authored and effective; no style plan
+        // or environment can override it. The private tree already validated
+        // the resulting complete frame before source records are adopted.
+        for (id, offset) in revealed_offsets {
+            Arc::make_mut(nodes.get_mut(&id).expect("revealed live host"))
+                .properties
+                .scroll = offset;
+            Arc::make_mut(
+                resolved_nodes
+                    .get_mut(&id)
+                    .expect("revealed effective host"),
+            )
+            .properties
+            .scroll = offset;
+        }
         let input_scrolls = input::scroll::states(&self.tree, &mapping, &resolved_nodes, &nodes);
         self.nodes = nodes;
         self.resolved_nodes = resolved_nodes;
@@ -703,14 +736,17 @@ fn stage(
     mapping: &mut BTreeMap<UiNodeId, NodeId>,
     resources: &BTreeMap<UiResourceId, Resource>,
     capabilities: BackendCapabilities,
-    host: (LayoutConstraints, [f32; 2]),
-) -> Result<Commit, UiError> {
-    let (constraints, viewport) = host;
+    frame: reveal::RevealFrame<'_>,
+) -> Result<(Commit, BTreeMap<UiNodeId, [f32; 2]>), UiError> {
+    let (constraints, viewport) = (frame.constraints, frame.viewport);
     let root = tree.root();
     let creates_nodes = nodes.keys().any(|id| !mapping.contains_key(id));
-    let result = tree.edit_validated(
+    let mapping = std::cell::RefCell::new(mapping);
+    let mut revealed = reveal::RevealResult::default();
+    let mut result = tree.edit_validated(
         capabilities,
         |edit| {
+            let mut mapping = mapping.borrow_mut();
             for (&id, node) in nodes {
                 if let std::collections::btree_map::Entry::Vacant(entry) = mapping.entry(id) {
                     let internal =
@@ -769,11 +805,35 @@ fn stage(
             draft
                 .local_frame_in_viewport(constraints, viewport)?
                 .validate_geometry()?;
+            if !frame.targets.is_empty() {
+                revealed = reveal::apply(draft, &mapping.borrow(), &frame, capabilities)?;
+            }
             Ok(())
         },
     )?;
-    mapping.retain(|id, _| nodes.contains_key(id));
-    Ok(result.commit)
+    mapping.borrow_mut().retain(|id, _| nodes.contains_key(id));
+    if !revealed.commits.is_empty() {
+        let changed: BTreeSet<_> = result
+            .commit
+            .routes
+            .iter()
+            .map(|(id, _)| *id)
+            .chain(result.inserted.iter().copied())
+            .chain(
+                revealed
+                    .commits
+                    .iter()
+                    .flat_map(|commit| commit.routes.iter().map(|(id, _)| *id)),
+            )
+            .collect();
+        result.commit.changed_nodes = changed.len();
+    }
+    for commit in revealed.commits {
+        result.commit.request_frame |= commit.request_frame;
+        result.commit.routes.extend(commit.routes);
+        result.commit.decisions.extend(commit.decisions);
+    }
+    Ok((result.commit, revealed.offsets))
 }
 
 fn write_content(

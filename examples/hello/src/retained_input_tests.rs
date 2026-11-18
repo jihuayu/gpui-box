@@ -3,6 +3,8 @@ use core::prelude::v1::test;
 use gpui::*;
 use gpui_box::retained::{input::*, style::*, ui_ir::*, *};
 use std::{cell::RefCell, rc::Rc};
+#[path = "retained_focus_reveal_tests.rs"]
+mod focus_reveal_tests;
 #[path = "retained_wheel_input_tests.rs"]
 mod wheel_tests;
 

@@ -3,6 +3,24 @@
 The active implementation goal covers the complete runtime requested on
 2026-11-11. Work continues in `codex/rendering-performance-research`.
 
+The [focus reveal stage](RETAINED_FOCUS_REVEAL.md) adds schema5 ScrollIntoView
+post-layout intents. Tab/explicit Focus carry adopted target/route through the
+existing input planner; final layout/style changes settle before nearest signed
+scrolling of unowned Hidden/Scroll ancestors. Logical geometry avoids projected
+empty-clip traps. Ordinary private candidate checks publish resulting authored/
+effective offsets and complete frame atomically, with merged unique route counts.
+Pointer focus does not scroll; replay/visible repeat, fixed clips, extents and
+style ownership retain explicit behavior. Tests cover nested/two-axis/oversized,
+final style/wrap/create/reparent/rollback, real GPUI Tab and Noto CPU/GPU numeric
+references. See [evidence](performance/2026-11-18-focus-reveal/README.md).
+Per-intent paths/commits/frame validation and ordinary full candidates remain;
+no timing/FPS gain or native p99 fluency acceptance is claimed. Full RFC active.
+Final complete retained576passed/1ignored, text/WGPU610/48 and hello63/14 pass;
+reveal专项9/1ignored, actual GPUI Tab and Noto CPU pass. Explicit final core/Noto
+GPU compare2/3complete images. Library Clippy, complete retained-gpu harness
+check, scoped format/diff/279local links and all5WIP hashes pass. Counts overlap;
+final suites and GPU reruns include unique diagnostics/empty-request follow-up.
+
 The [automatic overflow viewport stage](RETAINED_OVERFLOW_VIEWPORTS.md) derives
 axis-selective padding/gutter clips from actual layout. Own image/glyph content
 and descendants clip; host background/border/shadows keep the ordinary clip.

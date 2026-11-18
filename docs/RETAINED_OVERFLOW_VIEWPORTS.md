@@ -78,7 +78,8 @@ use Visible when overflow must paint, and explicit clips for additional bounds.
 Programmatic scroll clamping and wheel eligibility retain their existing
 contracts: Hidden permits programmatic offsets, Scroll accepts default wheel,
 Clip/Visible do not accept wheel. Own text scroll-origin behavior is unchanged
-(current scroll property moves descendants); no anchoring, focus reveal,
-keyboard/scrollbars, inertia or owner-stall compositor scrolling is introduced.
+(current scroll property moves descendants). The follow-up
+[focus reveal](RETAINED_FOCUS_REVEAL.md) adds atomic nearest post-layout reveal;
+anchoring, keyboard/scrollbars, inertia and owner-stall scrolling remain open.
 Native presentation p99, CPU complete-frame fluency and sustained60/120Hz remain
 separate unpassed gates. See [verification](performance/2026-11-18-overflow-viewports/README.md).

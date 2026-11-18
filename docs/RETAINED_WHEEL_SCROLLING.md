@@ -4,6 +4,10 @@ Status: experimental Rust contract, 2026-11-18. Extends
 [adopted-frame input](RETAINED_UI_INPUT_ROUTING.md) and the ordinary owned UI
 batch/retained scroll property path. Full RFC remains active.
 
+The [focus-reveal follow-up](RETAINED_FOCUS_REVEAL.md) adds focus_reveals to the
+same planner, with schema5 post-layout ScrollIntoView. The wheel contract below
+is unchanged; outcomes still correspond only to wheel events.
+
 ## Input, targeting and units
 
 `UiInput::Wheel { position, delta }` carries logical scene coordinates and logical
@@ -135,7 +139,7 @@ clip/opacity edits. This implementation reuses the existing source truth instead
 
 Open: gesture/scroll latching, inertia/kinetic touch, elastic overscroll, per-axis
 overscroll policy, cancelable wheel handlers, scrollbar/keyboard scroll, scroll
-anchoring/focus reveal, frame/event acknowledgements, renderer-domain direct
+anchoring and advanced reveal policies, frame/event acknowledgements, renderer-domain direct
 scrolling during owner stalls, affine presentation hits, native independent
 presentation and representative input/presentation p99. Modern desktop effects,
 CPU complete-frame fluency and sustained60/120Hz retain separate acceptance.

@@ -1078,6 +1078,12 @@ input不争写，该节点的delta交给祖先。后续[overflow viewport](RETAI
 每publication扫描并持有稀疏scroll metadata，linear hit与普通owner candidate成本仍在；
 原生跟手p99、惯性／overscroll、renderer-domain direct scroll与owner-stall隔离尚未实现。
 
+[Focus reveal](RETAINED_FOCUS_REVEAL.md)将Tab／显式Focus的adopted target/path转为
+schema5 ScrollIntoView intent。普通setter／style／layout结算后按当前逻辑geometry、
+实际clamped offsets和padding/gutter＋explicit clip，自内向外最小滚动Hidden／Scroll
+祖先；Clip／Visible与style-owned Scroll不争写。Source offsets与完整帧原子采用，
+不预测命中、不发布中间candidate；鼠标focus不跳动。事件确认／native p99仍开放。
+
 命中使用与可见场景对应的 scene revision、变换与 clip，而不是最新构建但尚未显示的树。保存 PresentationRecord，包含 FrameId、采样时间、scene revision、属性覆盖和证据阶段。
 
 如果平台只能提供最近提交/呈现尝试记录，就明确标注这一近似，不能宣称知道光子级的真实屏幕状态。事件携带 target generation 和所见 revision；处理延迟事件时重新检查节点/领域对象是否仍有效。

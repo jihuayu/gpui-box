@@ -21,6 +21,10 @@ UiOperation::Scroll, replacing only authored offsets. Input scenes own exact
 published scroll extents; adopted targeting and current-offset chained deltas
 plan normal atomic batches. Schemas1/2/3 reject. No wire/foreign ABI is frozen.
 
+The [focus reveal stage](RETAINED_FOCUS_REVEAL.md) advances4→5 with post-layout
+ScrollIntoView intents; schemas1/2/3/4 now reject. Resulting narrow ancestor
+offsets adopt atomically with final styles/layout/frame and persist in snapshot.
+
 ## Public inputs and owner adapter
 
 `retained::ui_ir` supplies `UiSnapshot`, `UiBatch`, `UiNode`, `UiNodeId`,

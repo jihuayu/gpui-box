@@ -11,6 +11,11 @@ logical-pixel wheel deltas and ancestor chaining through current exact-base UI
 batches while retaining adopted target geometry. Source schema now4 adds a
 narrow Scroll operation; the earlier schema3 migration below is historical.
 
+The [focus-reveal follow-up](RETAINED_FOCUS_REVEAL.md) advances schema4→5 with
+post-layout ScrollIntoView. Tab/explicit Focus emit focus_reveals; use
+plan_input_scroll to combine these with style feedback. Pointer focus does not
+scroll. Host adoption remains the geometry boundary.
+
 ## Source policy and immutable input scene
 
 `retained::input` supplies UiInteraction, UiHandlerId, UiFocusPolicy, UiInputScene,

@@ -7,8 +7,21 @@ mod router;
 pub(in crate::retained) mod scroll;
 pub use scroll::{UiScrollOutcome, UiScrollPlan, UiScrollState, UiWheelScroll};
 #[cfg(test)]
+mod reveal_tests;
+#[cfg(test)]
 mod tests;
 pub use router::UiInputRouter;
+
+/// Default keyboard/programmatic focus reveal, targeted in the adopted scene.
+/// Planning rechecks identity/ancestry; actual geometry is read after the
+/// ordinary batch's final style/layout settlement.
+#[derive(Clone, Debug, PartialEq)]
+pub struct UiFocusReveal {
+    pub scene: UiInputSceneId,
+    pub evidence: UiInputEvidence,
+    pub target: UiNodeId,
+    pub route: Arc<[UiNodeId]>,
+}
 
 /// Immutable frontend registry identity. Nonzero; never rebind an ID to another
 /// callback in the same runtime/epoch. Closures and registry remain frontend-owned.
@@ -149,6 +162,7 @@ pub struct UiInputEffects {
     pub dispatches: Vec<UiInputDispatch>,
     pub feedback: Vec<UiStyleFeedback>,
     pub wheel_scrolls: Vec<UiWheelScroll>,
+    pub focus_reveals: Vec<UiFocusReveal>,
 }
 impl UiInputEffects {
     /// Preserve caller-owned disabled/selected state. Ignore retired identities;
@@ -249,7 +263,7 @@ impl InputGraph {
         }
         result
     }
-    fn eligible(&self, id: UiNodeId) -> bool {
+    pub(in crate::retained) fn eligible(&self, id: UiNodeId) -> bool {
         self.nodes.get(&id).is_some_and(|n| n.enabled && n.visible)
     }
     fn path(&self, id: UiNodeId) -> Vec<UiNodeId> {

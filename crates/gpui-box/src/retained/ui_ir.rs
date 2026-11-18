@@ -7,13 +7,14 @@ use super::style::{StyleError, StyleRef, StyleState};
 use super::*;
 use std::collections::{BTreeMap, BTreeSet};
 mod planning;
+mod reveal;
 mod runtime;
 pub use planning::UiPlanningStats;
 pub use runtime::{UiDocument, UiPublication, UiResources};
 #[cfg(test)]
 mod tests;
 
-pub const UI_SCHEMA_VERSION: u32 = 4;
+pub const UI_SCHEMA_VERSION: u32 = 5;
 
 pub(super) type NodeMap = BTreeMap<UiNodeId, Arc<UiNode>>;
 
@@ -107,7 +108,7 @@ impl UiNode {
 
 /// Full recoverable source state, including tombstones for retired slots.
 /// Resource bytes/handlers remain outside this record and must be installed by
-/// the receiving host before accepting it. Schema 4 is experimental Rust data.
+/// the receiving host before accepting it. Schema 5 is experimental Rust data.
 #[derive(Clone, Debug, PartialEq)]
 pub struct UiSnapshot {
     pub schema: u32,
@@ -156,6 +157,12 @@ pub enum UiOperation {
     Scroll {
         node: UiNodeId,
         value: [f32; 2],
+    },
+    /// After final styles/layout, minimally reveal this border box through
+    /// unowned Hidden/Scroll ancestors, nearest first. Instant and atomic;
+    /// clipping, extent limits or oversized targets can prevent full visibility.
+    ScrollIntoView {
+        node: UiNodeId,
     },
     Content {
         node: UiNodeId,
@@ -257,6 +264,7 @@ pub enum UiError {
     ResourceConflict(UiResourceId),
     UnsupportedContent,
     InvalidHandler,
+    IneligibleReveal(UiNodeId),
     Style(StyleError),
     Retained(Error),
 }
