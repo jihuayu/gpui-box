@@ -1,4 +1,5 @@
 use super::*;
+use crate::command::{Command, CommandStatus, command_channel};
 use crate::store::StoreWriter;
 use std::cell::Cell;
 
@@ -7,6 +8,14 @@ struct Model {
     width: u32,
     color: u32,
     unrelated: u32,
+}
+struct SaveModel {
+    expected: crate::store::StoreRevision,
+    next: Model,
+}
+impl Command for SaveModel {
+    type Output = ();
+    type Error = crate::store::StoreError;
 }
 fn constraints() -> LayoutConstraints {
     LayoutConstraints::new(
@@ -56,15 +65,25 @@ impl Component for Row {
 }
 #[test]
 fn business_store_component_bridge_selects_one_revision_and_matches_complete_reference() {
-    run(false);
+    run(false, false);
 }
 #[cfg(feature = "retained-wgpu")]
 #[test]
 #[ignore = "requires WGPU adapter; run explicitly"]
 fn hardware_business_store_bridge_match_complete_reference() {
-    run(true);
+    run(true, false);
 }
-fn run(hardware: bool) {
+#[test]
+fn typed_commands_store_ui_adoption_matches_complete_reference() {
+    run(false, true);
+}
+#[cfg(feature = "retained-wgpu")]
+#[test]
+#[ignore = "requires WGPU adapter; run explicitly"]
+fn hardware_typed_commands_store_ui_match_complete_reference() {
+    run(true, true);
+}
+fn run(hardware: bool, commands: bool) {
     let mut writer = StoreWriter::new(Model {
         width: 20,
         color: 0xff0000ff,
@@ -75,6 +94,7 @@ fn run(hardware: bool) {
     let owner = ui.root_scope();
     let host = ui.root_render();
     let mut input = ui.attach_store(owner, 0, &writer.read_only()).unwrap();
+    let (sender, mut receiver) = command_channel::<SaveModel>(2).unwrap();
     let calls = Rc::new(Cell::new(0));
     let count = calls.clone();
     let row = ui
@@ -134,20 +154,40 @@ fn run(hardware: bool) {
                 )
                 .unwrap();
             let before = writer.read_only().snapshot().unwrap().revision();
-            let committed = writer
-                .commit(
-                    before,
-                    Model {
-                        width,
-                        color,
-                        unrelated: 2,
-                    },
-                )
-                .unwrap();
-            assert_ne!(input.applied_revision(), Some(committed.revision));
+            let next = Model {
+                width,
+                color,
+                unrelated: 2,
+            };
+            let revision = if commands {
+                let mut ticket = sender
+                    .send(SaveModel {
+                        expected: before,
+                        next,
+                    })
+                    .unwrap_or_else(|_| panic!("command rejected"));
+                assert_eq!(ticket.status(), CommandStatus::Accepted);
+                let request = receiver.try_recv().unwrap();
+                let worker = std::thread::spawn(move || {
+                    let mut request = request;
+                    let SaveModel { expected, next } = request.take_command().unwrap();
+                    match writer.commit(expected, next) {
+                        Ok(commit) => request.succeed((), Some(commit.revision)),
+                        Err(error) => request.fail(error),
+                    }
+                    writer
+                });
+                writer = worker.join().unwrap();
+                let result = ticket.try_result().unwrap().unwrap();
+                assert_eq!(ticket.status(), CommandStatus::Succeeded);
+                result.committed_revision.unwrap()
+            } else {
+                writer.commit(before, next).unwrap().revision
+            };
+            assert_ne!(input.applied_revision(), Some(revision));
             let applied = ui.apply_store(&mut input).unwrap().unwrap();
-            assert_eq!(applied.revision, committed.revision);
-            assert_eq!(input.applied_revision(), Some(committed.revision));
+            assert_eq!(applied.revision, revision);
+            assert_eq!(input.applied_revision(), Some(revision));
         }
         assert_eq!(calls.get(), index + 1);
         assert_eq!(ui.children(site.scope()).unwrap(), [scope]);

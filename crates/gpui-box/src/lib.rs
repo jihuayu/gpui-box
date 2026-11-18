@@ -12,6 +12,9 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Application-owned immutable business snapshots, independent of UI backends.
 pub mod store;
 
+/// Bounded typed business intentions and results, independent of UI backends.
+pub mod command;
+
 /// Persistent UI state, transactional updates, and owned frame output.
 #[cfg(feature = "retained")]
 pub mod retained;

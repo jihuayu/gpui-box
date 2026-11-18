@@ -4,7 +4,9 @@ Status: experimental explicit Rust framework API,2026-11-18. Complete RFC remain
 active. Implements the first business Store boundary from
 [runtime architecture](UI_RUNTIME_ARCHITECTURE.md), using the existing
 [component plans](RETAINED_COMPONENT_PLANS.md) and source/frame transaction.
-Command execution, providers and cross-language Store schema remain separate work.
+The follow-up [typed Command transport](RETAINED_TYPED_COMMANDS.md) supplies bounded
+requests/results/cancellation; execution policy, providers and cross-language
+Store schema remain separate work.
 
 ## Business ownership and complete revisions
 
@@ -130,8 +132,8 @@ work is owner-local and has no preemption budget. No wall-time/FPS/memory benefi
 is claimed. No solver/vendor/GPU format change; source input schema remains6.
 
 Implemented: one-writer complete Store revisions, read-only subscriptions and
-scoped explicit UI bridge/selectors. Remaining: typed Command queue/tickets and
-cancellation/result protocol, provider/StoreKey resolution, application collections
+scoped explicit UI bridge/selectors. The follow-up Command stage adds queue/
+tickets/cancellation/results. Remaining: provider/StoreKey resolution, application collections
 and task integration, multi-input coordinated admission, serialized cross-language
 schema, hooks/macros/KeepAlive, complete semantic input model, resource budgets and
 independent native presentation. Complete RFC stays active. "99%" is a figurative

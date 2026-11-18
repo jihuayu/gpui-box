@@ -956,6 +956,15 @@ Button::new("保存")
 
 事件闭包留在 Rust 前端注册表内，UI IR 只记录 HandlerId。JS/Go 将来使用相同 Command schema 和句柄语义，不要求共享 Rust 泛型对象的内存布局。
 
+后续 [类型化Command落地](RETAINED_TYPED_COMMANDS.md) 提供不依赖UI／GPU的Command trait与
+有界channel、sender／receiver、ticket／request。容量覆盖queued＋running，Busy／Closed
+交还原请求，accepted IDs／FIFO dispatch／可靠owned结果不进入visual latest-only通道。
+排队取消直接移除，运行中取消仅请求worker处理；success／business failure／cancel／executor
+abandoned／closed分别报告。Ticket销毁不取消已接纳业务，receiver close可drain，drop使queued
+请求终结。Result可附StoreRevision，UI采用继续通过StoreInput显式完成；不据此推断显示。
+没有后台runtime或handler callback，锁外执行payload释放与executor唤醒。应用负责同对象串行
+执行／expected revision复验；通用对象调度／provider／任务scope／事件和wire协议仍开放。
+
 ## 6. 样式 API：参考 StyleX，输出原生 Style IR
 
 ### 当前落地范围

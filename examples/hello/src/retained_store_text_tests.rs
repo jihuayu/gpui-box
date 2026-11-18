@@ -1,5 +1,9 @@
 use super::*;
-use gpui_box::{retained::logical::*, store::StoreWriter};
+use gpui_box::{
+    command::{Command, command_channel},
+    retained::logical::*,
+    store::StoreWriter,
+};
 use std::{cell::Cell, rc::Rc};
 
 #[derive(PartialEq)]
@@ -7,6 +11,14 @@ struct Model {
     width: u32,
     short: bool,
     color: u32,
+}
+struct SaveModel {
+    expected: gpui_box::store::StoreRevision,
+    next: Model,
+}
+impl Command for SaveModel {
+    type Output = ();
+    type Error = gpui_box::store::StoreError;
 }
 struct Label;
 impl Component for Label {
@@ -47,15 +59,25 @@ fn pixels(frame: FramePacket) -> Vec<u8> {
 }
 #[test]
 fn business_store_noto_complete_snapshot_updates_match_complete_reference() {
-    run(false);
+    run(false, false);
 }
 #[cfg(feature = "retained-wgpu")]
 #[test]
 #[ignore = "requires WGPU adapter; run explicitly"]
 fn hardware_business_store_noto_match_complete_reference() {
-    run(true);
+    run(true, false);
 }
-fn run(hardware: bool) {
+#[test]
+fn typed_commands_noto_store_adoption_matches_complete_reference() {
+    run(false, true);
+}
+#[cfg(feature = "retained-wgpu")]
+#[test]
+#[ignore = "requires WGPU adapter; run explicitly"]
+fn hardware_typed_commands_noto_match_complete_reference() {
+    run(true, true);
+}
+fn run(hardware: bool, commands: bool) {
     let system = text_system();
     let mut raster = GlyphRasterizer::new(system.clone());
     let long_paragraph = shape(&system, "one two three four 中文段落 long text");
@@ -73,6 +95,7 @@ fn run(hardware: bool) {
     let owner = ui.root_scope();
     let host = ui.root_render();
     let mut input = ui.attach_store(owner, 0, &writer.read_only()).unwrap();
+    let (sender, mut receiver) = command_channel::<SaveModel>(2).unwrap();
     let selector = ui
         .select_store(owner, 1, input.prop(), |s| Ok((s.width, s.short, s.color)))
         .unwrap();
@@ -153,19 +176,36 @@ fn run(hardware: bool) {
                 )
                 .unwrap();
             let before = writer.read_only().snapshot().unwrap().revision();
-            let committed = writer
-                .commit(
-                    before,
-                    Model {
-                        width,
-                        short: is_short,
-                        color,
-                    },
-                )
-                .unwrap();
+            let next = Model {
+                width,
+                short: is_short,
+                color,
+            };
+            let revision = if commands {
+                let mut ticket = sender
+                    .send(SaveModel {
+                        expected: before,
+                        next,
+                    })
+                    .unwrap_or_else(|_| panic!("command rejected"));
+                let mut request = receiver.try_recv().unwrap();
+                let SaveModel { expected, next } = request.take_command().unwrap();
+                let committed = writer.commit(expected, next).unwrap();
+                request.succeed((), Some(committed.revision));
+                let revision = ticket
+                    .try_result()
+                    .unwrap()
+                    .unwrap()
+                    .committed_revision
+                    .unwrap();
+                assert_ne!(input.applied_revision(), Some(revision));
+                revision
+            } else {
+                writer.commit(before, next).unwrap().revision
+            };
             assert_eq!(
                 ui.apply_store(&mut input).unwrap().unwrap().revision,
-                committed.revision
+                revision
             );
         }
         assert_eq!(calls.get(), index + 1);

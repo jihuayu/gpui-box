@@ -10,6 +10,25 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [typed Command stage](RETAINED_TYPED_COMMANDS.md) adds backend-independent
+Command/channel/Sender/Receiver/Ticket/Request with queue-qualified IDs, bounded
+queued+running admission, FIFO dispatch, owned reliable results and optional
+business StoreRevision. Busy/Closed returns the original request. Queued cancel
+removes work/releases capacity; running cancel is an explicit worker request,
+with success/business-error/cancel/abandoned/closed outcomes distinct. Ticket drop
+does not cancel business work. Executor futures integrate without a new runtime.
+Command→Store→selector→ComponentPlan→Flex controls preserve the business committed
+vs UI applied boundary. See
+[verification](performance/2026-11-18-typed-commands/README.md).
+Provider/event/task integration, per-object execution policy, wire schema and byte
+budgets remain explicit follow-up; FIFO dispatch alone is not serial completion.
+No solver/renderer/schema change or FPS claim. Complete RFC stays active.
+No-default16passed/2compile-fail docs, retained673/1ignored, text/WGPU707/61 and
+hello76/27;8compile-fail docs pass in both core configurations. Explicit
+Command→Store→UI GPU compares3complete images and Noto3 on GTX1650Ti/Vulkan/571.96.
+Library Clippy -D warnings, complete retained-gpu harness, scoped format/diff,
+305local links and5WIP hashes pass. Final code covered; no native cadence inferred.
+
 The [business Store stage](RETAINED_BUSINESS_STORE.md) adds backend-independent
 StoreWriter/ReadStore/immutable snapshots and versioned latest-whole-state
 subscriptions. Unique business writer commits expected revisions; equal state
