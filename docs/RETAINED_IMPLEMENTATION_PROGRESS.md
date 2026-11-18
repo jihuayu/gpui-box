@@ -10,6 +10,27 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [mounted row measurement stage](ADR_RETAINED_LIST_MEASUREMENT.md) adds optional
+MeasuredVirtualList over the ordinary list/source/Flex contracts. Mounted rows
+use batched isolated content queries at committed width, then new immutable
+heights and keyed scroll compensation adopt through one existing transaction.
+The host runs one bounded round before image preparation and schedules another
+ordinary turn if needed; hidden/zero-sized lists keep estimates. Offscreen rows
+remain estimates, both source writers are exclusive, and failure retains the
+old data/scroll/frame. Equal stable revisions skip repeated queries. Height-only
+edits reuse keys/factory but still rebuild O(N) prefixes; one private live Taffy
+clone per list and normal candidate costs remain. This is an API/correctness
+stage, without a new timing/FPS claim. See
+[usage](RETAINED_VIRTUAL_LIST.md) and
+[verification](performance/2026-11-19-list-measurement/README.md).
+Incremental height/dependency indices, independent presentation and the complete
+RFC remain open.
+Final retained-only780passed/1ignored, text/WGPU815/69, each15compiler doctests;
+hello94/38. Explicit Noto GPU1passed/three full images at1.25scale on
+GTX1650Ti/Vulkan/571.96. Host-installed CPU image matches ordinary full Flex.
+Library Clippy-Dwarnings, CPU desktop/retained-gpu harness, scoped format/diff,
+1,144local links across298docs and five inherited WIP hashes pass.
+
 The [list anchoring stage](ADR_RETAINED_LIST_ANCHORING.md) adds optional immutable
 global key/inverse indexing to VirtualListItems. Pure KeepVisible/KeepOffset/
 FollowEnd policies rebase declared-extent data transitions from current source

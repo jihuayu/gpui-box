@@ -427,6 +427,20 @@ impl OwnerDemo {
                 return self.shown.clone();
             }
         };
+        let frame = match self.ui.settle_virtual_list_measurements(2048) {
+            Ok(report) => {
+                if report.changed_rows > 0 {
+                    window.request_animation_frame();
+                    self.ui.published_local_frame().unwrap().clone()
+                } else {
+                    frame
+                }
+            }
+            Err(error) => {
+                self.error = Some(format!("list measurement: {error}"));
+                return self.shown.clone();
+            }
+        };
         let scene = self.ui.input_scene().unwrap();
         let request = (scene.id(), size, scale.to_bits());
         if self.cpu {

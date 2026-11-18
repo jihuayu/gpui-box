@@ -49,6 +49,35 @@ impl UiTree {
         baselines: bool,
         axis: Option<LayoutAxis>,
     ) -> Result<ChildLayoutResult, Error> {
+        let mut candidate = self.layout.clone();
+        self.dry_query_with_layout(&mut candidate, node, input, baselines, axis)
+    }
+
+    /// Isolated direct-child queries sharing one private Taffy copy. No live
+    /// layout/cache writes escape, including if a later query fails.
+    pub fn dry_measure_nodes(
+        &self,
+        queries: &[(NodeId, ChildLayoutInput)],
+    ) -> Result<Vec<ChildLayoutResult>, Error> {
+        if queries.is_empty() {
+            return Ok(vec![]);
+        }
+        let mut candidate = self.layout.clone();
+        queries
+            .iter()
+            .map(|(node, input)| {
+                self.dry_query_with_layout(&mut candidate, *node, *input, false, None)
+            })
+            .collect()
+    }
+    fn dry_query_with_layout(
+        &self,
+        candidate: &mut TaffyTree<MeasureSnapshot>,
+        node: NodeId,
+        input: ChildLayoutInput,
+        baselines: bool,
+        axis: Option<LayoutAxis>,
+    ) -> Result<ChildLayoutResult, Error> {
         let layout_id = self.node(node)?.layout;
         let mut input = input.to_taffy()?;
         if let Some(axis) = axis {
@@ -57,7 +86,6 @@ impl UiTree {
                 LayoutAxis::Vertical => taffy::RequestedAxis::Vertical,
             };
         }
-        let mut candidate = self.layout.clone();
         let mut stats = LayoutStats::default();
         let mut measure_error = None;
         let output = if baselines {

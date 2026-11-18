@@ -46,6 +46,12 @@ pub struct ComponentContext<'a, 'edit, 'draft, 'tree> {
     host: NodeId,
 }
 impl ComponentContext<'_, '_, '_, '_> {
+    pub(in crate::retained) fn register_list_measurement(
+        &mut self,
+        measure: Rc<dyn virtual_list::measurement::Measure>,
+    ) -> Result<(), Error> {
+        self.edit.register_list_measurement(self.scope, measure)
+    }
     pub fn task_effect<I: Clone + PartialEq + 'static, T: Send + Sync + 'static>(
         &mut self,
         key: u64,

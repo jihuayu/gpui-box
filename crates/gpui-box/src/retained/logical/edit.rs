@@ -51,6 +51,10 @@ pub struct LogicalEdit<'a, 'draft, 'tree> {
     pub(super) live_tasks: &'a super::tasks::Registry,
     pub(super) tasks: Option<super::tasks::Registry>,
     pub(super) task_launches: Vec<super::tasks::Launch>,
+    pub(super) live_list_measurements:
+        &'a std::rc::Rc<BTreeMap<ScopeId, std::rc::Rc<dyn virtual_list::measurement::Measure>>>,
+    pub(super) list_measurements:
+        Option<std::rc::Rc<BTreeMap<ScopeId, std::rc::Rc<dyn virtual_list::measurement::Measure>>>>,
 }
 impl LogicalEdit<'_, '_, '_> {
     pub(super) fn producer_logical_unchanged(&self) -> bool {
@@ -702,6 +706,7 @@ impl LogicalUi {
         let mut events = None;
         let mut tasks = None;
         let mut task_launches = vec![];
+        let mut list_measurements = None;
         let constraint_inputs: std::cell::RefCell<Vec<super::constraint_builder::Observation>> =
             std::cell::RefCell::new(vec![]);
         let responsive_inputs: std::cell::RefCell<Vec<responsive::structural::FinalObservation>> =
@@ -767,6 +772,8 @@ impl LogicalUi {
                     live_tasks: &self.tasks,
                     tasks: None,
                     task_launches: vec![],
+                    live_list_measurements: &self.list_measurements,
+                    list_measurements: None,
                 };
                 let value = render(value, &mut draft)?;
                 draft.validate_components()?;
@@ -906,6 +913,7 @@ impl LogicalUi {
                 draft.retire_and_validate_providers(&dead)?;
                 draft.retire_and_validate_events(&dead)?;
                 draft.retire_tasks(&dead);
+                draft.validate_list_measurements(&dead)?;
                 // Responsive/computed/props are now final and dead sources are
                 // retired. Capture task inputs once, before frame validation.
                 // Input defaults below only change render scroll geometry.
@@ -928,6 +936,7 @@ impl LogicalUi {
                 providers = draft.providers.take();
                 events = draft.events.take();
                 tasks = draft.tasks.take();
+                list_measurements = draft.list_measurements.take();
                 task_launches = std::mem::take(&mut draft.task_launches);
                 producer_stats = draft.producer_stats;
                 *responsive_inputs.borrow_mut() = draft
@@ -1131,6 +1140,10 @@ impl LogicalUi {
         }
         if let Some(tasks) = tasks {
             self.tasks = tasks;
+        }
+        if let Some(measurements) = list_measurements {
+            self.list_measurements = measurements;
+            self.measured_list_revision = None;
         }
         self.layout_session = layout_session;
         if let Some(producers) = layout_producers {

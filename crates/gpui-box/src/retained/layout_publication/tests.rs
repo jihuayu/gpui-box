@@ -1,5 +1,44 @@
 use super::*;
 
+#[test]
+fn batched_dry_queries_match_single_queries_and_preserve_published_layout_on_error() {
+    let mut tree = UiTree::new_layout(LayoutStyle::column(), 0).unwrap();
+    let a = tree
+        .append_layout(
+            tree.root(),
+            LayoutStyle::column().size(LayoutDimension::Px(20.0), LayoutDimension::Px(10.0)),
+            1,
+        )
+        .unwrap();
+    let b = tree
+        .append_layout(
+            tree.root(),
+            LayoutStyle::column().size(LayoutDimension::Px(30.0), LayoutDimension::Px(15.0)),
+            2,
+        )
+        .unwrap();
+    let frame = tree.local_frame([100.0, 80.0]).unwrap();
+    let before = tree.layout_result(a).unwrap();
+    let input = ChildLayoutInput::new(LayoutConstraints::viewport(100.0, 80.0));
+    let expected = vec![
+        tree.dry_measure_node(a, input).unwrap(),
+        tree.dry_measure_node(b, input).unwrap(),
+    ];
+    assert_eq!(
+        tree.dry_measure_nodes(&[(a, input), (b, input)]).unwrap(),
+        expected
+    );
+    let mut invalid = input;
+    invalid.known_size.height = Some(f32::NAN);
+    assert!(tree.dry_measure_nodes(&[(a, input), (b, invalid)]).is_err());
+    assert_eq!(tree.layout_result(a).unwrap(), before);
+    assert_eq!(
+        tree.published_local_frame().unwrap().revision(),
+        frame.revision()
+    );
+    assert!(tree.dry_measure_nodes(&[]).unwrap().is_empty());
+}
+
 fn fixed(w: f32, h: f32) -> Style {
     Style {
         size: Size {

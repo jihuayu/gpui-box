@@ -31,6 +31,7 @@ pub use store::{StoreApply, StoreInput, StoreSelector};
 mod events;
 mod provider;
 mod tasks;
+mod virtual_measure;
 pub use events::{
     EventContext, EventControl, EventHandler, LogicalInputCommit, LogicalScrollCommit,
 };
@@ -112,6 +113,9 @@ pub struct LogicalUi {
     providers: provider::Registry,
     events: events::Registry,
     tasks: tasks::Registry,
+    list_measurements:
+        std::rc::Rc<BTreeMap<ScopeId, std::rc::Rc<dyn virtual_list::measurement::Measure>>>,
+    measured_list_revision: Option<(u64, u64)>,
 }
 
 impl Drop for LogicalUi {
@@ -212,6 +216,8 @@ impl LogicalUi {
             providers: provider::Registry::default(),
             events: events::Registry::default(),
             tasks: tasks::Registry::default(),
+            list_measurements: Default::default(),
+            measured_list_revision: None,
         })
     }
 
@@ -220,7 +226,10 @@ impl LogicalUi {
     }
     fn has_layout_session(&self) -> bool {
         // Tasks also need logical settlement, even without layout producers.
-        self.layout_session.is_some() || self.producer_session.is_some() || self.tasks.has_effects()
+        self.layout_session.is_some()
+            || self.producer_session.is_some()
+            || self.tasks.has_effects()
+            || !self.list_measurements.is_empty()
     }
     pub fn layout_producer_stats(&self) -> LayoutProducerStats {
         self.producer_stats

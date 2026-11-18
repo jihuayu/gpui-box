@@ -3,7 +3,9 @@
 use super::{logical::*, reactive::*, *};
 use std::{marker::PhantomData, ops::Range, rc::Rc};
 mod anchoring;
+pub(in crate::retained) mod measurement;
 pub use anchoring::{VirtualListRebase, VirtualListRebaseReason, VirtualListScrollPolicy};
+pub use measurement::{MeasuredVirtualList, MeasuredVirtualListProps, VirtualListMeasureReport};
 
 #[derive(Clone, Debug)]
 enum Extents {
@@ -99,6 +101,32 @@ impl VirtualListMetrics {
             return Err(Error::InvalidVirtualList);
         }
         Ok((self.edge(index + 1) - self.edge(index)) as f32)
+    }
+    /// Replace declared/measured extents together. Same values retain the shared
+    /// metrics; changed snapshots rebuild one prefix table, without row payloads.
+    pub fn with_heights(
+        &self,
+        updates: impl IntoIterator<Item = (usize, f32)>,
+    ) -> Result<Self, Error> {
+        let mut changes = BTreeMap::new();
+        for (index, height) in updates {
+            if index >= self.len() || !height.is_finite() || height <= 0.0 {
+                return Err(Error::InvalidVirtualList);
+            }
+            changes.insert(index, height);
+        }
+        changes.retain(|index, height| self.height(*index).is_ok_and(|old| old != *height));
+        if changes.is_empty() {
+            return Ok(self.clone());
+        }
+        let mut changes = changes.into_iter().peekable();
+        Self::variable((0..self.len()).map(|i| {
+            if changes.peek().is_some_and(|(index, _)| *index == i) {
+                changes.next().unwrap().1
+            } else {
+                self.height(i).expect("validated metric index")
+            }
+        }))
     }
     /// O(log N) selection, O(1) for fixed extents. No per-row UI allocation.
     pub fn window(
@@ -229,6 +257,16 @@ impl<C: Component> VirtualListItems<C> {
     }
     pub fn metrics(&self) -> &VirtualListMetrics {
         &self.metrics
+    }
+    pub fn with_heights(
+        &self,
+        updates: impl IntoIterator<Item = (usize, f32)>,
+    ) -> Result<Self, Error> {
+        Ok(Self {
+            metrics: self.metrics.with_heights(updates)?,
+            row: self.row.clone(),
+            keys: self.keys.clone(),
+        })
     }
 }
 pub struct VirtualListProps<C: Component> {

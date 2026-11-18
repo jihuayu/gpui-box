@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 pub(super) struct Keys {
     pub(super) order: Vec<u64>,
-    positions: BTreeMap<u64, usize>,
+    pub(super) positions: BTreeMap<u64, usize>,
 }
 impl Keys {
     pub(super) fn new(keys: impl IntoIterator<Item = u64>, length: usize) -> Result<Self, Error> {

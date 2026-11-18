@@ -1,4 +1,4 @@
-# Declared-extent vertical virtual lists
+# Vertical virtual lists with declared or measured extents
 
 Status: experimental Rust API,2026-11-19. Complete RFC stays active.
 See [decision, alternatives and limits](ADR_RETAINED_VIRTUAL_LIST.md).
@@ -39,7 +39,8 @@ an ordinary host with proven content-independent assignment, use allocation_buil
 or an Allocation producer to read known_size, then pass that size through Props.
 The builder's complete final-input validation still applies. Window width is not
 substituted for the host's allocation. Height changes after width/font updates
-require a new metrics snapshot, or a fixed row height chosen by the application.
+require a new metrics snapshot, a fixed row height chosen by the application,
+or the optional mounted-row feedback below.
 
 Scroll remains an ordinary stable Signal<[f32;2]> with vertical requested offset.
 Changing its identity on an existing list rejects; remount with another key to
@@ -114,8 +115,57 @@ also accepts unindexed data. Index build uses O(N) metadata and deleted-anchor
 fallback may scan old keys, without invoking payload factories.
 
 Use the full ordinary list for small datasets or as a correctness reference.
-Remaining work includes measured/estimated row-height feedback,
-incremental height edits, sticky/horizontal layouts and accessible all-data
+Remaining work includes incremental height indexing, sticky/horizontal layouts and accessible all-data
 navigation. Work remains on the ordinary candidate/source/producer paths; no
 performance guarantee follows solely from bounded node count. See
 [verification and reproduction](performance/2026-11-19-virtual-list/README.md).
+
+## Optional mounted-row automatic height feedback
+
+Use `MeasuredVirtualList<C>` when rows contain ordinary natural-height Flex,
+text or images. Its dataset source starts with estimates and must be writable
+and keyed. The component reads this source itself; a separate parent
+ComponentProducer is unnecessary unless the viewport or other Props are reactive.
+
+```rust,ignore
+let data = VirtualListItems::<Row>::keyed(
+    VirtualListMetrics::fixed(rows.len(), 32.0)?,
+    rows.iter().map(|row| row.id),
+    move |index| Ok(data[index].clone()),
+)?;
+let items = ui.state(parent, 10, || data)?;
+let scroll = ui.state(parent, 11, || [0.0; 2])?;
+let mut props = MeasuredVirtualListProps::new(items, scroll, [width, height]);
+props.overscan = 64.0;
+edit.components::<MeasuredVirtualList<Row>>(parent, host, [(list_key, props)])?;
+
+// Host preparation, after ordinary source/producer/layout settlement:
+ui.local_frame(paint_viewport)?;
+let report = ui.settle_virtual_list_measurements(2048)?;
+if report.changed_rows > 0 {
+    schedule_next_ordinary_turn(); // not a loop inside this prepare/input call
+}
+let frame = ui.published_local_frame().unwrap().clone();
+// Build/install the complete CPU/GPU image, then adopt its matching input scene.
+```
+
+One call measures mounted rows at committed width with ordinary content sizing,
+then adopts new metrics and scroll compensation in one source transaction.
+`VirtualListMeasureReport` reports measured_rows, changed_rows and optional commit.
+KeepVisible is default; FollowEnd only follows a reader already near the end.
+Empty content floors at minimum_height (default1px). Hidden/zero-sized lists
+retain estimates. Shared feedback writers for either items or scroll reject;
+both source identities stay fixed for the mounted instance.
+
+The max_rows argument is a global query budget, separate from each list's mount
+limit. If any complete mounted list exceeds the remaining budget, the call fails
+without partial source adoption. Same values do not create another transaction;
+stable render/source revisions skip repeated queries. Updated content and widths
+remeasure mounted rows; offscreen rows retain estimates until mounted. Natural
+row height must not depend on the previous estimate as a feedback algorithm.
+
+`items.with_heights([(index,height),...])` is also available for explicit metric
+edits and reuses keys/factory. It rebuilds one prefix table on actual changes;
+it is not yet an incremental height tree. Dry layout still copies the live Taffy
+tree once per list. See [decision and costs](ADR_RETAINED_LIST_MEASUREMENT.md) and
+[complete-image validation](performance/2026-11-19-list-measurement/README.md).

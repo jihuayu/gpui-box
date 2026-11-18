@@ -18,6 +18,13 @@
 
 同日后续：[列表阅读位置保持](ADR_RETAINED_LIST_ANCHORING.md) 为数据集增加可选的不可变全局key索引，纯KeepVisible／KeepOffset／FollowEnd策略从当前source offset计算新偏移。ReactiveTransaction／EventContext将data＋scroll同次采用，沿普通ComponentProducer／Flex／完整frame验证；失败不留下半套数据或偏移。跟随末尾仅在原本接近末尾时发生，用户已滚开时保留阅读key。自动测高、增量索引、独立renderer的installed-frame anchoring、全数据导航／无障碍和独立呈现仍开放。
 
+2026-11-19 后续：[已挂载行测高](ADR_RETAINED_LIST_MEASUREMENT.md) 用可选的
+MeasuredVirtualList 在普通 Flex／文字／图片测量上修正估算行高。宿主在完整布局后、
+图像构建前执行一次有界反馈，将 metrics 与阅读位置补偿经现有 source 事务共同采用，
+需要时调度下一次普通 turn。隐藏或零尺寸列表保留估算，窗口外不测量；同最终帧与
+source 版本跳过稳定查询。没有新增布局算法，未声称此阶段有 FPS／延迟收益。
+私有 Taffy 复制、O(N) 前缀表重建和跨 turn 内容反馈仍需后续工作，独立呈现未完成。
+
 ## 1. 要解决的问题
 
 框架以 GPUI 为基础，提供一套比底层绘制更完整的界面抽象：应用用 Rust 编写时自然、可检查；以后用 JS 或 Go 编写时，复用同一个 UI 语义与渲染内核。

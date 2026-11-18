@@ -2,6 +2,173 @@ use super::*;
 use core::prelude::v1::test;
 
 #[gpui::test]
+fn owner_host_measured_virtual_list_installs_ordinary_flex_cpu_picture(cx: &mut TestAppContext) {
+    use gpui_box::retained::virtual_list::*;
+    struct Row;
+    impl Component for Row {
+        type Props = usize;
+        fn mount(
+            props: ReadProp<usize>,
+            cx: &mut ComponentContext<'_, '_, '_, '_>,
+        ) -> Result<(), Error> {
+            let index = *cx.read_prop(props)?;
+            cx.append_layout(
+                LayoutStyle::column()
+                    .size(LayoutDimension::Percent(1.0), LayoutDimension::Px(30.0))
+                    .flex_shrink(0.0),
+                if index % 2 == 0 {
+                    0x117755ff
+                } else {
+                    0x775511ff
+                },
+            )?;
+            Ok(())
+        }
+    }
+    let platform = Arc::new(gpui_wgpu::CosmicTextSystem::new_without_system_fonts(
+        "Noto Sans CJK SC",
+    ));
+    let mut real_cx = TestAppContext::build_with_text_system(cx.dispatcher.clone(), None, platform);
+    let cx = &mut real_cx;
+    cx.text_system()
+        .add_fonts(vec![std::borrow::Cow::Borrowed(include_bytes!(
+            "../../assets/NotoSansSC-Regular.otf"
+        ))])
+        .unwrap();
+    let window = cx.open_window(size(px(600.0), px(460.0)), |w, cx| {
+        OwnerDemo::new(w, cx, true)
+    });
+    let view = window.root(cx).unwrap();
+    let cx = VisualTestContext::from_window(*window, cx).into_mut();
+    cx.run_until_parked();
+    let (items, scroll, host, initial) = view.update(cx, |this, cx| {
+        let root = this.ui.root_scope();
+        let render = this.ui.root_render();
+        let viewport = this.shown.as_ref().unwrap().viewport;
+        let scroll = this.ui.state(root, 100, || [0.0, 45.0]).unwrap();
+        let rows = VirtualListItems::<Row>::keyed(
+            VirtualListMetrics::fixed(100_000, 20.0).unwrap(),
+            0..100_000,
+            Ok,
+        )
+        .unwrap();
+        let items = this.ui.state(root, 101, || rows).unwrap();
+        let old = this.ui.renders(root).unwrap().to_vec();
+        let site = this
+            .ui
+            .edit_local_frame(
+                LayoutConstraints::viewport(viewport[0], viewport[1]),
+                viewport,
+                |_| Ok(()),
+                |(), e| {
+                    for node in old {
+                        e.properties()
+                            .layout_style(node, LayoutStyle::column().display(LayoutDisplay::None));
+                    }
+                    let site = e.component_sites(root, &[1])?[0];
+                    let mut props = MeasuredVirtualListProps::new(items, scroll, [240.0, 80.0]);
+                    props.overscan = 20.0;
+                    e.components_at::<MeasuredVirtualList<Row>>(site, render, [(0, props)])?;
+                    Ok(site)
+                },
+            )
+            .unwrap()
+            .0
+            .result
+            .value;
+        let wrapper = this.ui.children(site.scope()).unwrap()[0];
+        let inner_site = this.ui.children(wrapper).unwrap()[0];
+        let list = this.ui.children(inner_site).unwrap()[0];
+        let host = this.ui.renders(list).unwrap()[0];
+        let initial = this.installs;
+        cx.notify();
+        (items, scroll, host, initial)
+    });
+    cx.run_until_parked();
+    view.read_with(cx, |this, _| {
+        assert!(this.installs > initial);
+        assert_eq!(
+            this.ui.read(items).unwrap().metrics().height(1).unwrap(),
+            30.0
+        );
+        assert_eq!(*this.ui.read(scroll).unwrap(), [0.0, 55.0]);
+        assert!(this.error.is_none(), "{:?}", this.error);
+        let shown = this.shown.as_ref().unwrap();
+        assert_eq!(this.router.scene_id(), Some(shown.scene.id()));
+        assert!(this.cpu_task.is_none() && this.pending.is_none() && this.ready.is_none());
+        // Compare the actually installed complete CPU image with an ordinary
+        // nonvirtual list using all 20 equal-height rows, with the same offset.
+        let mut full = UiTree::new_layout(
+            LayoutStyle::column()
+                .size(
+                    LayoutDimension::Px(shown.viewport[0]),
+                    LayoutDimension::Px(shown.viewport[1]),
+                )
+                .padding(LayoutEdges::all(LayoutLength::Px(20.0)))
+                .gap(LayoutLength::Px(16.0), LayoutLength::Px(0.0)),
+            0x17202fff,
+        )
+        .unwrap();
+        let list = full
+            .append_layout(
+                full.root(),
+                LayoutStyle::column()
+                    .size(LayoutDimension::Px(240.0), LayoutDimension::Px(80.0))
+                    .flex_shrink(0.0)
+                    .overflow(LayoutOverflow::Clip, LayoutOverflow::Scroll),
+                0,
+            )
+            .unwrap();
+        for index in 0..20 {
+            full.append_layout(
+                list,
+                LayoutStyle::column()
+                    .size(LayoutDimension::Percent(1.0), LayoutDimension::Px(30.0))
+                    .flex_shrink(0.0),
+                if index % 2 == 0 {
+                    0x117755ff
+                } else {
+                    0x775511ff
+                },
+            )
+            .unwrap();
+        }
+        let mut tx = Transaction::default();
+        tx.scroll(list, [0.0, 65.0]);
+        full.commit(tx, BackendCapabilities::default()).unwrap();
+        let frame = full.frame(shown.viewport).unwrap();
+        let bounds = shown.frame.resolve_geometry(host).unwrap().bounds;
+        assert_eq!(
+            full.layout_result(list).unwrap().size,
+            [bounds.width, bounds.height]
+        );
+        let mut job = software::SoftwareJob::new(
+            frame,
+            software::SoftwareOptions {
+                size: shown.size,
+                scale: shown.scale,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 128 * 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(8192).unwrap() {}
+        let mut bytes = job.into_frame().unwrap().pixels().to_vec();
+        for p in bytes.as_chunks_mut::<4>().0 {
+            p.swap(0, 2);
+        }
+        let Raster::Image(image) = &shown.raster else {
+            panic!("CPU image expected")
+        };
+        assert!(
+            image.as_bytes(0).unwrap() == bytes.as_slice(),
+            "installed CPU image differs from full Flex reference"
+        );
+    });
+}
+
+#[gpui::test]
 fn owner_host_virtual_list_native_wheel_installs_complete_cpu_picture(cx: &mut TestAppContext) {
     use gpui_box::retained::virtual_list::*;
     #[derive(Clone, PartialEq)]
