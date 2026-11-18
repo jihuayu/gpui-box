@@ -49,6 +49,20 @@ pub struct EventContext<'a, 'ui> {
     current_target: UiNodeId,
 }
 impl EventContext<'_, '_> {
+    /// Adopt a keyed list data revision and its scroll rebase in this input's
+    /// ordinary source transaction. No second post-event commit is needed.
+    pub fn rebase_virtual_list<C: Component>(
+        &mut self,
+        items: Signal<virtual_list::VirtualListItems<C>>,
+        scroll: Signal<[f32; 2]>,
+        new: virtual_list::VirtualListItems<C>,
+        old_viewport: f32,
+        new_viewport: f32,
+        policy: virtual_list::VirtualListScrollPolicy,
+    ) -> Result<virtual_list::VirtualListRebase, Error> {
+        self.tx
+            .rebase_virtual_list(items, scroll, new, old_viewport, new_viewport, policy)
+    }
     /// Remaining logical delta after inner controlled handlers. Present only in
     /// the combined input transaction for Wheel; standalone dispatch owns no default.
     pub fn remaining_wheel_delta(&self) -> Option<[f32; 2]> {

@@ -2,6 +2,8 @@
 //! Extents are declared immutable data, independent of fonts or a render backend.
 use super::{logical::*, reactive::*, *};
 use std::{marker::PhantomData, ops::Range, rc::Rc};
+mod anchoring;
+pub use anchoring::{VirtualListRebase, VirtualListRebaseReason, VirtualListScrollPolicy};
 
 #[derive(Clone, Debug)]
 enum Extents {
@@ -174,12 +176,14 @@ type RowFactory<C> = dyn Fn(usize) -> Result<(u64, <C as Component>::Props), Err
 pub struct VirtualListItems<C: Component> {
     metrics: VirtualListMetrics,
     row: Rc<RowFactory<C>>,
+    keys: Option<Arc<anchoring::Keys>>,
 }
 impl<C: Component> Clone for VirtualListItems<C> {
     fn clone(&self) -> Self {
         Self {
             metrics: self.metrics.clone(),
             row: self.row.clone(),
+            keys: self.keys.clone(),
         }
     }
 }
@@ -196,7 +200,32 @@ impl<C: Component> VirtualListItems<C> {
         Self {
             metrics,
             row: Rc::new(row),
+            keys: None,
         }
+    }
+    /// Build an immutable ordered key/inverse index without constructing rows.
+    /// Whole dataset uniqueness and metric length are validated once. Replacing
+    /// data still uses a new handle; cloning shares its index and factory.
+    pub fn keyed(
+        metrics: VirtualListMetrics,
+        keys: impl IntoIterator<Item = u64>,
+        row: impl Fn(usize) -> Result<C::Props, Error> + 'static,
+    ) -> Result<Self, Error> {
+        let keys = Arc::new(anchoring::Keys::new(keys, metrics.len())?);
+        let lookup = keys.clone();
+        Ok(Self {
+            metrics,
+            row: Rc::new(move |index| Ok((lookup.order[index], row(index)?))),
+            keys: Some(keys),
+        })
+    }
+    /// Read an indexed stable key without invoking the payload factory.
+    pub fn key(&self, index: usize) -> Result<u64, Error> {
+        self.keys
+            .as_ref()
+            .and_then(|keys| keys.order.get(index))
+            .copied()
+            .ok_or(Error::InvalidVirtualList)
     }
     pub fn metrics(&self) -> &VirtualListMetrics {
         &self.metrics

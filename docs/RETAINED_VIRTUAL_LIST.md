@@ -73,8 +73,48 @@ Current Tab/focus traversal uses mounted rows; all-data keyboard policy is expli
 future work. Focus/capture retirement follows host installation/scene adoption.
 No unbounded component/GPU cache or implicit KeepAlive is created.
 
+## Preserve reading position on data changes
+
+The [keyed anchoring follow-up](ADR_RETAINED_LIST_ANCHORING.md) adds an optional
+immutable global key index and pure scroll policy. `VirtualListItems::keyed`
+validates key count/uniqueness once; the payload factory returns Props, with no
+key duplication. It still runs only for selected rows. `key(index)` reads the
+index without constructing a row. Clones share metadata and factory identity.
+
+```rust,ignore
+let next = VirtualListItems::<Row>::keyed(
+    VirtualListMetrics::variable(data.iter().map(|row| row.height))?,
+    data.iter().map(|row| row.id),
+    move |index| Ok(rows[index].clone()),
+)?;
+ui.transaction(|tx| {
+    let result = tx.rebase_virtual_list(
+        items_source, scroll, next, old_height, new_height,
+        VirtualListScrollPolicy::KeepVisible,
+    )?;
+    // If viewport changes, write its source here too, in the same transaction.
+    Ok(result)
+})?;
+```
+
+Feed items_source to an ordinary ComponentProducer that supplies the list's Props.
+This replaces data and offset together before computed/producer/Flex settlement.
+EventContext exposes the same operation for data changes triggered by an input.
+The helper reads the latest scroll source when invoked, so an earlier captured
+background offset cannot undo a newer wheel. Failed adoption leaves both old data
+and offset live. Pure `old_items.rebase(&next,...)` is available for other owners.
+
+KeepVisible keeps the first intersecting key and pixel position, preferring a
+following then preceding surviving old neighbor if removed. KeepOffset preserves
+numerical position within new bounds. FollowEnd{tolerance} follows new end only
+when previously near the old end; readers away from the end retain their anchor.
+The result names offset/key/reason/clamped. Bounds, empty data and shortened rows
+can prevent exact preservation. Anchor policies require keyed data; KeepOffset
+also accepts unindexed data. Index build uses O(N) metadata and deleted-anchor
+fallback may scan old keys, without invoking payload factories.
+
 Use the full ordinary list for small datasets or as a correctness reference.
-Remaining work includes measured/estimated row-height feedback, anchor retention,
+Remaining work includes measured/estimated row-height feedback,
 incremental height edits, sticky/horizontal layouts and accessible all-data
 navigation. Work remains on the ordinary candidate/source/producer paths; no
 performance guarantee follows solely from bounded node count. See

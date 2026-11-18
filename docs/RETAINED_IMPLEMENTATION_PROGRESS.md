@@ -10,6 +10,27 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [list anchoring stage](ADR_RETAINED_LIST_ANCHORING.md) adds optional immutable
+global key/inverse indexing to VirtualListItems. Pure KeepVisible/KeepOffset/
+FollowEnd policies rebase declared-extent data transitions from current source
+offsets, preserving a key's screen position or following the end only when already
+near it. Removed anchors choose following then preceding surviving old keys;
+shortened rows/bounds clamp explicitly. ReactiveTransaction/EventContext adopt
+data+scroll together through existing nested source transaction and ordinary
+ComponentProducer/Flex/frame validation. Newer wheel intent is read at invocation;
+failure retains old tuple/lifecycle/frame. Factories do not run during rebase.
+See [verification](performance/2026-11-19-list-anchoring/README.md).
+O(N) key metadata, O(N log N) index build and possible deleted-anchor scan remain;
+automatic height measurement/incremental indices, installed-frame independent
+renderer anchoring, navigation/accessibility and independent presentation stay
+open. No new FPS/latency or byte-memory gain claim. Complete RFC stays active.
+Final retained-only771passed/1ignored, text/WGPU806/69, each15compiler doctests;
+hello92/37. Explicit core anchor GPU1passed/four full images and real-Noto anchor
+GPU1passed/three full images at1.25scale on GTX1650Ti/Vulkan/571.96. Native host
+installed CPU bytes equal before/after prepend compensation45→65px. Library
+Clippy-Dwarnings, CPU desktop and retained-gpu harness pass. Scoped format/diff,
+1,133local links across296docs and five WIP hashes pass. Final2026-11-19.
+
 The [virtual list stage](RETAINED_VIRTUAL_LIST.md) adds an ordinary typed
 VirtualList component with declared fixed/variable row extents, explicit local
 viewport/overscan and selected-row bound. Fixed metrics are O(1); immutable variable

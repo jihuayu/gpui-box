@@ -16,6 +16,8 @@
 
 同日后续：[声明行高的虚拟列表](RETAINED_VIRTUAL_LIST.md) 通过普通 Flex、keyed 组件 sites 与 Content producer 实现固定／可变行高窗口，只调用选中行工厂，并用 overscan／max_rows 限制挂载工作。共享受控滚动消费可将余量交给祖先默认滚动，同次卸载旧行不重命中到新行。Off-window 正常退休、取消task；持久草稿提升到parent／Store。自动测高／anchor保持、全数据键盘与虚拟无障碍、KeepAlive和独立呈现仍开放。
 
+同日后续：[列表阅读位置保持](ADR_RETAINED_LIST_ANCHORING.md) 为数据集增加可选的不可变全局key索引，纯KeepVisible／KeepOffset／FollowEnd策略从当前source offset计算新偏移。ReactiveTransaction／EventContext将data＋scroll同次采用，沿普通ComponentProducer／Flex／完整frame验证；失败不留下半套数据或偏移。跟随末尾仅在原本接近末尾时发生，用户已滚开时保留阅读key。自动测高、增量索引、独立renderer的installed-frame anchoring、全数据导航／无障碍和独立呈现仍开放。
+
 ## 1. 要解决的问题
 
 框架以 GPUI 为基础，提供一套比底层绘制更完整的界面抽象：应用用 Rust 编写时自然、可检查；以后用 JS 或 Go 编写时，复用同一个 UI 语义与渲染内核。

@@ -44,26 +44,26 @@ fn owner_host_virtual_list_native_wheel_installs_complete_cpu_picture(cx: &mut T
     let view = window.root(cx).unwrap();
     let cx = VisualTestContext::from_window(*window, cx).into_mut();
     cx.run_until_parked();
-    let (scroll, host, initial) = view.update(cx, |this, cx| {
+    let (items, scroll, host, initial) = view.update(cx, |this, cx| {
         let root = this.ui.root_scope();
         let render = this.ui.root_render();
         let viewport = this.shown.as_ref().unwrap().viewport;
         let scroll = this.ui.state(root, 100, || [0.0; 2]).unwrap();
-        let rows = VirtualListItems::<Row>::new(
+        let rows = VirtualListItems::<Row>::keyed(
             VirtualListMetrics::fixed(100_000, 20.0).unwrap(),
+            0..100_000,
             |index| {
-                Ok((
-                    index as u64,
-                    RowProps {
-                        color: if index % 2 == 0 {
-                            0x117755ff
-                        } else {
-                            0x775511ff
-                        },
+                Ok(RowProps {
+                    color: if index % 2 == 0 {
+                        0x117755ff
+                    } else {
+                        0x775511ff
                     },
-                ))
+                })
             },
-        );
+        )
+        .unwrap();
+        let items = this.ui.state(root, 101, || rows).unwrap();
         let scope = this
             .ui
             .edit_local_frame(
@@ -71,18 +71,36 @@ fn owner_host_virtual_list_native_wheel_installs_complete_cpu_picture(cx: &mut T
                 viewport,
                 |_| Ok(()),
                 |(), edit| {
-                    edit.components::<VirtualList<Row>>(
+                    let site = edit.component_sites(root, &[1])?[0];
+                    edit.component_producer(
                         root,
+                        0,
                         render,
-                        [(1, VirtualListProps::new(rows, scroll, [240.0, 80.0]))],
-                    )
+                        &[],
+                        ComponentProducer::new(move |i| {
+                            let mut plan = ComponentPlan::new();
+                            plan.select::<VirtualList<Row>>(
+                                site,
+                                render,
+                                0,
+                                VirtualListProps::new(
+                                    i.read(items)?.clone(),
+                                    scroll,
+                                    [240.0, 80.0],
+                                ),
+                            );
+                            Ok(plan)
+                        }),
+                    )?;
+                    Ok(site)
                 },
             )
             .unwrap()
             .0
             .result
-            .value[0];
-        let host = this.ui.renders(scope).unwrap()[0];
+            .value;
+        let list = this.ui.children(scope.scope()).unwrap()[0];
+        let host = this.ui.renders(list).unwrap()[0];
         // Clip the original demo content while testing the new independent
         // list site in normal flow. Do not change virtual-list internals.
         let old = this.ui.renders(root).unwrap().to_vec();
@@ -100,7 +118,7 @@ fn owner_host_virtual_list_native_wheel_installs_complete_cpu_picture(cx: &mut T
             .unwrap();
         let initial = this.installs;
         cx.notify();
-        (scroll, host, initial)
+        (items, scroll, host, initial)
     });
     cx.run_until_parked();
     let point = view.read_with(cx, |this, _| {
@@ -127,6 +145,70 @@ fn owner_host_virtual_list_native_wheel_installs_complete_cpu_picture(cx: &mut T
         let shown = this.shown.as_ref().unwrap();
         assert_eq!(this.router.scene_id(), Some(shown.scene.id()));
         assert!(shown.frame.stats().retained_items < 40);
+        assert!(this.cpu_task.is_none() && this.pending.is_none() && this.ready.is_none());
+    });
+    let before = view.read_with(cx, |this, _| this.shown.as_ref().unwrap().clone());
+    view.update(cx, |this, cx| {
+        let next = VirtualListItems::<Row>::keyed(
+            VirtualListMetrics::fixed(100_001, 20.0).unwrap(),
+            std::iter::once(100_001).chain(0..100_000),
+            |index| {
+                let original = index.saturating_sub(1);
+                Ok(RowProps {
+                    color: if original % 2 == 0 {
+                        0x117755ff
+                    } else {
+                        0x775511ff
+                    },
+                })
+            },
+        )
+        .unwrap();
+        let result = this
+            .ui
+            .transaction(|tx| {
+                tx.rebase_virtual_list(
+                    items,
+                    scroll,
+                    next,
+                    80.0,
+                    80.0,
+                    VirtualListScrollPolicy::KeepVisible,
+                )
+            })
+            .unwrap()
+            .value;
+        assert_eq!(result.offset, [0.0, 65.0]);
+        cx.notify();
+    });
+    cx.run_until_parked();
+    view.read_with(cx, |this, _| {
+        assert_eq!(*this.ui.read(scroll).unwrap(), [0.0, 65.0]);
+        let shown = this.shown.as_ref().unwrap();
+        assert!(shown.frame.revision() > before.frame.revision());
+        assert_eq!(
+            shown.frame.resolve_geometry(host).unwrap().bounds,
+            before.frame.resolve_geometry(host).unwrap().bounds
+        );
+        assert_eq!(this.router.scene_id(), Some(shown.scene.id()));
+        assert!(this.error.is_none(), "{:?}", this.error);
+        let previous_raster = &before.raster;
+        let before = before.frame.resolve();
+        let after = shown.frame.resolve();
+        let sample = [50.0, 50.0];
+        let color = |frame: &FramePacket| {
+            frame
+                .hit_test(sample[0], sample[1])
+                .and_then(|id| frame.items.iter().find(|i| i.node == id))
+                .map(|i| i.fill_color)
+        };
+        assert_eq!(color(&before), color(&after));
+        let image = |raster: &Raster| match raster {
+            Raster::Image(image) => image.as_bytes(0).unwrap().to_vec(),
+            #[cfg(all(feature = "retained-wgpu", target_os = "windows"))]
+            _ => panic!("CPU image expected"),
+        };
+        assert_eq!(image(&shown.raster), image(previous_raster));
         assert!(this.cpu_task.is_none() && this.pending.is_none() && this.ready.is_none());
     });
 }
