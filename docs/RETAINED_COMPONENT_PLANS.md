@@ -120,3 +120,9 @@ Store/Command, source-model unification, event/semantics integration, general
 output ownership, complete RenderBox, resource budgets and independent native
 presentation remain active. "99%" is figurative common fluid/intuitive behavior,
 not a numerical success-rate or p99 gate.
+
+Subsequent [scoped UI tasks](RETAINED_UI_TASKS.md) add mount-once task declaration,
+transactional replacement/cancellation and owner result adoption. Reorder retains
+task identity; component retirement cancels it. This does not implement KeepAlive
+activation or automatic async hooks. Later provider/event/Store/Command stages
+are tracked in the [current implementation progress](RETAINED_IMPLEMENTATION_PROGRESS.md).

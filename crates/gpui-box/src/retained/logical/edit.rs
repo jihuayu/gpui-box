@@ -48,6 +48,9 @@ pub struct LogicalEdit<'a, 'draft, 'tree> {
     pub(super) providers: Option<super::provider::Registry>,
     pub(super) live_events: &'a super::events::Registry,
     pub(super) events: Option<super::events::Registry>,
+    pub(super) live_tasks: &'a super::tasks::Registry,
+    pub(super) tasks: Option<super::tasks::Registry>,
+    pub(super) task_launches: Vec<super::tasks::Launch>,
 }
 impl LogicalEdit<'_, '_, '_> {
     pub(super) fn producer_logical_unchanged(&self) -> bool {
@@ -654,6 +657,18 @@ impl LogicalUi {
         validate: Option<impl FnOnce(&mut UiTree) -> Result<(), Error>>,
         input: Option<super::events::ScrollDefaults<'_>>,
     ) -> Result<ReactiveEditCommit<R>, Error> {
+        self.edit_validated_adopting(sources, render, frame_environment, validate, input, None)
+    }
+
+    pub(super) fn edit_validated_adopting<S, R>(
+        &mut self,
+        sources: impl FnOnce(&mut ReactiveTransaction<'_>) -> Result<S, Error>,
+        render: impl FnOnce(S, &mut LogicalEdit<'_, '_, '_>) -> Result<R, Error>,
+        frame_environment: Option<(LayoutConstraints, [f32; 2])>,
+        validate: Option<impl FnOnce(&mut UiTree) -> Result<(), Error>>,
+        input: Option<super::events::ScrollDefaults<'_>>,
+        adopted: Option<&dyn Fn()>,
+    ) -> Result<ReactiveEditCommit<R>, Error> {
         let frame_environment = frame_environment
             .or_else(|| {
                 self.layout_session
@@ -674,6 +689,8 @@ impl LogicalUi {
         let mut producer_stats = LayoutProducerStats::default();
         let mut providers = None;
         let mut events = None;
+        let mut tasks = None;
+        let mut task_launches = vec![];
         let constraint_inputs: std::cell::RefCell<Vec<super::constraint_builder::Observation>> =
             std::cell::RefCell::new(vec![]);
         let responsive_inputs: std::cell::RefCell<Vec<responsive::structural::FinalObservation>> =
@@ -736,6 +753,9 @@ impl LogicalUi {
                     providers: None,
                     live_events: &self.events,
                     events: None,
+                    live_tasks: &self.tasks,
+                    tasks: None,
+                    task_launches: vec![],
                 };
                 let value = render(value, &mut draft)?;
                 draft.validate_components()?;
@@ -874,6 +894,7 @@ impl LogicalUi {
                 draft.validate_producer_sources()?;
                 draft.retire_and_validate_providers(&dead)?;
                 draft.retire_and_validate_events(&dead)?;
+                draft.retire_tasks(&dead);
                 if input.is_some() {
                     *input_registry.borrow_mut() = Some(draft.event_registry().clone());
                     *controlled_scroll.borrow_mut() = draft.render.bound_scroll_nodes();
@@ -890,6 +911,8 @@ impl LogicalUi {
                 layout_producers = draft.layout_producers.take();
                 providers = draft.providers.take();
                 events = draft.events.take();
+                tasks = draft.tasks.take();
+                task_launches = std::mem::take(&mut draft.task_launches);
                 producer_stats = draft.producer_stats;
                 *responsive_inputs.borrow_mut() = draft
                     .responsive_inputs
@@ -1090,6 +1113,9 @@ impl LogicalUi {
         if let Some(events) = events {
             self.events = events;
         }
+        if let Some(tasks) = tasks {
+            self.tasks = tasks;
+        }
         self.layout_session = layout_session;
         if let Some(producers) = layout_producers {
             self.layout_producers = producers;
@@ -1113,7 +1139,14 @@ impl LogicalUi {
         if let Some(adopted) = input.as_ref().and_then(|input| input.adopted) {
             adopted();
         }
-        Ok(self.ui.finish_edit(pending))
+        if let Some(adopted) = adopted {
+            adopted();
+        }
+        let output = self.ui.finish_edit(pending);
+        for launch in task_launches {
+            launch.run();
+        }
+        Ok(output)
     }
 }
 

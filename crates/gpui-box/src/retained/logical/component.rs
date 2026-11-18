@@ -46,6 +46,19 @@ pub struct ComponentContext<'a, 'edit, 'draft, 'tree> {
     host: NodeId,
 }
 impl ComponentContext<'_, '_, '_, '_> {
+    pub fn start_task<T: Send + Sync + 'static>(
+        &mut self,
+        key: u64,
+        launch: impl FnOnce(UiTaskContext<T>) + 'static,
+    ) -> Result<UiTask<T>, Error> {
+        self.edit.start_task(self.scope, key, launch)
+    }
+    pub fn task<T: 'static>(&self, key: u64) -> Result<Option<UiTask<T>>, Error> {
+        self.edit.task(self.scope, key)
+    }
+    pub fn cancel_task(&mut self, key: u64) -> Result<bool, Error> {
+        self.edit.cancel_task(self.scope, key)
+    }
     pub fn scope(&self) -> ScopeId {
         self.scope
     }

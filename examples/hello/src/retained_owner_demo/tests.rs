@@ -112,3 +112,70 @@ fn native_owner_host_real_gpui_mouse_keyboard_scroll_and_outside_release(cx: &mu
         assert_eq!(*view.ui.read(view.count).unwrap(), 12);
     });
 }
+
+#[gpui::test]
+fn owner_host_executor_task_output_reaches_complete_cpu_picture_and_installed_scene(
+    cx: &mut TestAppContext,
+) {
+    let platform = Arc::new(gpui_wgpu::CosmicTextSystem::new_without_system_fonts(
+        "Noto Sans CJK SC",
+    ));
+    let mut real_cx = TestAppContext::build_with_text_system(cx.dispatcher.clone(), None, platform);
+    let cx = &mut real_cx;
+    cx.text_system()
+        .add_fonts(vec![std::borrow::Cow::Borrowed(include_bytes!(
+            "../../assets/NotoSansSC-Regular.otf"
+        ))])
+        .unwrap();
+    let window = cx.open_window(size(px(600.0), px(460.0)), |window, cx| {
+        OwnerDemo::new(window, cx, true)
+    });
+    let view = window.root(cx).unwrap();
+    let cx = VisualTestContext::from_window(*window, cx).into_mut();
+    cx.run_until_parked();
+    let (task, waiter) = view.update(cx, |this, cx| {
+        let executor = cx.background_executor().clone();
+        let root = this.ui.root_scope();
+        let count = this.count;
+        let mut task = this
+            .ui
+            .start_task(root, 10, move |context: UiTaskContext<u32>| {
+                executor
+                    .spawn(async move {
+                        context.complete(42).unwrap();
+                    })
+                    .detach();
+            })
+            .unwrap();
+        let handle = task.clone();
+        let waiter = cx.spawn(async move |view, cx| {
+            assert_eq!(task.ready().await, UiTaskStatus::Ready);
+            view.update(cx, |this, cx| {
+                assert!(matches!(
+                    this.ui
+                        .apply_task(&task, |value, tx| {
+                            tx.set(count, *value)?;
+                            Ok(())
+                        })
+                        .unwrap(),
+                    TaskApply::Applied(_)
+                ));
+                cx.notify();
+            })
+            .unwrap();
+        });
+        (handle, waiter)
+    });
+    cx.run_until_parked();
+    assert_eq!(task.status(), UiTaskStatus::Applied);
+    view.read_with(cx, |this, _| {
+        assert_eq!(*this.ui.read(this.count).unwrap(), 42);
+        assert!(this.cpu_task.is_none() && this.pending.is_none() && this.ready.is_none());
+        assert_eq!(
+            this.router.scene_id(),
+            Some(this.shown.as_ref().unwrap().scene.id())
+        );
+        assert!(this.error.is_none(), "{:?}", this.error);
+    });
+    drop(waiter);
+}

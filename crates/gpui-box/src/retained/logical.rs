@@ -30,9 +30,11 @@ mod store;
 pub use store::{StoreApply, StoreInput, StoreSelector};
 mod events;
 mod provider;
+mod tasks;
 pub use events::{
     EventContext, EventControl, EventHandler, LogicalInputCommit, LogicalScrollCommit,
 };
+pub use tasks::{TaskApply, UiTask, UiTaskContext, UiTaskStatus};
 
 #[derive(Clone)]
 struct LayoutSession {
@@ -106,6 +108,14 @@ pub struct LogicalUi {
     producer_index: producers::ProducerIndex,
     providers: provider::Registry,
     events: events::Registry,
+    tasks: tasks::Registry,
+}
+
+impl Drop for LogicalUi {
+    fn drop(&mut self) {
+        // Cancellation is visible before reactive effect/source cleanup runs.
+        self.tasks.clear();
+    }
 }
 
 impl LogicalUi {
@@ -198,6 +208,7 @@ impl LogicalUi {
             producer_index: producers::ProducerIndex::default(),
             providers: provider::Registry::default(),
             events: events::Registry::default(),
+            tasks: tasks::Registry::default(),
         })
     }
 
@@ -731,6 +742,7 @@ impl LogicalUi {
         }
         // Cleanup observers before retiring any of their dependencies, including
         // inputs owned by other scopes in the same removal set.
+        self.tasks.retire(&removed);
         for effect in dead_effects.iter().rev() {
             self.ui.dispose_effect(*effect)?;
         }

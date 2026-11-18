@@ -359,6 +359,7 @@ pub enum Error {
     InvalidStore,
     InvalidProvider,
     InvalidEventHandler,
+    InvalidTask,
     Input(input::UiInputError),
     MissingProvider {
         path: Vec<u64>,

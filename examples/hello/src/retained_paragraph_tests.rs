@@ -33,6 +33,8 @@ mod read_prop_text_tests;
 mod store_text_tests;
 #[path = "retained_style_ir_text_tests.rs"]
 mod style_ir_text_tests;
+#[path = "retained_task_text_tests.rs"]
+mod task_text_tests;
 #[path = "retained_ui_ir_text_tests.rs"]
 mod ui_ir_text_tests;
 #[path = "retained_wheel_text_tests.rs"]

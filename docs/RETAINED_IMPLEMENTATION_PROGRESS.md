@@ -10,6 +10,32 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [scope-owned UI task stage](RETAINED_UI_TASKS.md) adds UiTask, UiTaskContext,
+TaskApply and start/task/cancel APIs on LogicalUi/LogicalEdit/ComponentContext.
+Host executors remain responsible for scheduling; no private pool is added.
+Sparse registry entries own cancellation while result handles cannot retain scope
+lifetime. Full candidate failure does not launch new work or cancel old work.
+Replacement, transactional/manual subtree retirement and owner Drop cancel and
+wake; old completions cannot overwrite a newer scope/key task. Result adoption
+uses ordinary source/producer/layout settlement and current frame constraints,
+preserves Ready on failure and marks Applied before ordinary effects. An adopted
+result that retires itself cannot replay. Accepted business Commands are independent.
+See [decision/costs](ADR_RETAINED_UI_TASKS.md) and
+[verification](performance/2026-11-19-ui-tasks/README.md).
+Real Noto task results changing width90/145/65 and text compare complete Flex
+geometry/baselines, following-sibling placement and all CPU/GPU pixels to an
+independent numeric full reference. GPUI executor/ready wake test continues through
+complete CPU image and input-scene installation. Scope/effect cleanup, candidate
+failure/unwind, abandon, late completion, retry and post-commit panic are covered.
+KeepAlive activation generations, global capacity/byte quotas, task priorities,
+automatic async hooks, event-driven task restarts, full source unification,
+semantics/IME and independent presentation remain open. No latency/FPS claim;
+source schema/Taffy/GPU format unchanged. Complete RFC stays active.
+Final retained-only726passed/1ignored and text/WGPU761/66, each13compiler doctests;
+hello84/33; explicit real-Noto GPU1passed with three full-image comparisons on
+GTX1650Ti/Vulkan/571.96. Library Clippy-Dwarnings, CPU desktop and retained-gpu
+harness checks pass. Scoped format/diff,1097local links and five WIP hashes pass.
+
 The [GPUI owner host](RETAINED_GPUI_OWNER_HOST.md) stage connects the common owner
 pump to a separate native desktop example. Public GpuiInputAdapter normalizes
 logical coordinates, capture-aware outside release, wheel units/sign and supported

@@ -6,6 +6,8 @@
 
 2026-11-19 补充：[GPUI owner host](RETAINED_GPUI_OWNER_HOST.md) 已将统一输入事务、组件样式反馈、Flex、实际 GPU／后台 CPU 完整图像安装接入独立原生示例。安装画面与命中 scene 成对采用；它仍由 GPUI UI 回调驱动最终呈现，不构成独立呈现或持续帧率验收。
 
+2026-11-19 后续：[作用域 UI task](RETAINED_UI_TASKS.md) 将短期 UI 工作的启动、取消和结果采用接入现有 scope／candidate／source／layout。后台结果只有仍是当前任务时才能回写，完整采用失败可重试；已接纳业务 Command 不因组件卸载取消。KeepAlive 激活世代、全局预算／优先级、自动 async hooks 和独立呈现仍未完成。
+
 ## 1. 要解决的问题
 
 框架以 GPUI 为基础，提供一套比底层绘制更完整的界面抽象：应用用 Rust 编写时自然、可检查；以后用 JS 或 Go 编写时，复用同一个 UI 语义与渲染内核。
@@ -947,6 +949,8 @@ Created -> Accepted -> Running -> Succeeded / Failed / Cancelled
 取消是请求，不等于回滚已发生的外部效果。重试依赖业务幂等键，不承诺神奇的 exactly-once。Command 结果可以附带 committed StoreRevision，调用方按需等 UI applied；普通保存操作不必等待显示器呈现。
 
 任务作用域区分 application、window、component。组件卸载取消自身订阅和短期界面任务，不自动取消用户已经发出的保存、下载。错误保留上一份一致状态，失败呈现由显式错误状态驱动。
+
+已落地的显式 [UiTask／UiTaskContext／TaskApply](RETAINED_UI_TASKS.md) 复用任意 logical scope（根可由 host 对应 window）和现有执行器。启动／替换／取消跟随完整候选采用，结果由 owner 显式等待和原 source 事务采用；取消唤醒 worker 并拒绝旧结果。无独立 application scheduler、KeepAlive activation generation 或任务预算，不能把这一步当成整套任务调度完成。[决策与成本](ADR_RETAINED_UI_TASKS.md)。
 
 ```rust
 // 拟议用法，仅表达职责；不是当前可编译 API。
