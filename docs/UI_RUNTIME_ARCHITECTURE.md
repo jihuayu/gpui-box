@@ -1,6 +1,6 @@
 # UI IR、Store、Command 与独立渲染动画架构
 
-状态：设计草案，已开始落地框架层；Rust 优先，预留 JS、Go。当前实现有与 Taffy 解耦的 `LayoutStyle` Flex/Grid/混合长度及测量协议，拥有式 primitive UI 输入快照／批次、纯布局资源、类型化样式组合、显式采用完整帧的主指针／焦点／激活／滚动路由，以及单次构建计划和作用域持久布局 producer。显式 Rust 组件计划、业务 Store 快照／选择器、类型化 Command、作用域 Provider、事件回调及有界短期任务／参数驱动任务效应也已实验接入；完整语义 UI IR、完整主题 token 体系与自动文字继承、序列化/跨语言 ABI、组件宏、通用反馈与细粒度调度、KeepAlive 激活世代和独立呈现仍未完成，总目标继续进行中。
+状态：设计草案，已开始落地框架层；Rust 优先，预留 JS、Go。当前实现有与 Taffy 解耦的 `LayoutStyle` Flex/Grid/混合长度及测量协议，拥有式 primitive UI 输入快照／批次、纯布局资源、类型化样式组合、显式采用完整帧的主指针／焦点／激活／滚动路由，以及单次构建计划和作用域持久布局 producer。显式 Rust 组件计划、业务 Store 快照／选择器、类型化 Command、作用域 Provider、事件回调及有界短期任务／参数驱动任务效应也已实验接入；完整语义 UI IR、完整主题 token 体系与富文本、序列化/跨语言 ABI、组件宏、通用反馈与细粒度调度、KeepAlive 激活世代和独立呈现仍未完成，总目标继续进行中。
 
 更新日期：2026-11-18。实现对照取自 `codex/rendering-performance-research`。本文是架构映射与实现状态记录；实验能力与正式承诺仍分别列出。
 
@@ -42,6 +42,14 @@ baseline／batch查询复制所查询子树的去重联合，复用原Taffy算�
 同key／type／host更新theme与child Props保留组件状态；遗漏字段回到组defaults。
 Theme事务沿已建立约束进行完整frame校验。Named token／derived表达式IR、自动文字
 继承、parts／ThemePatch、系统订阅与独立renderer StyleEpoch仍开放，完整RFC未完成。
+
+同日后续：[普通 Text 与文字继承](RETAINED_TEXT_COMPONENTS.md) 对字体family／weight／
+slant／size、行高和前景色提供逐属性 Inherit／Initial／Value。TextStyleScope按逻辑祖先
+合并部分文字声明，再通过既有ThemeScope提供完整组；不增加布局盒。普通Text组件自动
+解析继承并由owner适配器准备段落/glyph，沿原text sink／Flex／完整frame发布。Color与
+layout排除在typography资源请求之外，宽度变化复用paragraph换行，DPI scale／font revision
+由host显式输入。无provider的optional缺省也维持完整frame采用。富文本、IME/selection、
+portable字体schema、token表达式、预算准备与独立呈现仍未完成，没有新增帧时收益声明。
 
 ## 1. 要解决的问题
 
@@ -1069,6 +1077,11 @@ UI schema2接入source/effective原子发布，Flex／Grid／Calc、P1／P2及�
 不提供这些占位能力，Style IR也未承诺稳定wire ABI。后续纯样式增量规划已减少重复求值，
 结构批次仍全图验证，所有发布仍做普通retained/layout/geometry校验；自动event state、
 容器条件调度、render域独立条件采样和预算化准备尚待接入。完整M2与总目标保持未完成。
+
+后续实验Rust入口已分别接入 [ThemeGroup／ThemeScope](RETAINED_THEMES.md) 与
+[TextStyleScope／Text](RETAINED_TEXT_COMPONENTS.md)。后者对列明的uniform文字属性
+提供逻辑继承与owner资源准备；它们复用普通source，不代表以下token表达式、StyleRef
+inherit语法、宏、parts、跨语言Style IR或完整富文本均已实现。
 
 ### 6.1 借鉴范围
 

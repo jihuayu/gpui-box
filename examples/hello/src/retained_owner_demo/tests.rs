@@ -1,5 +1,7 @@
 use super::*;
 use core::prelude::v1::test;
+#[path = "text_inheritance_test.rs"]
+mod text_inheritance_test;
 
 #[gpui::test]
 fn owner_host_theme_click_installs_complete_cpu_picture_with_same_component(

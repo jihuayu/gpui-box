@@ -4,6 +4,8 @@ use std::{
     collections::VecDeque,
     sync::{Mutex, Weak},
 };
+mod component;
+pub use component::{GpuiTextPreparer, Text, TextPreparation, TextPreparer, TextProps};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct GlyphKey {

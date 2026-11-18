@@ -9,7 +9,9 @@ second source graph, layout box, renderer algorithm or source schema change.
 2026-11-19 follow-up: [typed complete theme groups](RETAINED_THEMES.md) reuse
 the same registry with a separate ThemeKey namespace, logical nearest-provider
 inheritance and ordinary read-only source projections. Transparent ThemeScope
-does not add a layout box; portable token expressions/text inheritance remain open.
+does not add a layout box; portable token expressions remain open. The later
+[TextStyleScope/Text component](RETAINED_TEXT_COMPONENTS.md) reuses those groups
+for the enumerated uniform text properties and optional default inheritance.
 
 ## Keys, declarations and resolution
 

@@ -86,8 +86,13 @@ CPU/GPU image and adopt the matching input scene; theme scope does not present.
 
 This stage is typed whole groups, not the entire token-language RFC. Named typed
 token IDs/references, derived-token expression graphs, missing/cycle diagnostics,
-portable Style IR token evaluation, automatic text inheritance, ThemePatch,
+portable Style IR token evaluation, ThemePatch,
 parts restrictions, system theme/font subscriptions and independent renderer
 StyleEpoch/PendingScene preparation remain open. Layout/paint values do not
 implicitly inherit. Large theme fanout still runs normal owner work; selector
 equality avoids unchanged sinks but does not promise O(1) switches or 120 Hz.
+
+Follow-up: [ordinary Text inheritance](RETAINED_TEXT_COMPONENTS.md) now provides
+the enumerated uniform text properties through TextStyleScope/TextStyleKey and
+an automatic Text component. Low-level prepared TextPaint/UiContent remain
+explicit; rich text and the complete token/Style IR system remain open.

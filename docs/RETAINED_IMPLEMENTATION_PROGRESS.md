@@ -10,6 +10,27 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [ordinary inherited Text stage](RETAINED_TEXT_COMPONENTS.md) adds pure text
+style data with per-property Inherit/Initial/Value, logical partial style scopes
+and an ordinary Text component. Family/weight/slant/size/line-height/foreground
+inherit independently through existing providers, including portals. Typography
+requests exclude foreground/layout so color-only and width-only updates can
+reuse owned paragraph/glyph resources. Resource preparation stays on the owner
+through an explicit adapter; DPI scale and font revision are captured inputs.
+Standalone optional absence also keeps later updates in complete-frame validation.
+No extra layout boxes or solver, UI schema or renderer format change. Rich text,
+editable/IME/selection, font feature/fallback lists, portable text resources,
+token-expression IR, budgeted preparation and independent presentation stay open.
+This capability stage adds no FPS/latency claim; complete RFC remains active.
+See [decision](ADR_RETAINED_TEXT_COMPONENTS.md) and
+[verification](performance/2026-11-19-text-inheritance/README.md).
+Final retained-only800passed/1ignored, text/WGPU835/69, each16compiler doctests;
+hello100/40. Explicit real Noto GPU1passed/nine complete1.25scale images on
+GTX1650Ti/Vulkan/571.96. Host click/actual CPU image and custom adapter font
+revision/wrong-scale rollback pass. Strict Clippy, CPU desktop and retained-gpu
+harness checks pass. Scoped format/diff,307-doc/1,165-link traversal and five
+inherited WIP baseline hashes pass.
+
 The [typed theme group stage](RETAINED_THEMES.md) adds ThemeKey/ThemeGroup and
 nearest logical provider inheritance through the existing source graph. Pure
 selectors expose read-only values, preserving normal style/text/Flex transactions

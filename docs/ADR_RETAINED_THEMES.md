@@ -88,3 +88,7 @@ Input capabilities/disabled semantics are not overridden by visual themes.
 
 See [usage](RETAINED_THEMES.md), [providers](RETAINED_SCOPED_PROVIDERS.md) and
 [verification](performance/2026-11-19-themes/README.md).
+
+Follow-up: [ordinary inherited Text](RETAINED_TEXT_COMPONENTS.md) implements the
+enumerated uniform text properties through this group/provider contract. Rich
+text and the complete token expression/Style IR remain outside that stage.

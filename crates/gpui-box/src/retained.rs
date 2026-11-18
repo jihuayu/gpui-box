@@ -78,6 +78,7 @@ pub mod input;
 pub mod reactive;
 pub mod responsive;
 pub mod style;
+pub mod text_style;
 pub mod theme;
 pub mod ui_ir;
 pub use edit::{TreeEdit, TreeEditCommit};
@@ -363,6 +364,7 @@ pub enum Error {
     InvalidStore,
     InvalidProvider,
     InvalidTheme,
+    InvalidTextStyle,
     InvalidEventHandler,
     InvalidTask,
     InvalidTaskPool,

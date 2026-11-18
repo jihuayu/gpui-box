@@ -27,9 +27,12 @@ pub(super) struct Environment {
 }
 pub(super) type Registry = BTreeMap<ScopeId, Rc<Environment>>;
 pub(super) fn has_themes(registry: &Registry) -> bool {
-    registry
-        .values()
-        .any(|env| env.provided.keys().any(|key| matches!(key, Key::Theme(_))))
+    registry.values().any(|env| {
+        env.provided
+            .keys()
+            .chain(env.resolved.keys())
+            .any(|key| matches!(key, Key::Theme(_)))
+    })
 }
 
 pub(super) fn validate_retirement(
