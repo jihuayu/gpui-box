@@ -10,6 +10,25 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [atomic prop batch stage](RETAINED_PROP_BATCHES.md) adds LogicalEdit::props
+with restricted PropBatch::prop declarations. Related heterogeneous final values
+settle once through the same source helper; temporary tuples cannot be read or
+measured, and restored roots skip derived work. Failed declarations poison their
+batch; fallible/unwinding settlement rolls back batch-only source allocations,
+maps and counters while consuming generations. Outer final validation remains.
+No persistent source/schema/kernel/GPU format change; Error adds InvalidPropBatch.
+See [verification](performance/2026-11-18-prop-batches/README.md).
+Per-batch copying/whole derived scans, scratch allocations and ordinary candidate/
+frame costs remain; no timing/FPS benefit is claimed. Typed component sites/
+contexts/macros, Store/Command, source integration, output ownership, full
+RenderBox, resource budgets and independent presentation remain active.
+Final retained629passed/1ignored, text/WGPU663/56 and hello71/22 pass, including
+7new core and real-Noto CPU;3compile-fail docs pass in both core configurations.
+Explicit keyed-input GPU compares6complete images and Noto GPU3 on
+GTX1650Ti/Vulkan/571.96. Library Clippy -D warnings, complete retained-gpu harness,
+scoped format/diff,288local links and all5WIP hashes pass. Full suites/hardware
+cover final production code; counts overlap and no visible cadence is inferred.
+
 The [ReadProp stage](RETAINED_READ_PROPS.md) adds owner-local live read-only
 component inputs. Keyed LogicalEdit::prop replacements reuse the ordinary
 responsive source staging/derived graph; read_prop/bind_prop integrate producer

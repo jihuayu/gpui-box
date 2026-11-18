@@ -5,6 +5,11 @@ remains active. This builds on [Content producers](RETAINED_CONTENT_PRODUCERS.md
 and the existing scoped source/computed/binding graph. It implements explicit
 live input handles, not the complete component/Branch/Match/KeepAlive frontend.
 
+Follow-up: [atomic input batches](RETAINED_PROP_BATCHES.md) supplies restricted
+LogicalEdit::props/PropBatch declarations. Heterogeneous final values settle
+together, restored roots skip derived work, and batch-only source allocations
+roll back on error/unwind. Single prop retains the immediate stage below.
+
 ## Public contract
 
 `reactive::ReadProp<T>` (also re-exported from logical) is a copyable owner-local

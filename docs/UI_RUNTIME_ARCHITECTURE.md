@@ -645,6 +645,14 @@ generation不能访问新实例。无公开Signal转换／setter，句柄owner-l
 renderer不变。每次写仍clone prepared map并扫描／排序derived，未做batched props或性能
 收益承诺。组件Context／Branch／Match／KeepAlive／宏和component/source统一保持未完成。
 
+后续 [组件输入批次](RETAINED_PROP_BATCHES.md) 增加受限`LogicalEdit::props`／
+`PropBatch::prop`。相关inputs先收集最终值，再共用source settlement结算derived，避免
+合法区间10/20→30/40被临时30/20误判。批内没有read／mount／layout capability；重复写
+恢复entry值不触发derived，失败／unwind回滚批内source allocations并保留之前draft状态，
+generation继续消耗。单prop保持显式checkpoint；普通final source／frame validation不变。
+每批仍clone prepared map／扫描derived，未做增量source scheduler或性能承诺；完整组件
+sites／contexts／宏、Store／Command和component/source统一保持未完成。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

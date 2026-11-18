@@ -20,6 +20,24 @@ pub(super) struct PreparedUpdate {
     computed_equal: u64,
 }
 
+/// One typed-erased input batch; values remain private to the ordinary source
+/// engine. Logical construction cannot inspect uncommitted intermediate inputs.
+#[derive(Default)]
+pub(in crate::retained) struct SourceValues(Vec<(SourceId, Rc<dyn Value>)>);
+impl SourceValues {
+    pub(in crate::retained) fn push<T: PartialEq + 'static>(
+        &mut self,
+        signal: Signal<T>,
+        value: T,
+    ) {
+        self.0.push((signal.id, Rc::new(value)));
+    }
+}
+pub(in crate::retained) struct PropSourceCheckpoint {
+    free: Option<Vec<usize>>,
+    slots: usize,
+}
+
 impl ReactiveTransaction<'_> {
     pub(super) fn into_prepared(mut self) -> Result<PreparedUpdate, Error> {
         self.settle()?;
@@ -168,6 +186,30 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
         self.stage_source_values([(signal.id, Rc::new(value) as Rc<dyn Value>)])
     }
 
+    pub(in crate::retained) fn prop_values(&mut self, values: SourceValues) -> Result<(), Error> {
+        self.stage_source_values(values.0)
+    }
+
+    pub(in crate::retained) fn prop_source_checkpoint(&self) -> PropSourceCheckpoint {
+        PropSourceCheckpoint {
+            free: self.free_sources.clone(),
+            slots: self.source_slots,
+        }
+    }
+
+    pub(in crate::retained) fn rollback_prop_sources(
+        &mut self,
+        checkpoint: PropSourceCheckpoint,
+        allocated: &[Dependency],
+    ) {
+        for id in allocated {
+            self.created.remove(&id.0);
+        }
+        self.free_sources = checkpoint.free;
+        self.source_slots = checkpoint.slots;
+        // Monotonic source generations deliberately stay consumed.
+    }
+
     fn stage_source_values(
         &mut self,
         values: impl IntoIterator<Item = (SourceId, Rc<dyn Value>)>,
@@ -199,6 +241,15 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
                 next.values.insert(id, value);
             }
         }
+        // Multiple inputs may restore their entry values inside one batch.
+        // Only final differences can invalidate the derived graph; temporary
+        // tuples must never be measured or rejected by a pure computation.
+        changed.retain(|id| {
+            let source = self.source(*id).expect("validated staged input");
+            let before = self.prepared.values.get(id).unwrap_or(&source.value);
+            let after = next.values.get(id).unwrap_or(&source.value);
+            !Rc::ptr_eq(before, after) && !before.equal(after.as_ref())
+        });
         // Draft-created computations have no live reverse edges until commit.
         // Rank order handles both live and newly constructed dependencies.
         if changed.is_empty() {

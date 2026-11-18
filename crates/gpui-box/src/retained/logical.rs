@@ -21,6 +21,7 @@ mod producers;
 pub use producers::{LayoutProducer, LayoutProducerId, LayoutProducerStats};
 mod read_prop;
 pub use super::reactive::ReadProp;
+pub use read_prop::PropBatch;
 
 #[derive(Clone)]
 struct LayoutSession {

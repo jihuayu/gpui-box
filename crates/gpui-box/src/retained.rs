@@ -354,6 +354,7 @@ pub enum Error {
     InvalidScroll,
     InvalidOpacity,
     InvalidSignal,
+    InvalidPropBatch,
     ReadonlySignal,
     UndeclaredDependency,
     SignalInUse,
