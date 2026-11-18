@@ -191,16 +191,18 @@ fn mixed_grid_flex_topology_moves_and_order_match_fresh_complete_snapshots() {
     let update = batch(
         &doc,
         vec![
-            UiOperation::Create(grid),
+            UiOperation::Create(Box::new(grid)),
             UiOperation::Children {
                 node: ROOT,
                 value: vec![group],
             },
             UiOperation::Layout {
                 node: A,
-                value: fixed(30.0, 20.0)
-                    .grid_column(GridPlacement::Line(2), GridPlacement::Auto)
-                    .order(-1),
+                value: Box::new(
+                    fixed(30.0, 20.0)
+                        .grid_column(GridPlacement::Line(2), GridPlacement::Auto)
+                        .order(-1),
+                ),
             },
         ],
     );
@@ -310,7 +312,7 @@ fn invalid_batches_never_publish_and_can_retry_same_sequence() {
         &doc,
         vec![UiOperation::Layout {
             node: A,
-            value: fixed(40.0, 10.0),
+            value: Box::new(fixed(40.0, 10.0)),
         }],
     );
     assert!(
@@ -336,7 +338,10 @@ fn generations_and_snapshot_recovery_reject_aba_regressions() {
     apply(&mut doc, update, &resources).unwrap();
     let old_generation = batch(
         &doc,
-        vec![UiOperation::Create(UiNode::new(A, fixed(5.0, 5.0)))],
+        vec![UiOperation::Create(Box::new(UiNode::new(
+            A,
+            fixed(5.0, 5.0),
+        )))],
     );
     assert!(matches!(
         apply(&mut doc, old_generation, &resources),
@@ -346,7 +351,7 @@ fn generations_and_snapshot_recovery_reject_aba_regressions() {
     let update = batch(
         &doc,
         vec![
-            UiOperation::Create(UiNode::new(new_a, fixed(5.0, 5.0))),
+            UiOperation::Create(Box::new(UiNode::new(new_a, fixed(5.0, 5.0)))),
             UiOperation::Children {
                 node: ROOT,
                 value: vec![new_a, B],
@@ -434,7 +439,7 @@ fn images_fixed_content_and_boxes_share_normal_intrinsic_and_resource_lifetimes(
             vec![
                 UiOperation::Layout {
                     node: A,
-                    value: LayoutStyle::row().flex_shrink(0.0),
+                    value: Box::new(LayoutStyle::row().flex_shrink(0.0)),
                 },
                 UiOperation::Content {
                     node: A,
@@ -530,7 +535,7 @@ fn headers_and_receiver_limits_reject_before_state_changes() {
         vec![
             UiOperation::Layout {
                 node: A,
-                value: fixed(10.0, 10.0)
+                value: Box::new(fixed(10.0, 10.0))
             };
             2
         ],
@@ -543,9 +548,9 @@ fn headers_and_receiver_limits_reject_before_state_changes() {
         }],
         vec![UiOperation::Layout {
             node: ROOT,
-            value: LayoutStyle::grid(
+            value: Box::new(LayoutStyle::grid(
                 GridStyle::default().columns(vec![GridTrack::px(10.0).into(); 2]),
-            ),
+            )),
         }],
     ] {
         let update = batch(&constrained, operations);
@@ -571,7 +576,7 @@ fn nested_creation_and_cancelled_reservations_preserve_final_graph_and_tombstone
                 node: A,
                 value: vec![child],
             },
-            UiOperation::Create(UiNode::new(child, fixed(5.0, 5.0))),
+            UiOperation::Create(Box::new(UiNode::new(child, fixed(5.0, 5.0)))),
         ],
     );
     apply(&mut doc, update, &resources).unwrap();
@@ -582,7 +587,7 @@ fn nested_creation_and_cancelled_reservations_preserve_final_graph_and_tombstone
     let update = batch(
         &doc,
         vec![
-            UiOperation::Create(UiNode::new(cancelled, fixed(5.0, 5.0))),
+            UiOperation::Create(Box::new(UiNode::new(cancelled, fixed(5.0, 5.0)))),
             UiOperation::RemoveSubtree(cancelled),
         ],
     );
@@ -591,7 +596,10 @@ fn nested_creation_and_cancelled_reservations_preserve_final_graph_and_tombstone
     assert!(doc.snapshot().generations.contains(&(cancelled.slot, 1)));
     let update = batch(
         &doc,
-        vec![UiOperation::Create(UiNode::new(cancelled, fixed(5.0, 5.0)))],
+        vec![UiOperation::Create(Box::new(UiNode::new(
+            cancelled,
+            fixed(5.0, 5.0),
+        )))],
     );
     assert!(matches!(
         apply(&mut doc, update, &resources),
@@ -674,7 +682,7 @@ fn measurement_to_container_and_final_value_validation_are_atomic() {
         &doc,
         vec![UiOperation::Layout {
             node: A,
-            value: inactive,
+            value: Box::new(inactive),
         }],
     );
     assert!(matches!(
@@ -692,7 +700,7 @@ fn measurement_to_container_and_final_value_validation_are_atomic() {
                     ..Default::default()
                 },
             },
-            UiOperation::Create(UiNode::new(child, fixed(8.0, 8.0))),
+            UiOperation::Create(Box::new(UiNode::new(child, fixed(8.0, 8.0)))),
             UiOperation::Children {
                 node: A,
                 value: vec![child],

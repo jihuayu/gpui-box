@@ -6,6 +6,8 @@ mod retained_native_check;
 #[cfg(all(feature = "native-check", target_os = "windows"))]
 pub use retained_native_check::open as check_retained_native;
 #[cfg(test)]
+mod retained_input_tests;
+#[cfg(test)]
 mod retained_paragraph_tests;
 use gpui::prelude::FluentBuilder;
 use gpui::*;

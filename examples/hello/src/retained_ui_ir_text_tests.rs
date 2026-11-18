@@ -105,7 +105,7 @@ fn run(hardware: bool) {
             operations: vec![
                 UiOperation::Layout {
                     node: ROOT,
-                    value: grid(width),
+                    value: Box::new(grid(width)),
                 },
                 UiOperation::Content {
                     node: TEXT,

@@ -56,6 +56,7 @@ pub struct UiPublication {
     pub commit: Commit,
     pub frame: local::LocalFrame,
     pub planning: UiPlanningStats,
+    pub input: input::UiInputScene,
     identities: Arc<BTreeMap<NodeId, UiNodeId>>,
 }
 impl UiPublication {
@@ -78,6 +79,7 @@ pub struct UiDocument {
     nodes: NodeMap,
     resolved_nodes: NodeMap,
     style_cache: planning::StyleCache,
+    input_graph: Arc<input::InputGraph>,
     style_environment: LayoutEnvironment,
     generations: BTreeMap<u64, u64>,
     mapping: BTreeMap<UiNodeId, NodeId>,
@@ -156,6 +158,15 @@ impl UiDocument {
             .expect("validated local publication")
             .clone();
         let identities = identities(&mapping);
+        let input_graph = Arc::new(input::InputGraph::build(snapshot.root, &resolved_nodes));
+        let input = input_scene(
+            snapshot.runtime,
+            snapshot.epoch,
+            snapshot.revision,
+            &frame,
+            &identities,
+            &input_graph,
+        );
         let publication = UiPublication {
             status: UiApplyStatus::Applied,
             runtime: snapshot.runtime,
@@ -165,6 +176,7 @@ impl UiDocument {
             commit: result,
             frame,
             planning,
+            input,
             identities: identities.clone(),
         };
         Ok((
@@ -177,6 +189,7 @@ impl UiDocument {
                 nodes,
                 resolved_nodes,
                 style_cache,
+                input_graph,
                 style_environment: snapshot.style_environment,
                 generations,
                 mapping,
@@ -225,6 +238,30 @@ impl UiDocument {
         self.mapping
             .iter()
             .find_map(|(id, internal)| (*internal == node).then_some(*id))
+    }
+    /// Latest published source policy/geometry, not necessarily the host's
+    /// installed image. Routers explicitly adopt the corresponding publication.
+    pub fn input_scene(&self) -> input::UiInputScene {
+        input_scene(
+            self.runtime,
+            self.epoch,
+            self.revision,
+            &self.published_frame(),
+            &self.identities,
+            &self.input_graph,
+        )
+    }
+    /// Before invoking a delayed frontend handler, recheck current identity,
+    /// eligibility, path and handler identity. Never reinterpret it as a new hit.
+    pub fn accepts_dispatch(&self, event: &input::UiInputDispatch) -> bool {
+        if event.scene.runtime != self.runtime
+            || event.scene.epoch != self.epoch
+            || event.scene.source_revision > self.revision
+            || event.scene.tree != self.tree.root().tree
+        {
+            return false;
+        }
+        self.input_graph.accepts(event)
     }
     pub fn snapshot(&self) -> UiSnapshot {
         UiSnapshot {
@@ -315,6 +352,7 @@ impl UiDocument {
                 },
                 frame,
                 planning: UiPlanningStats::default(),
+                input: self.input_scene(),
                 identities: self.identities.clone(),
             });
         }
@@ -361,7 +399,7 @@ impl UiDocument {
                         return Err(UiError::InvalidIdentity(node.id));
                     }
                     generations.insert(node.id.slot, node.id.generation);
-                    nodes.insert(node.id, Arc::new(node.clone()));
+                    nodes.insert(node.id, Arc::new(node.as_ref().clone()));
                     touched.insert(node.id);
                     if nodes.len() > self.limits.max_nodes
                         || generations.len() > self.limits.max_generation_slots
@@ -372,7 +410,7 @@ impl UiDocument {
                 UiOperation::Layout { node, value } => {
                     validate_style_bounds(value, self.limits)?;
                     value.validate()?;
-                    get_mut(&mut nodes, *node, &mut touched)?.layout = value.clone()
+                    get_mut(&mut nodes, *node, &mut touched)?.layout = value.as_ref().clone()
                 }
                 UiOperation::Properties { node, value } => {
                     if value.shadows.len() > self.limits.max_shadows_per_node {
@@ -398,6 +436,10 @@ impl UiDocument {
                     get_mut(&mut nodes, *node, &mut touched)?.style_state = *value
                 }
                 UiOperation::StyleEnvironment(value) => style_environment = value.clone(),
+                UiOperation::Interaction { node, value } => {
+                    value.validate()?;
+                    get_mut(&mut nodes, *node, &mut touched)?.interaction = *value;
+                }
                 UiOperation::RemoveSubtree(id) => {
                     if *id == self.root || !nodes.contains_key(id) {
                         return Err(UiError::InvalidIdentity(*id));
@@ -450,6 +492,19 @@ impl UiDocument {
             self.limits,
         )?;
         planning.topology_validations = usize::from(topology_changed);
+        let input_graph = if self.resolved_nodes.len() == resolved_nodes.len()
+            && resolved_nodes.iter().all(|(id, node)| {
+                self.resolved_nodes.get(id).is_some_and(|old| {
+                    Arc::ptr_eq(old, node)
+                        || old.children == node.children
+                            && old.layout.display == node.layout.display
+                            && old.interaction == node.interaction
+                })
+            }) {
+            self.input_graph.clone()
+        } else {
+            Arc::new(input::InputGraph::build(self.root, &resolved_nodes))
+        };
         // Style resolution changes layout/visual values only and validates
         // selected payloads; it cannot invalidate the source graph's edges.
         let pinned = pin_resources(&nodes, resources, &self.resources)?;
@@ -466,6 +521,7 @@ impl UiDocument {
         self.nodes = nodes;
         self.resolved_nodes = resolved_nodes;
         self.style_cache = style_cache;
+        self.input_graph = input_graph;
         self.style_environment = style_environment;
         self.generations = generations;
         self.mapping = mapping;
@@ -483,6 +539,7 @@ impl UiDocument {
             commit,
             frame: self.published_frame(),
             planning,
+            input: self.input_scene(),
             identities: self.identities.clone(),
         })
     }
@@ -546,6 +603,28 @@ impl UiDocument {
         }
         *self = next;
         Ok(publication)
+    }
+}
+
+fn input_scene(
+    runtime: u64,
+    epoch: u64,
+    source_revision: u64,
+    frame: &local::LocalFrame,
+    identities: &Arc<BTreeMap<NodeId, UiNodeId>>,
+    graph: &Arc<input::InputGraph>,
+) -> input::UiInputScene {
+    input::UiInputScene {
+        id: input::UiInputSceneId {
+            runtime,
+            epoch,
+            source_revision,
+            tree: frame.tree(),
+            frame_revision: frame.revision(),
+        },
+        frame: frame.clone(),
+        identities: identities.clone(),
+        graph: graph.clone(),
     }
 }
 

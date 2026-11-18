@@ -483,6 +483,16 @@ impl LocalFrame {
     /// Hit geometry resolves from this exact snapshot, never from the owner or
     /// an older resolved packet. Linear traversal is the current correctness path.
     pub fn hit_test(&self, x: f32, y: f32) -> Option<NodeId> {
+        self.hit_test_filtered(x, y, |_| true)
+    }
+    /// Same immutable geometry/order as hit_test; only eligible targets compete.
+    /// A rejected node does not prune descendants. No owner access is needed.
+    pub fn hit_test_filtered(
+        &self,
+        x: f32,
+        y: f32,
+        mut eligible: impl FnMut(NodeId) -> bool,
+    ) -> Option<NodeId> {
         if !x.is_finite() || !y.is_finite() {
             return None;
         }
@@ -496,7 +506,12 @@ impl LocalFrame {
                 &mut ignored,
             );
             let b = item.visible_bounds();
-            if x >= b.x && y >= b.y && x < b.x + b.width && y < b.y + b.height {
+            if x >= b.x
+                && y >= b.y
+                && x < b.x + b.width
+                && y < b.y + b.height
+                && eligible(item.node)
+            {
                 hit = Some(item.node);
             }
             contexts.push(context);

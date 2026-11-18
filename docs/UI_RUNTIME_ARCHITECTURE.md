@@ -1,6 +1,6 @@
 # UI IR、Store、Command 与独立渲染动画架构
 
-状态：设计草案，已开始落地框架层；Rust 优先，预留 JS、Go。当前实现有与 Taffy 解耦的 `LayoutStyle` Flex/Grid/混合长度及测量协议，拥有式 primitive UI 输入快照／批次，以及实验性的类型化样式组合和状态／环境条件。完整语义 UI IR、主题继承、序列化/跨语言 ABI、Store/Command、组件宏、独立呈现仍未完成，总目标继续进行中。
+状态：设计草案，已开始落地框架层；Rust 优先，预留 JS、Go。当前实现有与 Taffy 解耦的 `LayoutStyle` Flex/Grid/混合长度及测量协议，拥有式 primitive UI 输入快照／批次、类型化样式组合，以及显式采用完整帧的主指针／焦点／激活路由。完整语义 UI IR、主题继承、序列化/跨语言 ABI、Store/Command、组件宏、独立呈现仍未完成，总目标继续进行中。
 
 更新日期：2026-11-18。实现对照取自 `codex/rendering-performance-research`。本文是架构映射与实现状态记录；实验能力与正式承诺仍分别列出。
 
@@ -547,8 +547,8 @@ sequence校验、最后一批equal replay、generation tombstones、完整snapsh
 source/frame revision分离已实现；失败保持已提交tree/source/frame。发布携带自身外部命中
 映射，old frame不读新owner映射。Messages可跨线程，owner仍本地。
 
-这是第一条primitive输入边界，并非完整语义IR或固定wire format：scope/binding/handler/
-semantics/focus、tokens/theme/inheritance、portable font/resource schema与JS/Go ABI仍无；
+这是第一条primitive输入边界，并非完整语义IR或固定wire format：scope/binding、完整event/
+完整semantics/IME/focus scopes、tokens/theme/inheritance、portable font/resource schema与JS/Go ABI仍无；
 LogicalUi仍独立管理作用域，暂不允许两种writer混用。接受批次仍clone source图和candidate、
 全图validation及完整geometry验证，resource table无byte-budget/eviction，不宣称吞吐改善。
 下文完整目标保持，不能由初版消息结构存在认定M2完成。
@@ -995,6 +995,16 @@ stateDiagram-v2
 ## 9. 输入、CPU 与跨语言接入
 
 ### 9.1 命中跟随呈现几何
+
+当前[UiInputScene／UiInputRouter](RETAINED_UI_INPUT_ROUTING.md)把policy／声明顺序Tab列表、
+external identity map与exact LocalFrame放在同一publication。Host明确adopt已安装的完整输出，
+Published／ImageInstalled／PresentAttempted是调用者证据标签，不等于displayed。Pointer命中
+复用同帧clip／scroll／order；primary capture、hover／pressed／focus-visible反馈、Tab、
+Enter／Space及disable/unmount取消已有有限实现。反馈生成普通UiBatch，handlers仍前端registry。
+延迟dispatch复验runtime／epoch／tree／generation／完整path及handler ID，不重命中新树。
+Schema3增加interaction并Box大Create／Layout载荷，旧schema明确拒绝。
+OS capture/focus／wheel/gesture／IME／accessibility／事件确认和完整native输入tail仍开放；
+当前linear hit walk和普通feedback候选成本不宣称达到“99%不卡顿”。
 
 命中使用与可见场景对应的 scene revision、变换与 clip，而不是最新构建但尚未显示的树。保存 PresentationRecord，包含 FrameId、采样时间、scene revision、属性覆盖和证据阶段。
 

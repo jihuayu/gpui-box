@@ -11,6 +11,12 @@ adds reusable StylePlan/StyleDependencies, immutable shared UI records and
 selected-rule environment indices. The all-node planning costs below describe
 this initial composition stage; global validation/candidate work still remains.
 
+Later [input routing](RETAINED_UI_INPUT_ROUTING.md) adds an explicit adopted-frame
+router that can generate ordinary hovered/pressed/focus-visible StyleState
+operations. It does not install native event hooks or turn style disabled into
+semantic disabled; UiInteraction is the independent authority. Source schema3
+supersedes the schema2 integration described for this initial stage below.
+
 ## Typed definitions and deterministic resolution
 
 `retained::style` provides immutable `StyleRef`, typed `StyleDeclaration`,

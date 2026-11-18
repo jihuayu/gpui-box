@@ -5,9 +5,16 @@ This implements a first source-level input boundary from
 [the runtime architecture](UI_RUNTIME_ARCHITECTURE.md), distinct from LocalFrame
 and FramePacket output. The initial schema1 was experimental Rust data;
 [typed style composition](RETAINED_TYPED_STYLE_COMPOSITION.md) advances the
-current model to schema2 and explicitly rejects schema1. Neither revision is a
+model to schema2; [adopted-frame input routing](RETAINED_UI_INPUT_ROUTING.md) now
+advances it to schema3, explicitly rejecting schemas1/2. No revision is a
 frozen wire format or foreign ABI. Original stage checks below describe the
 input-stage baseline; the linked style stage records current verification.
+
+Schema3 adds UiNode.interaction and UiOperation::Interaction, plus owned
+UiPublication.input geometry/policy for pointer/focus routing. Create(UiNode)
+becomes Create(Box<UiNode>), Layout.value becomes Box<LayoutStyle>; migrate
+constructors accordingly. The input-routing contract specifies host adoption,
+delayed handler validation, supported keys/pointer semantics and open scope.
 
 ## Public inputs and owner adapter
 
@@ -150,8 +157,8 @@ registry bindings are unbounded until table retirement. Snapshot recovery fully
 rebuilds. No O(1), throughput, peak-memory or sustained frame-rate claim is made.
 
 This is deliberately an initial primitive input boundary, not complete semantic
-UI IR. Missing: logical component ownership, binding/handler/semantics/focus
-records, token/theme/inheritance cascade, portable text shaping/font schema,
+UI IR. Missing: logical component ownership, bindings, complete event/semantics/
+IME/focus scopes, token/theme/inheritance cascade, portable text shaping/font schema,
 resource/device epochs, canonical encoding/decoding, foreign ABI, collection
 deltas, dynamic control-flow regions and automatic builder/query scheduling.
 The existing LogicalUi remains a separate owner for scopes/signals; mixing both

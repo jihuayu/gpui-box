@@ -483,7 +483,7 @@ fn removal_recovery_and_content_changes_keep_complete_resolution_equivalent() {
         &mut document,
         &resources,
         vec![
-            UiOperation::Create(node),
+            UiOperation::Create(Box::new(node)),
             UiOperation::Children {
                 node: ROOT,
                 value: children,
@@ -593,7 +593,7 @@ fn every_state_input_and_hidden_authored_base_reenter_the_same_layout_contract()
             },
             UiOperation::Layout {
                 node: id,
-                value: style,
+                value: Box::new(style),
             },
         ],
     )

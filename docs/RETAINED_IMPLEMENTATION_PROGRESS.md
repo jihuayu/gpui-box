@@ -3,6 +3,24 @@
 The active implementation goal covers the complete runtime requested on
 2026-11-11. Work continues in `codex/rendering-performance-research`.
 
+The [adopted-frame input stage](RETAINED_UI_INPUT_ROUTING.md) adds backend-neutral
+interaction policy, handler IDs, primary capture/hover/press, focus/Tab and Enter/
+Space activation over an explicitly adopted immutable UiInputScene. Geometry,
+clip/scroll/order and policy travel together; delayed dispatch validates current
+runtime/epoch/tree/generation/path/handler. Disable/unmount/recovery cancel input
+state; feedback joins ordinary StyleState batches, preserving caller fields.
+Schema3 adds interaction and boxes large Create/Layout payloads. Ten core cases,
+one explicit GPU case and one actual GPUI mouse-dispatch integration case were
+added. Complete suites pass retained527/1ignored, text/WGPU560/41, hello56/9;
+final input10cases and GPU3submits/2same-frame skips compare5complete images.
+Actual Noto GPU5complete-pixel submissions and final framework library Clippy
+also pass; scoped format/diff/document links pass.
+See [evidence](performance/2026-11-18-ui-input-routing/README.md). Linear hit/path
+allocation, input graph memory/rebuild/detection and normal feedback publication
+costs remain; no timing/FPS improvement is claimed. OS capture/focus, wheel/
+gestures/IME/accessibility, event acknowledgement and native sustained input p99
+remain open along with full RenderBox/automatic structural scheduling/full RFC.
+
 The [incremental style planning stage](RETAINED_INCREMENTAL_STYLE_PLANNING.md)
 shares immutable authored/effective UI records, caches selected StylePlans and
 tracks only winning-rule state/environment dependencies. StyleRef work bounds
@@ -37,7 +55,7 @@ trees. See [evidence](performance/2026-11-18-style-composition/README.md).
 At that composition stage full-graph resolution/copies, winner-map allocation and
 candidate/global validation costs remained. The follow-up above reduces planning
 and reuses accepted topology. Tokens/themes/parts/inheritance, automatic event state,
-binding/handler/focus, macros/ABI and automatic builder scheduling remain open;
+bindings, full events/focus scopes/IME/semantics, macros/ABI and automatic builder scheduling remain open;
 no new timing/memory/sustained-performance qualification follows.
 
 The [owned primitive UI input stage](RETAINED_OWNED_UI_INPUT.md) starts the
@@ -47,7 +65,7 @@ transaction/layout/publication path; exact baselines/sequences, bounded last-bat
 replay, generation tombstones and full snapshot recovery preserve atomic state.
 Messages are transferable, owner remains local; each publication owns its external
 hit mapping. This is experimental Rust input, not complete semantic UI IR or a
-frozen wire/foreign ABI. Logical scopes/bindings/handlers/semantics and
+frozen wire/foreign ABI. Logical scopes/bindings/complete event/semantics and
 Store/Command/macros remain separate missing contracts. Candidate/source graph
 copies, global validation and unbudgeted resource registry costs are explicit;
 no throughput or sustained native performance claim follows from this API.

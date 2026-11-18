@@ -71,6 +71,7 @@ pub use spatial::SpatialState;
 mod pixel_snap;
 pub use pixel_snap::PixelSnap;
 mod edit;
+pub mod input;
 pub mod reactive;
 pub mod responsive;
 pub mod style;

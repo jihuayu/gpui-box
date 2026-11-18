@@ -5,6 +5,11 @@ active. Extends [typed composition](RETAINED_TYPED_STYLE_COMPOSITION.md) and
 [owned UI input](RETAINED_OWNED_UI_INPUT.md), without a new layout solver or
 application-selected fast mode.
 
+Follow-up: [adopted-frame input routing](RETAINED_UI_INPUT_ROUTING.md) advances
+the source model to schema3 and adds interaction metadata plus publication input
+scenes. This stage's schema2/timing evidence below remains historical; no timing
+claim here automatically transfers to the larger input-enabled source model.
+
 ## Contract and dependency model
 
 `StylePlan::new(&[StyleRef])` compiles the ordered composition once. It owns the

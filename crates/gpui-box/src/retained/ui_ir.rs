@@ -1,6 +1,7 @@
 //! Owned UI input records. These are not paint commands or a stable wire ABI.
 //! All messages use framework-owned values and resource IDs; the owner adapter
 //! validates final state and publishes through the ordinary retained tree.
+use super::input::UiInteraction;
 use super::responsive::LayoutEnvironment;
 use super::style::{StyleError, StyleRef, StyleState};
 use super::*;
@@ -12,9 +13,9 @@ pub use runtime::{UiDocument, UiPublication, UiResources};
 #[cfg(test)]
 mod tests;
 
-pub const UI_SCHEMA_VERSION: u32 = 2;
+pub const UI_SCHEMA_VERSION: u32 = 3;
 
-type NodeMap = BTreeMap<UiNodeId, Arc<UiNode>>;
+pub(super) type NodeMap = BTreeMap<UiNodeId, Arc<UiNode>>;
 
 /// Client identity within one runtime epoch. Slots may be reused only with a
 /// strictly greater generation, including after snapshot recovery.
@@ -87,6 +88,7 @@ pub struct UiNode {
     /// Applied after the authored base, in order. An empty list keeps the base.
     pub styles: Vec<StyleRef>,
     pub style_state: StyleState,
+    pub interaction: UiInteraction,
 }
 impl UiNode {
     pub fn new(id: UiNodeId, layout: LayoutStyle) -> Self {
@@ -98,13 +100,14 @@ impl UiNode {
             content: UiContent::Box,
             styles: vec![],
             style_state: StyleState::default(),
+            interaction: UiInteraction::default(),
         }
     }
 }
 
 /// Full recoverable source state, including tombstones for retired slots.
 /// Resource bytes/handlers remain outside this record and must be installed by
-/// the receiving host before accepting it. Schema 2 is experimental Rust data.
+/// the receiving host before accepting it. Schema 3 is experimental Rust data.
 #[derive(Clone, Debug, PartialEq)]
 pub struct UiSnapshot {
     pub schema: u32,
@@ -139,10 +142,10 @@ impl UiSnapshot {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum UiOperation {
-    Create(UiNode),
+    Create(Box<UiNode>),
     Layout {
         node: UiNodeId,
-        value: LayoutStyle,
+        value: Box<LayoutStyle>,
     },
     Properties {
         node: UiNodeId,
@@ -165,6 +168,10 @@ pub enum UiOperation {
         value: StyleState,
     },
     StyleEnvironment(LayoutEnvironment),
+    Interaction {
+        node: UiNodeId,
+        value: UiInteraction,
+    },
     /// Remove the subtree in the final draft child graph. Move a surviving
     /// child out of that graph before removing its old host.
     RemoveSubtree(UiNodeId),
@@ -243,6 +250,7 @@ pub enum UiError {
     MissingResource(UiResourceId),
     ResourceConflict(UiResourceId),
     UnsupportedContent,
+    InvalidHandler,
     Style(StyleError),
     Retained(Error),
 }
@@ -379,6 +387,7 @@ fn validate_content(content: &UiContent) -> Result<(), UiError> {
     Ok(())
 }
 fn validate_payload_bounds(node: &UiNode, limits: UiLimits) -> Result<(), UiError> {
+    node.interaction.validate()?;
     if node.children.len() > limits.max_children_per_node
         || node.properties.shadows.len() > limits.max_shadows_per_node
     {
