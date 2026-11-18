@@ -10,6 +10,28 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [independent component region stage](RETAINED_COMPONENT_SITES.md) adds
+ComponentSite/component_sites/components_at. Parent declarations own region
+placement, region declarations own their keyed contents; same item keys across
+regions are independent. Reordering regions keeps instances; selecting new
+component types/arm keys retires old state, empty selection keeps site, site
+removal retires descendants/producers. No layout/render wrapper is added. The
+existing optional identity record distinguishes components and regions; schema6,
+kernel/renderer and ordinary final candidate stay. Context validates direct-site
+ownership; caught errors poison the outer edit. Props still settle per content
+call and existing host-writer producer ordering remains. See
+[verification](performance/2026-11-18-component-sites/README.md).
+Automatic Branch/Match factories, cross-site heterogeneous input batches,
+KeepAlive/hooks/macros, Store/Command/source unification, output ownership,
+full RenderBox, resource budgets and independent native presentation remain.
+Region scopes/maps/sets, source scans, full ordering/candidate/geometry costs
+remain; no FPS/memory benefit is claimed. Complete RFC stays active.
+Final retained643passed/1ignored, text/WGPU677/58 and hello73/24;4compile-fail
+docs pass in both core configurations. Explicit region GPU compares10complete
+images and Noto3 on GTX1650Ti/Vulkan/571.96. Library Clippy -D warnings, complete
+retained-gpu harness, scoped format/diff,298local links and all5WIP hashes pass.
+Tests cover final code; counts overlap. No native cadence or fluency is inferred.
+
 The [typed component stage](RETAINED_TYPED_COMPONENTS.md) adds Component with
 aggregate ReadProp inputs, explicit ComponentContext and LogicalEdit::components
 keyed declarations. Same key/type/host retains initialization/state/bindings/

@@ -664,6 +664,15 @@ provider／Store／Command／component-source统一仍未完成。每次声明�
 完整排序／candidate成本仍在，无FPS收益声明，见
 [验证](performance/2026-11-18-typed-components/README.md)。
 
+后续 [独立组件区域](RETAINED_COMPONENT_SITES.md) 增加ComponentSite、component_sites与
+components_at：父scope声明完整region顺序，各region单独声明其keyed内容；跨region相同row
+key互不共享状态，重排region保留实例，不增加layout box。显式Rust if/match可选择不同type／
+arm key，换arm退休旧状态，空内容保留site；尚无自动Branch/Match工厂或KeepAlive。
+Context只可操作自己的直接site；低层LogicalEdit仍需遵守完整child-list单writer边界。
+复用scope generation／failure guard／props／producer／final candidate，不新增保留字段或
+独立scheduler。Props仍按单site调用结算，跨site异构原子输入未完成；同host仍由一个Content
+producer统一调度。maps／sets／完整排序／candidate与geometry成本仍在，无FPS收益声明。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

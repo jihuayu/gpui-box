@@ -13,6 +13,22 @@ pub trait Component: 'static {
     ) -> Result<(), Error>;
 }
 
+/// A keyed logical region, with no render node or layout box. Its parent owns
+/// the region's placement; declarations at this handle own only its contents.
+/// Different sites have independent item-key namespaces. Removal retires the
+/// ordinary scope subtree; this generation-checked handle cannot revive it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ComponentSite {
+    scope: ScopeId,
+}
+impl ComponentSite {
+    /// Identity for inspection and existing explicit scope operations. Low-level
+    /// writers must respect the site's exclusive direct-child-list ownership.
+    pub fn scope(self) -> ScopeId {
+        self.scope
+    }
+}
+
 /// Explicit initialization capability; state/effect keys are local to this
 /// component scope. There is no ambient TLS scope and no extra layout box.
 ///
@@ -108,8 +124,7 @@ impl ComponentContext<'_, '_, '_, '_> {
         self.edit
             .layout_producer(self.scope, key, host, kind, after, producer)
     }
-    /// Nested homogeneous keyed component site. This component owns its direct
-    /// logical children; use explicit child sites for multiple independent lists.
+    /// Declare the complete direct list without independent child regions.
     pub fn components<C: Component>(
         &mut self,
         host: NodeId,
@@ -117,12 +132,33 @@ impl ComponentContext<'_, '_, '_, '_> {
     ) -> Result<Vec<ScopeId>, Error> {
         self.edit.components::<C>(self.scope, host, items)
     }
+
+    /// Declare this component's complete ordered list of independent regions.
+    pub fn component_sites(&mut self, keys: &[u64]) -> Result<Vec<ComponentSite>, Error> {
+        self.edit.component_sites(self.scope, keys)
+    }
+
+    /// Update one of this component's direct regions without touching siblings.
+    pub fn components_at<C: Component>(
+        &mut self,
+        site: ComponentSite,
+        host: NodeId,
+        items: impl IntoIterator<Item = (u64, C::Props)>,
+    ) -> Result<Vec<ScopeId>, Error> {
+        let mut attempt = self.edit.component_attempt()?;
+        if self.edit.scope(site.scope)?.parent != Some(self.scope) {
+            return Err(Error::InvalidComponent);
+        }
+        let scopes = self.edit.components_at::<C>(site, host, items)?;
+        attempt.success = true;
+        Ok(scopes)
+    }
 }
 
 #[derive(Clone, PartialEq, Eq)]
-pub(super) struct Identity {
-    kind: TypeId,
-    host: NodeId,
+pub(super) enum Identity {
+    Component { kind: TypeId, host: NodeId },
+    Site,
 }
 
 struct Attempt {
@@ -137,6 +173,16 @@ impl Drop for Attempt {
     }
 }
 impl LogicalEdit<'_, '_, '_> {
+    fn component_attempt(&mut self) -> Result<Attempt, Error> {
+        self.validate_components()?;
+        Ok(Attempt {
+            failed: self
+                .component_failure
+                .get_or_insert_with(|| Rc::new(Cell::new(false)))
+                .clone(),
+            success: false,
+        })
+    }
     pub(super) fn validate_components(&self) -> Result<(), Error> {
         if self
             .component_failure
@@ -147,6 +193,48 @@ impl LogicalEdit<'_, '_, '_> {
         } else {
             Ok(())
         }
+    }
+    /// Reconcile the complete ordered list of logical regions under parent.
+    /// Each returned site owns a separate child-key namespace. Updating content
+    /// later does not require redeclaring these sites; an omitted site retires
+    /// its entire subtree. No layout box, output, source or producer is added.
+    /// Manual/typed component scopes with equal keys are replaced, not adopted.
+    pub fn component_sites(
+        &mut self,
+        parent: ScopeId,
+        keys: &[u64],
+    ) -> Result<Vec<ComponentSite>, Error> {
+        let mut attempt = self.component_attempt()?;
+        self.scope(parent)?;
+        if self.retired_scopes()?.contains(&parent) {
+            return Err(Error::InvalidScope);
+        }
+        let scopes = self.reconcile_scopes(parent, keys, Some(Identity::Site))?;
+        attempt.success = true;
+        Ok(scopes
+            .into_iter()
+            .map(|scope| ComponentSite { scope })
+            .collect())
+    }
+
+    /// Reconcile one independent homogeneous list/selected arm. Equal item keys
+    /// in other sites are unrelated. A changed component type or arm key mounts
+    /// fresh; an empty declaration unmounts the active contents, retaining site.
+    /// Props settle together within this call, not across separate site calls.
+    /// Content scheduling still uses the existing host-writer/ordering contract.
+    pub fn components_at<C: Component>(
+        &mut self,
+        site: ComponentSite,
+        host: NodeId,
+        items: impl IntoIterator<Item = (u64, C::Props)>,
+    ) -> Result<Vec<ScopeId>, Error> {
+        let mut attempt = self.component_attempt()?;
+        if self.scope(site.scope)?.component.as_deref() != Some(&Identity::Site) {
+            return Err(Error::InvalidComponent);
+        }
+        let scopes = self.components::<C>(site.scope, host, items)?;
+        attempt.success = true;
+        Ok(scopes)
     }
     /// Reconcile one typed keyed component site, batch all payloads, then mount
     /// only new identities. The site owns all direct children of parent. Same
@@ -159,15 +247,7 @@ impl LogicalEdit<'_, '_, '_> {
         host: NodeId,
         items: impl IntoIterator<Item = (u64, C::Props)>,
     ) -> Result<Vec<ScopeId>, Error> {
-        self.validate_components()?;
-        let failed = self
-            .component_failure
-            .get_or_insert_with(|| Rc::new(Cell::new(false)))
-            .clone();
-        let mut attempt = Attempt {
-            failed,
-            success: false,
-        };
+        let mut attempt = self.component_attempt()?;
         self.scope(parent)?;
         if self.retired_scopes()?.contains(&parent) {
             return Err(Error::InvalidScope);
@@ -179,7 +259,7 @@ impl LogicalEdit<'_, '_, '_> {
         }
         let rows: Vec<_> = items.into_iter().collect();
         let keys: Vec<_> = rows.iter().map(|r| r.0).collect();
-        let identity = Identity {
+        let identity = Identity::Component {
             kind: TypeId::of::<C>(),
             host,
         };
@@ -221,5 +301,7 @@ impl LogicalEdit<'_, '_, '_> {
     }
 }
 
+#[cfg(test)]
+mod site_tests;
 #[cfg(test)]
 mod tests;

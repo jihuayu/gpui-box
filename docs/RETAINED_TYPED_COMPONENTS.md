@@ -12,8 +12,9 @@ No new layout solver, renderer or source schema; UI input schema remains6.
 `LogicalEdit::components::<C>(parent_scope, render_host, keyed_items)` declares
 one homogeneous keyed component site. The site owns the parent's complete direct
 logical child list. Keys are explicit u64 values, not inferred indices. Duplicate
-keys reject before mount code. Other frontend key encodings/sites remain separate
-work rather than being silently hashed into this API.
+keys reject before mount code. [Independent regions](RETAINED_COMPONENT_SITES.md)
+now compose several such lists/selected types under one parent. Other frontend
+key encodings remain separate work rather than being silently hashed into this API.
 
 ```rust,ignore
 struct StatusRow;
@@ -91,8 +92,9 @@ additional expected component identity to decide which keys can be retained.
 Manual reconcile_keys keeps its existing untyped reuse semantics. Do not use
 multiple independent writers for one site's child list. Typed site metadata does
 not convert arbitrary manual scopes into components or enforce general writer
-ownership. Multiple independent sites, heterogeneous arms and component macros
-still require dedicated frontend contracts.
+ownership. The follow-up [region API](RETAINED_COMPONENT_SITES.md) supplies stable
+site placement and independently declared content, including explicit selected
+component types/arm keys. Automatic Branch/Match factories and macros remain.
 
 ## Costs, verification and remaining scope
 
@@ -112,8 +114,8 @@ producer preview/DAG and source graph costs still apply. No timing/FPS or memory
 improvement is claimed.
 
 This delivers explicit typed initialization/keyed payload/lifetime wiring.
-Independent/homogeneous/heterogeneous site composition, typed Branch/Match,
-KeepAlive, use_* hooks/TLS, component/view macros, providers/Store/Command,
+Independent regions are now explicit; automatic typed Branch/Match, heterogeneous
+cross-site input batches, KeepAlive, use_* hooks/TLS, component/view macros, providers/Store/Command,
 component/source input unification, event/semantics integration, output ownership,
 full RenderBox, resource budgets and independent presentation remain active.
 "99%" remains figurative common fluid/intuitive interaction, not a numeric gate.

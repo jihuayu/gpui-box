@@ -64,15 +64,25 @@ fn pixels(frame: FramePacket) -> Vec<u8> {
 }
 #[test]
 fn typed_components_noto_payload_and_width_updates_match_complete_reference() {
-    run(false);
+    run(false, false);
 }
 #[cfg(feature = "retained-wgpu")]
 #[test]
 #[ignore = "requires WGPU adapter; run explicitly"]
 fn hardware_typed_components_noto_match_complete_reference() {
-    run(true);
+    run(true, false);
 }
-fn run(hardware: bool) {
+#[test]
+fn component_sites_noto_independent_labels_and_reorder_match_complete_reference() {
+    run(false, true);
+}
+#[cfg(feature = "retained-wgpu")]
+#[test]
+#[ignore = "requires WGPU adapter; run explicitly"]
+fn hardware_component_sites_noto_match_complete_reference() {
+    run(true, true);
+}
+fn run(hardware: bool, regions: bool) {
     let system = text_system();
     let mut raster = GlyphRasterizer::new(system.clone());
     let long_paragraph = shape(&system, "one two three four 中文段落 long text");
@@ -97,6 +107,14 @@ fn run(hardware: bool) {
         mounts: mounts.clone(),
     };
     let source = ui.state(owner, 0, || initial).unwrap();
+    let footer = LabelProps {
+        width: 50,
+        paint: TextPaint {
+            resource: short.clone(),
+            color: 0x00ff00ff,
+        },
+        mounts: mounts.clone(),
+    };
     ui.edit_local_frame(
         constraints,
         [300.0, 200.0],
@@ -110,7 +128,23 @@ fn run(hardware: bool) {
                 &[],
                 LayoutProducer::new(move |_, edit| {
                     let value = edit.read(source)?.clone();
-                    edit.components::<Label>(owner, host, [(7, value)])?;
+                    if regions {
+                        let reverse = value.width == 140;
+                        let sites =
+                            edit.component_sites(owner, if reverse { &[2, 1] } else { &[1, 2] })?;
+                        edit.components_at::<Label>(
+                            sites[usize::from(reverse)],
+                            host,
+                            [(7, value)],
+                        )?;
+                        edit.components_at::<Label>(
+                            sites[usize::from(!reverse)],
+                            host,
+                            [(7, footer.clone())],
+                        )?;
+                    } else {
+                        edit.components::<Label>(owner, host, [(7, value)])?;
+                    }
                     Ok(())
                 }),
             )?;
@@ -118,13 +152,21 @@ fn run(hardware: bool) {
         },
     )
     .unwrap();
-    let scope = ui.children(owner).unwrap()[0];
+    let site = ui.children(owner).unwrap()[0];
+    let scope = if regions {
+        ui.children(site).unwrap()[0]
+    } else {
+        site
+    };
     let title = ui.renders(scope).unwrap()[0];
     #[cfg(feature = "retained-wgpu")]
     let mut gpu = hardware.then(|| wgpu::WgpuFrameRenderer::new(2).unwrap());
     #[cfg(feature = "retained-wgpu")]
     if let Some(gpu) = &gpu {
-        eprintln!("typed component Noto adapter: {:?}", gpu.adapter_info());
+        eprintln!(
+            "typed component Noto adapter (sites={regions}): {:?}",
+            gpu.adapter_info()
+        );
     }
     #[cfg(not(feature = "retained-wgpu"))]
     assert!(!hardware);
@@ -153,12 +195,40 @@ fn run(hardware: bool) {
             })
             .unwrap();
         }
-        assert_eq!(mounts.get(), 1);
-        assert_eq!(ui.children(owner).unwrap(), [scope]);
+        assert_eq!(mounts.get(), if regions { 2 } else { 1 });
+        if regions {
+            assert_eq!(ui.children(site).unwrap(), [scope]);
+            assert_eq!(ui.children(owner).unwrap()[usize::from(width == 140)], site);
+        } else {
+            assert_eq!(ui.children(owner).unwrap(), [scope]);
+        }
         assert_eq!(ui.renders(scope).unwrap(), [title]);
         let metrics = paragraph.layout(Some(width as f32)).unwrap();
-        let mut full = UiTree::new_layout(fixed(width as f32, metrics.size[1]), 0).unwrap();
+        let footer_height = if regions {
+            short_paragraph.layout(Some(50.0)).unwrap().size[1]
+        } else {
+            0.0
+        };
+        let mut full =
+            UiTree::new_layout(fixed(width as f32, metrics.size[1] + footer_height), 0).unwrap();
         full.set_frame_build_policy(FrameBuildPolicy::Full);
+        let mut tx = Transaction::default();
+        if regions && width == 140 {
+            let footer = full
+                .append_layout(
+                    full.root(),
+                    LayoutStyle::column().size(LayoutDimension::Px(50.0), LayoutDimension::Auto),
+                    0x0000ffff,
+                )
+                .unwrap();
+            tx.text(
+                footer,
+                Some(TextPaint {
+                    resource: short.clone(),
+                    color: 0x00ff00ff,
+                }),
+            );
+        }
         let node = full
             .append_layout(
                 full.root(),
@@ -167,7 +237,6 @@ fn run(hardware: bool) {
                 0x0000ffff,
             )
             .unwrap();
-        let mut tx = Transaction::default();
         tx.text(
             node,
             Some(TextPaint {
@@ -175,6 +244,22 @@ fn run(hardware: bool) {
                 color,
             }),
         );
+        if regions && width != 140 {
+            let footer = full
+                .append_layout(
+                    full.root(),
+                    LayoutStyle::column().size(LayoutDimension::Px(50.0), LayoutDimension::Auto),
+                    0x0000ffff,
+                )
+                .unwrap();
+            tx.text(
+                footer,
+                Some(TextPaint {
+                    resource: short.clone(),
+                    color: 0x00ff00ff,
+                }),
+            );
+        }
         full.commit(tx, BackendCapabilities::default()).unwrap();
         let reference = full.frame_in_viewport(constraints, [300.0, 200.0]).unwrap();
         let frame = ui.published_local_frame().unwrap().clone();
