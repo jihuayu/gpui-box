@@ -3,6 +3,37 @@
 The active implementation goal covers the complete runtime requested on
 2026-11-11. Work continues in `codex/rendering-performance-research`.
 
+Current user direction (2026-11-18): "99%" means common UI should feel fluid and
+intuitive; it is not a numeric success ratio or a required p99 gate. Timings,
+tail samples and cadence runs remain diagnostic evidence for comparisons and
+regressions. Earlier p99/percentage acceptance wording below is historical.
+Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
+rare combinations and scene-specific tuning do not take priority over them.
+
+The [owned layout-resource stage](RETAINED_OWNED_LAYOUT_RESOURCES.md) closes a
+public input gap: UiDocument can now compose existing pure custom parents,
+direct-parent metadata and constraint-dependent content measurement, alongside
+ordinary Flex and prepared text. Schema6 adds Measure content, optional parent
+resource fields and corresponding operations; schemas1–5 reject. Resources
+remain host-installed immutable handles, while source messages carry IDs.
+The ordinary final-state TreeEdit candidate validates kinds, effective styles,
+leaf constraints, fallible algorithms and complete geometry before adoption.
+Document dry size/axis/baseline queries reuse isolated kernel queries without
+publishing temporary layout. No new layout solver, paint primitive or renderer
+is introduced. See [contract and remaining scope](RETAINED_OWNED_LAYOUT_RESOURCES.md)
+and [verification](performance/2026-11-18-owned-layout-resources/README.md).
+Resource scans/table lifetime, source/candidate cloning and private query costs
+remain. This is framework/API integration, with no timing/FPS gain claimed.
+Component/source integration, general content-feedback proofs/full RenderBox,
+foreign resource encoding and independent native presentation remain open;
+the complete RFC goal stays active.
+Final complete retained583passed/1ignored, text/WGPU617/49 and hello64/15 pass.
+Seven new regular core cases and real-Noto CPU are included in these suites;
+both explicit GPU controls pass3submissions/3complete-image comparisons each.
+Final library Clippy -D warnings, complete retained-gpu harness check, scoped
+format/diff,300local documentation links and all5unrelated WIP hashes pass.
+Counts overlap; ignored cases count as GPU evidence only when explicitly run.
+
 The [focus reveal stage](RETAINED_FOCUS_REVEAL.md) adds schema5 ScrollIntoView
 post-layout intents. Tab/explicit Focus carry adopted target/route through the
 existing input planner; final layout/style changes settle before nearest signed
@@ -193,9 +224,9 @@ Grid15.436→13.643ms. Flex dense p99 still loses in2/4pairs; initial candidates
 with dense regressions are preserved. See [raw evidence and scope](performance/2026-11-18-ui-style-planning/README.md).
 Map directories/candidates, resource/identity scans, complete geometry and
 plan/index memory remain. This is pure-style planning, not automatic structural
-scheduling or native/CPU/sustained-performance acceptance. The user's99%fluency
-priority now explicitly favors representative common interaction p99 and keeps
-all slow samples; it is not a current measured guarantee.
+scheduling or native/CPU/sustained-performance acceptance. The user's fluency
+priority means ordinary interactions should feel fluid and intuitive. Timing
+tails remain diagnostic; no exact99%ratio or p99 gate is required.
 
 The [typed style composition stage](RETAINED_TYPED_STYLE_COMPOSITION.md) adds
 owned immutable StyleRef definitions, typed atomic rules, ordered whole-rule

@@ -12,9 +12,11 @@ mod runtime;
 pub use planning::UiPlanningStats;
 pub use runtime::{UiDocument, UiPublication, UiResources};
 #[cfg(test)]
+mod layout_resource_tests;
+#[cfg(test)]
 mod tests;
 
-pub const UI_SCHEMA_VERSION: u32 = 5;
+pub const UI_SCHEMA_VERSION: u32 = 6;
 
 pub(super) type NodeMap = BTreeMap<UiNodeId, Arc<UiNode>>;
 
@@ -41,6 +43,9 @@ pub struct UiResourceId(pub u64);
 #[derive(Clone, Debug, PartialEq)]
 pub enum UiContent {
     Box,
+    /// Host-installed pure owned ContentMeasureSnapshot. Leaf only; this adds
+    /// intrinsic measurement, not a new paint primitive or frontend callback.
+    Measure(UiResourceId),
     Fixed {
         size: [f32; 2],
         first_baseline: Option<f32>,
@@ -86,6 +91,10 @@ pub struct UiNode {
     pub layout: LayoutStyle,
     pub properties: UiProperties,
     pub content: UiContent,
+    /// Optional host-installed pure parent algorithm; Box content only.
+    pub parent_layout: Option<UiResourceId>,
+    /// Immutable direct-parent metadata. Ordinary Flex may ignore it.
+    pub parent_data: Option<UiResourceId>,
     /// Applied after the authored base, in order. An empty list keeps the base.
     pub styles: Vec<StyleRef>,
     pub style_state: StyleState,
@@ -99,6 +108,8 @@ impl UiNode {
             layout,
             properties: UiProperties::default(),
             content: UiContent::Box,
+            parent_layout: None,
+            parent_data: None,
             styles: vec![],
             style_state: StyleState::default(),
             interaction: UiInteraction::default(),
@@ -108,7 +119,7 @@ impl UiNode {
 
 /// Full recoverable source state, including tombstones for retired slots.
 /// Resource bytes/handlers remain outside this record and must be installed by
-/// the receiving host before accepting it. Schema 5 is experimental Rust data.
+/// the receiving host before accepting it. Schema 6 is experimental Rust data.
 #[derive(Clone, Debug, PartialEq)]
 pub struct UiSnapshot {
     pub schema: u32,
@@ -167,6 +178,14 @@ pub enum UiOperation {
     Content {
         node: UiNodeId,
         value: UiContent,
+    },
+    ParentLayout {
+        node: UiNodeId,
+        resource: Option<UiResourceId>,
+    },
+    ParentData {
+        node: UiNodeId,
+        resource: Option<UiResourceId>,
     },
     Children {
         node: UiNodeId,
@@ -263,6 +282,7 @@ pub enum UiError {
     MissingResource(UiResourceId),
     ResourceConflict(UiResourceId),
     UnsupportedContent,
+    ResourceKindMismatch(UiResourceId),
     InvalidHandler,
     IneligibleReveal(UiNodeId),
     Style(StyleError),
@@ -410,6 +430,15 @@ fn validate_payload_bounds(node: &UiNode, limits: UiLimits) -> Result<(), UiErro
     validate_style_refs(&node.styles, limits)?;
     validate_style_bounds(&node.layout, limits)?;
     node.layout.validate()?;
+    if node.parent_layout.is_some()
+        && (node.content != UiContent::Box
+            || !matches!(
+                node.layout.display,
+                LayoutDisplay::Flex | LayoutDisplay::None
+            ))
+    {
+        return Err(Error::InvalidParentLayout.into());
+    }
     validate_properties(&node.properties)?;
     validate_content(&node.content)
 }

@@ -1,5 +1,10 @@
 # Owned custom parent layout
 
+Follow-up 2026-11-18: [owned UI layout resources](RETAINED_OWNED_LAYOUT_RESOURCES.md)
+exposes this same snapshot through UiResources/UiNode/UiOperation and document
+dry queries. Source records contain resource IDs; normal layout can invoke the
+installed pure algorithms. This adds no new parent solver or foreign ABI.
+
 Follow-up: [parent selected-size provenance](RETAINED_PARENT_DEFINITENESS.md)
 adds per-axis known_size_is_definite to measured/final callbacks and inline
 provenance to ParentInlineInput. Final bases preserve incoming indefinite widths;

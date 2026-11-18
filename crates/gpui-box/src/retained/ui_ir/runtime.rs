@@ -7,6 +7,9 @@ mod planning_tests;
 #[derive(Clone, Debug, PartialEq)]
 enum Resource {
     Image(ImageResource),
+    Measure(ContentMeasureSnapshot),
+    ParentLayout(ParentLayoutSnapshot),
+    ParentData(ParentData),
     #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
     Text(text::TextResource),
 }
@@ -39,6 +42,25 @@ impl UiResources {
     pub fn image(&mut self, id: UiResourceId, image: ImageResource) -> Result<(), UiError> {
         self.insert(id, Resource::Image(image))
     }
+    /// Install pure Send+Sync measurement. Replace changing inputs with a new
+    /// snapshot/key; layout can repeat or omit calls and private drafts can fail.
+    pub fn measure(
+        &mut self,
+        id: UiResourceId,
+        value: ContentMeasureSnapshot,
+    ) -> Result<(), UiError> {
+        self.insert(id, Resource::Measure(value))
+    }
+    pub fn parent_layout(
+        &mut self,
+        id: UiResourceId,
+        value: ParentLayoutSnapshot,
+    ) -> Result<(), UiError> {
+        self.insert(id, Resource::ParentLayout(value))
+    }
+    pub fn parent_data(&mut self, id: UiResourceId, value: ParentData) -> Result<(), UiError> {
+        self.insert(id, Resource::ParentData(value))
+    }
     #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
     pub fn text(&mut self, id: UiResourceId, text: text::TextResource) -> Result<(), UiError> {
         self.insert(id, Resource::Text(text))
@@ -69,7 +91,8 @@ impl UiPublication {
 
 /// Single-owner bridge from owned public source records to the persistent
 /// retained layout/render tree. Keep this owner on its UI thread; the messages
-/// themselves contain no engine handles, callbacks or platform borrows.
+/// contain no engine handles, callbacks or platform borrows. Host-installed pure
+/// layout/measurement resources can run during normal layout and dry queries.
 pub struct UiDocument {
     runtime: u64,
     epoch: u64,
@@ -233,6 +256,33 @@ impl UiDocument {
     pub fn layout_result(&self, id: UiNodeId) -> Result<LayoutResult, UiError> {
         let id = self.mapping.get(&id).ok_or(UiError::InvalidIdentity(id))?;
         Ok(self.tree.layout_result(*id)?)
+    }
+    /// Isolated direct-child-style query. Never publishes source/frame geometry;
+    /// pure host resources follow the same contracts as ordinary layout.
+    pub fn dry_measure_node(
+        &self,
+        id: UiNodeId,
+        input: ChildLayoutInput,
+    ) -> Result<ChildLayoutResult, UiError> {
+        let id = self.mapping.get(&id).ok_or(UiError::InvalidIdentity(id))?;
+        Ok(self.tree.dry_measure_node(*id, input)?)
+    }
+    pub fn dry_measure_node_axis(
+        &self,
+        id: UiNodeId,
+        input: ChildLayoutInput,
+        axis: LayoutAxis,
+    ) -> Result<f32, UiError> {
+        let id = self.mapping.get(&id).ok_or(UiError::InvalidIdentity(id))?;
+        Ok(self.tree.dry_measure_node_axis(*id, input, axis)?)
+    }
+    pub fn dry_measure_node_baselines(
+        &self,
+        id: UiNodeId,
+        input: ChildLayoutInput,
+    ) -> Result<ChildLayoutResult, UiError> {
+        let id = self.mapping.get(&id).ok_or(UiError::InvalidIdentity(id))?;
+        Ok(self.tree.dry_measure_node_baselines(*id, input)?)
     }
     pub fn published_frame(&self) -> local::LocalFrame {
         self.tree
@@ -440,6 +490,12 @@ impl UiDocument {
                 UiOperation::Content { node, value } => {
                     validate_content(value)?;
                     get_mut(&mut nodes, *node, &mut touched)?.content = value.clone()
+                }
+                UiOperation::ParentLayout { node, resource } => {
+                    get_mut(&mut nodes, *node, &mut touched)?.parent_layout = *resource;
+                }
+                UiOperation::ParentData { node, resource } => {
+                    get_mut(&mut nodes, *node, &mut touched)?.parent_data = *resource;
                 }
                 UiOperation::Children { node, value } => {
                     if value.len() > self.limits.max_children_per_node {
@@ -700,31 +756,48 @@ fn pin_resources(
     input: &UiResources,
     previous: &BTreeMap<UiResourceId, Resource>,
 ) -> Result<BTreeMap<UiResourceId, Resource>, UiError> {
+    enum Usage {
+        Content,
+        ParentLayout,
+        ParentData,
+    }
     let mut pinned = BTreeMap::new();
     for node in nodes.values() {
         #[cfg(not(all(feature = "retained-text", not(target_family = "wasm"))))]
         if matches!(node.content, UiContent::Text { .. }) {
             return Err(UiError::UnsupportedContent);
         }
-        let id = match node.content {
-            UiContent::Image(id) | UiContent::Text { resource: id, .. } => id,
-            _ => continue,
+        let content_id = match node.content {
+            UiContent::Image(id)
+            | UiContent::Measure(id)
+            | UiContent::Text { resource: id, .. } => Some(id),
+            _ => None,
         };
-        let resource = input
-            .values
-            .get(&id)
-            .or_else(|| previous.get(&id))
-            .ok_or(UiError::MissingResource(id))?;
-        if previous.get(&id).is_some_and(|old| old != resource) {
-            return Err(UiError::ResourceConflict(id));
+        for (id, usage) in content_id
+            .map(|id| (id, Usage::Content))
+            .into_iter()
+            .chain(node.parent_layout.map(|id| (id, Usage::ParentLayout)))
+            .chain(node.parent_data.map(|id| (id, Usage::ParentData)))
+        {
+            let resource = input
+                .values
+                .get(&id)
+                .or_else(|| previous.get(&id))
+                .ok_or(UiError::MissingResource(id))?;
+            if previous.get(&id).is_some_and(|old| old != resource) {
+                return Err(UiError::ResourceConflict(id));
+            }
+            match (usage, &node.content, resource) {
+                (Usage::Content, UiContent::Image(_), Resource::Image(_)) => {}
+                (Usage::Content, UiContent::Measure(_), Resource::Measure(_)) => {}
+                #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+                (Usage::Content, UiContent::Text { .. }, Resource::Text(_)) => {}
+                (Usage::ParentLayout, _, Resource::ParentLayout(_))
+                | (Usage::ParentData, _, Resource::ParentData(_)) => {}
+                _ => return Err(UiError::ResourceKindMismatch(id)),
+            }
+            pinned.insert(id, resource.clone());
         }
-        match (&node.content, resource) {
-            (UiContent::Image(_), Resource::Image(_)) => {}
-            #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
-            (UiContent::Text { .. }, Resource::Text(_)) => {}
-            _ => return Err(UiError::UnsupportedContent),
-        }
-        pinned.insert(id, resource.clone());
     }
     Ok(pinned)
 }
@@ -785,6 +858,24 @@ fn stage(
                 if old.is_none_or(|old| old.layout != node.layout) {
                     tx.layout_style(internal, node.layout.clone());
                 }
+                if old.is_none_or(|old| old.parent_layout != node.parent_layout) {
+                    let delegate = node.parent_layout.map(|id| {
+                        let Resource::ParentLayout(value) = &resources[&id] else {
+                            unreachable!("validated parent algorithm")
+                        };
+                        value.clone()
+                    });
+                    tx.parent_layout(internal, delegate);
+                }
+                if old.is_none_or(|old| old.parent_data != node.parent_data) {
+                    let data = node.parent_data.map(|id| {
+                        let Resource::ParentData(value) = &resources[&id] else {
+                            unreachable!("validated parent data")
+                        };
+                        value.clone()
+                    });
+                    tx.parent_data(internal, data);
+                }
                 if old.is_none_or(|old| old.properties != node.properties) {
                     let p = &node.properties;
                     tx.color(internal, p.color);
@@ -843,12 +934,18 @@ fn write_content(
     resources: &BTreeMap<UiResourceId, Resource>,
 ) {
     // Resource transitions must clear old intrinsic owners before the final
-    // replacement is validated. Box/Fixed alone explicitly author measurement.
+    // replacement is validated. Box/Fixed/Measure explicitly author measurement.
     tx.image(node, None);
     #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
     tx.text(node, None);
     match content {
         UiContent::Box => tx.measure(node, None),
+        UiContent::Measure(id) => {
+            let Resource::Measure(value) = &resources[id] else {
+                unreachable!("validated content measure")
+            };
+            tx.measure(node, Some(MeasureSnapshot::Content(value.clone())));
+        }
         UiContent::Fixed {
             size,
             first_baseline,
@@ -865,7 +962,6 @@ fn write_content(
         UiContent::Image(id) => {
             let image = match &resources[id] {
                 Resource::Image(image) => image,
-                #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
                 _ => unreachable!("validated image resource"),
             };
             tx.image(node, Some(image.clone()));

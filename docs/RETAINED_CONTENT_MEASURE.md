@@ -1,5 +1,10 @@
 # Owned constraint-dependent content measurement
 
+Follow-up 2026-11-18: [owned UI layout resources](RETAINED_OWNED_LAYOUT_RESOURCES.md)
+adds UiContent::Measure and UiResources::measure to the owned source boundary,
+with ordinary atomic layout, resource-kind checks and isolated document queries.
+This supplies measurement for a leaf, not a new paint primitive.
+
 Follow-up: [content axis demand](RETAINED_CONTENT_AXIS_MEASUREMENT.md) adds
 requested_axis to callback inputs, preserves per-probe intrinsic demand in the
 shared leaf box model and keeps complete final/baseline metrics authoritative.

@@ -25,12 +25,20 @@ The [focus reveal stage](RETAINED_FOCUS_REVEAL.md) advances4→5 with post-layou
 ScrollIntoView intents; schemas1/2/3/4 now reject. Resulting narrow ancestor
 offsets adopt atomically with final styles/layout/frame and persist in snapshot.
 
+Current schema is6: [owned layout resources](RETAINED_OWNED_LAYOUT_RESOURCES.md)
+adds Measure content, optional parent_layout/parent_data IDs, matching field
+operations and isolated document dry queries. Schemas1–5 reject. These are
+host-installed immutable Rust protocols using the existing resource table and
+ordinary layout solver; source messages carry IDs. Earlier schema notes above
+describe their respective stages, not additional supported versions.
+
 ## Public inputs and owner adapter
 
 `retained::ui_ir` supplies `UiSnapshot`, `UiBatch`, `UiNode`, `UiNodeId`,
 `UiProperties`, `UiContent`, `UiResourceId`, `UiResources` and `UiDocument`.
 Nodes describe framework LayoutStyle, ordered child IDs, common visual properties
-and Box/Fixed/Image/Text content. Layout includes the current owned Flex/Grid/
+and Box/Fixed/Measure/Image/Text content, plus optional custom-parent and
+direct-parent metadata resource references. Layout includes the current owned Flex/Grid/
 Calc/ConstraintBox subset. Messages contain no Taffy Style, NodeId, Window, GPU
 object, raw pointer or custom callback. Message types are Send+Sync and an actual
 worker-created snapshot is accepted on another owner thread in tests. UiDocument
@@ -48,12 +56,18 @@ viewport. The style contract documents supported conditions and overrides.
 
 Resource references use immutable IDs in one host-owned table. Image resources
 are decoded RGBA8; text resources are already prepared glyph/paragraph snapshots.
+Measure, ParentLayout and ParentData resources carry the existing pure owned
+measurement/parent protocols and typed immutable metadata. Pure algorithms can
+execute during ordinary layout and explicit dry queries; no mutable frontend
+callback or platform object is embedded in a source message. Measurements may
+be repeated or cached and private candidate work may be discarded.
 The table is pinned by receiver identity and rejects reusing an ID for another
 value/kind. A document cannot silently switch resource-table instances, including
 after an ID is no longer referenced by live nodes. New IDs replace resources.
 The table currently retains all bindings for its lifetime; it has no byte budget,
 eviction/unregister or portable resource-import ABI. Resource handles/bytes remain
-out of messages. No arbitrary callback runs during message interpretation.
+out of messages. Accepting source can invoke installed pure layout resources
+while validating its private candidate; it does not dispatch UI event handlers.
 
 `UiDocument::from_snapshot` validates a complete source graph, builds a persistent
 tree and publishes a complete LocalFrame. `apply` validates and stages a batch
@@ -116,7 +130,8 @@ gpu_completed or displayed without those later events.
   the operation list. Child lists may reference a later Create. Node-record order
   in a snapshot is independent of tree/preorder. Same-slot replace requires a
   prior accepted removal, then a strictly greater generation in a later batch.
-- Layout, Properties, Content, Children, Styles, StyleState and StyleEnvironment
+- Layout, Properties, Content, ParentLayout, ParentData, Children, Styles,
+  StyleState and StyleEnvironment
   replace their typed field/group;
   repeated valid writes take the final value. Each numeric/resource-metric
   declaration must be valid even if overwritten or removed later, matching the
@@ -129,9 +144,17 @@ gpu_completed or displayed without those later events.
   surviving lists drop retired children. No dangling, duplicated, multi-parent,
   cyclic, unreachable or removed-root final graph is accepted.
 - Every node is root-reachable exactly once. Non-Box content is leaf-only.
+  Custom ParentLayout requires Box content and Flex/None display, including the
+  effective style; ParentData belongs to the child's direct parent and ordinary
+  Flex may ignore it. None clears either optional resource reference.
   Fixed metrics are finite/nonnegative with valid first/last baselines. Content
   transitions clear old image/text measurement owners in the same transaction;
   invalid image/text/fixed combinations do not leak transient measurements.
+- Missing resource references and wrong resource kinds reject before adoption.
+  UiResources rejects a different handle/value or kind under a bound ID; same
+  snapshot clones are accepted. UiDocument dry_measure_node, axis and baselines
+  resolve external identities and use isolated ordinary kernel queries, without
+  changing source revision, published geometry or frame.
 - UiLimits caps nodes, operations, depth, children, shadows, authored Grid track
   entries, styles/expanded atoms/cases and remembered generation slots. It bounds
   receiver-owned structural work, not total bytes/wall time. Repeat expansion retains kernel limits;

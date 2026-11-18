@@ -150,6 +150,9 @@ fn run(hardware: bool) {
                 })),
             ),
             UiContent::Box => {}
+            UiContent::Measure(_) => {
+                unreachable!("this resource-transition fixture has no custom measure")
+            }
         }
         full.commit(tx, BackendCapabilities::default()).unwrap();
         let reference_frame = full.frame_in_viewport(bounds, [300.0, 400.0]).unwrap();
