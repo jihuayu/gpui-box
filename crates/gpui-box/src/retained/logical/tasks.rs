@@ -9,6 +9,9 @@ use std::{
     sync::{Mutex, MutexGuard},
     task::{Poll, Waker},
 };
+mod pool;
+use pool::Permit;
+pub use pool::{UiTaskCapacity, UiTaskPool, UiTaskPoolStats};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum UiTaskStatus {
@@ -22,9 +25,15 @@ pub enum UiTaskStatus {
 }
 struct State<T> {
     status: UiTaskStatus,
-    output: Option<Arc<T>>,
+    output: Option<Arc<Output<T>>>,
     waiter: Option<Waker>,
     cancellation_waiter: Option<Waker>,
+}
+struct Output<T> {
+    value: T,
+    // Drop payload before releasing the admission slot. Other task handles own
+    // no reservation after this output and the worker have both gone away.
+    _permit: Permit,
 }
 struct Shared<T>(Mutex<State<T>>);
 fn lock<T>(value: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -118,6 +127,7 @@ impl<T> UiTask<T> {
 /// ```
 pub struct UiTaskContext<T> {
     shared: Arc<Shared<T>>,
+    permit: Option<Permit>,
 }
 impl<T> UiTaskContext<T> {
     pub fn cancellation_requested(&self) -> bool {
@@ -145,13 +155,16 @@ impl<T> UiTaskContext<T> {
     }
     /// Store one immutable output. A late cancelled completion returns its value
     /// untouched; it cannot publish UI state or replace a newer task's result.
-    pub fn complete(self, output: T) -> Result<(), T> {
+    pub fn complete(mut self, output: T) -> Result<(), T> {
         let (waiter, cancellation_waiter) = {
             let mut state = lock(&self.shared.0);
             if state.status != UiTaskStatus::Running {
                 return Err(output);
             }
-            state.output = Some(Arc::new(output));
+            state.output = Some(Arc::new(Output {
+                value: output,
+                _permit: self.permit.take().expect("worker permit"),
+            }));
             state.status = UiTaskStatus::Ready;
             (state.waiter.take(), state.cancellation_waiter.take())
         };
@@ -200,6 +213,7 @@ impl<T> Drop for Entry<T> {
 #[derive(Clone, Default)]
 pub(super) struct Registry {
     entries: BTreeMap<(ScopeId, u64), Rc<dyn Erased>>,
+    pool: UiTaskPool,
 }
 impl Registry {
     pub(super) fn clear(&mut self) {
@@ -255,11 +269,19 @@ impl LogicalEdit<'_, '_, '_> {
         key: u64,
         launch: impl FnOnce(UiTaskContext<T>) + 'static,
     ) -> Result<UiTask<T>, Error> {
-        let mut attempt = self.component_attempt()?;
         self.scope(scope)?;
         if self.retired_scopes()?.contains(&scope) {
             return Err(Error::InvalidScope);
         }
+        // Busy is recoverable within a candidate: callers may publish a loading
+        // state rather than poison the entire component construction.
+        let permit = self
+            .tasks
+            .as_ref()
+            .unwrap_or(self.live_tasks)
+            .pool
+            .reserve()?;
+        let mut attempt = self.component_attempt()?;
         let shared = Arc::new(Shared(Mutex::new(State {
             status: UiTaskStatus::PendingCommit,
             output: None,
@@ -283,6 +305,7 @@ impl LogicalEdit<'_, '_, '_> {
             );
         let context = UiTaskContext {
             shared: shared.clone(),
+            permit: Some(permit),
         };
         self.task_launches.push(Launch(Some(Box::new(move || {
             {
@@ -341,6 +364,18 @@ impl LogicalEdit<'_, '_, '_> {
     }
 }
 impl LogicalUi {
+    /// Configure admission before tasks are present/in flight. A pool may be
+    /// shared across logical owners/windows. Migrating live work is rejected.
+    pub fn set_task_pool(&mut self, pool: UiTaskPool) -> Result<(), Error> {
+        if !self.tasks.entries.is_empty() || self.tasks.pool.stats().in_use != 0 {
+            return Err(Error::InvalidTaskPool);
+        }
+        self.tasks.pool = pool;
+        Ok(())
+    }
+    pub fn task_pool(&self) -> UiTaskPool {
+        self.tasks.pool.clone()
+    }
     pub fn start_task<T: Send + Sync + 'static>(
         &mut self,
         scope: ScopeId,
@@ -398,7 +433,7 @@ impl LogicalUi {
             .layout_constraints
             .zip(self.ui.tree().viewport);
         let edit = self.edit_validated_adopting(
-            |tx| apply(&output, tx),
+            |tx| apply(&output.value, tx),
             |value, _| Ok(value),
             frame_environment,
             None::<fn(&mut UiTree) -> Result<(), Error>>,
@@ -408,5 +443,7 @@ impl LogicalUi {
         Ok(TaskApply::Applied(edit.result))
     }
 }
+#[cfg(test)]
+mod pool_tests;
 #[cfg(test)]
 mod tests;

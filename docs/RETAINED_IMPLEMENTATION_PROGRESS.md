@@ -10,6 +10,26 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [shared task admission stage](ADR_RETAINED_UI_TASK_ADMISSION.md) adds
+UiTaskPool/UiTaskCapacity/UiTaskPoolStats. Each owner defaults to64 live work slots;
+an explicit pool can span windows/owners before work exists. Provisional declarations,
+running contexts and retained complete outputs hold permits. Capacity failure
+returns TaskCapacity before entry mutation/launch and can publish loading fallback
+without poisoning the candidate. Cancellation cannot free a still-running worker's
+slot; Ready holds it through failed apply/retry and until successful output release.
+One explicit weak capacity receiver wakes on release; it observes, never reserves.
+No private executor/queue/timer/priority scheduler is added. Pool diagnostics count
+attempted admission, including rolled-back candidates. Full/invalid frame failure
+releases provisional reservations; foreign owners can share one concurrency bound.
+See [verification](performance/2026-11-19-task-admission/README.md).
+Byte quotas, priority/fairness/preemption, automatic hooks, KeepAlive generations,
+inactive registry key bounds, source unification and independent presentation remain
+open. No FPS/latency gain claim; Taffy/GPU/source schema unchanged.
+Final retained-only734passed/1ignored, text/WGPU769/66, each13compiler doctests;
+hello85/33 and explicit real-Noto GPU1passed (three full images) on
+GTX1650Ti/Vulkan/571.96. Library Clippy-Dwarnings, CPU desktop and retained-gpu
+harness checks pass. Scoped format/diff,1108local links and five WIP hashes pass.
+
 The [scope-owned UI task stage](RETAINED_UI_TASKS.md) adds UiTask, UiTaskContext,
 TaskApply and start/task/cancel APIs on LogicalUi/LogicalEdit/ComponentContext.
 Host executors remain responsible for scheduling; no private pool is added.

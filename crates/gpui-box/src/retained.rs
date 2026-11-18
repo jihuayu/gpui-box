@@ -360,6 +360,8 @@ pub enum Error {
     InvalidProvider,
     InvalidEventHandler,
     InvalidTask,
+    InvalidTaskPool,
+    TaskCapacity,
     Input(input::UiInputError),
     MissingProvider {
         path: Vec<u64>,

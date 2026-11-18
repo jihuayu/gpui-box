@@ -5,7 +5,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
     task::{Context, Wake},
 };
-fn fixture() -> LogicalUi {
+pub(super) fn fixture() -> LogicalUi {
     LogicalUi::new_layout(
         LayoutStyle::column().size(LayoutDimension::Px(100.0), LayoutDimension::Px(80.0)),
         0x112233ff,
@@ -15,7 +15,7 @@ fn fixture() -> LogicalUi {
     )
     .unwrap()
 }
-fn hold(
+pub(super) fn hold(
     ui: &mut LogicalUi,
     scope: ScopeId,
     key: u64,
@@ -230,7 +230,8 @@ fn abandoned_and_panicking_launch_cannot_leave_infinite_pending_work() {
         UiTaskStatus::Cancelled
     );
 }
-struct Counter(AtomicUsize);
+#[derive(Default)]
+pub(super) struct Counter(pub(super) AtomicUsize);
 impl Wake for Counter {
     fn wake(self: Arc<Self>) {
         self.0.fetch_add(1, Ordering::SeqCst);

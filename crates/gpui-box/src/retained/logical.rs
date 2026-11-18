@@ -34,7 +34,9 @@ mod tasks;
 pub use events::{
     EventContext, EventControl, EventHandler, LogicalInputCommit, LogicalScrollCommit,
 };
-pub use tasks::{TaskApply, UiTask, UiTaskContext, UiTaskStatus};
+pub use tasks::{
+    TaskApply, UiTask, UiTaskCapacity, UiTaskContext, UiTaskPool, UiTaskPoolStats, UiTaskStatus,
+};
 
 #[derive(Clone)]
 struct LayoutSession {

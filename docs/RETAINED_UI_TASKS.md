@@ -55,6 +55,39 @@ The GPUI test in retained_owner_demo exercises this with the real host backgroun
 executor and owner wake, followed by complete software-image and input-scene
 installation. No separate task pool or polling timer is added.
 
+## Bounded work admission
+
+Each owner now defaults to a `UiTaskPool` of64. It bounds declared work and
+retained results, not executor threads or bytes. To share an explicit limit
+across logical owners/windows before work exists:
+
+```rust,ignore
+let pool = UiTaskPool::new(4)?;
+ui.set_task_pool(pool.clone())?;
+let mut capacity = pool.open_capacity()?;
+```
+
+`start_task` returns `Error::TaskCapacity` when full before changing the old task
+or running its launch callback. Busy can be handled within a candidate without
+poisoning component construction; publish an ordinary loading state and retry
+later. Provisional declarations also reserve capacity, so a candidate cannot
+temporarily allocate unbounded launches and rely on later rollback.
+
+A cancelled worker continues to occupy its slot until its context drops. A Ready
+result occupies it until adopted or cancelled/destroyed; a failed result apply
+keeps the reservation for retry. Capacity release follows payload destruction and
+wakes `capacity.ready().await` without a timer. It returns Some(stats) when space
+is available, or None when the pool is gone. This is an observation: retry can
+still return Busy after another owner wins the slot. One capacity receiver is
+allowed; a host sharing admission across windows centralizes retry ordering.
+
+`pool.stats()` reports capacity/in_use/peak/admitted/rejected. Counts include
+candidate reservations that later roll back. Registry entries without live work
+do not hold slots, but still require explicit key/scope cleanup. No live pool
+migration is permitted. An apply callback/producer that starts more work may
+need a spare slot while it borrows the current result. See
+[decision and tradeoffs](ADR_RETAINED_UI_TASK_ADMISSION.md).
+
 ## Status and cancellation
 
 | Status | Meaning |
@@ -111,10 +144,11 @@ user output destruction are not run while a task mutex is held.
 ## Remaining work
 
 This is scope-owned task/result lifetime, not KeepAlive activation generations,
-automatic async hooks, global task capacity/byte quotas, scheduling priority,
+automatic async hooks, byte quotas, scheduling priority,
 timeout/deduplication policy or independent native presentation. There is one
-current task per registered key, but applications can create arbitrarily many keys;
-hosts must bound admission. Uncooperative cancelled workers can keep computing.
+current task per registered key and bounded work admission; applications can still
+create arbitrarily many inactive registry keys. Uncooperative cancelled workers
+can keep computing while holding their slots. Hosts control executor concurrency.
 Sparse map clones and output destruction remain owner costs. No performance or
 sustained 60/120Hz claim is made.
 

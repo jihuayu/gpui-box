@@ -179,3 +179,111 @@ fn owner_host_executor_task_output_reaches_complete_cpu_picture_and_installed_sc
     });
     drop(waiter);
 }
+
+#[gpui::test]
+fn owner_host_capacity_wake_retries_after_cancelled_worker_exits(cx: &mut TestAppContext) {
+    let platform = Arc::new(gpui_wgpu::CosmicTextSystem::new_without_system_fonts(
+        "Noto Sans CJK SC",
+    ));
+    let mut real_cx = TestAppContext::build_with_text_system(cx.dispatcher.clone(), None, platform);
+    let cx = &mut real_cx;
+    cx.text_system()
+        .add_fonts(vec![std::borrow::Cow::Borrowed(include_bytes!(
+            "../../assets/NotoSansSC-Regular.otf"
+        ))])
+        .unwrap();
+    let window = cx.open_window(size(px(600.0), px(460.0)), |window, cx| {
+        OwnerDemo::new(window, cx, true)
+    });
+    let view = window.root(cx).unwrap();
+    let cx = VisualTestContext::from_window(*window, cx).into_mut();
+    cx.run_until_parked();
+    let (old, waiter, pool, previous_revision) = view.update(cx, |this, cx| {
+        let pool = UiTaskPool::new(1).unwrap();
+        this.ui.set_task_pool(pool.clone()).unwrap();
+        let mut capacity = pool.open_capacity().unwrap();
+        let root = this.ui.root_scope();
+        let count = this.count;
+        let color = this.ui.state(root, 100, || 0x223149ffu32).unwrap();
+        this.ui
+            .bind(color, Property::color(this.scroll_host))
+            .unwrap();
+        let previous_revision = this.shown.as_ref().unwrap().frame.revision();
+        let executor = cx.background_executor().clone();
+        let worker = std::rc::Rc::new(std::cell::RefCell::new(None));
+        let slot = worker.clone();
+        let old = this
+            .ui
+            .start_task(root, 1, move |context: UiTaskContext<u32>| {
+                *slot.borrow_mut() = Some(context)
+            })
+            .unwrap();
+        assert!(matches!(
+            this.ui
+                .start_task(root, 2, |_: UiTaskContext<u32>| panic!("full")),
+            Err(Error::TaskCapacity)
+        ));
+        this.ui.cancel_task(root, 1).unwrap();
+        assert_eq!(pool.stats().in_use, 1);
+        let mut worker = worker.borrow_mut().take();
+        let release = cx.background_executor().clone();
+        release
+            .spawn(async move {
+                drop(worker.take());
+            })
+            .detach();
+        let waiter = cx.spawn(async move |view, cx| {
+            assert_eq!(capacity.ready().await.unwrap().in_use, 0);
+            let mut task = view
+                .update(cx, |this, _| {
+                    this.ui
+                        .start_task(root, 2, move |context: UiTaskContext<u32>| {
+                            executor
+                                .spawn(async move {
+                                    context.complete(73).unwrap();
+                                })
+                                .detach();
+                        })
+                        .unwrap()
+                })
+                .unwrap();
+            assert_eq!(task.ready().await, UiTaskStatus::Ready);
+            view.update(cx, |this, cx| {
+                this.ui
+                    .apply_task(&task, |value, tx| {
+                        tx.set(count, *value)?;
+                        tx.set(color, 0x375533ff)?;
+                        Ok(())
+                    })
+                    .unwrap();
+                cx.notify();
+            })
+            .unwrap();
+        });
+        (old, waiter, pool, previous_revision)
+    });
+    cx.run_until_parked();
+    view.read_with(cx, |this, _| {
+        assert_eq!(*this.ui.read(this.count).unwrap(), 73);
+        assert_eq!(
+            this.router.scene_id(),
+            Some(this.shown.as_ref().unwrap().scene.id())
+        );
+        assert!(this.error.is_none());
+        assert!(this.shown.as_ref().unwrap().frame.revision() > previous_revision);
+        assert_eq!(
+            this.shown
+                .as_ref()
+                .unwrap()
+                .frame
+                .resolve_geometry(this.scroll_host)
+                .unwrap()
+                .fill_color,
+            0x375533ff
+        );
+    });
+    assert_eq!(old.status(), UiTaskStatus::Cancelled);
+    assert_eq!(pool.stats().peak, 1);
+    assert_eq!(pool.stats().in_use, 0);
+    drop(waiter);
+}

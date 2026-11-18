@@ -8,6 +8,8 @@
 
 2026-11-19 后续：[作用域 UI task](RETAINED_UI_TASKS.md) 将短期 UI 工作的启动、取消和结果采用接入现有 scope／candidate／source／layout。后台结果只有仍是当前任务时才能回写，完整采用失败可重试；已接纳业务 Command 不因组件卸载取消。KeepAlive 激活世代、全局预算／优先级、自动 async hooks 和独立呈现仍未完成。
 
+同日后续：[共享任务接纳](ADR_RETAINED_UI_TASK_ADMISSION.md) 用 UiTaskPool 对待采用声明、worker 和 Ready 结果做数量上限；取消但仍运行的任务继续占位，容量释放唤醒宿主显式重试。默认64，可在任务存在前配置跨窗口共享 pool。这不是线程池／优先级调度或字节预算，不能据此推断 FPS／延迟保证。
+
 ## 1. 要解决的问题
 
 框架以 GPUI 为基础，提供一套比底层绘制更完整的界面抽象：应用用 Rust 编写时自然、可检查；以后用 JS 或 Go 编写时，复用同一个 UI 语义与渲染内核。
@@ -951,6 +953,8 @@ Created -> Accepted -> Running -> Succeeded / Failed / Cancelled
 任务作用域区分 application、window、component。组件卸载取消自身订阅和短期界面任务，不自动取消用户已经发出的保存、下载。错误保留上一份一致状态，失败呈现由显式错误状态驱动。
 
 已落地的显式 [UiTask／UiTaskContext／TaskApply](RETAINED_UI_TASKS.md) 复用任意 logical scope（根可由 host 对应 window）和现有执行器。启动／替换／取消跟随完整候选采用，结果由 owner 显式等待和原 source 事务采用；取消唤醒 worker 并拒绝旧结果。无独立 application scheduler、KeepAlive activation generation 或任务预算，不能把这一步当成整套任务调度完成。[决策与成本](ADR_RETAINED_UI_TASKS.md)。
+
+后续 [UiTaskPool 接纳边界](ADR_RETAINED_UI_TASK_ADMISSION.md) 已补可跨 owner／window 共享的 work-count 容量和单 receiver wake。TaskCapacity 可在同 candidate 内回退 loading，不误取消旧任务；结果或 cancelled worker 真正释放后才回收名额。仍无任务 byte quota、priority／fairness 或抢占。
 
 ```rust
 // 拟议用法，仅表达职责；不是当前可编译 API。

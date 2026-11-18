@@ -76,7 +76,9 @@ not a broadcast multi-waiter event primitive.
 
 ## Limits
 
-No global/per-window task capacity or byte budget, priority, deduplication, timeout,
+Subsequent [bounded admission](ADR_RETAINED_UI_TASK_ADMISSION.md) adds shared
+per-owner/window/application work-count limits and explicit capacity wakeup.
+No byte budget, priority, deduplication, timeout,
 automatic result callback, detached application task pool, async constructor,
 effect-driven restart macro, KeepAlive activation generation or cross-language
 wire ABI is implemented here. Applications bound keys and executor work explicitly.
