@@ -12,6 +12,13 @@ local test artifacts and ignored.
 
 ## Local changes
 
+- `clone_subtrees_for_measurement` copies a private union of query subtrees,
+  sharing immutable styles/delegates/data and remapping internal IDs. Scratch
+  layout/cache/OOF records start empty. Framework direct-child queries use this
+  for local coverage and preserve whole clones for complete UI-root queries.
+  This is not a published geometry clone or new solver. See
+  [decision and raw-kernel limits](../../docs/ADR_RETAINED_SUBTREE_QUERIES.md).
+
 - Optional `affine` owned px+percentage coefficients extend length/Dimension,
   mixed fit-content and Grid track resolution without external pointer state.
   The framework enables it; feature-unified GPUI types also grow:64-bit lengths

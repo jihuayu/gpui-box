@@ -7,6 +7,10 @@ replaces the prefix rebuild described in this stage's initial implementation.
 Height-only feedback now copies affected paths/leaves and reuses untouched
 intervals; initial variable construction, Taffy cloning and candidate costs remain.
 
+Further follow-up: [compact subtree queries](ADR_RETAINED_SUBTREE_QUERIES.md)
+replace the whole live-tree dry clone with the mounted-row subtree union.
+Scratch caches are cold; complete-root queries retain the original clone path.
+
 ## Problem and decision
 
 A declared-height list cannot naturally accommodate wrapped text, decoded image

@@ -1,6 +1,84 @@
 use super::*;
 
 #[test]
+fn compact_dry_query_matches_full_clone_with_warm_caches_overlap_and_hidden_descendants() {
+    let mut tree = UiTree::new_layout(LayoutStyle::column(), 0).unwrap();
+    let parent = tree
+        .append_layout(
+            tree.root(),
+            LayoutStyle::row().gap(LayoutLength::Px(3.0), LayoutLength::Px(2.0)),
+            0,
+        )
+        .unwrap();
+    let a = tree
+        .append_layout(parent, LayoutStyle::column(), 1)
+        .unwrap();
+    let b = tree
+        .append_layout(
+            parent,
+            LayoutStyle::column().display(LayoutDisplay::None),
+            2,
+        )
+        .unwrap();
+    let mut tx = Transaction::default();
+    tx.measure(
+        a,
+        Some(MeasureSnapshot::Fixed(CustomMeasureSnapshot {
+            width: 31.0,
+            height: 17.0,
+            baseline: Some(10.0),
+        })),
+    );
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    for _ in 0..500 {
+        tree.append_layout(
+            tree.root(),
+            LayoutStyle::column().size(LayoutDimension::Px(50.0), LayoutDimension::Px(8.0)),
+            0,
+        )
+        .unwrap();
+    }
+    tree.local_frame([200.0, 100.0]).unwrap();
+    let before = tree.layout_result(a).unwrap();
+    let input = ChildLayoutInput::new(LayoutConstraints::new(
+        LayoutAvailableSpace::MaxContent,
+        LayoutAvailableSpace::Unbounded,
+    ));
+    let mut full = tree.layout.clone();
+    for node in [parent, a, b] {
+        let id = tree.node(node).unwrap().layout;
+        let expected = tree
+            .dry_query_with_layout(&mut full, id, input, false, None)
+            .unwrap();
+        assert_eq!(tree.dry_measure_node(node, input).unwrap(), expected);
+        let expected = tree
+            .dry_query_with_layout(&mut full, id, input, true, None)
+            .unwrap();
+        assert_eq!(
+            tree.dry_measure_node_baselines(node, input).unwrap(),
+            expected
+        );
+    }
+    let results = tree
+        .dry_measure_nodes(&[(a, input), (parent, input), (b, input), (a, input)])
+        .unwrap();
+    assert_eq!(results[0], results[3]);
+    assert_eq!(results[1].size, [31.0, 17.0]);
+    assert_eq!(tree.layout_result(a).unwrap(), before);
+    let roots = [
+        tree.node(a).unwrap().layout,
+        tree.node(parent).unwrap().layout,
+    ];
+    let (compact, _) = tree.layout.clone_subtrees_for_measurement(&roots).unwrap();
+    assert_eq!(compact.total_node_count(), 3);
+    let (whole, mapped) = tree
+        .dry_query_tree(&[tree.node(tree.root()).unwrap().layout])
+        .unwrap();
+    assert_eq!(whole.total_node_count(), tree.layout.total_node_count());
+    assert_eq!(mapped[0], tree.node(tree.root()).unwrap().layout);
+}
+
+#[test]
 fn batched_dry_queries_match_single_queries_and_preserve_published_layout_on_error() {
     let mut tree = UiTree::new_layout(LayoutStyle::column(), 0).unwrap();
     let a = tree

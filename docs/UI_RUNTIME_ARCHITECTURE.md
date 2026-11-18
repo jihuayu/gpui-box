@@ -31,6 +31,12 @@ reveal 与阅读锚点共用索引；不增加第二套布局真相。Variable �
 指针／metadata 与小列表密集更新成本需计入；初始数据构建、Taffy复制、普通事务成本
 及独立呈现仍待继续，完整RFC未完成。
 
+同日后续：[局部干式测量隔离](ADR_RETAINED_SUBTREE_QUERIES.md) 为公共size／axis／
+baseline／batch查询复制所查询子树的去重联合，复用原Taffy算法与不可变资源，内部ID
+只在私有树重映射。完整UI root查询保留全树clone和warm cache；普通最终layout／
+完整candidate与responsive preview复制未改变。避免局部查询复制无关分支，同时明确
+冷cache和大覆盖的成本；通用失效／预算cache与独立呈现仍未完成。
+
 ## 1. 要解决的问题
 
 框架以 GPUI 为基础，提供一套比底层绘制更完整的界面抽象：应用用 Rust 编写时自然、可检查；以后用 JS 或 Go 编写时，复用同一个 UI 语义与渲染内核。

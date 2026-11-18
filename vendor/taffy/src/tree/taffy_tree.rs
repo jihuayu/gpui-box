@@ -59,6 +59,8 @@ mod shared_style_tests;
 #[cfg(all(test, feature = "grid"))]
 #[path = "grid_item_style_tests.rs"]
 mod grid_item_style_tests;
+#[path = "query_subtrees.rs"]
+mod query_subtrees;
 
 /// An error that occurs while trying to access or modify a node's children by index.
 #[derive(Debug, Clone, PartialEq, Eq)]

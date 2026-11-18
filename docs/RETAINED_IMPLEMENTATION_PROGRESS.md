@@ -10,6 +10,25 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [compact direct-child query stage](ADR_RETAINED_SUBTREE_QUERIES.md) replaces
+whole live Taffy clones for local dry size/axis/baseline/batched queries with a
+deduplicated queried-subtree union. Private node IDs remap, immutable inputs
+share, and live layout/caches remain untouched. Complete UI-root queries keep
+the former whole-clone/warm-cache route. Ordinary root constraints and full
+candidate/preview cloning are unchanged. This improves the shared measurement
+boundary, including virtual lists, without a second solver or public-ID changes.
+Cold-cache and large-coverage costs remain; see
+[CPU A/B and correctness](performance/2026-11-19-subtree-queries/README.md).
+Remeasurement invalidation, bounded reusable query caches, source/candidate
+costs and independent presentation stay open. Complete RFC remains active.
+Final kernel232passed plus alloc/no-std check; retained-only787passed/1ignored,
+text/WGPU822/69, each15compiler doctests; hello94/38. Explicit Noto list GPU and
+owned-parent baseline GPU each1passed. Two release repeats:8 leaf queries inside
+30,001nodes13333.6–14005.7us→33.1–34.6us including private copying/query/drop.
+Whole-root compact controls regress and keep the original route in framework.
+This is not UI/input/presentation timing. Library/harness Clippy and host checks,
+scoped format/diff,1,165local links across302docs and five WIP hashes pass.
+
 The [persistent height index](ADR_RETAINED_HEIGHT_INDEX.md) removes full-prefix
 rebuilding from sparse measured/declared height edits. The existing immutable
 metrics API now shares aggregate intervals and copies only affected paths and

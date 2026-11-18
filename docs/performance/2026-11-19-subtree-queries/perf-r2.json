@@ -1,0 +1,83 @@
+{
+  "results": [
+    {
+      "compact_union": {
+        "p50_us": 11.2,
+        "p95_us": 23.900000000000002
+      },
+      "copied_nodes": 8,
+      "live_nodes": 1001,
+      "query_roots": 8,
+      "whole_clone": {
+        "p50_us": 416.29999999999995,
+        "p95_us": 656.6999999999999
+      }
+    },
+    {
+      "compact_union": {
+        "p50_us": 2829.7000000000003,
+        "p95_us": 3979.6
+      },
+      "copied_nodes": 1001,
+      "live_nodes": 1001,
+      "query_roots": 1,
+      "whole_clone": {
+        "p50_us": 2639.2,
+        "p95_us": 3010.3
+      }
+    },
+    {
+      "compact_union": {
+        "p50_us": 35.3,
+        "p95_us": 256.7
+      },
+      "copied_nodes": 8,
+      "live_nodes": 10001,
+      "query_roots": 8,
+      "whole_clone": {
+        "p50_us": 5178.5,
+        "p95_us": 6419.6
+      }
+    },
+    {
+      "compact_union": {
+        "p50_us": 39177.9,
+        "p95_us": 42837.8
+      },
+      "copied_nodes": 10001,
+      "live_nodes": 10001,
+      "query_roots": 1,
+      "whole_clone": {
+        "p50_us": 32465.300000000003,
+        "p95_us": 37848.7
+      }
+    },
+    {
+      "compact_union": {
+        "p50_us": 34.6,
+        "p95_us": 64.7
+      },
+      "copied_nodes": 8,
+      "live_nodes": 30001,
+      "query_roots": 8,
+      "whole_clone": {
+        "p50_us": 14005.699999999999,
+        "p95_us": 16248.100000000002
+      }
+    },
+    {
+      "compact_union": {
+        "p50_us": 130890.20000000001,
+        "p95_us": 134773.8
+      },
+      "copied_nodes": 30001,
+      "live_nodes": 30001,
+      "query_roots": 1,
+      "whole_clone": {
+        "p50_us": 109915.6,
+        "p95_us": 114864.2
+      }
+    }
+  ],
+  "scope": "private direct-child measurement, same Taffy solver; warm whole-clone caches vs cold compact union, includes copying/query/drop, excludes UI and rendering"
+}

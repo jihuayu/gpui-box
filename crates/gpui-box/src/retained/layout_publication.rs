@@ -49,12 +49,14 @@ impl UiTree {
         baselines: bool,
         axis: Option<LayoutAxis>,
     ) -> Result<ChildLayoutResult, Error> {
-        let mut candidate = self.layout.clone();
-        self.dry_query_with_layout(&mut candidate, node, input, baselines, axis)
+        let layout_id = self.node(node)?.layout;
+        let (mut candidate, roots) = self.dry_query_tree(&[layout_id])?;
+        self.dry_query_with_layout(&mut candidate, roots[0], input, baselines, axis)
     }
 
-    /// Isolated direct-child queries sharing one private Taffy copy. No live
-    /// layout/cache writes escape, including if a later query fails.
+    /// Isolated direct-child queries sharing a private copy of their subtree
+    /// union. Complete-root queries retain the whole-clone path and its warm
+    /// caches. No live layout/cache writes escape, including on later failure.
     pub fn dry_measure_nodes(
         &self,
         queries: &[(NodeId, ChildLayoutInput)],
@@ -62,23 +64,38 @@ impl UiTree {
         if queries.is_empty() {
             return Ok(vec![]);
         }
-        let mut candidate = self.layout.clone();
+        let roots = queries
+            .iter()
+            .map(|(node, _)| Ok(self.node(*node)?.layout))
+            .collect::<Result<Vec<_>, Error>>()?;
+        let (mut candidate, roots) = self.dry_query_tree(&roots)?;
         queries
             .iter()
-            .map(|(node, input)| {
-                self.dry_query_with_layout(&mut candidate, *node, *input, false, None)
+            .zip(roots)
+            .map(|((_, input), node)| {
+                self.dry_query_with_layout(&mut candidate, node, *input, false, None)
             })
             .collect()
+    }
+    fn dry_query_tree(
+        &self,
+        roots: &[taffy::NodeId],
+    ) -> Result<(TaffyTree<MeasureSnapshot>, Vec<taffy::NodeId>), Error> {
+        if roots.contains(&self.node(self.root)?.layout) {
+            // No unrelated branch to exclude in the normal complete-root case;
+            // retain the old warm-cache path instead of remapping the whole UI.
+            return Ok((self.layout.clone(), roots.to_vec()));
+        }
+        Ok(self.layout.clone_subtrees_for_measurement(roots)?)
     }
     fn dry_query_with_layout(
         &self,
         candidate: &mut TaffyTree<MeasureSnapshot>,
-        node: NodeId,
+        layout_id: taffy::NodeId,
         input: ChildLayoutInput,
         baselines: bool,
         axis: Option<LayoutAxis>,
     ) -> Result<ChildLayoutResult, Error> {
-        let layout_id = self.node(node)?.layout;
         let mut input = input.to_taffy()?;
         if let Some(axis) = axis {
             input.axis = match axis {

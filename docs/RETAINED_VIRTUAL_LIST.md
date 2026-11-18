@@ -169,6 +169,8 @@ edits and reuses keys/factory. The [persistent height index](ADR_RETAINED_HEIGHT
 copies affected aggregate paths and bounded leaves on actual changes, sharing
 untouched intervals. Fixed estimates stay implicit until an interval changes.
 Variable edge/height/window queries cost O(log N); total stays O(1). Initial
-dataset/key construction remains full-data work. Dry layout still copies the live Taffy
-tree once per list. See [decision and costs](ADR_RETAINED_LIST_MEASUREMENT.md) and
+dataset/key construction remains full-data work. Dry layout copies the union of
+mounted row subtrees once per list through the shared
+[isolated query path](ADR_RETAINED_SUBTREE_QUERIES.md); complete UI-root queries
+retain the full-clone route. See [decision and costs](ADR_RETAINED_LIST_MEASUREMENT.md) and
 [complete-image validation](performance/2026-11-19-list-measurement/README.md).
