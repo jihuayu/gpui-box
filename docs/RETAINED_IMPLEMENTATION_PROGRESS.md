@@ -10,6 +10,24 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [persistent height index](ADR_RETAINED_HEIGHT_INDEX.md) removes full-prefix
+rebuilding from sparse measured/declared height edits. The existing immutable
+metrics API now shares aggregate intervals and copies only affected paths and
+at-most64-height leaves; uniform ranges stay implicit and can collapse again.
+Window/reveal/anchor use one index; height-only edits retain keys/factory and old
+snapshots. Variable queries are O(log N), total O(1), construction still O(N).
+Pointer/metadata/query costs and small dense-update regression are explicit;
+see [CPU A/B and correctness](performance/2026-11-19-height-index/README.md).
+Private Taffy copies, source/candidate costs, key/order updates and native
+independent presentation remain open. Complete RFC stays active.
+Final retained-only786passed/1ignored, text/WGPU821/69, each15compiler doctests;
+hello94/38 and explicit160-row Noto GPU1passed/three full images. Clippy and
+host/harness checks pass. Two release repeats on Ryzen4800H:100,000-row8-height
+updates424.75–441.10us→2.58–2.68us; corresponding window query115–121ns→320–334ns.
+Small1,000-row128-height updates6.80–6.84us→13.32–13.42us. This is metric-only,
+not full UI/input/FPS evidence. Scoped format/diff,1,155local links across300docs
+and five inherited WIP hashes pass.
+
 The [mounted row measurement stage](ADR_RETAINED_LIST_MEASUREMENT.md) adds optional
 MeasuredVirtualList over the ordinary list/source/Flex contracts. Mounted rows
 use batched isolated content queries at committed width, then new immutable

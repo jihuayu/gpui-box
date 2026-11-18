@@ -51,7 +51,7 @@ fn run_measured(hardware: bool) {
         )
         .unwrap();
     let short = raster.prepare(shape(&system, "short 中文"), 1.25).unwrap();
-    let paints = (0..40)
+    let paints = (0..160)
         .map(|i| TextPaint {
             resource: if i % 2 == 0 {
                 long.clone()
@@ -69,8 +69,8 @@ fn run_measured(hardware: bool) {
     let items = ui
         .state(root, 0, || {
             VirtualListItems::<NaturalItem>::keyed(
-                VirtualListMetrics::fixed(40, 24.0).unwrap(),
-                0..40,
+                VirtualListMetrics::fixed(160, 24.0).unwrap(),
+                0..160,
                 move |i| Ok(data[i].clone()),
             )
             .unwrap()

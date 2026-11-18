@@ -85,3 +85,8 @@ required-features = ["retained-runtime"]
 name = "paragraph-runtime-perf"
 path = "src/paragraph.rs"
 required-features = ["retained-text"]
+
+[[bin]]
+name = "virtual-list-metrics-perf"
+path = "src/virtual_list_metrics.rs"
+required-features = ["retained-runtime"]

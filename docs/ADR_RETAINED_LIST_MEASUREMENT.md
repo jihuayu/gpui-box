@@ -2,6 +2,11 @@
 
 Status: experimental Rust API, 2026-11-19. Full RFC remains active.
 
+Same-day follow-up: [persistent height indexing](ADR_RETAINED_HEIGHT_INDEX.md)
+replaces the prefix rebuild described in this stage's initial implementation.
+Height-only feedback now copies affected paths/leaves and reuses untouched
+intervals; initial variable construction, Taffy cloning and candidate costs remain.
+
 ## Problem and decision
 
 A declared-height list cannot naturally accommodate wrapped text, decoded image

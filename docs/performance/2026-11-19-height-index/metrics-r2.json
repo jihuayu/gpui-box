@@ -1,0 +1,212 @@
+{
+  "results": [
+    {
+      "changed": 1,
+      "flat_prefix": {
+        "p50_ns": 2905.0,
+        "p95_ns": 3128.0
+      },
+      "p50_ratio": 2.7535545023696684,
+      "persistent_index": {
+        "p50_ns": 1055.0,
+        "p95_ns": 1349.0
+      },
+      "rounds_per_sample": 100,
+      "rows": 1000,
+      "samples": 30,
+      "window_flat": {
+        "p50_ns": 30.76171875,
+        "p95_ns": 32.6171875
+      },
+      "window_persistent": {
+        "p50_ns": 57.8125,
+        "p95_ns": 65.8203125
+      }
+    },
+    {
+      "changed": 8,
+      "flat_prefix": {
+        "p50_ns": 2896.0,
+        "p95_ns": 2979.0
+      },
+      "p50_ratio": 1.909030982201714,
+      "persistent_index": {
+        "p50_ns": 1517.0,
+        "p95_ns": 1557.0
+      },
+      "rounds_per_sample": 100,
+      "rows": 1000,
+      "samples": 30,
+      "window_flat": {
+        "p50_ns": 30.76171875,
+        "p95_ns": 31.0546875
+      },
+      "window_persistent": {
+        "p50_ns": 57.8125,
+        "p95_ns": 65.91796875
+      }
+    },
+    {
+      "changed": 128,
+      "flat_prefix": {
+        "p50_ns": 6804.0,
+        "p95_ns": 7241.0
+      },
+      "p50_ratio": 0.5070422535211268,
+      "persistent_index": {
+        "p50_ns": 13419.0,
+        "p95_ns": 14934.0
+      },
+      "rounds_per_sample": 100,
+      "rows": 1000,
+      "samples": 30,
+      "window_flat": {
+        "p50_ns": 31.8359375,
+        "p95_ns": 31.93359375
+      },
+      "window_persistent": {
+        "p50_ns": 57.421875,
+        "p95_ns": 59.08203125
+      }
+    },
+    {
+      "changed": 1,
+      "flat_prefix": {
+        "p50_ns": 269475.0,
+        "p95_ns": 321225.0
+      },
+      "p50_ratio": 149.0184331797235,
+      "persistent_index": {
+        "p50_ns": 1808.3333333333333,
+        "p95_ns": 2791.6666666666665
+      },
+      "rounds_per_sample": 12,
+      "rows": 100000,
+      "samples": 30,
+      "window_flat": {
+        "p50_ns": 96.09375,
+        "p95_ns": 173.92578125
+      },
+      "window_persistent": {
+        "p50_ns": 315.91796875,
+        "p95_ns": 373.33984375
+      }
+    },
+    {
+      "changed": 8,
+      "flat_prefix": {
+        "p50_ns": 424750.0,
+        "p95_ns": 457591.6666666667
+      },
+      "p50_ratio": 158.2919254658385,
+      "persistent_index": {
+        "p50_ns": 2683.3333333333335,
+        "p95_ns": 2925.0
+      },
+      "rounds_per_sample": 12,
+      "rows": 100000,
+      "samples": 30,
+      "window_flat": {
+        "p50_ns": 120.99609375,
+        "p95_ns": 237.59765625
+      },
+      "window_persistent": {
+        "p50_ns": 320.41015625,
+        "p95_ns": 567.08984375
+      }
+    },
+    {
+      "changed": 128,
+      "flat_prefix": {
+        "p50_ns": 431133.3333333333,
+        "p95_ns": 497325.0
+      },
+      "p50_ratio": 18.19127988748242,
+      "persistent_index": {
+        "p50_ns": 23700.0,
+        "p95_ns": 28075.0
+      },
+      "rounds_per_sample": 12,
+      "rows": 100000,
+      "samples": 30,
+      "window_flat": {
+        "p50_ns": 97.0703125,
+        "p95_ns": 260.05859375
+      },
+      "window_persistent": {
+        "p50_ns": 331.8359375,
+        "p95_ns": 444.7265625
+      }
+    },
+    {
+      "changed": 1,
+      "flat_prefix": {
+        "p50_ns": 4091608.3333333335,
+        "p95_ns": 4359591.666666667
+      },
+      "p50_ratio": 1402.837142857143,
+      "persistent_index": {
+        "p50_ns": 2916.6666666666665,
+        "p95_ns": 3866.6666666666665
+      },
+      "rounds_per_sample": 12,
+      "rows": 1000000,
+      "samples": 30,
+      "window_flat": {
+        "p50_ns": 622.0703125,
+        "p95_ns": 860.83984375
+      },
+      "window_persistent": {
+        "p50_ns": 873.92578125,
+        "p95_ns": 1129.78515625
+      }
+    },
+    {
+      "changed": 8,
+      "flat_prefix": {
+        "p50_ns": 4253150.0,
+        "p95_ns": 4426141.666666667
+      },
+      "p50_ratio": 1189.6923076923076,
+      "persistent_index": {
+        "p50_ns": 3575.0,
+        "p95_ns": 4975.0
+      },
+      "rounds_per_sample": 12,
+      "rows": 1000000,
+      "samples": 30,
+      "window_flat": {
+        "p50_ns": 633.88671875,
+        "p95_ns": 852.83203125
+      },
+      "window_persistent": {
+        "p50_ns": 891.015625,
+        "p95_ns": 1236.5234375
+      }
+    },
+    {
+      "changed": 128,
+      "flat_prefix": {
+        "p50_ns": 4146733.3333333335,
+        "p95_ns": 4460175.0
+      },
+      "p50_ratio": 160.57050661503712,
+      "persistent_index": {
+        "p50_ns": 25825.0,
+        "p95_ns": 59550.0
+      },
+      "rounds_per_sample": 12,
+      "rows": 1000000,
+      "samples": 30,
+      "window_flat": {
+        "p50_ns": 633.49609375,
+        "p95_ns": 883.88671875
+      },
+      "window_persistent": {
+        "p50_ns": 850.09765625,
+        "p95_ns": 1114.84375
+      }
+    }
+  ],
+  "scope": "CPU metric snapshot height updates only; release; excludes dataset keys, layout, rendering, presentation"
+}

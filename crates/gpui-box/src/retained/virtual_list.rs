@@ -3,6 +3,7 @@
 use super::{logical::*, reactive::*, *};
 use std::{marker::PhantomData, ops::Range, rc::Rc};
 mod anchoring;
+mod height_index;
 pub(in crate::retained) mod measurement;
 pub use anchoring::{VirtualListRebase, VirtualListRebaseReason, VirtualListScrollPolicy};
 pub use measurement::{MeasuredVirtualList, MeasuredVirtualListProps, VirtualListMeasureReport};
@@ -10,7 +11,7 @@ pub use measurement::{MeasuredVirtualList, MeasuredVirtualListProps, VirtualList
 #[derive(Clone, Debug)]
 enum Extents {
     Fixed { count: usize, height: f64 },
-    Variable(Arc<[f64]>),
+    Variable(Arc<height_index::Index>),
 }
 impl PartialEq for Extents {
     fn eq(&self, other: &Self) -> bool {
@@ -31,7 +32,7 @@ impl PartialEq for Extents {
     }
 }
 /// Declared positive border-box row heights, with no inter-row margins/gap.
-/// Fixed lists store O(1) data; variable lists store one immutable prefix table.
+/// Fixed lists store O(1) data; variable lists share a persistent sum index.
 #[derive(Clone, Debug, PartialEq)]
 pub struct VirtualListMetrics(Extents);
 #[derive(Clone, Debug, PartialEq)]
@@ -58,24 +59,39 @@ impl VirtualListMetrics {
         }))
     }
     pub fn variable(heights: impl IntoIterator<Item = f32>) -> Result<Self, Error> {
-        let mut prefix = vec![0.0];
+        let mut heights_owned = vec![];
+        let mut previous = 0.0;
         for height in heights {
             if !height.is_finite() || height <= 0.0 {
                 return Err(Error::InvalidVirtualList);
             }
-            let previous = *prefix.last().unwrap();
             let next = previous + f64::from(height);
             if next <= previous || next > f64::from(f32::MAX) {
                 return Err(Error::InvalidVirtualList);
             }
-            prefix.push(next);
+            previous = next;
+            heights_owned.push(height);
         }
-        Ok(Self(Extents::Variable(prefix.into())))
+        let index = height_index::Index::build(&heights_owned);
+        Self::from_index(index)
+    }
+    fn from_index(index: Arc<height_index::Index>) -> Result<Self, Error> {
+        if !index.total().is_finite() || index.total() > f64::from(f32::MAX) {
+            return Err(Error::InvalidVirtualList);
+        }
+        Ok(if let Some(height) = index.uniform_height() {
+            Self(Extents::Fixed {
+                count: index.len(),
+                height: f64::from(height),
+            })
+        } else {
+            Self(Extents::Variable(index))
+        })
     }
     pub fn len(&self) -> usize {
         match &self.0 {
             Extents::Fixed { count, .. } => *count,
-            Extents::Variable(p) => p.len() - 1,
+            Extents::Variable(p) => p.len(),
         }
     }
     pub fn is_empty(&self) -> bool {
@@ -84,7 +100,7 @@ impl VirtualListMetrics {
     fn edge(&self, index: usize) -> f64 {
         match &self.0 {
             Extents::Fixed { height, .. } => index as f64 * height,
-            Extents::Variable(p) => p[index],
+            Extents::Variable(p) => p.edge(index),
         }
     }
     pub fn total(&self) -> f32 {
@@ -100,10 +116,25 @@ impl VirtualListMetrics {
         if index >= self.len() {
             return Err(Error::InvalidVirtualList);
         }
-        Ok((self.edge(index + 1) - self.edge(index)) as f32)
+        Ok(match &self.0 {
+            Extents::Fixed { height, .. } => *height as f32,
+            Extents::Variable(p) => p.height(index),
+        })
+    }
+    fn lower_row(&self, position: f64) -> usize {
+        match &self.0 {
+            Extents::Fixed { height, count } => ((position / height).floor() as usize).min(*count),
+            Extents::Variable(p) => p.lower_row(position),
+        }
+    }
+    fn upper_row(&self, position: f64) -> usize {
+        match &self.0 {
+            Extents::Fixed { height, count } => ((position / height).ceil() as usize).min(*count),
+            Extents::Variable(p) => p.upper_row(position),
+        }
     }
     /// Replace declared/measured extents together. Same values retain the shared
-    /// metrics; changed snapshots rebuild one prefix table, without row payloads.
+    /// metrics; changed snapshots copy only affected index paths and leaves.
     pub fn with_heights(
         &self,
         updates: impl IntoIterator<Item = (usize, f32)>,
@@ -119,14 +150,13 @@ impl VirtualListMetrics {
         if changes.is_empty() {
             return Ok(self.clone());
         }
-        let mut changes = changes.into_iter().peekable();
-        Self::variable((0..self.len()).map(|i| {
-            if changes.peek().is_some_and(|(index, _)| *index == i) {
-                changes.next().unwrap().1
-            } else {
-                self.height(i).expect("validated metric index")
+        let index = match &self.0 {
+            Extents::Fixed { count, height } => {
+                height_index::Index::uniform(*count, *height as f32)
             }
-        }))
+            Extents::Variable(index) => index.clone(),
+        };
+        Self::from_index(index.updated(0, &changes.into_iter().collect::<Vec<_>>()))
     }
     /// O(log N) selection, O(1) for fixed extents. No per-row UI allocation.
     pub fn window(
@@ -151,16 +181,7 @@ impl VirtualListMetrics {
         let range = if viewport == 0.0 || self.is_empty() {
             0..0
         } else {
-            match &self.0 {
-                Extents::Fixed { height, count } => {
-                    ((start / height).floor() as usize).min(*count)
-                        ..((end / height).ceil() as usize).min(*count)
-                }
-                Extents::Variable(p) => {
-                    p.partition_point(|v| *v <= start).saturating_sub(1)
-                        ..p.partition_point(|v| *v < end).min(self.len())
-                }
-            }
+            self.lower_row(start)..self.upper_row(end)
         };
         if range.len() > max_rows {
             return Err(Error::VirtualListLimit);

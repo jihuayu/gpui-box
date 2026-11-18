@@ -105,15 +105,10 @@ impl<C: Component> VirtualListItems<C> {
                 VirtualListRebaseReason::NoSurvivingKey,
             ));
         }
-        let first = match &self.metrics.0 {
-            Extents::Fixed { height, count } => {
-                ((f64::from(used) / height).floor() as usize).min(count - 1)
-            }
-            Extents::Variable(prefix) => prefix
-                .partition_point(|v| *v <= f64::from(used))
-                .saturating_sub(1)
-                .min(self.metrics.len() - 1),
-        };
+        let first = self
+            .metrics
+            .lower_row(f64::from(used))
+            .min(self.metrics.len() - 1);
         let anchor = before.order[first];
         if let Some(&index) = after.positions.get(&anchor) {
             // A shorter anchor retains as much of its original inset as fits,

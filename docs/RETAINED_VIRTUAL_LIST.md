@@ -28,7 +28,7 @@ Factories must be pure and are only called for selected indices. Stable keys
 must represent row identity; the selected window rejects duplicate keys.
 
 `VirtualListMetrics::variable(heights)` accepts positive finite declared row
-heights and builds a shared prefix table. Query `window(offset,height,overscan,
+heights and builds a shared immutable aggregate index. Query `window(offset,height,overscan,
 max_rows)` for the selected range, effective offset/maximum, leading/trailing and
 total. Fixed metrics need no per-row table. Empty data or zero viewport height
 mounts no rows. Invalid dimensions return InvalidVirtualList; too many selected
@@ -115,7 +115,7 @@ also accepts unindexed data. Index build uses O(N) metadata and deleted-anchor
 fallback may scan old keys, without invoking payload factories.
 
 Use the full ordinary list for small datasets or as a correctness reference.
-Remaining work includes incremental height indexing, sticky/horizontal layouts and accessible all-data
+Remaining work includes incremental key/order edits, sticky/horizontal layouts and accessible all-data
 navigation. Work remains on the ordinary candidate/source/producer paths; no
 performance guarantee follows solely from bounded node count. See
 [verification and reproduction](performance/2026-11-19-virtual-list/README.md).
@@ -165,7 +165,10 @@ remeasure mounted rows; offscreen rows retain estimates until mounted. Natural
 row height must not depend on the previous estimate as a feedback algorithm.
 
 `items.with_heights([(index,height),...])` is also available for explicit metric
-edits and reuses keys/factory. It rebuilds one prefix table on actual changes;
-it is not yet an incremental height tree. Dry layout still copies the live Taffy
+edits and reuses keys/factory. The [persistent height index](ADR_RETAINED_HEIGHT_INDEX.md)
+copies affected aggregate paths and bounded leaves on actual changes, sharing
+untouched intervals. Fixed estimates stay implicit until an interval changes.
+Variable edge/height/window queries cost O(log N); total stays O(1). Initial
+dataset/key construction remains full-data work. Dry layout still copies the live Taffy
 tree once per list. See [decision and costs](ADR_RETAINED_LIST_MEASUREMENT.md) and
 [complete-image validation](performance/2026-11-19-list-measurement/README.md).

@@ -2,6 +2,10 @@
 
 Status: experimental explicit Rust API, 2026-11-19. Full RFC remains active.
 
+Same-day follow-up: [persistent height indexing](ADR_RETAINED_HEIGHT_INDEX.md)
+reuses unchanged extents for height-only revisions. Variable height/edge/window
+queries are O(log N); key/data replacement and deleted-key scans below remain.
+
 ## Problem and decision
 
 Keeping a numerical scroll offset while prepending/deleting rows or changing
