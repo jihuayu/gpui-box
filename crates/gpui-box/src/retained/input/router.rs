@@ -162,6 +162,12 @@ impl UiInputRouter {
     pub fn route(&mut self, event: UiInput) -> Result<UiInputEffects, UiInputError> {
         let (scene, _) = self.scene.as_ref().ok_or(UiInputError::NoScene)?;
         match event {
+            UiInput::Wheel { position, .. } if position.iter().any(|v| !v.is_finite()) => {
+                return Err(UiInputError::InvalidPosition);
+            }
+            UiInput::Wheel { delta, .. } if delta.iter().any(|v| !v.is_finite()) => {
+                return Err(UiInputError::InvalidScrollDelta);
+            }
             UiInput::PointerMove(position)
             | UiInput::PrimaryDown(position)
             | UiInput::PrimaryUp(position)
@@ -177,6 +183,22 @@ impl UiInputRouter {
         let before = self.feedback();
         let mut effects = UiInputEffects::default();
         match event {
+            UiInput::Wheel { position, delta } => {
+                // Wheel targets geometry under the pointer, independently of
+                // primary capture/focus. No synthetic click or focus transfer.
+                self.move_pointer(position, &mut effects);
+                let target = self.hover;
+                let route = target.map(|id| self.graph().path(id)).unwrap_or_default();
+                let (scene, evidence) = self.scene.as_ref().unwrap();
+                effects.wheel_scrolls.push(UiWheelScroll {
+                    scene: scene.id,
+                    evidence: *evidence,
+                    target,
+                    route: route.into(),
+                    position,
+                    delta,
+                });
+            }
             UiInput::PointerMove(position) => {
                 self.move_pointer(position, &mut effects);
                 let target = self.press.map(|p| p.target).or(self.hover);

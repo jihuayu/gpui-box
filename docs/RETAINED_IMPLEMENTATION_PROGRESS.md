@@ -3,6 +3,30 @@
 The active implementation goal covers the complete runtime requested on
 2026-11-11. Work continues in `codex/rendering-performance-research`.
 
+The [wheel scrolling stage](RETAINED_WHEEL_SCROLLING.md) adds logical-pixel Wheel
+input, adopted target/path records, immutable published scroll extents and
+current-offset ancestor chaining. plan_input_scroll builds one exact-base normal
+batch with narrow Scroll operations plus style feedback; events accumulate
+without predicting installed hit geometry. Axes clamp/chain independently,
+style-owned/Hidden axes yield remainder, and stale ancestry/recovery/disabled
+targets reject. Schema4 adds Scroll and rejects1/2/3. Seven core cases, actual
+GPUI ScrollEvent and real-Noto CPU/GPU controls exercise independent full
+reference pixels and source/frame rollback. See
+[evidence](performance/2026-11-18-wheel-scrolling/README.md). Scroll-map scanning/
+rebuild, linear hit/paths and ordinary owner candidates remain; no wall-time/FPS
+win is claimed. Latching/inertia/overscroll/cancelable wheel handlers,
+independent compositor scroll and native input/presentation p99 remain open.
+Full RFC stays active.
+Verified complete retained561passed/1ignored, text/WGPU594/44 and hello60/12;
+final7wheel core cases pass. Actual GPUI ScrollEvent integration and real-Noto
+CPU pass; explicit nested-chain and real-Noto wheel GPU each pass4submissions/
+4complete-image comparisons. Existing persistent Noto GPU passes5comparisons
+(4submits/1skip). Final framework library Clippy, scoped format/diff/262local
+links and five unrelated WIP hashes pass. Counts overlap. Production changes
+preceded full suites; a later test-only stationary-hit assertion is covered by
+the final7core cases and real-Noto wheel CPU/GPU reruns. These checks establish
+correctness, not representative native common-interaction p99 fluency.
+
 The [indexed producer invalidation stage](RETAINED_PRODUCER_INVALIDATION.md)
 adds generation-safe source-to-producer reverse reads, atomically rebuilt with
 accepted observations. Final changed source identities select equality-check

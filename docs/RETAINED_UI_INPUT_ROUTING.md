@@ -6,6 +6,11 @@ Status: experimental Rust contract,2026-11-18. Full RFC remains active. Extends
 interaction contract is backend-independent; this is not complete event/IME/
 accessibility support or native input-to-presentation qualification.
 
+The later [wheel scrolling stage](RETAINED_WHEEL_SCROLLING.md) adds default
+logical-pixel wheel deltas and ancestor chaining through current exact-base UI
+batches while retaining adopted target geometry. Source schema now4 adds a
+narrow Scroll operation; the earlier schema3 migration below is historical.
+
 ## Source policy and immutable input scene
 
 `retained::input` supplies UiInteraction, UiHandlerId, UiFocusPolicy, UiInputScene,
@@ -166,7 +171,7 @@ output. This does not qualify a native visible sustained interaction benchmark.
 
 Open: event ordering acknowledgements, OS capture/focus integration, keyboard
 navigation scopes, right/middle/multiple pointer/touch/pen, drag thresholds,
-double-click, wheel/chained scrolling, gestures, text editing/IME, full semantics/
+double-click, scroll latching/inertia/overscroll, gestures, text editing/IME, full semantics/
 accessibility, arbitrary affine presentation hit transforms, native independent
 presentation and input p99. Automatic builder/query scheduling/full RenderBox,
 themes/parts, CPU smoothness, modern desktop effects and full RFC remain active.

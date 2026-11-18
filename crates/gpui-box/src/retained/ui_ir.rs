@@ -13,7 +13,7 @@ pub use runtime::{UiDocument, UiPublication, UiResources};
 #[cfg(test)]
 mod tests;
 
-pub const UI_SCHEMA_VERSION: u32 = 3;
+pub const UI_SCHEMA_VERSION: u32 = 4;
 
 pub(super) type NodeMap = BTreeMap<UiNodeId, Arc<UiNode>>;
 
@@ -107,7 +107,7 @@ impl UiNode {
 
 /// Full recoverable source state, including tombstones for retired slots.
 /// Resource bytes/handlers remain outside this record and must be installed by
-/// the receiving host before accepting it. Schema 3 is experimental Rust data.
+/// the receiving host before accepting it. Schema 4 is experimental Rust data.
 #[derive(Clone, Debug, PartialEq)]
 pub struct UiSnapshot {
     pub schema: u32,
@@ -150,6 +150,12 @@ pub enum UiOperation {
     Properties {
         node: UiNodeId,
         value: UiProperties,
+    },
+    /// Replace only authored scroll, preserving all other common properties.
+    /// Styles can still own scroll; input planning skips those competing writers.
+    Scroll {
+        node: UiNodeId,
+        value: [f32; 2],
     },
     Content {
         node: UiNodeId,

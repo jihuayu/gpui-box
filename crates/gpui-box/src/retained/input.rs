@@ -4,6 +4,8 @@ use super::ui_ir::{UiDocument, UiError, UiNodeId, UiOperation};
 use super::*;
 
 mod router;
+pub(in crate::retained) mod scroll;
+pub use scroll::{UiScrollOutcome, UiScrollPlan, UiScrollState, UiWheelScroll};
 #[cfg(test)]
 mod tests;
 pub use router::UiInputRouter;
@@ -86,6 +88,12 @@ pub enum UiActivationKey {
 }
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum UiInput {
+    /// Host-normalized logical pixels. Positive components increase offsets;
+    /// native sign, line/page units and modifiers are host responsibilities.
+    Wheel {
+        position: [f32; 2],
+        delta: [f32; 2],
+    },
     PointerMove([f32; 2]),
     PrimaryDown([f32; 2]),
     PrimaryUp([f32; 2]),
@@ -140,6 +148,7 @@ pub struct UiStyleFeedback {
 pub struct UiInputEffects {
     pub dispatches: Vec<UiInputDispatch>,
     pub feedback: Vec<UiStyleFeedback>,
+    pub wheel_scrolls: Vec<UiWheelScroll>,
 }
 impl UiInputEffects {
     /// Preserve caller-owned disabled/selected state. Ignore retired identities;
@@ -178,6 +187,9 @@ pub enum UiInputError {
     StaleScene,
     InvalidPosition,
     IneligibleFocus,
+    InvalidScrollDelta,
+    StaleScrollRoute,
+    RevisionExhausted,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -270,10 +282,14 @@ pub struct UiInputScene {
     pub(crate) frame: local::LocalFrame,
     pub(crate) identities: Arc<BTreeMap<NodeId, UiNodeId>>,
     pub(crate) graph: Arc<InputGraph>,
+    pub(crate) scrolls: Arc<BTreeMap<UiNodeId, UiScrollState>>,
 }
 impl UiInputScene {
     pub fn id(&self) -> UiInputSceneId {
         self.id
+    }
+    pub fn scroll_state(&self, node: UiNodeId) -> Option<UiScrollState> {
+        self.scrolls.get(&node).copied()
     }
     pub fn hit_test(&self, position: [f32; 2]) -> Option<UiNodeId> {
         let internal = self

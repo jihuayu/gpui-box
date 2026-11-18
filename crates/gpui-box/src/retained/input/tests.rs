@@ -674,7 +674,7 @@ fn invalid_input_policy_host_and_schema_fail_atomically() {
             .is_err()
     );
     assert_eq!(document.snapshot(), original);
-    for schema in [1, 2] {
+    for schema in [1, 2, 3] {
         let mut snapshot = original.clone();
         snapshot.schema = schema;
         assert!(

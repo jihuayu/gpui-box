@@ -80,6 +80,7 @@ pub struct UiDocument {
     resolved_nodes: NodeMap,
     style_cache: planning::StyleCache,
     input_graph: Arc<input::InputGraph>,
+    input_scrolls: Arc<BTreeMap<UiNodeId, input::UiScrollState>>,
     style_environment: LayoutEnvironment,
     generations: BTreeMap<u64, u64>,
     mapping: BTreeMap<UiNodeId, NodeId>,
@@ -159,6 +160,7 @@ impl UiDocument {
             .clone();
         let identities = identities(&mapping);
         let input_graph = Arc::new(input::InputGraph::build(snapshot.root, &resolved_nodes));
+        let input_scrolls = input::scroll::states(&tree, &mapping, &resolved_nodes, &nodes);
         let input = input_scene(
             snapshot.runtime,
             snapshot.epoch,
@@ -166,6 +168,7 @@ impl UiDocument {
             &frame,
             &identities,
             &input_graph,
+            &input_scrolls,
         );
         let publication = UiPublication {
             status: UiApplyStatus::Applied,
@@ -190,6 +193,7 @@ impl UiDocument {
                 resolved_nodes,
                 style_cache,
                 input_graph,
+                input_scrolls,
                 style_environment: snapshot.style_environment,
                 generations,
                 mapping,
@@ -249,6 +253,7 @@ impl UiDocument {
             &self.published_frame(),
             &self.identities,
             &self.input_graph,
+            &self.input_scrolls,
         )
     }
     /// Before invoking a delayed frontend handler, recheck current identity,
@@ -419,6 +424,12 @@ impl UiDocument {
                     validate_properties(value)?;
                     get_mut(&mut nodes, *node, &mut touched)?.properties = value.clone()
                 }
+                UiOperation::Scroll { node, value } => {
+                    if value.iter().any(|v| !v.is_finite() || *v < 0.0) {
+                        return Err(Error::InvalidScroll.into());
+                    }
+                    get_mut(&mut nodes, *node, &mut touched)?.properties.scroll = *value;
+                }
                 UiOperation::Content { node, value } => {
                     validate_content(value)?;
                     get_mut(&mut nodes, *node, &mut touched)?.content = value.clone()
@@ -518,10 +529,12 @@ impl UiDocument {
             capabilities,
             (constraints, viewport),
         )?;
+        let input_scrolls = input::scroll::states(&self.tree, &mapping, &resolved_nodes, &nodes);
         self.nodes = nodes;
         self.resolved_nodes = resolved_nodes;
         self.style_cache = style_cache;
         self.input_graph = input_graph;
+        self.input_scrolls = input_scrolls;
         self.style_environment = style_environment;
         self.generations = generations;
         self.mapping = mapping;
@@ -613,6 +626,7 @@ fn input_scene(
     frame: &local::LocalFrame,
     identities: &Arc<BTreeMap<NodeId, UiNodeId>>,
     graph: &Arc<input::InputGraph>,
+    scrolls: &Arc<BTreeMap<UiNodeId, input::UiScrollState>>,
 ) -> input::UiInputScene {
     input::UiInputScene {
         id: input::UiInputSceneId {
@@ -625,6 +639,7 @@ fn input_scene(
         frame: frame.clone(),
         identities: identities.clone(),
         graph: graph.clone(),
+        scrolls: scrolls.clone(),
     }
 }
 

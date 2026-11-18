@@ -1062,9 +1062,19 @@ Published／ImageInstalled／PresentAttempted是调用者证据标签，不等�
 复用同帧clip／scroll／order；primary capture、hover／pressed／focus-visible反馈、Tab、
 Enter／Space及disable/unmount取消已有有限实现。反馈生成普通UiBatch，handlers仍前端registry。
 延迟dispatch复验runtime／epoch／tree／generation／完整path及handler ID，不重命中新树。
-Schema3增加interaction并Box大Create／Layout载荷，旧schema明确拒绝。
-OS capture/focus／wheel/gesture／IME／accessibility／事件确认和完整native输入tail仍开放；
+Schema3增加interaction并Box大Create／Layout载荷，后续schema4增加窄Scroll操作，旧schema明确拒绝。
+OS capture/focus／scroll latching/inertia／gesture／IME／accessibility／事件确认和完整native输入tail仍开放；
 当前linear hit walk和普通feedback候选成本不宣称达到“99%不卡顿”。
+
+后续[滚轮与祖先滚动](RETAINED_WHEEL_SCROLLING.md)接收host-normalized logical-pixel
+Wheel，按adopted scene命中路径记录target／ancestry，按当前document已提交clamped
+offset与实际layout maximum消耗signed delta，各轴余量独立传祖先。多个事件按序累计，
+host采用落后时也不会从旧offset反复覆盖；不预测新命中几何。UiScrollPlan将窄Scroll和
+style feedback放入同一exact-base batch，stale path／disable／recovery拒绝，普通replay
+不重复滚动。Scroll overflow接收wheel，Hidden只保留程序scroll；StyleRef声明Scroll时
+input不争写，该节点的delta交给祖先。Overflow不会自动生成paint clip／scrollbar chrome。
+每publication扫描并持有稀疏scroll metadata，linear hit与普通owner candidate成本仍在；
+原生跟手p99、惯性／overscroll、renderer-domain direct scroll与owner-stall隔离尚未实现。
 
 命中使用与可见场景对应的 scene revision、变换与 clip，而不是最新构建但尚未显示的树。保存 PresentationRecord，包含 FrameId、采样时间、scene revision、属性覆盖和证据阶段。
 

@@ -3,6 +3,8 @@ use core::prelude::v1::test;
 use gpui::*;
 use gpui_box::retained::{input::*, style::*, ui_ir::*, *};
 use std::{cell::RefCell, rc::Rc};
+#[path = "retained_wheel_input_tests.rs"]
+mod wheel_tests;
 
 const ROOT: UiNodeId = UiNodeId::new(0, 1);
 const BUTTON: UiNodeId = UiNodeId::new(1, 1);

@@ -16,6 +16,11 @@ becomes Create(Box<UiNode>), Layout.value becomes Box<LayoutStyle>; migrate
 constructors accordingly. The input-routing contract specifies host adoption,
 delayed handler validation, supported keys/pointer semantics and open scope.
 
+The later [wheel contract](RETAINED_WHEEL_SCROLLING.md) advances schema3→4 with
+UiOperation::Scroll, replacing only authored offsets. Input scenes own exact
+published scroll extents; adopted targeting and current-offset chained deltas
+plan normal atomic batches. Schemas1/2/3 reject. No wire/foreign ABI is frozen.
+
 ## Public inputs and owner adapter
 
 `retained::ui_ir` supplies `UiSnapshot`, `UiBatch`, `UiNode`, `UiNodeId`,
