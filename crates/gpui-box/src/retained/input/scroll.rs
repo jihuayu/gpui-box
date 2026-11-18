@@ -96,6 +96,13 @@ pub(in crate::retained) fn plan_wheels(
     current: &UiInputScene,
     events: &[UiWheelScroll],
 ) -> Result<WheelPlan, UiInputError> {
+    plan_wheels_with_policy(current, events, false)
+}
+pub(in crate::retained) fn plan_wheels_with_policy(
+    current: &UiInputScene,
+    events: &[UiWheelScroll],
+    skip_stale: bool,
+) -> Result<WheelPlan, UiInputError> {
     let mut offsets = BTreeMap::<UiNodeId, [f32; 2]>::new();
     let mut outcomes = vec![];
     for event in events {
@@ -126,6 +133,15 @@ pub(in crate::retained) fn plan_wheels(
             None => event.route.is_empty(),
         };
         if !valid {
+            if skip_stale {
+                outcomes.push(UiScrollOutcome {
+                    scene: event.scene,
+                    target: event.target,
+                    consumed: [0.0; 2],
+                    remaining: event.delta,
+                });
+                continue;
+            }
             return Err(UiInputError::StaleScrollRoute);
         }
         let mut remaining = event.delta.map(f64::from);
@@ -177,6 +193,13 @@ pub(in crate::retained) fn validate_reveals(
     current: &UiInputScene,
     requests: &[UiFocusReveal],
 ) -> Result<Vec<UiNodeId>, UiInputError> {
+    validate_reveals_with_policy(current, requests, false)
+}
+pub(in crate::retained) fn validate_reveals_with_policy(
+    current: &UiInputScene,
+    requests: &[UiFocusReveal],
+    skip_stale: bool,
+) -> Result<Vec<UiNodeId>, UiInputError> {
     let mut targets = vec![];
     for request in requests {
         if request.scene.runtime != current.id.runtime {
@@ -189,9 +212,15 @@ pub(in crate::retained) fn validate_reveals(
             || request.scene.source_revision > current.id.source_revision
             || request.scene.source_revision == current.id.source_revision
                 && request.scene != current.id
-            || !current.graph.focusable(request.target)
+        {
+            return Err(UiInputError::StaleScrollRoute);
+        }
+        if !current.graph.focusable(request.target)
             || current.graph.path(request.target).as_slice() != request.route.as_ref()
         {
+            if skip_stale {
+                continue;
+            }
             return Err(UiInputError::StaleScrollRoute);
         }
         targets.push(request.target);

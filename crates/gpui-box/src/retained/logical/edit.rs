@@ -942,6 +942,7 @@ impl LogicalUi {
                             .validate_geometry()?;
                     }
                     if let Some(input) = &input {
+                        let effects = input.effects.borrow();
                         let (constraints, viewport) =
                             frame_environment.ok_or(Error::InvalidFrame)?;
                         let registry = input_registry.borrow();
@@ -953,11 +954,18 @@ impl LogicalUi {
                             &controlled,
                         )?;
                         let input::scroll::WheelPlan { offsets, outcomes } =
-                            input::scroll::plan_wheels(&scene, &input.effects.wheel_scrolls)
-                                .map_err(Error::Input)?;
-                        let targets =
-                            input::scroll::validate_reveals(&scene, &input.effects.focus_reveals)
-                                .map_err(Error::Input)?;
+                            input::scroll::plan_wheels_with_policy(
+                                &scene,
+                                &effects.wheel_scrolls,
+                                input.skip_stale,
+                            )
+                            .map_err(Error::Input)?;
+                        let targets = input::scroll::validate_reveals_with_policy(
+                            &scene,
+                            &effects.focus_reveals,
+                            input.skip_stale,
+                        )
+                        .map_err(Error::Input)?;
                         let mapping: BTreeMap<_, _> = scene
                             .identities
                             .iter()
@@ -1101,6 +1109,9 @@ impl LogicalUi {
                 self.scope_mut(owner).renders.push(node);
                 self.render_owners.insert(node, owner);
             }
+        }
+        if let Some(adopted) = input.as_ref().and_then(|input| input.adopted) {
+            adopted();
         }
         Ok(self.ui.finish_edit(pending))
     }

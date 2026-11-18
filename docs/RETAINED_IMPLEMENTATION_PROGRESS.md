@@ -10,6 +10,31 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [combined input stage](RETAINED_INPUT_PROCESSING.md) adds handle_input,
+process_input_effects and adopt_input_scene. One router result's callbacks share
+a source transaction with feedback, producer/layout settlement and defaults.
+Router draft adopts after UI publication before effects/business actions; errors
+retain old state/router/frame. EventContext stop_propagation and supported
+prevent_default distinguish propagation from wheel/reveal/pointer-up activation
+defaults. Wheel dispatch includes logical wheel_delta through pointer handlers.
+Strict initial route validation precedes callbacks; final candidate retirement/
+disable/reparent skips that now-inapplicable default without dropping callback
+state. Existing standalone defaults remain strict. Host image installation and
+input-scene adoption remain explicit evidence, with no adopt-until-stable loop.
+See [verification](performance/2026-11-18-input-pump/README.md).
+Scene/feedback maps, callback lookup, router/effects copy, default preflight and
+normal candidate/layout costs remain; no performance gain claim. This owner pump
+does not install native OS focus/capture/IME/presentation or replace the remaining
+semantics, task scopes, KeepAlive, hooks/macros and source unification work.
+Source schema6/solver/GPU format unchanged; public input types add Wheel/delta.
+Complete RFC stays active.
+Final retained 713 passed/1 ignored, text/WGPU 747/66, hello 81/32; both core
+configurations pass 11 compiler doctests. Explicit input-pump GPU compares three
+complete images and Noto GPU four on GTX1650Ti/Vulkan/571.96. Library Clippy
+-D warnings, complete retained-gpu harness, scoped format/diff, 334 local links
+and five WIP hashes pass. Final validation completed 2026-11-19 +08:00.
+No native cadence/latency or performance gain inferred.
+
 The [LogicalUi style-feedback stage](RETAINED_LOGICAL_STYLE_FEEDBACK.md) adds
 scope/node-owned read-only interaction_state inputs, apply_input_effects and
 edit_input_effects. Shared router booleans preserve caller disabled/selected and

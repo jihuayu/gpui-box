@@ -34,15 +34,25 @@ fn hardware_style_ir_real_noto_matches_direct_reference() {
 }
 #[test]
 fn logical_feedback_real_noto_component_rewrap_matches_complete_reference() {
-    run_logical(false);
+    run_logical(false, false);
 }
 #[cfg(feature = "retained-wgpu")]
 #[test]
 #[ignore = "requires WGPU adapter; run explicitly"]
 fn hardware_logical_feedback_real_noto_matches_complete_reference() {
-    run_logical(true);
+    run_logical(true, false);
 }
-fn run_logical(hardware: bool) {
+#[test]
+fn input_pump_real_noto_component_matches_complete_reference() {
+    run_logical(false, true);
+}
+#[cfg(feature = "retained-wgpu")]
+#[test]
+#[ignore = "requires WGPU adapter; run explicitly"]
+fn hardware_input_pump_real_noto_matches_complete_reference() {
+    run_logical(true, true);
+}
+fn run_logical(hardware: bool, pump: bool) {
     use gpui_box::retained::{input::*, logical::*};
     struct Label;
     impl Component for Label {
@@ -90,10 +100,21 @@ fn run_logical(hardware: bool) {
                 Ok(Some(i.read_prop(props)?.clone()))
             })?;
             cx.bind(text, Property::text(node))?;
+            let handler = cx.event_handler(
+                0,
+                EventHandler::new(move |event, cx| {
+                    if event.kind == UiInputEventKind::PointerDown {
+                        let owned = cx.read_prop(props)?.clone();
+                        cx.after_commit(move || assert_eq!(owned.color, 0x00ffffff));
+                    }
+                    Ok(())
+                }),
+            )?;
             cx.interaction(
                 node,
                 Some(UiInteraction {
                     focus: UiFocusPolicy::Tab,
+                    pointer_handler: Some(handler),
                     ..Default::default()
                 }),
             )?;
@@ -153,8 +174,13 @@ fn run_logical(hardware: bool) {
         (UiInput::PrimaryUp([5.0; 2]), 125.0, 1.0),
         (UiInput::PointerLeave, 60.0, 1.0),
     ] {
-        let effects = router.route(event).unwrap();
-        ui.apply_input_effects(&effects).unwrap();
+        if pump {
+            let commit = ui.handle_input(&mut router, event).unwrap();
+            assert!(commit.delivered > 0);
+        } else {
+            let effects = router.route(event).unwrap();
+            ui.apply_input_effects(&effects).unwrap();
+        }
         let mut full = UiTree::new_layout(root_style.clone(), 0).unwrap();
         full.set_frame_build_policy(FrameBuildPolicy::Full);
         let text = full
@@ -195,9 +221,15 @@ fn run_logical(hardware: bool) {
                     .as_raw()
             );
         }
-        router
-            .adopt(ui.input_scene().unwrap(), UiInputEvidence::ImageInstalled)
-            .unwrap();
+        if pump {
+            let scene = ui.input_scene().unwrap();
+            ui.adopt_input_scene(&mut router, scene, UiInputEvidence::ImageInstalled)
+                .unwrap();
+        } else {
+            router
+                .adopt(ui.input_scene().unwrap(), UiInputEvidence::ImageInstalled)
+                .unwrap();
+        }
     }
     let expected = pixels(initial.resolve());
     drop((ui, prepared, raster, system));

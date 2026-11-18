@@ -130,7 +130,9 @@ usual. The later [LogicalUi scroll-default stage](RETAINED_LOGICAL_SCROLL_DEFAUL
 implements explicit wheel/reveal application over shared UiDocument algorithms.
 The later [style-feedback stage](RETAINED_LOGICAL_STYLE_FEEDBACK.md) adds explicit
 component interaction-state/style bindings and combined feedback/default application.
-A combined callback/native host event pump remains open.
+The later [combined owner input processor](RETAINED_INPUT_PROCESSING.md) handles
+callbacks/feedback/defaults together, with supported propagation/default control.
+The single dispatch API remains independent; native OS event binding stays open.
 Existing UiDocument style planners remain separate. IME, selection, editing,
 multi-pointer gestures, semantics/accessibility, automatic OS host binding and
 task/KeepAlive activation policies also remain. Deactivation cleanup events whose

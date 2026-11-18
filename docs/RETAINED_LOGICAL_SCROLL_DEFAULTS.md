@@ -96,8 +96,9 @@ scroll endpoints. The sparse event registry is cloned for final policy validatio
 ordinary source/producer/candidate/layout costs remain. Reveal can publish geometry
 for multiple ordered targets; no FPS, latency or memory improvement is claimed.
 
-A combined callback/feedback/defaults host pump, prevent-default semantics,
-semantics/accessibility, IME,
+The later [combined owner input processor](RETAINED_INPUT_PROCESSING.md) joins
+callbacks/feedback/defaults and adds supported prevent-default semantics.
+Native OS host binding, semantics/accessibility, IME,
 editing, multipointer, native focus/capture and OS host binding remain open.
 UiDocument and LogicalUi retain separate source models. No Taffy solver, GPU format
 or source schema 6 change. `Error` adds `Input(UiInputError)`.

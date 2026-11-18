@@ -136,6 +136,7 @@ pub enum UiInputEventKind {
     Focus,
     Blur,
     Activate,
+    Wheel,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct UiInputDispatch {
@@ -149,6 +150,18 @@ pub struct UiInputDispatch {
     pub handler: UiHandlerId,
     pub kind: UiInputEventKind,
     pub position: Option<[f32; 2]>,
+    /// Logical-pixel wheel delta; present only for Wheel dispatches.
+    pub wheel_delta: Option<[f32; 2]>,
+}
+impl UiInputDispatch {
+    /// Defaults currently exposed to frontend cancellation: wheel scrolling,
+    /// focus reveal, and synthesized activation after pointer release.
+    pub fn cancelable(&self) -> bool {
+        matches!(
+            self.kind,
+            UiInputEventKind::Wheel | UiInputEventKind::Focus | UiInputEventKind::PointerUp
+        )
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct UiStyleFeedback {
@@ -369,6 +382,7 @@ impl UiInputScene {
                     handler,
                     kind,
                     position,
+                    wheel_delta: None,
                 });
             }
             if matches!(

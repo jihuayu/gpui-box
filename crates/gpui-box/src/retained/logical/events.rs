@@ -14,8 +14,10 @@ pub struct LogicalScrollCommit<R> {
     pub outcomes: Vec<UiScrollOutcome>,
 }
 pub(super) struct ScrollDefaults<'a> {
-    pub effects: &'a UiInputEffects,
+    pub effects: &'a std::cell::RefCell<UiInputEffects>,
     pub outcomes: &'a std::cell::RefCell<Vec<UiScrollOutcome>>,
+    pub skip_stale: bool,
+    pub adopted: Option<&'a dyn Fn()>,
 }
 /// Owner-local immutable callback identity. Clone for equal keyed registration;
 /// replacing this handle reserves a fresh UiHandlerId, never rebinds an old ID.
@@ -38,8 +40,25 @@ impl EventHandler {
 pub struct EventContext<'a, 'ui> {
     tx: &'a mut ReactiveTransaction<'ui>,
     effects: &'a mut Vec<Box<dyn FnOnce()>>,
+    control: &'a mut EventControl,
+    cancelable: bool,
 }
 impl EventContext<'_, '_> {
+    /// Stop the remaining ancestor callbacks for this routed event only.
+    pub fn stop_propagation(&mut self) {
+        self.control.propagation_stopped = true;
+    }
+    /// Cancel a supported default, independently of propagation. Returns false
+    /// for notifications/actions whose default has already happened.
+    pub fn prevent_default(&mut self) -> bool {
+        if self.cancelable {
+            self.control.default_prevented = true;
+        }
+        self.cancelable
+    }
+    pub fn default_prevented(&self) -> bool {
+        self.control.default_prevented
+    }
     pub fn read<T: 'static>(&mut self, signal: Signal<T>) -> Result<&T, Error> {
         self.tx.read(signal)
     }
@@ -441,6 +460,17 @@ impl LogicalUi {
         sources: impl FnOnce(&mut ReactiveTransaction<'_>) -> Result<S, Error>,
         render: impl FnOnce(S, &mut LogicalEdit<'_, '_, '_>) -> Result<R, Error>,
     ) -> Result<LogicalScrollCommit<R>, Error> {
+        let feedback = self.style_feedback(effects)?;
+        self.edit_input_scroll(effects, sources, |value, draft| {
+            let result = render(value, draft)?;
+            draft.stage_style_feedback(&feedback)?;
+            Ok(result)
+        })
+    }
+    fn style_feedback(
+        &self,
+        effects: &UiInputEffects,
+    ) -> Result<Vec<(NodeId, UiStyleFeedback, bool)>, Error> {
         let scene = self.input_scene()?;
         let mapping: BTreeMap<_, _> = scene
             .identities
@@ -462,11 +492,7 @@ impl LogicalUi {
             .into_iter()
             .map(|(node, (value, eligible))| (node, value, eligible))
             .collect();
-        self.edit_input_scroll(effects, sources, |value, draft| {
-            let result = render(value, draft)?;
-            draft.stage_style_feedback(&feedback)?;
-            Ok(result)
-        })
+        Ok(feedback)
     }
     /// Apply wheel and focus-reveal defaults with no application source edits.
     /// The caller still dispatches callbacks and installs the returned current
@@ -493,14 +519,17 @@ impl LogicalUi {
         let constraints = tree.layout_constraints.ok_or(Error::InvalidFrame)?;
         let viewport = tree.viewport.ok_or(Error::InvalidFrame)?;
         let outcomes = std::cell::RefCell::new(vec![]);
+        let effects = std::cell::RefCell::new(effects.clone());
         let edit = self.edit_validated(
             sources,
             render,
             Some((constraints, viewport)),
             None::<fn(&mut UiTree) -> Result<(), Error>>,
             Some(ScrollDefaults {
-                effects,
+                effects: &effects,
                 outcomes: &outcomes,
+                skip_stale: false,
+                adopted: None,
             }),
         )?;
         Ok(LogicalScrollCommit {
@@ -549,6 +578,7 @@ impl LogicalUi {
         let constraints = tree.layout_constraints.ok_or(Error::InvalidFrame)?;
         let viewport = tree.viewport.ok_or(Error::InvalidFrame)?;
         let mut effects = vec![];
+        let mut control = EventControl::default();
         let (commit, _) = self.edit_local_frame(
             constraints,
             viewport,
@@ -558,6 +588,8 @@ impl LogicalUi {
                     &mut EventContext {
                         tx,
                         effects: &mut effects,
+                        control: &mut control,
+                        cancelable: false, // single-dispatch API owns no defaults
                     },
                 )
             },
@@ -572,7 +604,9 @@ impl LogicalUi {
 
 #[cfg(test)]
 mod feedback_tests;
+mod pump;
 #[cfg(test)]
 mod scroll_tests;
 #[cfg(test)]
 mod tests;
+pub use pump::{EventControl, LogicalInputCommit};

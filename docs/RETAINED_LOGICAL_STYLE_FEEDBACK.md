@@ -110,9 +110,10 @@ registered entries. Full style binding creates patches for all covered fields;
 normal value comparison selects P0/P1/P2/layout as appropriate. Even equal output
 can cost source propagation and allocation. No FPS/latency/memory gain is claimed.
 
-The simple explicit host still dispatches callbacks, applies input effects, installs
-the matching complete image, then adopts its input scene. A combined native host
-pump, propagation/prevent-default, cross-thread presentation feedback, IME/editing,
+The later [combined owner input processor](RETAINED_INPUT_PROCESSING.md) joins
+callbacks/feedback/defaults and supports event propagation/default cancellation.
+Its handle_input/adopt_input_scene keep actual image installation explicit.
+Native OS host binding, cross-thread presentation feedback, IME/editing,
 multipointer, semantics/accessibility, full source-model unification, task scopes,
 KeepAlive, hooks/macros and theme inheritance remain open. Source schema stays 6;
 no Taffy solver, GPU format or renderer algorithm changes.

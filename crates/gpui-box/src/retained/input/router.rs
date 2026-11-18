@@ -10,7 +10,7 @@ struct Press {
 /// One primary mouse pointer and one keyboard focus. All methods return owned
 /// dispatch/visual effects; they never invoke user code or mutate UiDocument.
 /// Adopt a scene only when the host installs that complete frame for input.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct UiInputRouter {
     scene: Option<(UiInputScene, UiInputEvidence)>,
     pointer: Option<[f32; 2]>,
@@ -187,6 +187,18 @@ impl UiInputRouter {
                 // Wheel targets geometry under the pointer, independently of
                 // primary capture/focus. No synthetic click or focus transfer.
                 self.move_pointer(position, &mut effects);
+                let first = effects.dispatches.len();
+                if let Some(target) = self.hover {
+                    self.dispatch(
+                        target,
+                        UiInputEventKind::Wheel,
+                        Some(position),
+                        &mut effects,
+                    );
+                }
+                for dispatch in &mut effects.dispatches[first..] {
+                    dispatch.wheel_delta = Some(delta);
+                }
                 let target = self.hover;
                 let route = target.map(|id| self.graph().path(id)).unwrap_or_default();
                 let (scene, evidence) = self.scene.as_ref().unwrap();

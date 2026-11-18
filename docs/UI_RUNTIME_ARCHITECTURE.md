@@ -997,7 +997,15 @@ resolve_values公开为无winner map的纯有效值解析；完整StyleResolutio
 覆盖layout／visual并拒绝重叠binding，without_scroll入口保留默认或独立scroll writer。
 Sparse registry随candidate／scope退休，不给每个render node加字段。当前scene map、
 eligibility preview和普通source／candidate成本仍在，无性能收益声明。
-合并callback/default的native host pump、IME／semantics／native host接入、
+后续 [统一owner输入处理](RETAINED_INPUT_PROCESSING.md) 增加handle_input／
+process_input_effects／adopt_input_scene，同一router result中的callbacks共享source事务，
+feedback／producer／Flex／defaults一次采用。Router draft在完整UI采用后、普通effects与
+after_commit之前采用；失败保留原router／state／frame。支持独立stop_propagation与有限
+prevent_default：wheel scroll、focus reveal、pointer-up后的合成activation。Wheel通过
+pointer handler携带logical delta。初始路由先严格校验，最终candidate让target退休／禁用／
+改parent时跳过对应default并保留已成功的callback状态。Host仍须实际安装画面再采用scene，
+无自动fixed-point adoption循环。Current maps／registry lookup／copy及正常candidate成本仍在。
+native OS host pump、IME／semantics／native host接入、
 task／KeepAlive activation与完整UiDocument输入模型统一仍开放，source schema6和内核不变。
 
 ## 6. 样式 API：参考 StyleX，输出原生 Style IR
