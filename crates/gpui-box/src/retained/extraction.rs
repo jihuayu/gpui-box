@@ -29,6 +29,7 @@ impl UiTree {
             let spatial = &mut item.spatial;
             spatial.translation = node.translation;
             spatial.clip = node.clip;
+            spatial.overflow_clip = OverflowClip::from_layout(&node.style, &node.published_layout);
             // No layout input changed, so the published clamped scroll extent
             // is still valid; the requested offset itself may have changed.
             let layout = &node.published_layout;
@@ -88,12 +89,13 @@ impl UiTree {
             };
             item.bounds.x = x;
             item.bounds.y = y;
+            item.content_clip = spatial.content_clip([x, y], item.clip);
             item.content_bounds.x = (x + item.content_offsets[0]) + item.content_offsets[2];
             item.content_bounds.y = (y + item.content_offsets[1]) + item.content_offsets[3];
             stack.push((
                 Some(item.node),
                 [x - spatial.scroll[0], y - spatial.scroll[1]],
-                item.clip,
+                item.content_clip,
                 state,
             ));
             result.push(item);
@@ -176,6 +178,8 @@ impl UiTree {
                 (Some(a), Some(b)) => Some(a.intersect(b)),
                 (a, b) => a.or(b),
             };
+            let overflow_clip = OverflowClip::from_layout(&node.style, &layout);
+            let content_clip = overflow_clip.map_or(clip, |value| value.apply(clip, [x, y]));
             let effect_property = (node.opacity != 1.0).then_some(PropertyNode {
                 parent: state.effect,
                 value: node.opacity,
@@ -205,7 +209,7 @@ impl UiTree {
             if descendants {
                 let children = self.ordered_children_for(id, &node.children)?;
                 for child in children.iter().rev() {
-                    stack.push((*child, [x - scroll[0], y - scroll[1]], clip, state));
+                    stack.push((*child, [x - scroll[0], y - scroll[1]], content_clip, state));
                 }
             }
             let spatial = SpatialState {
@@ -214,6 +218,7 @@ impl UiTree {
                 translation: node.translation,
                 scroll,
                 clip: node.clip,
+                overflow_clip,
                 root_clip: node.parent.is_none().then_some(inherited_clip).flatten(),
             };
             let node = self.node_mut(id);
@@ -288,6 +293,7 @@ impl UiTree {
                         .max(0.0),
                 },
                 clip,
+                content_clip,
                 properties: paint_state,
                 spatial,
             });

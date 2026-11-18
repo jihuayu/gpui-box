@@ -149,7 +149,7 @@ impl LocalFrame {
         let inherited = match self.0.topology.parents[range.start] {
             Some(parent) => {
                 self.resolve_geometry(self.0.template.items[parent].node)?
-                    .clip
+                    .content_clip
             }
             None => b.spatial.root_clip,
         };
@@ -336,7 +336,11 @@ impl LocalFrame {
                 ..item.content_bounds
             };
             spatial::validate_geometry(bounds, content_bounds, clip, spatial)?;
-            stack.push((i, [x - spatial.scroll[0], y - spatial.scroll[1]], clip));
+            stack.push((
+                i,
+                [x - spatial.scroll[0], y - spatial.scroll[1]],
+                spatial.content_clip([x, y], clip),
+            ));
         }
         Ok(())
     }
@@ -412,11 +416,12 @@ impl LocalFrame {
         };
         item.bounds.x = x;
         item.bounds.y = y;
+        item.content_clip = spatial.content_clip([x, y], item.clip);
         item.content_bounds.x = (x + item.content_offsets[0]) + item.content_offsets[2];
         item.content_bounds.y = (y + item.content_offsets[1]) + item.content_offsets[3];
         let context = Context {
             origin: [x - spatial.scroll[0], y - spatial.scroll[1]],
-            clip: item.clip,
+            clip: item.content_clip,
             state,
         };
         (item, context)
@@ -689,6 +694,8 @@ impl UiTree {
             let mut value = previous.clone();
             value.spatial.translation = node.translation;
             value.spatial.clip = node.clip;
+            value.spatial.overflow_clip =
+                OverflowClip::from_layout(&node.style, &node.published_layout);
             value.spatial.scroll = [
                 node.scroll[0].min(node.published_layout.scroll_width()),
                 node.scroll[1].min(node.published_layout.scroll_height()),

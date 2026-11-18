@@ -293,7 +293,11 @@ impl UiTree {
                     node.scroll[1].min(layout.scroll_height()),
                 ]
             };
-            if node.published_origin != node.layout_origin || scroll(old) != scroll(new) {
+            if node.published_origin != node.layout_origin
+                || scroll(old) != scroll(new)
+                || OverflowClip::from_layout(&node.style, old)
+                    != OverflowClip::from_layout(&node.style, new)
+            {
                 self.property_dirty.insert(*id);
             } else if old.size != new.size
                 || old.padding != new.padding

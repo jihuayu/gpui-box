@@ -45,8 +45,8 @@ impl Fixture {
                                 height: Dimension::length(18.0),
                             },
                             min_size: Size {
-                                width: LengthPercentageAuto::length(0.0),
-                                height: LengthPercentageAuto::length(0.0),
+                                width: Dimension::length(0.0),
+                                height: Dimension::length(0.0),
                             },
                             flex_shrink: 0.0,
                             ..Style::default()
@@ -84,6 +84,7 @@ impl Fixture {
                 },
                 |input, _id, context, style| {
                     work.leaf_layouts += 1;
+                    let intrinsic_width = context.copied().unwrap_or(0.0);
                     taffy::compute_leaf_layout(
                         input,
                         style,
@@ -91,7 +92,7 @@ impl Fixture {
                         |known, _available| {
                             work.measures += 1;
                             Size {
-                                width: known.width.unwrap_or(context.copied().unwrap_or(0.0)),
+                                width: known.width.unwrap_or(intrinsic_width),
                                 height: known.height.unwrap_or(18.0),
                             }
                         },

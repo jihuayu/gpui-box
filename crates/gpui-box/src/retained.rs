@@ -66,8 +66,10 @@ pub use parent_layout::{
 mod primitive;
 mod properties;
 pub use primitive::{BoxShadow, QuadDecoration, ShadowGeometry};
+#[cfg(test)]
+mod overflow_tests;
 mod spatial;
-pub use spatial::SpatialState;
+pub use spatial::{OverflowClip, SpatialState};
 mod pixel_snap;
 pub use pixel_snap::PixelSnap;
 mod edit;
@@ -129,6 +131,9 @@ pub struct PaintItem {
     /// Border x/y followed by padding x/y; preserve resolved f32 addition order.
     pub content_offsets: [f32; 4],
     pub clip: Option<Rect>,
+    /// Effective viewport for this node's image/glyphs and all descendants.
+    /// The ordinary clip above still controls its background/border/shadows.
+    pub content_clip: Option<Rect>,
     pub properties: PropertyState,
     /// Local render placement, separate from resolved paint/hit geometry.
     pub spatial: SpatialState,
@@ -1237,6 +1242,7 @@ impl UiTree {
                 let layout = node.layout;
                 let display_changed = node.style.display != style.display;
                 let content_side_changed = node.style.direction != style.direction;
+                let overflow_changed = node.style.overflow != style.overflow;
                 if matches!(snapshot, Some(MeasureSnapshot::Content(_))) {
                     self.content_measures.insert(id);
                 } else {
@@ -1249,10 +1255,18 @@ impl UiTree {
                     )
                     .expect("prepared content measurement");
                 self.full_extract_required |= display_changed;
+                if overflow_changed {
+                    self.property_dirty.insert(id);
+                }
                 // A direction change can move leaf text/images across an RTL
                 // gutter while all scalar layout fields stay equal.
                 if content_side_changed {
                     self.geometry_dirty.insert(id);
+                    if style.overflow.x != taffy::Overflow::Visible
+                        || style.overflow.y != taffy::Overflow::Visible
+                    {
+                        self.property_dirty.insert(id);
+                    }
                 }
                 self.layout
                     .set_style_shared(layout, measure::effective_style(&style, snapshot.as_ref()))
@@ -1525,6 +1539,7 @@ impl UiTree {
                             || old.content_bounds != item.content_bounds
                             || old.content_offsets != item.content_offsets
                             || old.clip != item.clip
+                            || old.content_clip != item.content_clip
                     })
                     .then_some(index)
             })

@@ -28,7 +28,7 @@ struct Varying {
         let placement = spatial_resolve(property.spatial - 1u);
         content_origin = (placement.origin + property.clip.xy) + property.clip.zw;
         has_clip = select(0u, 1u, placement.has_clip);
-        clip = vec4(placement.clip.origin * spatial_settings.x, placement.clip.size * spatial_settings.x);
+        clip = vec4(placement.content_clip.origin * spatial_settings.x, placement.content_clip.size * spatial_settings.x);
     }
     let baseline = (glyph.bounds.xy + content_origin) * property.scale;
     // Match Rust f32::round: ties away from zero, including negative positions.

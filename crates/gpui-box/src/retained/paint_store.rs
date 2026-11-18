@@ -345,6 +345,7 @@ impl UiTree {
                 || old.content_bounds != item.content_bounds
                 || old.content_offsets != item.content_offsets
                 || old.clip != item.clip
+                || old.content_clip != item.content_clip
                 || old.commands != item.commands
                 || old.fill_color != item.fill_color
                 || old.shadows != item.shadows
@@ -485,7 +486,7 @@ impl UiTree {
                 item.bounds.x - node.scroll[0].min(layout.scroll_width()),
                 item.bounds.y - node.scroll[1].min(layout.scroll_height()),
             ],
-            item.clip,
+            item.content_clip,
             state,
         ))
     }

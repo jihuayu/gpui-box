@@ -20,6 +20,7 @@ pub(super) struct Resolved {
     pub origin: [f32; 2],
     pub scroll: [f32; 2],
     pub clip: Option<[f32; 4]>,
+    pub content_clip: Option<[f32; 4]>,
 }
 #[derive(Clone, Copy, Default)]
 struct Scratch {
@@ -164,11 +165,14 @@ impl GraphIndex {
             if !state.origin.iter().all(|v| (*v * scale).is_finite()) {
                 return Err("scaled spatial origin overflow");
             }
-            if let Some(c) = state.clip
-                && ![c[0], c[1], c[2], c[3], c[0] + c[2], c[1] + c[3]]
+            if node.links[2] & 48 != 0 && state.clip.is_none() {
+                return Err("overflow requires a finite inherited clip");
+            }
+            if state.clip.into_iter().chain(state.content_clip).any(|c| {
+                ![c[0], c[1], c[2], c[3], c[0] + c[2], c[1] + c[3]]
                     .iter()
                     .all(|v| (*v * scale).is_finite())
-            {
+            }) {
                 return Err("spatial clip overflow");
             }
             self.scratch[slot as usize] = Scratch {
@@ -284,6 +288,9 @@ pub(super) fn validate_projected(nodes: &[SpatialNode], scale: f32) -> Result<()
         let node = nodes[slot];
         let parent = (node.links[2] & 2 == 0).then(|| resolved[node.links[0] as usize]);
         let state = resolve_node(node, parent);
+        if node.links[2] & 48 != 0 && state.clip.is_none() {
+            return Err("overflow requires a finite inherited clip");
+        }
         if !state
             .origin
             .iter()
@@ -291,11 +298,11 @@ pub(super) fn validate_projected(nodes: &[SpatialNode], scale: f32) -> Result<()
         {
             return Err("scaled spatial origin overflow");
         }
-        if let Some(c) = state.clip
-            && ![c[0], c[1], c[2], c[3], c[0] + c[2], c[1] + c[3]]
+        if state.clip.into_iter().chain(state.content_clip).any(|c| {
+            ![c[0], c[1], c[2], c[3], c[0] + c[2], c[1] + c[3]]
                 .iter()
                 .all(|v| (*v * scale).is_finite())
-        {
+        }) {
             return Err("spatial clip overflow");
         }
         resolved[slot] = state;
@@ -326,6 +333,11 @@ pub(super) fn resolve_node(node: SpatialNode, parent: Option<Resolved>) -> Resol
             origin: [node.anchor_origin[0], node.anchor_origin[1]],
             scroll: [node.scroll[0], node.scroll[1]],
             clip: (node.links[2] & 8 != 0).then_some(node.anchor_clip),
+            content_clip: overflow_clip(
+                node,
+                [node.anchor_origin[0], node.anchor_origin[1]],
+                (node.links[2] & 8 != 0).then_some(node.anchor_clip),
+            ),
         };
     };
     let mut origin = parent.origin;
@@ -333,7 +345,7 @@ pub(super) fn resolve_node(node: SpatialNode, parent: Option<Resolved>) -> Resol
         *value = (*value - parent.scroll[axis]) + node.layout_translation[axis];
         *value += node.layout_translation[axis + 2];
     }
-    let mut clip = parent.clip;
+    let mut clip = parent.content_clip;
     if node.links[2] & 1 != 0 {
         let mut own = node.clip;
         own[0] += origin[0];
@@ -355,7 +367,28 @@ pub(super) fn resolve_node(node: SpatialNode, parent: Option<Resolved>) -> Resol
         origin,
         scroll: [node.scroll[0], node.scroll[1]],
         clip,
+        content_clip: overflow_clip(node, origin, clip),
     }
+}
+
+pub(super) fn overflow_clip(
+    node: SpatialNode,
+    origin: [f32; 2],
+    clip: Option<[f32; 4]>,
+) -> Option<[f32; 4]> {
+    clip.map(|mut clip| {
+        for axis in 0..2 {
+            if node.links[2] & (16 << axis) != 0 {
+                let start = clip[axis].max(origin[axis] + node.overflow_clip[axis]);
+                clip[axis + 2] = (clip[axis] + clip[axis + 2])
+                    .min((origin[axis] + node.overflow_clip[axis]) + node.overflow_clip[axis + 2])
+                    .max(start)
+                    - start;
+                clip[axis] = start;
+            }
+        }
+        clip
+    })
 }
 
 #[derive(Default)]

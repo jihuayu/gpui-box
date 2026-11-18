@@ -1,6 +1,65 @@
 //! Local placement survives inherited world-position and clip changes.
 use super::*;
 
+/// Axis-selective content viewport in local border coordinates. Overflow clips
+/// content and descendants, while the node's border/background/shadows retain
+/// the ordinary explicit/inherited clip. Unrestricted axes use that finite clip.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct OverflowClip {
+    pub bounds: Rect,
+    pub axes: [bool; 2],
+}
+impl OverflowClip {
+    pub(super) fn from_layout(style: &taffy::Style, layout: &taffy::Layout) -> Option<Self> {
+        let axes = [
+            style.overflow.x != taffy::Overflow::Visible,
+            style.overflow.y != taffy::Overflow::Visible,
+        ];
+        axes.iter().any(|axis| *axis).then(|| Self {
+            bounds: Rect {
+                x: layout.border.left
+                    + if style.direction == taffy::Direction::Rtl {
+                        layout.scrollbar_size.width
+                    } else {
+                        0.0
+                    },
+                y: layout.border.top,
+                width: (layout.size.width
+                    - layout.border.left
+                    - layout.border.right
+                    - layout.scrollbar_size.width)
+                    .max(0.0),
+                height: (layout.size.height
+                    - layout.border.top
+                    - layout.border.bottom
+                    - layout.scrollbar_size.height)
+                    .max(0.0),
+            },
+            axes,
+        })
+    }
+
+    // Producers always install a finite root viewport. Consumers reject a
+    // missing finite clip when overflow is present; no artificial infinity is
+    // needed to express a Visible axis.
+    pub(super) fn apply(self, inherited: Option<Rect>, origin: [f32; 2]) -> Option<Rect> {
+        inherited.map(|mut clip| {
+            let own = self.bounds.translated(origin);
+            if self.axes[0] {
+                let x = clip.x.max(own.x);
+                clip.width = (clip.x + clip.width).min(own.x + own.width).max(x) - x;
+                clip.x = x;
+            }
+            if self.axes[1] {
+                let y = clip.y.max(own.y);
+                clip.height = (clip.y + clip.height).min(own.y + own.height).max(y) - y;
+                clip.y = y;
+            }
+            clip
+        })
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct SpatialState {
     pub parent: Option<NodeId>,
@@ -10,6 +69,7 @@ pub struct SpatialState {
     pub scroll: [f32; 2],
     /// Clip in this node's local border coordinates.
     pub clip: Option<Rect>,
+    pub overflow_clip: Option<OverflowClip>,
     /// The producer viewport, carried only by the root.
     pub root_clip: Option<Rect>,
 }
@@ -29,6 +89,9 @@ pub(super) fn validate_geometry(
         clip,
         spatial.clip.map(|rect| rect.translated(origin)),
         spatial.root_clip,
+        spatial
+            .overflow_clip
+            .map(|value| value.bounds.translated(origin)),
     ]
     .into_iter()
     .flatten()
@@ -36,6 +99,9 @@ pub(super) fn validate_geometry(
         if !rect.valid() {
             return Err(Error::InvalidFrame);
         }
+    }
+    if spatial.overflow_clip.is_some() && clip.is_none() {
+        return Err(Error::InvalidFrame);
     }
     if spatial
         .layout_origin
@@ -51,6 +117,13 @@ pub(super) fn validate_geometry(
     Ok(())
 }
 
+impl SpatialState {
+    pub(super) fn content_clip(&self, origin: [f32; 2], clip: Option<Rect>) -> Option<Rect> {
+        self.overflow_clip
+            .map_or(clip, |value| value.apply(clip, origin))
+    }
+}
+
 #[cfg(all(feature = "retained-wgpu", not(target_family = "wasm")))]
 impl SpatialState {
     pub(super) fn resolve(&self, parent: Option<&PaintItem>) -> ([f32; 2], Option<Rect>) {
@@ -64,7 +137,7 @@ impl SpatialState {
             origin[0] + self.layout_origin[0] + self.translation[0],
             origin[1] + self.layout_origin[1] + self.translation[1],
         ];
-        let inherited = parent.map_or(self.root_clip, |parent| parent.clip);
+        let inherited = parent.map_or(self.root_clip, |parent| parent.content_clip);
         let own = self.clip.map(|clip| clip.translated(origin));
         let clip = match (inherited, own) {
             (Some(a), Some(b)) => Some(a.intersect(b)),

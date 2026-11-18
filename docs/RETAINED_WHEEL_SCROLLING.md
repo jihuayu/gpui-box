@@ -43,9 +43,10 @@ declaration of ownership. This prevents silently writing an authored offset that
 styles immediately override. Frontends wanting wheel-managed scroll leave that
 property out of StyleRef and use the authored scroll field.
 
-Overflow is a layout/scroll contract, not automatic paint clipping. Existing
-explicit clip/property behavior is unchanged; applications still author the
-intended viewport clip. No scrollbar chrome is added.
+The follow-up [automatic overflow viewport](RETAINED_OVERFLOW_VIEWPORTS.md) clips
+own content and descendants on non-Visible axes, preserving host border/shadow.
+Explicit clips intersect that viewport; applications no longer need to author
+one for an ordinary Scroll host. No scrollbar chrome is added.
 
 ## Planning and atomic application
 

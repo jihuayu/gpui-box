@@ -246,6 +246,7 @@ impl SoftwareJob {
             || !item.bounds.valid()
             || !item.content_bounds.valid()
             || item.clip.is_some_and(|r| !r.valid())
+            || item.content_clip.is_some_and(|r| !r.valid())
             || item.commands.len() > 64
         {
             return Err(SoftwareError::InvalidFrame);
@@ -450,7 +451,12 @@ impl SoftwareJob {
             return Err(SoftwareError::InvalidFrame);
         }
         let item = &self.packet.items[index];
-        let clip = item.clip.map(|r| scaled(r, self.options.scale));
+        let clip = if matches!(op, Op::Quad(_, _)) {
+            item.clip
+        } else {
+            item.content_clip
+        }
+        .map(|r| scaled(r, self.options.scale));
         if self.area.is_none() {
             let mut ink = bounds;
             if let Some(clip) = clip {

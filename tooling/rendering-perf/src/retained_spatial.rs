@@ -127,7 +127,10 @@ pub(super) fn run(
                     assert!(submit.gpu.spatial_upload_bytes > 0);
                 }
                 if shared && [1, 2, 3, 5, 7, 8].contains(&step) {
-                    assert_eq!(submit.gpu.spatial_upload_bytes, 96);
+                    assert_eq!(
+                        submit.gpu.spatial_upload_bytes,
+                        std::mem::size_of::<gpui_wgpu::SpatialNode>() as u64
+                    );
                 }
                 if step == 5 {
                     assert_eq!(submit.gpu.rasterized_layers, 1);
@@ -247,7 +250,7 @@ pub(super) fn run(
     let submit = gpu.submit(&frame, [128, 96], 1.0)?.unwrap();
     assert_eq!(
         (submit.gpu.uploaded_bytes, submit.gpu.spatial_upload_bytes),
-        (0, 3 * 96)
+        (0, 3 * std::mem::size_of::<gpui_wgpu::SpatialNode>() as u64)
     );
     assert_eq!(gpu.image()?.get_pixel(25, 25).0, [255, 0, 0, 255]);
     compare(
@@ -657,7 +660,7 @@ fn benchmark_impl(
                     } else if publication || routing || mode == 0 {
                         assert_eq!(
                             (submit.gpu.uploaded_bytes, submit.gpu.spatial_upload_bytes),
-                            (0, 96)
+                            (0, std::mem::size_of::<gpui_wgpu::SpatialNode>() as u64)
                         );
                     } else {
                         assert_eq!(submit.gpu.uploaded_bytes, (count as u64 + 1) * 160);

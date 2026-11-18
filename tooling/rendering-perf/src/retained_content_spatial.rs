@@ -849,7 +849,10 @@ pub(super) fn benchmark() -> Result<serde_json::Value, Box<dyn Error>> {
                         let s = submit.gpu;
                         assert!(!submit.full_resync);
                         if workload != "single_text_color" {
-                            assert_eq!(s.spatial_upload_bytes, 96);
+                            assert_eq!(
+                                s.spatial_upload_bytes,
+                                std::mem::size_of::<gpui_wgpu::SpatialNode>() as u64
+                            );
                             assert_eq!(
                                 s.image_geometry_bytes,
                                 if mode == 0 { 0 } else { count as u64 * 48 }

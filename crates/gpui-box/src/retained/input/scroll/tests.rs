@@ -20,23 +20,11 @@ fn snapshot() -> UiSnapshot {
     outer.children = vec![INNER, TAIL];
     outer.properties.color = 0x334455ff;
     outer.properties.opacity = 0.8;
-    outer.properties.clip = Some(Rect {
-        x: 0.0,
-        y: 0.0,
-        width: 80.0,
-        height: 60.0,
-    });
     let mut inner = UiNode::new(
         INNER,
         fixed(70.0, 40.0).overflow(LayoutOverflow::Scroll, LayoutOverflow::Scroll),
     );
     inner.children = vec![LEAF];
-    inner.properties.clip = Some(Rect {
-        x: 0.0,
-        y: 0.0,
-        width: 70.0,
-        height: 40.0,
-    });
     let mut leaf = UiNode::new(LEAF, fixed(100.0, 100.0));
     leaf.properties.color = 0xff0000ff;
     leaf.interaction.focus = UiFocusPolicy::Tab;

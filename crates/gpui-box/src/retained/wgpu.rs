@@ -716,6 +716,7 @@ impl WgpuFrameRenderer {
                         && a.content_bounds == b.content_bounds
                         && a.content_offsets == b.content_offsets
                         && a.clip == b.clip
+                        && a.content_clip == b.content_clip
                         && a.spatial == b.spatial
                         && a.properties == b.properties
                         && a.fill_color == b.fill_color
@@ -1251,7 +1252,7 @@ fn image_updates(
             size: image.size(),
             rgba: image.pixels().clone(),
             bounds: rect(item.content_bounds),
-            clip: rect(item.clip.unwrap_or(item.bounds)),
+            clip: rect(item.content_clip.unwrap_or(item.bounds)),
         });
     }
     Ok(updates)
@@ -1307,7 +1308,7 @@ fn glyph_updates(
                 continue;
             };
             let chunk = item.glyphs.as_ref().ok_or(Error::InvalidFrame)?;
-            let clip = item.clip.unwrap_or(Rect {
+            let clip = item.content_clip.unwrap_or(Rect {
                 x: 0.0,
                 y: 0.0,
                 width: i32::MAX as f32 / scale,

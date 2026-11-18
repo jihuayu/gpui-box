@@ -422,9 +422,11 @@ pub enum LayoutDirection {
     Rtl,
 }
 
-/// Layout-affecting overflow behavior. Painting and scrolling remain owned by
-/// the property/scroll stages; the value here controls flex automatic minimums
-/// and Taffy's overflow-aware sizing.
+/// Layout and content-viewport overflow behavior. Non-Visible axes clip own
+/// image/glyph content and descendants to the padding viewport, excluding border
+/// and reserved gutters. Own background/border/shadows retain the ordinary
+/// explicit/inherited clip. Visible axes remain unrestricted by this viewport.
+/// Sizing/minimums remain Taffy's; scrolling is an independent visual property.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Overflow {
     Visible,

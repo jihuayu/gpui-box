@@ -265,6 +265,7 @@ impl LocalInk {
         let ink = item.ink_bounds();
         let mut raw = item.clone();
         raw.clip = None;
+        raw.content_clip = None;
         // Invisible ancestors still participate in child origin arithmetic.
         let raw = Some(
             raw.ink_bounds()
@@ -285,7 +286,9 @@ impl LocalInk {
             .copied()
             .all(int)
             && spatial.clip.is_none_or(rect)
+            && spatial.overflow_clip.is_none_or(|value| rect(value.bounds))
             && item.clip.is_none_or(rect)
+            && item.content_clip.is_none_or(rect)
             && rect(item.bounds)
             && raw.is_none_or(rect)
             && item.image.is_none()

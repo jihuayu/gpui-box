@@ -21,12 +21,6 @@ impl ScrollState {
                 .overflow(LayoutOverflow::Hidden, LayoutOverflow::Scroll),
         );
         host.children = vec![CONTENT];
-        host.properties.clip = Some(Rect {
-            x: 0.0,
-            y: 0.0,
-            width: 100.0,
-            height: 50.0,
-        });
         let mut content = UiNode::new(
             CONTENT,
             LayoutStyle::column()

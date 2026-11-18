@@ -52,7 +52,7 @@ pub(super) fn run(
         (240, taffy::Direction::Rtl, "responsive-rtl"),
     ] {
         let mut environment = LayoutEnvironment::new([width as f32, 96.0]);
-        environment.direction = direction;
+        environment.direction = direction.into();
         let result = responsive.frame(&mut ui, &environment)?;
         renderer.submit(&result.frame, [width, 96], 1.0)?;
         compare(
@@ -72,7 +72,7 @@ pub(super) fn run(
         }
     }
     let mut environment = LayoutEnvironment::new([240.0, 96.0]);
-    environment.direction = taffy::Direction::Rtl;
+    environment.direction = taffy::Direction::Rtl.into();
     let idle = responsive.frame(&mut ui, &environment)?;
     assert_eq!((idle.layout_runs, idle.changed_styles), (0, 0));
     assert!(renderer.submit(&idle.frame, [240, 96], 1.0)?.is_none());

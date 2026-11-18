@@ -182,6 +182,12 @@ pub(super) fn validate_header(
 }
 
 pub(super) fn validate_item(item: &PaintItem, scale: f32) -> Result<(), Error> {
+    crate::retained::spatial::validate_geometry(
+        item.bounds,
+        item.content_bounds,
+        item.clip,
+        &item.spatial,
+    )?;
     #[cfg(feature = "retained-text")]
     if item.text.is_some() != item.glyphs.is_some()
         || item
@@ -226,9 +232,17 @@ pub(super) fn validate_item(item: &PaintItem, scale: f32) -> Result<(), Error> {
             return Err(Error::InvalidFrame);
         }
     }
-    for b in [Some(item.bounds), Some(item.content_bounds), item.clip]
-        .into_iter()
-        .flatten()
+    for b in [
+        Some(item.bounds),
+        Some(item.content_bounds),
+        item.clip,
+        item.content_clip,
+        item.spatial
+            .overflow_clip
+            .map(|value| value.bounds.translated([item.bounds.x, item.bounds.y])),
+    ]
+    .into_iter()
+    .flatten()
     {
         if !b.valid()
             || [b.x, b.y, b.width, b.height, b.x + b.width, b.y + b.height]
@@ -259,6 +273,7 @@ fn validate_spatial(
             .clip
             .into_iter()
             .chain(spatial.root_clip)
+            .chain(spatial.overflow_clip.map(|value| value.bounds))
             .any(|b| !b.valid())
     {
         return Err(Error::InvalidFrame);
@@ -276,7 +291,11 @@ fn validate_spatial(
         None
     };
     let (origin, clip) = spatial.resolve(parent);
-    if origin != [item.bounds.x, item.bounds.y] || clip != item.clip {
+    if origin != [item.bounds.x, item.bounds.y]
+        || clip != item.clip
+        || spatial.content_clip(origin, clip) != item.content_clip
+        || spatial.overflow_clip.is_some() && clip.is_none()
+    {
         return Err(Error::InvalidFrame);
     }
     Ok(())
@@ -343,6 +362,7 @@ fn validate_delta(
                         || value.content_bounds != item.content_bounds
                         || value.content_offsets != item.content_offsets
                         || value.clip != item.clip
+                        || value.content_clip != item.content_clip
                         || value.properties != item.properties
                 })
             {

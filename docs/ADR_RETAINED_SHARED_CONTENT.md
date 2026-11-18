@@ -2,6 +2,10 @@
 
 Status: implemented; [hardware and timing evidence](performance/2026-11-12-shared-content/README.md).
 
+Follow-up: [automatic overflow viewports](RETAINED_OVERFLOW_VIEWPORTS.md) extend
+the spatial node96→112bytes and distinguish ordinary from content/child clip.
+The96-byte description/evidence below records the original stage, not current size.
+
 ## Context and requirements
 
 Quad/Shadow already use shared 96-byte placement nodes, but each image and text

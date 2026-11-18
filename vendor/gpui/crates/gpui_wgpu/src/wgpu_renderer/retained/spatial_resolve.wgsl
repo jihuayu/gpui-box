@@ -5,11 +5,28 @@ struct SpatialNode {
     clip: vec4<f32>,
     anchor_clip: vec4<f32>,
     anchor_origin: vec4<f32>,
+    overflow_clip: vec4<f32>,
     links: vec4<u32>,
 }
 @group(2) @binding(2) var<storage, read> spatial_nodes: array<SpatialNode>;
 @group(2) @binding(3) var<uniform> spatial_settings: vec4<f32>;
-struct SpatialResult { origin: vec2<f32>, clip: Bounds, has_clip: bool }
+struct SpatialResult { origin: vec2<f32>, clip: Bounds, has_clip: bool, content_clip: Bounds }
+
+fn spatial_content_clip(node: SpatialNode, origin: vec2<f32>, clip: Bounds) -> Bounds {
+    var result = clip;
+    let own = origin + node.overflow_clip.xy;
+    if ((node.links.z & 16u) != 0u) {
+        let start = max(clip.origin.x, own.x);
+        result.size.x = max(start, min(clip.origin.x + clip.size.x, own.x + node.overflow_clip.z)) - start;
+        result.origin.x = start;
+    }
+    if ((node.links.z & 32u) != 0u) {
+        let start = max(clip.origin.y, own.y);
+        result.size.y = max(start, min(clip.origin.y + clip.size.y, own.y + node.overflow_clip.w)) - start;
+        result.origin.y = start;
+    }
+    return result;
+}
 
 fn spatial_resolve(slot: u32) -> SpatialResult {
     var path: array<u32, 32>;
@@ -27,6 +44,7 @@ fn spatial_resolve(slot: u32) -> SpatialResult {
     result.origin = anchor.anchor_origin.xy;
     result.clip = Bounds(anchor.anchor_clip.xy, anchor.anchor_clip.zw);
     result.has_clip = (anchor.links.z & 8u) != 0u;
+    result.content_clip = spatial_content_clip(anchor, result.origin, result.clip);
     var scroll = anchor.scroll.xy;
     // Reproduce producer root-to-leaf f32 operation order, then scale once.
     loop {
@@ -35,6 +53,7 @@ fn spatial_resolve(slot: u32) -> SpatialResult {
         let node = spatial_nodes[path[count - 1u]];
         result.origin = (result.origin - scroll) + node.layout_translation.xy;
         result.origin += node.layout_translation.zw;
+        result.clip = result.content_clip;
         if ((node.links.z & 1u) != 0u) {
             let origin = result.origin + node.clip.xy;
             if (result.has_clip) {
@@ -46,6 +65,7 @@ fn spatial_resolve(slot: u32) -> SpatialResult {
                 result.has_clip = true;
             }
         }
+        result.content_clip = spatial_content_clip(node, result.origin, result.clip);
         scroll = node.scroll.xy;
     }
     return result;

@@ -7,6 +7,8 @@ use std::{borrow::Cow, sync::Arc};
 mod build_plan_text_tests;
 #[path = "retained_grid_policy_text_tests.rs"]
 mod grid_policy_text_tests;
+#[path = "retained_overflow_text_tests.rs"]
+mod overflow_text_tests;
 #[path = "retained_style_ir_text_tests.rs"]
 mod style_ir_text_tests;
 #[path = "retained_ui_ir_text_tests.rs"]

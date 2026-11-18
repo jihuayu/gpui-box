@@ -95,6 +95,9 @@ impl SpatialArena {
             } else {
                 [0.0; 4]
             },
+            overflow_clip: spatial
+                .overflow_clip
+                .map_or([0.0; 4], |value| rect(value.bounds)),
             links: [
                 if anchor {
                     u32::MAX
@@ -102,11 +105,13 @@ impl SpatialArena {
                     parent.unwrap().0.slot
                 },
                 depth,
-                if anchor {
+                (if anchor {
                     2 | if clip.is_some() { 8 } else { 0 }
                 } else {
                     u32::from(spatial.clip.is_some())
-                },
+                }) | spatial.overflow_clip.map_or(0, |value| {
+                    (u32::from(value.axes[0]) << 4) | (u32::from(value.axes[1]) << 5)
+                }),
                 0,
             ],
         };

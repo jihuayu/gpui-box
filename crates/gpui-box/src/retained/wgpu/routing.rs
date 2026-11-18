@@ -45,6 +45,7 @@ impl Snapshot {
                     && a.content_bounds == b.content_bounds
                     && a.content_offsets == b.content_offsets
                     && a.clip == b.clip
+                    && a.content_clip == b.content_clip
                     && a.spatial == b.spatial
                     && a.properties == b.properties
                     && a.fill_color == b.fill_color
@@ -202,6 +203,7 @@ pub(super) fn classify_content(old: &PaintItem, item: &PaintItem, shared: bool) 
         old.content_bounds == item.content_bounds
             && old.bounds == item.bounds
             && old.clip == item.clip
+            && old.content_clip == item.content_clip
     };
     let image = old.image != item.image
         || item.image.is_some()

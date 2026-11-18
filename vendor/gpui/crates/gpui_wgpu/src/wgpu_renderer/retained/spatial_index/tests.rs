@@ -29,6 +29,7 @@ fn full(nodes: &[SpatialNode]) -> Vec<Resolved> {
                 origin: [root.anchor_origin[0], root.anchor_origin[1]],
                 scroll: [root.scroll[0], root.scroll[1]],
                 clip: (root.links[2] & 8 != 0).then_some(root.anchor_clip),
+                content_clip: (root.links[2] & 8 != 0).then_some(root.anchor_clip),
             };
             for slot in path.into_iter().rev() {
                 let n = nodes[slot];
@@ -54,6 +55,7 @@ fn full(nodes: &[SpatialNode]) -> Vec<Resolved> {
                         ]
                     }));
                 }
+                r.content_clip = r.clip;
                 r.scroll = [n.scroll[0], n.scroll[1]];
             }
             r
@@ -471,4 +473,44 @@ fn projected_depth_validation_handles_permuted_slots_and_unreferenced_overflow()
     nodes[31].links[2] |= 8;
     nodes[31].anchor_clip = [f32::MAX * 0.75, 0.0, f32::MAX * 0.75, 1.0];
     assert!(validate_projected(&nodes, 1.0).is_err());
+}
+
+#[test]
+fn axis_overflow_preserves_own_clip_and_rebases_descendants_in_indexed_updates() {
+    let mut root = anchor(10.0);
+    root.links[2] = 10 | 16;
+    root.anchor_clip = [0.0, 0.0, 100.0, 100.0];
+    root.overflow_clip = [4.0, 4.0, 52.0, 32.0];
+    let mut nodes = [root, child(0, 1), child(1, 2)];
+    let mut graph = GraphIndex::default();
+    let initial = graph
+        .prepare(3, 1.0, false, std::iter::empty(), |s| nodes[s as usize])
+        .unwrap();
+    graph.commit(initial);
+    assert_eq!(graph.resolved[0].clip, Some([0.0, 0.0, 100.0, 100.0]));
+    assert_eq!(
+        graph.resolved[0].content_clip,
+        Some([14.0, 0.0, 52.0, 100.0])
+    );
+    assert_eq!(graph.resolved[2].clip, Some([14.0, 0.0, 52.0, 100.0]));
+    let mut next = root;
+    next.links[2] = 10 | 32;
+    let update = graph
+        .prepare(3, 1.0, false, [(0, next)].into_iter(), |s| {
+            nodes[s as usize]
+        })
+        .unwrap();
+    assert_eq!(graph.resolved[2].clip, Some([14.0, 0.0, 52.0, 100.0]));
+    nodes[0] = next;
+    graph.commit(update);
+    assert_eq!(graph.resolved[2].clip, Some([0.0, 4.0, 100.0, 32.0]));
+    next.links[2] = 2 | 16;
+    nodes[0] = next;
+    assert!(validate_projected(&nodes, 1.0).is_err());
+    assert!(
+        graph
+            .prepare(3, 1.0, false, [(0, next)].into_iter(), |s| nodes
+                [s as usize])
+            .is_err()
+    );
 }

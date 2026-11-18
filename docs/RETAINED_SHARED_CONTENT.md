@@ -2,10 +2,14 @@
 
 Normal WGPU rendering now shares the existing hierarchical placement buffer with
 image and glyph draws. Moving, clipping or scrolling an ancestor can update its
-96-byte spatial node without rewriting per-image 48-byte geometry or per-text
+112-byte spatial node (96 before automatic overflow viewports) without rewriting per-image 48-byte geometry or per-text
 32-byte properties. Glyph instances, masks and image textures remain unchanged.
 Local size/insets, resource, text shape or color changes retain their normal
 update paths.
+
+The [overflow follow-up](RETAINED_OVERFLOW_VIEWPORTS.md) adds a local content
+viewport, keeping ordinary Quad/Shadow clips separate from image/glyph and child
+clips. Historical timing/96-byte counters below belong to their original source.
 
 Published items own separate border/padding components, preserving the producer's
 f32 addition order and old snapshots. Equal current content rectangles still

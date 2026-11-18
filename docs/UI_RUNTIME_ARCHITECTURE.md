@@ -1072,7 +1072,9 @@ offset与实际layout maximum消耗signed delta，各轴余量独立传祖先。
 host采用落后时也不会从旧offset反复覆盖；不预测新命中几何。UiScrollPlan将窄Scroll和
 style feedback放入同一exact-base batch，stale path／disable／recovery拒绝，普通replay
 不重复滚动。Scroll overflow接收wheel，Hidden只保留程序scroll；StyleRef声明Scroll时
-input不争写，该节点的delta交给祖先。Overflow不会自动生成paint clip／scrollbar chrome。
+input不争写，该节点的delta交给祖先。后续[overflow viewport](RETAINED_OVERFLOW_VIEWPORTS.md)
+自动按非Visible轴裁剪自己的文字／图片与后代，保留host border／shadow；显式clip继续取交集，
+命中与同一完整画面一致。共享GPU spatial node由96增至112bytes，scrollbar chrome仍开放。
 每publication扫描并持有稀疏scroll metadata，linear hit与普通owner candidate成本仍在；
 原生跟手p99、惯性／overscroll、renderer-domain direct scroll与owner-stall隔离尚未实现。
 

@@ -22,7 +22,7 @@ struct ImageVarying {
         // Shared records reuse absolute origins for ordered border/padding offsets.
         bounds = vec4(((placement.origin + params.bounds.xy) + params.clip.xy) * spatial_settings.x, params.bounds.zw);
         clip = bounds;
-        if (placement.has_clip) { clip = vec4(placement.clip.origin * spatial_settings.x, placement.clip.size * spatial_settings.x); }
+        if (placement.has_clip) { clip = vec4(placement.content_clip.origin * spatial_settings.x, placement.content_clip.size * spatial_settings.x); }
     }
     let position = bounds.xy + positions[index] * bounds.zw;
     var out: ImageVarying;

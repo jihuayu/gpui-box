@@ -56,12 +56,6 @@ fn run(hardware: bool) {
     root_node.children = vec![HOST];
     let mut host_node = UiNode::new(HOST, host());
     host_node.children = vec![TEXT];
-    host_node.properties.clip = Some(Rect {
-        x: 0.0,
-        y: 0.0,
-        width: 80.0,
-        height: 40.0,
-    });
     let mut text_node = UiNode::new(TEXT, leaf());
     text_node.content = UiContent::Text {
         resource: UiResourceId(1),

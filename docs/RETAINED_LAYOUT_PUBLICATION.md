@@ -28,7 +28,9 @@ changed storage keep ordinary complete local publication.
   changed overflow caused by another node's layout. The background stays at its
   own position while descendants use the current scroll extent.
 - A size, padding or border change without location/scroll movement extracts
-  that node alone. It updates quad bounds, image destination, paragraph width
+  that node alone when its automatic overflow viewport is unchanged. A changed
+  [overflow viewport](RETAINED_OVERFLOW_VIEWPORTS.md) dirties its subtree because
+  cached descendants inherit the new clip. It updates quad bounds, image destination, paragraph width
   and glyph chunk; any children whose relative geometry changed are observed
   separately. Unchanged descendants retain their pages.
 - Property dirty roots and layout movement roots share the existing sorted,

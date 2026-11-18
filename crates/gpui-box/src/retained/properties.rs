@@ -203,7 +203,7 @@ impl PaintItem {
             && let Some(ink) = self.glyphs.as_ref().and_then(|chunk| chunk.ink)
         {
             let ink = ink.translated([self.content_bounds.x, self.content_bounds.y]);
-            let ink = self.clip.map_or(ink, |clip| ink.intersect(clip));
+            let ink = self.content_clip.map_or(ink, |clip| ink.intersect(clip));
             if !ink.is_empty() {
                 return Some(quad.map_or(ink, |quad| quad.union(ink)));
             }
@@ -249,6 +249,7 @@ pub(super) fn damage(
             .is_some_and(|(a, b)| {
                 a.bounds == b.bounds
                     && a.clip == b.clip
+                    && a.content_clip == b.content_clip
                     && a.commands == b.commands
                     && a.fill_color == b.fill_color
                     && a.shadows == b.shadows

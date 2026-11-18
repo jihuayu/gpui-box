@@ -58,6 +58,7 @@ impl PixelSnap {
             let mut bounds = rect(item.bounds)?;
             let mut content = rect(item.content_bounds)?;
             let mut clip = item.clip.map(rect).transpose()?;
+            let content_clip = item.content_clip.map(rect).transpose()?;
             let root_clip = item.spatial.root_clip.map(rect).transpose()?;
             let inherited = stack.last().map_or(root_clip, |entry| entry.clip);
             if let Some(parent_clip) = inherited {
@@ -82,18 +83,34 @@ impl PixelSnap {
                 (Some(a), Some(b)) => Some(a.intersect(b)),
                 (a, b) => a.or(b),
             };
+            // Projection bakes the effective axis clip into a finite local
+            // content viewport, just as it bakes inherited visual placement.
+            let overflow_clip =
+                item.spatial
+                    .overflow_clip
+                    .and(content_clip)
+                    .map(|r| OverflowClip {
+                        bounds: Rect {
+                            x: r.x - origin[0],
+                            y: r.y - origin[1],
+                            ..r
+                        },
+                        axes: [true; 2],
+                    });
             item.spatial = SpatialState {
                 parent: item.spatial.parent,
                 layout_origin: local,
                 translation: [0.0; 2],
                 scroll: [0.0; 2],
                 clip: own_clip,
+                overflow_clip,
                 root_clip,
             };
             item.bounds = bounds;
             item.content_bounds = content;
             item.content_offsets = offsets;
             item.clip = clip;
+            item.content_clip = item.spatial.content_clip(origin, clip);
             item.properties.transform = None;
             item.properties.scroll = None;
             // Reuse equal inherited clips; a stricter local clip includes the
@@ -116,7 +133,7 @@ impl PixelSnap {
             stack.push(ProjectedAncestor {
                 node: item.node,
                 origin,
-                clip,
+                clip: item.content_clip,
                 clip_property: item.properties.clip,
             });
         }

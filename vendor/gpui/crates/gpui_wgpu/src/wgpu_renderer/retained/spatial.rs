@@ -2,7 +2,7 @@
 use super::*;
 use storage::Instance;
 
-/// Six explicitly initialized vec4s; local logical placement plus bounded-chain
+/// Seven explicitly initialized vec4s; local logical placement plus bounded-chain
 /// anchors. Root/deep anchors carry resolved origin/clip; ordinary nodes do not.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 #[repr(C)]
@@ -12,11 +12,13 @@ pub struct SpatialNode {
     pub clip: [f32; 4],
     pub anchor_clip: [f32; 4],
     pub anchor_origin: [f32; 4],
+    /// Local content viewport; axis flags apply to content and descendants only.
+    pub overflow_clip: [f32; 4],
     /// Parent slot, distance to anchor (0..31), flags (clip=1, anchor=2,
-    /// anchor has clip=8), reserved zero.
+    /// anchor has clip=8, overflow x=16/y=32), reserved zero.
     pub links: [u32; 4],
 }
-const _: () = assert!(std::mem::size_of::<SpatialNode>() == 96);
+const _: () = assert!(std::mem::size_of::<SpatialNode>() == 112);
 // SAFETY: repr(C), all vec4 fields initialized and no implicit padding; Pod checks it.
 unsafe impl Instance for SpatialNode {
     fn empty() -> Self {
@@ -33,13 +35,16 @@ unsafe impl Instance for SpatialNode {
                 .chain(&self.clip)
                 .chain(&self.anchor_clip)
                 .chain(&self.anchor_origin)
+                .chain(&self.overflow_clip)
                 .all(|v| v.is_finite())
                 && self.clip[2] >= 0.0
                 && self.clip[3] >= 0.0
                 && self.anchor_clip[2] >= 0.0
                 && self.anchor_clip[3] >= 0.0
+                && self.overflow_clip[2] >= 0.0
+                && self.overflow_clip[3] >= 0.0
                 && self.links[1] < 32
-                && self.links[2] & !11 == 0
+                && self.links[2] & !59 == 0
                 && self.links[3] == 0,
             "invalid spatial node"
         );
@@ -88,7 +93,7 @@ impl SpatialCache {
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Storage { read_only: true },
                         has_dynamic_offset: false,
-                        min_binding_size: NonZeroU64::new(96),
+                        min_binding_size: NonZeroU64::new(112),
                     },
                     count: None,
                 },
@@ -318,43 +323,22 @@ impl SpatialCache {
                 cursor = node.links[0];
             }
             let anchor = get(path.pop().unwrap());
-            let mut origin = [anchor.anchor_origin[0], anchor.anchor_origin[1]];
-            let mut scroll = [anchor.scroll[0], anchor.scroll[1]];
-            let mut clip = (anchor.links[2] & 8 != 0).then_some(anchor.anchor_clip);
+            let mut state = super::spatial_index::resolve_node(anchor, None);
             for slot in path.iter().rev() {
-                let node = get(*slot);
-                for axis in 0..2 {
-                    origin[axis] = (origin[axis] - scroll[axis]) + node.layout_translation[axis];
-                    origin[axis] += node.layout_translation[axis + 2];
-                }
-                if node.links[2] & 1 != 0 {
-                    let mut own = node.clip;
-                    own[0] += origin[0];
-                    own[1] += origin[1];
-                    clip = Some(if let Some(old) = clip {
-                        let x = old[0].max(own[0]);
-                        let y = old[1].max(own[1]);
-                        [
-                            x,
-                            y,
-                            (old[0] + old[2]).min(own[0] + own[2]).max(x) - x,
-                            (old[1] + old[3]).min(own[1] + own[3]).max(y) - y,
-                        ]
-                    } else {
-                        own
-                    });
-                }
-                scroll = [node.scroll[0], node.scroll[1]];
-                anyhow::ensure!(
-                    origin.iter().all(|v| v.is_finite()),
-                    "spatial origin overflow"
-                );
+                state = super::spatial_index::resolve_node(get(*slot), Some(state));
             }
             anyhow::ensure!(
-                origin.iter().all(|v| (*v * batch.scale).is_finite()),
+                state
+                    .origin
+                    .iter()
+                    .all(|v| v.is_finite() && (*v * batch.scale).is_finite()),
                 "scaled spatial origin overflow"
             );
-            if let Some(clip) = clip {
+            anyhow::ensure!(
+                get(index).links[2] & 48 == 0 || state.clip.is_some(),
+                "overflow requires a finite inherited clip"
+            );
+            for clip in state.clip.into_iter().chain(state.content_clip) {
                 anyhow::ensure!(
                     [
                         clip[0],
