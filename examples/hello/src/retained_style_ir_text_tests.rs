@@ -32,6 +32,181 @@ fn style_rules_rewrap_real_noto_and_publish_complete_direct_reference() {
 fn hardware_style_ir_real_noto_matches_direct_reference() {
     run(true);
 }
+#[test]
+fn logical_feedback_real_noto_component_rewrap_matches_complete_reference() {
+    run_logical(false);
+}
+#[cfg(feature = "retained-wgpu")]
+#[test]
+#[ignore = "requires WGPU adapter; run explicitly"]
+fn hardware_logical_feedback_real_noto_matches_complete_reference() {
+    run_logical(true);
+}
+fn run_logical(hardware: bool) {
+    use gpui_box::retained::{input::*, logical::*};
+    struct Label;
+    impl Component for Label {
+        type Props = TextPaint;
+        fn mount(
+            props: ReadProp<TextPaint>,
+            cx: &mut ComponentContext<'_, '_, '_, '_>,
+        ) -> Result<(), Error> {
+            let node = cx.append_layout(leaf(), 0)?;
+            let state = cx.interaction_state(0, node, false, true)?;
+            let plan = StylePlan::new(&[StyleRef::new(
+                "label",
+                vec![
+                    StyleDeclaration::Width(StyleRule::value(LayoutDimension::Px(60.0)).when(
+                        StyleCondition {
+                            hovered: Some(true),
+                            ..Default::default()
+                        },
+                        LayoutDimension::Px(125.0),
+                    )),
+                    StyleDeclaration::Opacity(StyleRule::value(1.0).when(
+                        StyleCondition {
+                            pressed: Some(true),
+                            ..Default::default()
+                        },
+                        0.6,
+                    )),
+                    StyleDeclaration::Padding(StyleRule::value(LayoutEdges::all(
+                        LayoutLength::Px(3.0),
+                    ))),
+                ],
+            )
+            .unwrap()]);
+            let resolution = cx.computed(1, &[state.dependency()], move |i| {
+                plan.resolve_values(
+                    &leaf(),
+                    &UiProperties::default(),
+                    &responsive::LayoutEnvironment::new([300.0, 400.0]),
+                    *i.read_prop(state)?,
+                )
+                .map_err(|_| Error::InvalidStyle)
+            })?;
+            cx.bind(resolution, Property::style_resolution(node))?;
+            let text = cx.computed(2, &[props.dependency()], move |i| {
+                Ok(Some(i.read_prop(props)?.clone()))
+            })?;
+            cx.bind(text, Property::text(node))?;
+            cx.interaction(
+                node,
+                Some(UiInteraction {
+                    focus: UiFocusPolicy::Tab,
+                    ..Default::default()
+                }),
+            )?;
+            Ok(())
+        }
+    }
+    let system = text_system();
+    let mut raster = GlyphRasterizer::new(system.clone());
+    let prepared = raster
+        .prepare(shape(&system, "one two three four five six 中文段落"), 1.0)
+        .unwrap();
+    let root_style = LayoutStyle::column().size(LayoutDimension::Px(180.0), LayoutDimension::Auto);
+    let mut ui =
+        LogicalUi::new_layout(root_style.clone(), 0, BackendCapabilities::default()).unwrap();
+    let scope = ui.root_scope();
+    let root = ui.root_render();
+    let child = ui
+        .edit_local_frame(
+            LayoutConstraints::viewport(180.0, 400.0),
+            [300.0, 400.0],
+            |_| Ok(()),
+            |(), edit| {
+                Ok(edit.components::<Label>(
+                    scope,
+                    root,
+                    [(
+                        0,
+                        TextPaint {
+                            resource: prepared.clone(),
+                            color: 0x00ffffff,
+                        },
+                    )],
+                )?[0])
+            },
+        )
+        .unwrap()
+        .0
+        .result
+        .value;
+    let node = ui.renders(child).unwrap()[0];
+    let initial = ui.published_local_frame().unwrap().clone();
+    let mut router = UiInputRouter::new();
+    router
+        .adopt(ui.input_scene().unwrap(), UiInputEvidence::ImageInstalled)
+        .unwrap();
+    #[cfg(feature = "retained-wgpu")]
+    let mut gpu = hardware.then(|| wgpu::WgpuFrameRenderer::new(2).unwrap());
+    #[cfg(feature = "retained-wgpu")]
+    if let Some(gpu) = &gpu {
+        eprintln!("logical feedback Noto adapter: {:?}", gpu.adapter_info());
+    }
+    #[cfg(not(feature = "retained-wgpu"))]
+    assert!(!hardware);
+    for (event, width, opacity) in [
+        (UiInput::PointerMove([5.0; 2]), 125.0, 1.0),
+        (UiInput::PrimaryDown([5.0; 2]), 125.0, 0.6),
+        (UiInput::PrimaryUp([5.0; 2]), 125.0, 1.0),
+        (UiInput::PointerLeave, 60.0, 1.0),
+    ] {
+        let effects = router.route(event).unwrap();
+        ui.apply_input_effects(&effects).unwrap();
+        let mut full = UiTree::new_layout(root_style.clone(), 0).unwrap();
+        full.set_frame_build_policy(FrameBuildPolicy::Full);
+        let text = full
+            .append_layout(
+                full.root(),
+                leaf()
+                    .size(LayoutDimension::Px(width), LayoutDimension::Auto)
+                    .padding(LayoutEdges::all(LayoutLength::Px(3.0))),
+                0,
+            )
+            .unwrap();
+        let mut tx = Transaction::default();
+        tx.text(
+            text,
+            Some(TextPaint {
+                resource: prepared.clone(),
+                color: 0x00ffffff,
+            }),
+        );
+        tx.opacity(text, opacity);
+        full.commit(tx, BackendCapabilities::default()).unwrap();
+        let reference = full
+            .frame_in_viewport(LayoutConstraints::viewport(180.0, 400.0), [300.0, 400.0])
+            .unwrap();
+        let frame = ui.published_local_frame().unwrap().clone();
+        assert_eq!(
+            ui.layout_result(node).unwrap(),
+            full.layout_result(text).unwrap()
+        );
+        assert_eq!(pixels(frame.resolve()), pixels(reference.clone()));
+        #[cfg(feature = "retained-wgpu")]
+        if let Some(gpu) = &mut gpu {
+            gpu.submit_local(&frame, [300, 400], 1.0).unwrap();
+            assert_eq!(
+                gpu.image().unwrap().as_raw(),
+                gpu.reference_image(&reference, [300, 400], 1.0)
+                    .unwrap()
+                    .as_raw()
+            );
+        }
+        router
+            .adopt(ui.input_scene().unwrap(), UiInputEvidence::ImageInstalled)
+            .unwrap();
+    }
+    let expected = pixels(initial.resolve());
+    drop((ui, prepared, raster, system));
+    assert_eq!(pixels(initial.resolve()), expected);
+    #[cfg(feature = "retained-wgpu")]
+    if let Some(gpu) = &mut gpu {
+        gpu.finish().unwrap();
+    }
+}
 fn run(hardware: bool) {
     let system = text_system();
     let paragraph = shape(&system, "one two three four five six 中文段落");

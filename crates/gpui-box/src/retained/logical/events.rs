@@ -73,6 +73,12 @@ pub(super) struct Registry {
     revision: u64,
     handlers: BTreeMap<(ScopeId, u64), Registration>,
     policies: BTreeMap<NodeId, UiInteraction>,
+    feedback: BTreeMap<NodeId, FeedbackSource>,
+}
+#[derive(Clone)]
+struct FeedbackSource {
+    owner: ScopeId,
+    prop: ReadProp<style::StyleState>,
 }
 impl Registry {
     fn bump(&mut self) -> Result<(), Error> {
@@ -89,6 +95,10 @@ impl Registry {
     ) -> Result<Option<Self>, Error> {
         if self.handlers.keys().all(|(scope, _)| !dead.contains(scope))
             && self.policies.keys().all(|node| !nodes.contains(node))
+            && self
+                .feedback
+                .iter()
+                .all(|(node, entry)| !nodes.contains(node) && !dead.contains(&entry.owner))
         {
             return Ok(None);
         }
@@ -96,10 +106,69 @@ impl Registry {
         next.bump()?;
         next.handlers.retain(|(scope, _), _| !dead.contains(scope));
         next.policies.retain(|node, _| !nodes.contains(node));
+        next.feedback
+            .retain(|node, entry| !nodes.contains(node) && !dead.contains(&entry.owner));
         Ok(Some(next))
     }
 }
 impl LogicalEdit<'_, '_, '_> {
+    /// Scope-owned read-only style input. Reuses an explicit keyed source;
+    /// repeated declaration preserves router state while replacing only the
+    /// caller-owned disabled/selected inputs. One source can serve one node.
+    ///
+    /// ```compile_fail
+    /// use gpui_box::retained::{logical::ReadProp, reactive::ReactiveTransaction, style::StyleState};
+    /// fn overwrite(tx: &mut ReactiveTransaction<'_>, input: ReadProp<StyleState>) {
+    ///     tx.set(input, StyleState::default()).unwrap();
+    /// }
+    /// ```
+    pub fn interaction_state(
+        &mut self,
+        scope: ScopeId,
+        key: u64,
+        node: NodeId,
+        disabled: bool,
+        selected: bool,
+    ) -> Result<ReadProp<style::StyleState>, Error> {
+        let mut attempt = self.component_attempt()?;
+        self.scope(scope)?;
+        if self.retired_scopes()?.contains(&scope) {
+            return Err(Error::InvalidScope);
+        }
+        if self.inserted.get(&node).or_else(|| self.owners.get(&node)) != Some(&scope) {
+            return Err(Error::ScopeInUse);
+        }
+        let previous = self.event_registry().feedback.get(&node).cloned();
+        let mut state = if let Some(entry) = &previous {
+            if entry.owner != scope {
+                return Err(Error::ScopeInUse);
+            }
+            *self.read_prop(entry.prop)?
+        } else {
+            style::StyleState::default()
+        };
+        state.disabled = disabled;
+        state.selected = selected;
+        let prop = self.prop(scope, key, state)?;
+        if previous
+            .as_ref()
+            .is_some_and(|old| old.prop.dependency() != prop.dependency())
+            || self.event_registry().feedback.iter().any(|(other, entry)| {
+                *other != node && entry.prop.dependency() == prop.dependency()
+            })
+        {
+            return Err(Error::InvalidEventHandler);
+        }
+        if previous.is_none() {
+            let registry = self.event_registry_mut();
+            registry.bump()?;
+            registry
+                .feedback
+                .insert(node, FeedbackSource { owner: scope, prop });
+        }
+        attempt.success = true;
+        Ok(prop)
+    }
     pub(super) fn event_registry(&self) -> &Registry {
         self.events.as_ref().unwrap_or(self.live_events)
     }
@@ -215,6 +284,42 @@ impl LogicalEdit<'_, '_, '_> {
         }
         Ok(())
     }
+    pub(super) fn stage_style_feedback(
+        &mut self,
+        feedback: &[(NodeId, UiStyleFeedback, bool)],
+    ) -> Result<(), Error> {
+        if feedback.is_empty() {
+            return Ok(());
+        }
+        let removed = self.retired_outputs()?;
+        let preview = self.render.preview(self.capabilities, &removed)?;
+        let mut values = reactive::SourceValues::default();
+        for (node, feedback, eligible) in feedback {
+            if let Some(entry) = self.event_registry().feedback.get(node) {
+                if preview.node(*node).is_err() {
+                    continue;
+                }
+                let mut next = Some(*node);
+                let mut enabled = *eligible;
+                while let Some(id) = next {
+                    let node = preview.node(id)?;
+                    enabled &= node.style.display != taffy::Display::None
+                        && !self
+                            .event_registry()
+                            .policies
+                            .get(&id)
+                            .is_some_and(|policy| policy.disabled);
+                    next = node.parent;
+                }
+                // An old routing tree can outlive a physical reparent. Feedback
+                // has no route of its own, so identity alone updates the same
+                // live instance; router adoption subsequently refreshes hover.
+                let old = *self.render.read(entry.prop.signal)?;
+                values.push(entry.prop.signal, feedback.apply_style(old, enabled));
+            }
+        }
+        self.render.prop_values(values)
+    }
 }
 fn public_id(node: NodeId) -> UiNodeId {
     UiNodeId::new(node.slot as u64, node.generation)
@@ -321,6 +426,48 @@ pub(super) fn input_scene(
     })
 }
 impl LogicalUi {
+    /// Apply router feedback and default scrolling together. Callback dispatch
+    /// and host image installation remain explicit. Stale feedback is ignored;
+    /// wheel/reveal requests retain their strict final-route validation.
+    pub fn apply_input_effects(
+        &mut self,
+        effects: &UiInputEffects,
+    ) -> Result<LogicalScrollCommit<()>, Error> {
+        self.edit_input_effects(effects, |_| Ok(()), |(), _| Ok(()))
+    }
+    pub fn edit_input_effects<S, R>(
+        &mut self,
+        effects: &UiInputEffects,
+        sources: impl FnOnce(&mut ReactiveTransaction<'_>) -> Result<S, Error>,
+        render: impl FnOnce(S, &mut LogicalEdit<'_, '_, '_>) -> Result<R, Error>,
+    ) -> Result<LogicalScrollCommit<R>, Error> {
+        let scene = self.input_scene()?;
+        let mapping: BTreeMap<_, _> = scene
+            .identities
+            .iter()
+            .map(|(&node, &id)| (id, node))
+            .collect();
+        let mut latest = BTreeMap::new();
+        for feedback in &effects.feedback {
+            if feedback.scene.runtime == scene.id.runtime
+                && feedback.scene.epoch == scene.id.epoch
+                && feedback.scene.tree == scene.id.tree
+                && feedback.scene.source_revision <= scene.id.source_revision
+                && let Some(node) = mapping.get(&feedback.node)
+            {
+                latest.insert(*node, (*feedback, scene.graph.eligible(feedback.node)));
+            }
+        }
+        let feedback: Vec<_> = latest
+            .into_iter()
+            .map(|(node, (value, eligible))| (node, value, eligible))
+            .collect();
+        self.edit_input_scroll(effects, sources, |value, draft| {
+            let result = render(value, draft)?;
+            draft.stage_style_feedback(&feedback)?;
+            Ok(result)
+        })
+    }
     /// Apply wheel and focus-reveal defaults with no application source edits.
     /// The caller still dispatches callbacks and installs the returned current
     /// publication in its host. This does not apply style feedback.
@@ -423,6 +570,8 @@ impl LogicalUi {
     }
 }
 
+#[cfg(test)]
+mod feedback_tests;
 #[cfg(test)]
 mod scroll_tests;
 #[cfg(test)]

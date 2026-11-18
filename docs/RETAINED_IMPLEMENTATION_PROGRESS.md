@@ -10,6 +10,29 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [LogicalUi style-feedback stage](RETAINED_LOGICAL_STYLE_FEEDBACK.md) adds
+scope/node-owned read-only interaction_state inputs, apply_input_effects and
+edit_input_effects. Shared router booleans preserve caller disabled/selected and
+settle through ordinary computed/StylePlan/bindings before producers and final
+wheel/reveal. Final render-edit eligibility clears ineligible feedback; foreign,
+future and retired identities ignore. Sparse registry/source lifetime follows
+existing candidate and scope retirement. Public StylePlan::resolve_values supports
+effective equality without winner maps. Property::style_resolution owns complete
+layout/visual fields and rejects overlapping bindings; without_scroll variant
+preserves default or separately bound scroll. Both count as layout dependency
+sources. See [verification](performance/2026-11-18-logical-feedback/README.md).
+Full input maps/eligibility preview, registry mutation and usual source/producer/
+candidate costs remain; no performance gain claim. Native host pump, callback
+propagation/default prevention, source unification, semantics/IME, task scopes,
+KeepAlive, hooks/macros and independent presentation stay active. No solver/GPU/
+source schema change. Complete RFC remains active.
+Final retained 704 passed/1 ignored, text/WGPU 738/65, hello 80/31; both core
+configurations pass 11 compiler doctests. Explicit feedback GPU compares six full
+images and Noto GPU four on GTX1650Ti/Vulkan/571.96. Final library Clippy
+-D warnings, complete retained-gpu harness, scoped format/diff, 324 local links
+and five WIP hashes pass.
+No native cadence/latency or performance gain inferred.
+
 The [LogicalUi scroll-default stage](RETAINED_LOGICAL_SCROLL_DEFAULTS.md) adds
 apply_input_scroll/edit_input_scroll and LogicalScrollCommit. Ordinary source and
 component/layout edits settle before shared wheel/reveal helpers use the final

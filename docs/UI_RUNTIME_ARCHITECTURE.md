@@ -989,7 +989,15 @@ UiDocument与LogicalUi共用滚轮余量和post-layout nearest reveal算法；�
 bind／unbind生效。失败连同source／offset／frame回滚，完整采用后才执行普通effects。
 当前LocalFrame可用于后续输入，即使旧resolved cache仍dirty；未发布geometry依然拒绝。
 仍有全树input maps、bound endpoints扫描、registry复制及普通candidate成本，无性能收益声明。
-LogicalUi自动style反馈、合并callback/default的host pump、IME／semantics／native host接入、
+后续 [组件样式反馈](RETAINED_LOGICAL_STYLE_FEEDBACK.md) 提供scope／node-owned只读
+interaction_state、apply_input_effects／edit_input_effects，把hover／pressed／focus-visible
+接入既有computed／StylePlan／binding后再结算producer／layout／wheel／reveal。
+disabled／selected仍由调用方提供；semantic disabled仍来自UiInteraction。StylePlan的
+resolve_values公开为无winner map的纯有效值解析；完整StyleResolution property writer
+覆盖layout／visual并拒绝重叠binding，without_scroll入口保留默认或独立scroll writer。
+Sparse registry随candidate／scope退休，不给每个render node加字段。当前scene map、
+eligibility preview和普通source／candidate成本仍在，无性能收益声明。
+合并callback/default的native host pump、IME／semantics／native host接入、
 task／KeepAlive activation与完整UiDocument输入模型统一仍开放，source schema6和内核不变。
 
 ## 6. 样式 API：参考 StyleX，输出原生 Style IR

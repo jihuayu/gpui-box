@@ -182,6 +182,7 @@ impl ReactiveUi {
                 let binding = &self.bindings[binding];
                 let layout = match binding.field {
                     Field::Style
+                    | Field::StyleResolution(_)
                     | Field::Measure
                     | Field::ParentLayout
                     | Field::ParentData

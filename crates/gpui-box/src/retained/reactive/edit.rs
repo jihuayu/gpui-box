@@ -91,7 +91,7 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
         self.endpoints
             .iter()
             .filter(|((_, field), id)| {
-                *field == Field::Scroll
+                field.owns_scroll()
                     && !self.unbound.contains(id)
                     && !self
                         .removed_sources
@@ -99,7 +99,7 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
             })
             .map(|((node, _), _)| *node)
             .chain(self.bindings.iter().filter_map(|(_, binding)| {
-                (binding.field == Field::Scroll && !self.removed_sources.contains(&binding.source))
+                (binding.field.owns_scroll() && !self.removed_sources.contains(&binding.source))
                     .then_some(binding.node)
             }))
             .collect()
@@ -353,6 +353,7 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
                 reachable.contains(&binding.source)
                     && match binding.field {
                         Field::Style
+                        | Field::StyleResolution(_)
                         | Field::Measure
                         | Field::ParentLayout
                         | Field::ParentData
@@ -479,19 +480,17 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
         property: Property<T>,
     ) -> Result<BindingId, Error> {
         self.tree.children(property.node)?;
-        if self
-            .endpoints
-            .get(&(property.node, property.field))
-            .is_some_and(|id| {
-                !self.unbound.contains(id)
-                    && !self
-                        .removed_sources
-                        .contains(&self.live_bindings[id].source)
-            })
-            || self
-                .bound_endpoints
-                .contains(&(property.node, property.field))
-        {
+        if property.field.conflicting().any(|field| {
+            self.endpoints
+                .get(&(property.node, field))
+                .is_some_and(|id| {
+                    !self.unbound.contains(id)
+                        && !self
+                            .removed_sources
+                            .contains(&self.live_bindings[id].source)
+                })
+                || self.bound_endpoints.contains(&(property.node, field))
+        }) {
             return Err(Error::BindingConflict);
         }
         self.read(signal)?;

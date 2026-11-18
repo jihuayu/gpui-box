@@ -84,14 +84,20 @@ despite a current local publication.
 
 ## Costs and remaining work
 
+The later [style-feedback stage](RETAINED_LOGICAL_STYLE_FEEDBACK.md) adds
+apply_input_effects/edit_input_effects to join ordinary interaction-state feedback
+with these same defaults. Appearance-only StyleResolution bindings preserve scroll;
+the full style endpoint is application-controlled. Explicit scroll APIs here retain
+their behavior and do not apply feedback by themselves.
+
 This API reuses current host constraints/viewport and requires an existing complete
 input publication. It builds the candidate's full input graph/maps and scans bound
 scroll endpoints. The sparse event registry is cloned for final policy validation;
 ordinary source/producer/candidate/layout costs remain. Reveal can publish geometry
 for multiple ordered targets; no FPS, latency or memory improvement is claimed.
 
-Automatic LogicalUi style/hover/pressed/focus-visible resolution, a combined event
-and defaults host pump, prevent-default semantics, semantics/accessibility, IME,
+A combined callback/feedback/defaults host pump, prevent-default semantics,
+semantics/accessibility, IME,
 editing, multipointer, native focus/capture and OS host binding remain open.
 UiDocument and LogicalUi retain separate source models. No Taffy solver, GPU format
 or source schema 6 change. `Error` adds `Input(UiInputError)`.

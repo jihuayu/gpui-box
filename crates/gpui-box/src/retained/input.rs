@@ -158,6 +158,18 @@ pub struct UiStyleFeedback {
     pub pressed: bool,
     pub focus_visible: bool,
 }
+impl UiStyleFeedback {
+    pub(in crate::retained) fn apply_style(
+        self,
+        mut value: style::StyleState,
+        eligible: bool,
+    ) -> style::StyleState {
+        value.hovered = eligible && self.hovered;
+        value.pressed = eligible && self.pressed;
+        value.focus_visible = eligible && self.focus_visible;
+        value
+    }
+}
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct UiInputEffects {
     pub dispatches: Vec<UiInputDispatch>,
@@ -182,10 +194,7 @@ impl UiInputEffects {
                 }
                 let node = document.node(feedback.node)?;
                 let eligible = current_scene.graph.eligible(feedback.node);
-                let mut value = node.style_state;
-                value.hovered = eligible && feedback.hovered;
-                value.pressed = eligible && feedback.pressed;
-                value.focus_visible = eligible && feedback.focus_visible;
+                let value = feedback.apply_style(node.style_state, eligible);
                 (value != node.style_state).then_some(UiOperation::StyleState {
                     node: feedback.node,
                     value,

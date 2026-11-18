@@ -20,7 +20,7 @@ pub struct LogicalEdit<'a, 'draft, 'tree> {
     available_scopes: &'a [usize],
     scope_slots: usize,
     next_scope_generation: &'a mut u64,
-    capabilities: BackendCapabilities,
+    pub(super) capabilities: BackendCapabilities,
     pub(super) frame_environment: Option<(LayoutConstraints, [f32; 2])>,
     automatic_environment: Option<responsive::LayoutEnvironment>,
     constraint_inputs: Vec<super::constraint_builder::Observation>,
@@ -284,7 +284,7 @@ impl LogicalEdit<'_, '_, '_> {
         Ok(dead)
     }
 
-    fn retired_outputs(&self) -> Result<Vec<NodeId>, Error> {
+    pub(super) fn retired_outputs(&self) -> Result<Vec<NodeId>, Error> {
         let dead = self.retired_scopes()?;
         Ok(self
             .owners

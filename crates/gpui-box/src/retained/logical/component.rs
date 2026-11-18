@@ -66,6 +66,19 @@ impl ComponentContext<'_, '_, '_, '_> {
     ) -> Result<(), Error> {
         self.edit.interaction(self.scope, node, policy)
     }
+    pub fn interaction_state(
+        &mut self,
+        key: u64,
+        node: NodeId,
+        disabled: bool,
+        selected: bool,
+    ) -> Result<ReadProp<style::StyleState>, Error> {
+        if key == u64::MAX {
+            return Err(Error::InvalidComponent);
+        }
+        self.edit
+            .interaction_state(self.scope, key, node, disabled, selected)
+    }
     pub fn provide_store<K: crate::store::StoreKey>(
         &mut self,
         input: ReadProp<crate::store::StoreSnapshot<K::State>>,

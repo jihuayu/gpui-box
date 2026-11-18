@@ -128,7 +128,9 @@ is inferred.
 Router style feedback, wheel-scroll/default focus-reveal effects are returned as
 usual. The later [LogicalUi scroll-default stage](RETAINED_LOGICAL_SCROLL_DEFAULTS.md)
 implements explicit wheel/reveal application over shared UiDocument algorithms.
-Automatic style feedback and a combined host event pump remain open.
+The later [style-feedback stage](RETAINED_LOGICAL_STYLE_FEEDBACK.md) adds explicit
+component interaction-state/style bindings and combined feedback/default application.
+A combined callback/native host event pump remains open.
 Existing UiDocument style planners remain separate. IME, selection, editing,
 multi-pointer gestures, semantics/accessibility, automatic OS host binding and
 task/KeepAlive activation policies also remain. Deactivation cleanup events whose

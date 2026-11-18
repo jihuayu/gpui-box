@@ -51,6 +51,7 @@ pub struct BindingId {
 enum Field {
     Color,
     Style,
+    StyleResolution(bool),
     Translation,
     Clip,
     Scroll,
@@ -63,6 +64,49 @@ enum Field {
     Image,
     #[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
     Text,
+}
+
+impl Field {
+    fn conflicts(self, other: Self) -> bool {
+        self == other
+            || matches!(self, Self::StyleResolution(scroll) if other.in_style_resolution() && (other != Self::Scroll || scroll))
+            || matches!(other, Self::StyleResolution(scroll) if self.in_style_resolution() && (self != Self::Scroll || scroll))
+    }
+    fn conflicting(self) -> impl Iterator<Item = Self> {
+        std::iter::once(self).chain(
+            [
+                Self::Style,
+                Self::Color,
+                Self::Translation,
+                Self::Clip,
+                Self::Scroll,
+                Self::Opacity,
+                Self::Decoration,
+                Self::Shadows,
+                Self::StyleResolution(false),
+                Self::StyleResolution(true),
+            ]
+            .into_iter()
+            .filter(move |other| *other != self && self.conflicts(*other)),
+        )
+    }
+    fn in_style_resolution(self) -> bool {
+        matches!(
+            self,
+            Self::Style
+                | Self::Color
+                | Self::Translation
+                | Self::Clip
+                | Self::Scroll
+                | Self::Opacity
+                | Self::Decoration
+                | Self::Shadows
+                | Self::StyleResolution(_)
+        )
+    }
+    fn owns_scroll(self) -> bool {
+        matches!(self, Self::Scroll | Self::StyleResolution(true))
+    }
 }
 
 /// Typed property endpoint. A render property has at most one signal writer.
@@ -96,6 +140,50 @@ impl Property<crate::retained::layout::LayoutStyle> {
             node,
             field: Field::Style,
             write: |node, value, tx| tx.layout_style(node, value.clone()),
+        }
+    }
+}
+impl Property<crate::retained::style::StyleResolution> {
+    fn write_resolution(
+        node: NodeId,
+        value: &crate::retained::style::StyleResolution,
+        tx: &mut Transaction,
+        scroll: bool,
+    ) {
+        tx.layout_style(node, value.layout.clone());
+        let p = &value.properties;
+        tx.color(node, p.color);
+        tx.translation(node, p.translation);
+        tx.clip(node, p.clip);
+        if scroll {
+            tx.scroll(node, p.scroll);
+        }
+        tx.opacity(node, p.opacity);
+        tx.decoration(node, p.decoration);
+        tx.patches.push(Patch::Shadows(node, p.shadows.clone()));
+    }
+    /// One complete effective layout/visual writer. Conflicts with individual
+    /// layout, fill, translation, clip, scroll, opacity, decoration and shadows
+    /// bindings; text/image/measurement content remains independently bindable.
+    pub fn style_resolution(node: NodeId) -> Self {
+        Self {
+            node,
+            field: Field::StyleResolution(true),
+            write: |node, value, tx| {
+                Self::write_resolution(node, value, tx, true);
+            },
+        }
+    }
+    /// Same complete layout/appearance writer, leaving scroll under the normal
+    /// default-action or separate application binding. Resolution.scroll is not
+    /// applied by this endpoint. Use this for ordinarily scrollable styled UI.
+    pub fn style_resolution_without_scroll(node: NodeId) -> Self {
+        Self {
+            node,
+            field: Field::StyleResolution(false),
+            write: |node, value, tx| {
+                Self::write_resolution(node, value, tx, false);
+            },
         }
     }
 }
@@ -445,7 +533,7 @@ impl ReactiveUi {
     pub(in crate::retained) fn bound_scroll_nodes(&self) -> BTreeSet<NodeId> {
         self.endpoints
             .keys()
-            .filter_map(|(node, field)| (*field == Field::Scroll).then_some(*node))
+            .filter_map(|(node, field)| field.owns_scroll().then_some(*node))
             .collect()
     }
     pub fn source_count(&self) -> usize {
@@ -522,9 +610,10 @@ impl ReactiveUi {
     ) -> Result<(BindingId, Commit), Error> {
         let value = self.read(signal)?;
         self.tree.node(property.node)?;
-        if self
-            .endpoints
-            .contains_key(&(property.node, property.field))
+        if property
+            .field
+            .conflicting()
+            .any(|field| self.endpoints.contains_key(&(property.node, field)))
         {
             return Err(Error::BindingConflict);
         }

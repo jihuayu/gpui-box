@@ -575,7 +575,9 @@ impl StylePlan {
     ) -> Result<StyleResolution, StyleError> {
         self.evaluate(base_layout, base_properties, environment, state, true)
     }
-    pub(crate) fn resolve_values(
+    /// Resolve effective values without allocating winner diagnostics. Suitable
+    /// for ordinary computed bindings that only need visual equality.
+    pub fn resolve_values(
         &self,
         base_layout: &LayoutStyle,
         base_properties: &UiProperties,
