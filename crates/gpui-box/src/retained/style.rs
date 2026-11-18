@@ -32,6 +32,20 @@ pub struct StyleCondition {
     pub pointer: Option<bool>,
 }
 impl StyleCondition {
+    fn dependencies(&self) -> StyleDependencies {
+        StyleDependencies {
+            hovered: self.hovered.is_some(),
+            pressed: self.pressed.is_some(),
+            focus_visible: self.focus_visible.is_some(),
+            disabled: self.disabled.is_some(),
+            selected: self.selected.is_some(),
+            viewport_width: self.min_width.is_some() || self.max_width.is_some(),
+            direction: self.direction.is_some(),
+            reduced_motion: self.reduced_motion.is_some(),
+            touch: self.touch.is_some(),
+            pointer: self.pointer.is_some(),
+        }
+    }
     fn validate(&self) -> Result<(), StyleError> {
         if [self.min_width, self.max_width]
             .iter()
@@ -71,6 +85,53 @@ impl StyleCondition {
             ]
             .iter()
             .all(|(wanted, actual)| wanted.is_none_or(|v| *actual == Some(v)))
+    }
+}
+
+/// Inputs read by the winning complete property rules. Overridden rules do not
+/// contribute dependencies. These describe pure style evaluation, not layout
+/// dependencies, event subscriptions or presentation-thread safety.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct StyleDependencies {
+    pub hovered: bool,
+    pub pressed: bool,
+    pub focus_visible: bool,
+    pub disabled: bool,
+    pub selected: bool,
+    pub viewport_width: bool,
+    pub direction: bool,
+    pub reduced_motion: bool,
+    pub touch: bool,
+    pub pointer: bool,
+}
+impl StyleDependencies {
+    fn include(&mut self, other: Self) {
+        self.hovered |= other.hovered;
+        self.pressed |= other.pressed;
+        self.focus_visible |= other.focus_visible;
+        self.disabled |= other.disabled;
+        self.selected |= other.selected;
+        self.viewport_width |= other.viewport_width;
+        self.direction |= other.direction;
+        self.reduced_motion |= other.reduced_motion;
+        self.touch |= other.touch;
+        self.pointer |= other.pointer;
+    }
+    pub(crate) fn state_changed(self, before: StyleState, after: StyleState) -> bool {
+        (self.hovered && before.hovered != after.hovered)
+            || (self.pressed && before.pressed != after.pressed)
+            || (self.focus_visible && before.focus_visible != after.focus_visible)
+            || (self.disabled && before.disabled != after.disabled)
+            || (self.selected && before.selected != after.selected)
+    }
+    pub(crate) fn environment_inputs(self) -> [bool; 5] {
+        [
+            self.viewport_width,
+            self.direction,
+            self.reduced_motion,
+            self.touch,
+            self.pointer,
+        ]
     }
 }
 
@@ -208,6 +269,13 @@ macro_rules! properties {
             Gap(StyleRule<LayoutSize<LayoutLength>>),
         }
         impl StyleDeclaration {
+            fn dependencies(&self) -> StyleDependencies {
+                match self { $(Self::$name(rule) => {
+                    let mut dependencies = StyleDependencies::default();
+                    for case in &rule.cases { dependencies.include(case.condition.dependencies()); }
+                    dependencies
+                }),+, _ => unreachable!("expanded shorthand") }
+            }
             fn case_count(&self) -> usize { match self {
                 $(Self::$name(r) => r.cases.len()),+,
                 Self::Padding(r) | Self::Margin(r) | Self::Border(r) | Self::Inset(r) => r.cases.len(),
@@ -334,11 +402,17 @@ impl StyleDeclaration {
 struct Sheet {
     name: String,
     declarations: Vec<StyleDeclaration>,
+    work: (usize, usize, usize, usize),
 }
 /// Owned validated immutable definition. Clone shares declarations; equal new
 /// definitions compare by value. No global registry, callback or lifetime leak.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct StyleRef(Arc<Sheet>);
+impl PartialEq for StyleRef {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0) || self.0 == other.0
+    }
+}
 impl StyleRef {
     pub fn new(
         name: impl Into<String>,
@@ -381,9 +455,17 @@ impl StyleRef {
                 expanded.push(atom);
             }
         }
+        let mut work = (expanded.len(), 0usize, 0usize, 0usize);
+        for atom in &expanded {
+            work.1 += atom.case_count();
+            let values = atom.value_work();
+            work.2 = work.2.max(values.0);
+            work.3 = work.3.max(values.1);
+        }
         Ok(Self(Arc::new(Sheet {
             name,
             declarations: expanded,
+            work,
         })))
     }
     pub fn name(&self) -> &str {
@@ -395,30 +477,7 @@ impl StyleRef {
         &self.0.declarations
     }
     pub(crate) fn work(&self) -> (usize, usize, usize, usize) {
-        let tracks = self
-            .0
-            .declarations
-            .iter()
-            .map(|d| d.value_work().0)
-            .max()
-            .unwrap_or(0);
-        let shadows = self
-            .0
-            .declarations
-            .iter()
-            .map(|d| d.value_work().1)
-            .max()
-            .unwrap_or(0);
-        (
-            self.0.declarations.len(),
-            self.0
-                .declarations
-                .iter()
-                .map(StyleDeclaration::case_count)
-                .sum(),
-            tracks,
-            shadows,
-        )
+        self.0.work
     }
 }
 
@@ -470,33 +529,91 @@ pub fn resolve(
     environment: &LayoutEnvironment,
     state: StyleState,
 ) -> Result<StyleResolution, StyleError> {
-    environment.validate()?;
-    let mut selected = BTreeMap::new();
-    for (style_index, style) in styles.iter().enumerate() {
-        for (declaration_index, declaration) in style.0.declarations.iter().enumerate() {
-            selected.insert(
-                declaration.key(),
-                (style_index, declaration_index, declaration),
-            );
+    StylePlan::new(styles).resolve(base_layout, base_properties, environment, state)
+}
+
+/// Owned compiled selection of one complete rule per atomic property. Retains
+/// StyleRef storage rather than cloning rule values. Reuse across state and
+/// environment changes; constructing a new composition produces a new plan.
+#[derive(Clone, Debug)]
+pub struct StylePlan {
+    styles: Vec<StyleRef>,
+    selected: Vec<(StyleProperty, usize, usize)>,
+    dependencies: StyleDependencies,
+}
+impl StylePlan {
+    pub fn new(styles: &[StyleRef]) -> Self {
+        let mut selected = BTreeMap::new();
+        for (style_index, style) in styles.iter().enumerate() {
+            for (declaration_index, declaration) in style.0.declarations.iter().enumerate() {
+                selected.insert(declaration.key(), (style_index, declaration_index));
+            }
+        }
+        let mut dependencies = StyleDependencies::default();
+        let selected = selected
+            .into_iter()
+            .map(|(key, (s, d))| {
+                dependencies.include(styles[s].0.declarations[d].dependencies());
+                (key, s, d)
+            })
+            .collect();
+        Self {
+            styles: styles.to_vec(),
+            selected,
+            dependencies,
         }
     }
-    let mut output = StyleResolution {
-        layout: base_layout.clone(),
-        properties: base_properties.clone(),
-        winners: BTreeMap::new(),
-    };
-    for (key, (style_index, declaration_index, declaration)) in selected {
-        let (case_index, initial) = declaration.apply(&mut output, environment, state);
-        output.winners.insert(
-            key,
-            StyleWinner {
-                style_index,
-                declaration_index,
-                case_index,
-                initial,
-            },
-        );
+    pub fn dependencies(&self) -> StyleDependencies {
+        self.dependencies
     }
-    validate_output(&output)?;
-    Ok(output)
+    pub fn resolve(
+        &self,
+        base_layout: &LayoutStyle,
+        base_properties: &UiProperties,
+        environment: &LayoutEnvironment,
+        state: StyleState,
+    ) -> Result<StyleResolution, StyleError> {
+        self.evaluate(base_layout, base_properties, environment, state, true)
+    }
+    pub(crate) fn resolve_values(
+        &self,
+        base_layout: &LayoutStyle,
+        base_properties: &UiProperties,
+        environment: &LayoutEnvironment,
+        state: StyleState,
+    ) -> Result<StyleResolution, StyleError> {
+        self.evaluate(base_layout, base_properties, environment, state, false)
+    }
+    fn evaluate(
+        &self,
+        base_layout: &LayoutStyle,
+        base_properties: &UiProperties,
+        environment: &LayoutEnvironment,
+        state: StyleState,
+        diagnostics: bool,
+    ) -> Result<StyleResolution, StyleError> {
+        environment.validate()?;
+        let mut output = StyleResolution {
+            layout: base_layout.clone(),
+            properties: base_properties.clone(),
+            winners: BTreeMap::new(),
+        };
+        for &(key, style_index, declaration_index) in &self.selected {
+            let declaration = &self.styles[style_index].0.declarations[declaration_index];
+            let (case_index, initial) = declaration.apply(&mut output, environment, state);
+            if diagnostics {
+                output.winners.insert(
+                    key,
+                    StyleWinner {
+                        style_index,
+                        declaration_index,
+                        case_index,
+                        initial,
+                    },
+                );
+            }
+        }
+        validate_output(&output)?;
+        Ok(output)
+    }
 }

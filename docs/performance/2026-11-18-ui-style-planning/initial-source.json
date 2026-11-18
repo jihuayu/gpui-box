@@ -1,0 +1,19 @@
+{
+  "baseline": "f3f1587a7259efd2111d81ea1500ddc9a8242401",
+  "baseline_sha256": {
+    "style.rs": "6978b1527e8ccc2d59681ff0c706d66f46293f4b8bfb1544593c2cc762712001",
+    "ui_ir.rs": "e94185df5f79261cf48256959460830d6d20af9d8e87878ccbc9902e2200c742",
+    "ui_ir/runtime.rs": "7068fb8469863cbac6529abe0d8217868dfaba1a7263172fc17a5edbb479a45f"
+  },
+  "candidate_sha256": {
+    "style.rs": "ff787a8f08bf8457a69807d6ff19b5689867a5c708184f76293915185cd8932d",
+    "ui_ir.rs": "ac9130b375c7d80dd9423cad145bddad5673806f74b032a2c97c225db9521809",
+    "ui_ir/runtime.rs": "d85c5cb043e20f1e5c917a1eb8898e0d5191a87c6ab37685df73bd62677dc791",
+    "ui_ir/planning.rs": "3b5a345c652eede8b33f1df8ef8cc64cb8688dc22ff50180ee526c80c52604b0"
+  },
+  "harness_sha256": "825a737e863aefaf96466f575cb897d07489d626a13bca8e575c3ccc078b8bc2",
+  "toolchain": "rustc/cargo 1.98.1",
+  "cpu": "AMD Ryzen 7 4800H",
+  "os": "Windows 11 build 26100",
+  "build": "standalone retained-only release opt-level=3; two independent target directories; same project-owned Taffy source"
+}

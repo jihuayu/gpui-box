@@ -556,8 +556,11 @@ LogicalUi仍独立管理作用域，暂不允许两种writer混用。接受批�
 后续[类型化样式阶段](RETAINED_TYPED_STYLE_COMPOSITION.md)将输入schema升为2：UiNode携带
 ordered StyleRefs／StyleState，UiSnapshot携带独立style_environment；普通原子batch可一起更新。
 UiDocument保留authored与effective两份记录，恢复时重新求值，再走既有P0–P5链路；不会把
-上次effective值写回base。当前每批全图resolution与双份validation，仍有clone和winner-map
-成本，没有增量planner／性能改善声明。Schema1明确拒绝，外语wire ABI尚未冻结。
+上次effective值写回base。该初版每批全图resolution与双份validation，仍有clone和winner-map
+成本。后续[纯样式增量规划](RETAINED_INCREMENTAL_STYLE_PLANNING.md)共享immutable节点并缓存
+StylePlan，按touched identities和选中规则的环境依赖求值。属性批次复用已验树边，结构批次
+完整校验source graph；目录复制、普通retained candidate与完整geometry validation仍在。
+没有结构builder自动scheduler或全链路局部复杂度承诺。Schema1明确拒绝，外语wire ABI尚未冻结。
 
 `UiSnapshot` 用于首次装载与恢复；`UiBatch` 包含 schema version、runtime epoch、base revision、batch sequence 和操作。先在草稿上校验最终拓扑、资源、属性和生命周期，再原子发布。失败时保留原树，不泄漏已分配但未提交的句柄。
 
@@ -788,7 +791,8 @@ UI schema2接入source/effective原子发布，Flex／Grid／Calc、P1／P2及�
 没有新增kernel算法或wall-time/FPS结论。
 
 以下含token/theme/parts、binding、inherit、宏及动画的写法和能力分层仍是设计；现StyleRef
-不提供这些占位能力，Style IR也未承诺稳定wire ABI。每批仍全图求值与验证；自动event state、
+不提供这些占位能力，Style IR也未承诺稳定wire ABI。后续纯样式增量规划已减少重复求值，
+结构批次仍全图验证，所有发布仍做普通retained/layout/geometry校验；自动event state、
 容器条件调度、render域独立条件采样和预算化准备尚待接入。完整M2与总目标保持未完成。
 
 ### 6.1 借鉴范围

@@ -1,0 +1,532 @@
+--- a/crates/gpui-box/src/retained/style.rs
++++ b/crates/gpui-box/src/retained/style.rs
+@@ -34,0 +35,14 @@
++    fn dependencies(&self) -> StyleDependencies {
++        StyleDependencies {
++            hovered: self.hovered.is_some(),
++            pressed: self.pressed.is_some(),
++            focus_visible: self.focus_visible.is_some(),
++            disabled: self.disabled.is_some(),
++            selected: self.selected.is_some(),
++            viewport_width: self.min_width.is_some() || self.max_width.is_some(),
++            direction: self.direction.is_some(),
++            reduced_motion: self.reduced_motion.is_some(),
++            touch: self.touch.is_some(),
++            pointer: self.pointer.is_some(),
++        }
++    }
+@@ -76,0 +91,47 @@
++/// Inputs read by the winning complete property rules. Overridden rules do not
++/// contribute dependencies. These describe pure style evaluation, not layout
++/// dependencies, event subscriptions or presentation-thread safety.
++#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
++pub struct StyleDependencies {
++    pub hovered: bool,
++    pub pressed: bool,
++    pub focus_visible: bool,
++    pub disabled: bool,
++    pub selected: bool,
++    pub viewport_width: bool,
++    pub direction: bool,
++    pub reduced_motion: bool,
++    pub touch: bool,
++    pub pointer: bool,
++}
++impl StyleDependencies {
++    fn include(&mut self, other: Self) {
++        self.hovered |= other.hovered;
++        self.pressed |= other.pressed;
++        self.focus_visible |= other.focus_visible;
++        self.disabled |= other.disabled;
++        self.selected |= other.selected;
++        self.viewport_width |= other.viewport_width;
++        self.direction |= other.direction;
++        self.reduced_motion |= other.reduced_motion;
++        self.touch |= other.touch;
++        self.pointer |= other.pointer;
++    }
++    pub(crate) fn state_changed(self, before: StyleState, after: StyleState) -> bool {
++        (self.hovered && before.hovered != after.hovered)
++            || (self.pressed && before.pressed != after.pressed)
++            || (self.focus_visible && before.focus_visible != after.focus_visible)
++            || (self.disabled && before.disabled != after.disabled)
++            || (self.selected && before.selected != after.selected)
++    }
++    pub(crate) fn environment_inputs(self) -> [bool; 5] {
++        [
++            self.viewport_width,
++            self.direction,
++            self.reduced_motion,
++            self.touch,
++            self.pointer,
++        ]
++    }
++}
++
+@@ -210,0 +272,7 @@
++            fn dependencies(&self) -> StyleDependencies {
++                match self { $(Self::$name(rule) => {
++                    let mut dependencies = StyleDependencies::default();
++                    for case in &rule.cases { dependencies.include(case.condition.dependencies()); }
++                    dependencies
++                }),+, _ => unreachable!("expanded shorthand") }
++            }
+@@ -473,30 +541,88 @@
+-    environment.validate()?;
+-    let mut selected = BTreeMap::new();
+-    for (style_index, style) in styles.iter().enumerate() {
+-        for (declaration_index, declaration) in style.0.declarations.iter().enumerate() {
+-            selected.insert(
+-                declaration.key(),
+-                (style_index, declaration_index, declaration),
+-            );
+-        }
+-    }
+-    let mut output = StyleResolution {
+-        layout: base_layout.clone(),
+-        properties: base_properties.clone(),
+-        winners: BTreeMap::new(),
+-    };
+-    for (key, (style_index, declaration_index, declaration)) in selected {
+-        let (case_index, initial) = declaration.apply(&mut output, environment, state);
+-        output.winners.insert(
+-            key,
+-            StyleWinner {
+-                style_index,
+-                declaration_index,
+-                case_index,
+-                initial,
+-            },
+-        );
+-    }
+-    validate_output(&output)?;
+-    Ok(output)
+-}
++    StylePlan::new(styles).resolve(base_layout, base_properties, environment, state)
++}
++
++/// Owned compiled selection of one complete rule per atomic property. Retains
++/// StyleRef storage rather than cloning rule values. Reuse across state and
++/// environment changes; constructing a new composition produces a new plan.
++#[derive(Clone, Debug)]
++pub struct StylePlan {
++    styles: Vec<StyleRef>,
++    selected: Vec<(StyleProperty, usize, usize)>,
++    dependencies: StyleDependencies,
++}
++impl StylePlan {
++    pub fn new(styles: &[StyleRef]) -> Self {
++        let mut selected = BTreeMap::new();
++        for (style_index, style) in styles.iter().enumerate() {
++            for (declaration_index, declaration) in style.0.declarations.iter().enumerate() {
++                selected.insert(declaration.key(), (style_index, declaration_index));
++            }
++        }
++        let mut dependencies = StyleDependencies::default();
++        let selected = selected
++            .into_iter()
++            .map(|(key, (s, d))| {
++                dependencies.include(styles[s].0.declarations[d].dependencies());
++                (key, s, d)
++            })
++            .collect();
++        Self {
++            styles: styles.to_vec(),
++            selected,
++            dependencies,
++        }
++    }
++    pub fn dependencies(&self) -> StyleDependencies {
++        self.dependencies
++    }
++    pub fn resolve(
++        &self,
++        base_layout: &LayoutStyle,
++        base_properties: &UiProperties,
++        environment: &LayoutEnvironment,
++        state: StyleState,
++    ) -> Result<StyleResolution, StyleError> {
++        self.evaluate(base_layout, base_properties, environment, state, true)
++    }
++    pub(crate) fn resolve_values(
++        &self,
++        base_layout: &LayoutStyle,
++        base_properties: &UiProperties,
++        environment: &LayoutEnvironment,
++        state: StyleState,
++    ) -> Result<StyleResolution, StyleError> {
++        self.evaluate(base_layout, base_properties, environment, state, false)
++    }
++    fn evaluate(
++        &self,
++        base_layout: &LayoutStyle,
++        base_properties: &UiProperties,
++        environment: &LayoutEnvironment,
++        state: StyleState,
++        diagnostics: bool,
++    ) -> Result<StyleResolution, StyleError> {
++        environment.validate()?;
++        let mut output = StyleResolution {
++            layout: base_layout.clone(),
++            properties: base_properties.clone(),
++            winners: BTreeMap::new(),
++        };
++        for &(key, style_index, declaration_index) in &self.selected {
++            let declaration = &self.styles[style_index].0.declarations[declaration_index];
++            let (case_index, initial) = declaration.apply(&mut output, environment, state);
++            if diagnostics {
++                output.winners.insert(
++                    key,
++                    StyleWinner {
++                        style_index,
++                        declaration_index,
++                        case_index,
++                        initial,
++                    },
++                );
++            }
++        }
++        validate_output(&output)?;
++        Ok(output)
++    }
++}
+--- a/crates/gpui-box/src/retained/ui_ir.rs
++++ b/crates/gpui-box/src/retained/ui_ir.rs
+@@ -7,0 +8 @@
++mod planning;
+@@ -8,0 +10 @@
++pub use planning::UiPlanningStats;
+@@ -13,0 +16,2 @@
++
++type NodeMap = BTreeMap<UiNodeId, Arc<UiNode>>;
+@@ -270,5 +274 @@
+-fn validate_graph(
+-    root: UiNodeId,
+-    nodes: &BTreeMap<UiNodeId, UiNode>,
+-    limits: UiLimits,
+-) -> Result<(), UiError> {
++fn validate_graph(root: UiNodeId, nodes: &NodeMap, limits: UiLimits) -> Result<(), UiError> {
+@@ -416,31 +415,0 @@
+-
+-fn resolve_styles(
+-    nodes: &BTreeMap<UiNodeId, UiNode>,
+-    environment: &LayoutEnvironment,
+-    limits: UiLimits,
+-) -> Result<BTreeMap<UiNodeId, UiNode>, UiError> {
+-    environment.validate()?;
+-    nodes
+-        .iter()
+-        .map(|(&id, node)| {
+-            let mut resolved = node.clone();
+-            if !node.styles.is_empty() {
+-                let output = style::resolve(
+-                    &node.layout,
+-                    &node.properties,
+-                    &node.styles,
+-                    environment,
+-                    node.style_state,
+-                )
+-                .map_err(UiError::Style)?;
+-                resolved.layout = output.layout;
+-                resolved.properties = output.properties;
+-                // Do not retain a second style-reference list in the adapter's
+-                // resolved values. Authored nodes keep their declarations/state.
+-                resolved.styles.clear();
+-            }
+-            validate_payload_bounds(&resolved, limits)?;
+-            Ok((id, resolved))
+-        })
+-        .collect()
+-}
+--- a/crates/gpui-box/src/retained/ui_ir/runtime.rs
++++ b/crates/gpui-box/src/retained/ui_ir/runtime.rs
+@@ -1,0 +2,4 @@
++
++#[cfg(test)]
++#[path = "planning/tests.rs"]
++mod planning_tests;
+@@ -53,0 +58 @@
++    pub planning: UiPlanningStats,
+@@ -73,2 +78,3 @@
+-    nodes: BTreeMap<UiNodeId, UiNode>,
+-    resolved_nodes: BTreeMap<UiNodeId, UiNode>,
++    nodes: NodeMap,
++    resolved_nodes: NodeMap,
++    style_cache: planning::StyleCache,
+@@ -115 +121 @@
+-            if nodes.insert(id, node).is_some() {
++            if nodes.insert(id, Arc::new(node)).is_some() {
+@@ -131 +137,2 @@
+-        let resolved_nodes = resolve_styles(&nodes, &snapshot.style_environment, limits)?;
++        let (style_cache, resolved_nodes, planning) =
++            planning::StyleCache::initial(&nodes, &snapshot.style_environment, limits)?;
+@@ -159,0 +167 @@
++            planning,
+@@ -170,0 +179 @@
++                style_cache,
+@@ -192 +201 @@
+-        self.nodes.get(&id)
++        self.nodes.get(&id).map(Arc::as_ref)
+@@ -197 +206 @@
+-        self.resolved_nodes.get(&id)
++        self.resolved_nodes.get(&id).map(Arc::as_ref)
+@@ -228 +237,5 @@
+-            nodes: self.nodes.values().cloned().collect(),
++            nodes: self
++                .nodes
++                .values()
++                .map(|node| node.as_ref().clone())
++                .collect(),
+@@ -303,0 +317 @@
++                planning: UiPlanningStats::default(),
+@@ -323,0 +338 @@
++        let mut touched = BTreeSet::new();
+@@ -341 +356,2 @@
+-                    nodes.insert(node.id, node.clone());
++                    nodes.insert(node.id, Arc::new(node.clone()));
++                    touched.insert(node.id);
+@@ -351 +367 @@
+-                    get_mut(&mut nodes, *node)?.layout = value.clone()
++                    get_mut(&mut nodes, *node, &mut touched)?.layout = value.clone()
+@@ -358 +374 @@
+-                    get_mut(&mut nodes, *node)?.properties = value.clone()
++                    get_mut(&mut nodes, *node, &mut touched)?.properties = value.clone()
+@@ -362 +378 @@
+-                    get_mut(&mut nodes, *node)?.content = value.clone()
++                    get_mut(&mut nodes, *node, &mut touched)?.content = value.clone()
+@@ -368 +384 @@
+-                    get_mut(&mut nodes, *node)?.children = value.clone()
++                    get_mut(&mut nodes, *node, &mut touched)?.children = value.clone()
+@@ -371 +387 @@
+-                    get_mut(&mut nodes, *node)?.styles = value.clone()
++                    get_mut(&mut nodes, *node, &mut touched)?.styles = value.clone()
+@@ -374 +390 @@
+-                    get_mut(&mut nodes, *node)?.style_state = *value
++                    get_mut(&mut nodes, *node, &mut touched)?.style_state = *value
+@@ -396,3 +412,9 @@
+-        nodes.retain(|id, _| !dead.contains(id));
+-        for node in nodes.values_mut() {
+-            node.children.retain(|id| !dead.contains(id));
++        if !dead.is_empty() {
++            touched.extend(dead.iter().copied());
++            nodes.retain(|id, _| !dead.contains(id));
++            for (&id, node) in &mut nodes {
++                if node.children.iter().any(|child| dead.contains(child)) {
++                    Arc::make_mut(node).children.retain(|id| !dead.contains(id));
++                    touched.insert(id);
++                }
++            }
+@@ -401 +423,8 @@
+-        let resolved_nodes = resolve_styles(&nodes, &style_environment, self.limits)?;
++        let mut style_cache = self.style_cache.clone();
++        let (resolved_nodes, planning) = style_cache.update(
++            (&self.nodes, &self.resolved_nodes, &self.style_environment),
++            &nodes,
++            &style_environment,
++            touched,
++            self.limits,
++        )?;
+@@ -415,0 +445 @@
++        self.style_cache = style_cache;
+@@ -431,0 +462 @@
++            planning,
+@@ -498,2 +529,8 @@
+-fn get_mut(nodes: &mut BTreeMap<UiNodeId, UiNode>, id: UiNodeId) -> Result<&mut UiNode, UiError> {
+-    nodes.get_mut(&id).ok_or(UiError::InvalidIdentity(id))
++fn get_mut<'a>(
++    nodes: &'a mut NodeMap,
++    id: UiNodeId,
++    touched: &mut BTreeSet<UiNodeId>,
++) -> Result<&'a mut UiNode, UiError> {
++    let node = nodes.get_mut(&id).ok_or(UiError::InvalidIdentity(id))?;
++    touched.insert(id);
++    Ok(Arc::make_mut(node))
+@@ -512 +549 @@
+-    nodes: &BTreeMap<UiNodeId, UiNode>,
++    nodes: &NodeMap,
+@@ -547,2 +584,2 @@
+-    previous: &BTreeMap<UiNodeId, UiNode>,
+-    nodes: &BTreeMap<UiNodeId, UiNode>,
++    previous: &NodeMap,
++    nodes: &NodeMap,
+--- a/crates/gpui-box/src/retained/ui_ir/planning.rs
++++ b/crates/gpui-box/src/retained/ui_ir/planning.rs
+@@ -0,0 +1,178 @@
++//! Pure-style invalidation only. Normal graph, resource and geometry validation
++//! remain authoritative, including when no style expression needs evaluation.
++use super::style::StylePlan;
++
++use super::*;
++
++/// Work performed by this publication's source/style planner, excluding graph
++/// validation, candidates, layout, extraction, raster and GPU work. A replay
++/// performs none. Counts do not promise a wall-time or total-allocation bound.
++#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
++pub struct UiPlanningStats {
++    pub nodes_considered: usize,
++    pub style_plans_built: usize,
++    pub styles_evaluated: usize,
++    pub effective_records_reused: usize,
++}
++
++#[derive(Clone, Default)]
++pub(super) struct StyleCache {
++    plans: BTreeMap<UiNodeId, Arc<StylePlan>>,
++    /// Width, direction, reduced-motion, touch, pointer. Immutable membership
++    /// snapshots share until a definition is replaced/created/removed.
++    environment_users: [Arc<BTreeSet<UiNodeId>>; 5],
++}
++impl StyleCache {
++    pub(super) fn initial(
++        nodes: &NodeMap,
++        environment: &LayoutEnvironment,
++        limits: UiLimits,
++    ) -> Result<(Self, NodeMap, UiPlanningStats), UiError> {
++        let mut cache = Self::default();
++        let mut resolved = NodeMap::new();
++        let mut stats = UiPlanningStats::default();
++        for (&id, node) in nodes {
++            stats.nodes_considered += 1;
++            cache.replace_plan(id, &node.styles, &mut stats);
++            let effective = cache.evaluate(node, environment, limits, &mut stats)?;
++            resolved.insert(id, effective);
++        }
++        Ok((cache, resolved, stats))
++    }
++
++    pub(super) fn update(
++        &mut self,
++        previous: (&NodeMap, &NodeMap, &LayoutEnvironment),
++        nodes: &NodeMap,
++        environment: &LayoutEnvironment,
++        mut touched: BTreeSet<UiNodeId>,
++        limits: UiLimits,
++    ) -> Result<(NodeMap, UiPlanningStats), UiError> {
++        environment.validate()?;
++        let (authored, effective, before_environment) = previous;
++        let mut stats = UiPlanningStats::default();
++        let mut resolved = effective.clone();
++        let changed = [
++            before_environment.layout_viewport[0] != environment.layout_viewport[0],
++            before_environment.direction != environment.direction,
++            before_environment.reduced_motion != environment.reduced_motion,
++            before_environment.touch != environment.touch,
++            before_environment.pointer != environment.pointer,
++        ];
++        let mut environment_dirty = BTreeSet::new();
++        for (index, changed) in changed.into_iter().enumerate() {
++            if changed {
++                environment_dirty.extend(self.environment_users[index].iter().copied());
++            }
++        }
++        touched.extend(environment_dirty.iter().copied());
++        for id in touched {
++            stats.nodes_considered += 1;
++            let Some(node) = nodes.get(&id) else {
++                self.remove_plan(id);
++                resolved.remove(&id);
++                continue;
++            };
++            let old = authored.get(&id);
++            let style_changed = old.is_none_or(|old| old.styles != node.styles);
++            if style_changed {
++                self.replace_plan(id, &node.styles, &mut stats);
++            }
++            if old.is_some_and(|old| old.as_ref() == node.as_ref())
++                && !environment_dirty.contains(&id)
++            {
++                stats.effective_records_reused += 1;
++                continue;
++            }
++            let needs_evaluation = old.is_none_or(|old| {
++                style_changed
++                    || old.layout != node.layout
++                    || old.properties != node.properties
++                    || self.plans.get(&id).is_some_and(|plan| {
++                        plan.dependencies()
++                            .state_changed(old.style_state, node.style_state)
++                    })
++            }) || environment_dirty.contains(&id);
++            let next = if needs_evaluation {
++                self.evaluate(node, environment, limits, &mut stats)?
++            } else {
++                // Content/topology/unread state still belongs to the effective
++                // record, but must not reevaluate unaffected layout/properties.
++                let mut next = node.as_ref().clone();
++                next.layout = effective[&id].layout.clone();
++                next.properties = effective[&id].properties.clone();
++                next.styles.clear();
++                Arc::new(next)
++            };
++            if effective
++                .get(&id)
++                .is_some_and(|old| old.as_ref() == next.as_ref())
++            {
++                stats.effective_records_reused += 1;
++            } else {
++                resolved.insert(id, next);
++            }
++        }
++        Ok((resolved, stats))
++    }
++
++    fn remove_plan(&mut self, id: UiNodeId) {
++        if let Some(old) = self.plans.remove(&id) {
++            for (index, used) in old
++                .dependencies()
++                .environment_inputs()
++                .into_iter()
++                .enumerate()
++            {
++                if used {
++                    Arc::make_mut(&mut self.environment_users[index]).remove(&id);
++                }
++            }
++        }
++    }
++    fn replace_plan(&mut self, id: UiNodeId, styles: &[StyleRef], stats: &mut UiPlanningStats) {
++        self.remove_plan(id);
++        if styles.is_empty() {
++            return;
++        }
++        let plan = Arc::new(StylePlan::new(styles));
++        stats.style_plans_built += 1;
++        for (index, used) in plan
++            .dependencies()
++            .environment_inputs()
++            .into_iter()
++            .enumerate()
++        {
++            if used {
++                Arc::make_mut(&mut self.environment_users[index]).insert(id);
++            }
++        }
++        self.plans.insert(id, plan);
++    }
++    fn evaluate(
++        &self,
++        node: &Arc<UiNode>,
++        environment: &LayoutEnvironment,
++        limits: UiLimits,
++        stats: &mut UiPlanningStats,
++    ) -> Result<Arc<UiNode>, UiError> {
++        let Some(plan) = self.plans.get(&node.id) else {
++            return Ok(node.clone());
++        };
++        stats.styles_evaluated += 1;
++        let output = plan
++            .resolve_values(
++                &node.layout,
++                &node.properties,
++                environment,
++                node.style_state,
++            )
++            .map_err(UiError::Style)?;
++        let mut resolved = node.as_ref().clone();
++        resolved.layout = output.layout;
++        resolved.properties = output.properties;
++        resolved.styles.clear();
++        validate_payload_bounds(&resolved, limits)?;
++        Ok(Arc::new(resolved))
++    }
++}

@@ -5,12 +5,16 @@ use super::responsive::LayoutEnvironment;
 use super::style::{StyleError, StyleRef, StyleState};
 use super::*;
 use std::collections::{BTreeMap, BTreeSet};
+mod planning;
 mod runtime;
+pub use planning::UiPlanningStats;
 pub use runtime::{UiDocument, UiPublication, UiResources};
 #[cfg(test)]
 mod tests;
 
 pub const UI_SCHEMA_VERSION: u32 = 2;
+
+type NodeMap = BTreeMap<UiNodeId, Arc<UiNode>>;
 
 /// Client identity within one runtime epoch. Slots may be reused only with a
 /// strictly greater generation, including after snapshot recovery.
@@ -267,11 +271,7 @@ fn validate_header(schema: u32, runtime: u64, epoch: u64) -> Result<(), UiError>
     Ok(())
 }
 
-fn validate_graph(
-    root: UiNodeId,
-    nodes: &BTreeMap<UiNodeId, UiNode>,
-    limits: UiLimits,
-) -> Result<(), UiError> {
+fn validate_graph(root: UiNodeId, nodes: &NodeMap, limits: UiLimits) -> Result<(), UiError> {
     if nodes.len() > limits.max_nodes {
         return Err(UiError::LimitExceeded);
     }
@@ -412,35 +412,4 @@ fn validate_style_refs(styles: &[StyleRef], limits: UiLimits) -> Result<(), UiEr
         }
     }
     Ok(())
-}
-
-fn resolve_styles(
-    nodes: &BTreeMap<UiNodeId, UiNode>,
-    environment: &LayoutEnvironment,
-    limits: UiLimits,
-) -> Result<BTreeMap<UiNodeId, UiNode>, UiError> {
-    environment.validate()?;
-    nodes
-        .iter()
-        .map(|(&id, node)| {
-            let mut resolved = node.clone();
-            if !node.styles.is_empty() {
-                let output = style::resolve(
-                    &node.layout,
-                    &node.properties,
-                    &node.styles,
-                    environment,
-                    node.style_state,
-                )
-                .map_err(UiError::Style)?;
-                resolved.layout = output.layout;
-                resolved.properties = output.properties;
-                // Do not retain a second style-reference list in the adapter's
-                // resolved values. Authored nodes keep their declarations/state.
-                resolved.styles.clear();
-            }
-            validate_payload_bounds(&resolved, limits)?;
-            Ok((id, resolved))
-        })
-        .collect()
 }

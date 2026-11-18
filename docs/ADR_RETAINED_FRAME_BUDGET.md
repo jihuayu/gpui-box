@@ -8,6 +8,18 @@ decision does not close the RFC acceptance goal.
 
 ## Requirements
 
+2026-11-18 priority clarification: qualify representative ordinary UI first:
+pointer feedback, drag/scroll, Flex resize/wrapping, text/image updates, common
+lists, popups and effects. The user's "99% without stutter" is an acceptance
+target requiring p99 frame intervals/input response and consecutive missed-frame
+evidence under declared hardware/workloads; it is not a measured current
+guarantee or permission to discard the slowest1% of samples. Keep all raw tails.
+Rare/extreme combinations should have an explicit bound/error/correct fallback;
+do not overcomplicate the public API to optimize them before these common flows.
+Visible feedback, presented hit geometry, focus, scroll bounds and coherent
+async adoption must follow the user's current interaction. CPU prioritizes
+complete-frame fluency, with declared decorative quality reduction when needed.
+
 The primary target is modern desktop GPUs at 120 Hz, with an 8.333 ms frame
 interval, including decorative effects. Avoiding burst stalls takes priority
 over a favorable average. Report p50/p95/p99/max, missed deadlines, obsolete

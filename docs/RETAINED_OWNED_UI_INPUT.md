@@ -24,7 +24,7 @@ Schema2 adds ordered immutable StyleRefs and StyleState to each UiNode, explicit
 style_environment to UiSnapshot, and Styles/StyleState/StyleEnvironment operations.
 UiDocument retains authored source separately from resolved layout/properties;
 node()/snapshot() return authored rules, resolved_node() returns effective values.
-It resolves with final state/environment, validates source/effective graphs and
+It resolves with final state/environment, validates topology and effective payloads and
 diffs previous effective output before ordinary atomic publication. Snapshot
 recovery recomputes styles. Environment defaults to zero logical viewport and
 unknown optional capabilities; it is not inferred from host constraints or paint
@@ -136,9 +136,13 @@ its own journal/rollback invariants. A closure-based builder scheduler cannot
 reorder/replay existing FnOnce callbacks without a new contract. This boundary
 enables a future declarative planner; it does not claim that planner exists.
 
-Costs: clone source/effective graphs/generation map/mapping, resolve all nodes,
-allocate style winners, final source/effective graph/style validation,
-candidate clone and complete geometry validation occur per accepted batch.
+Follow-up [incremental style planning](RETAINED_INCREMENTAL_STYLE_PLANNING.md)
+shares immutable authored/effective records and cached composition plans, and
+reevaluates touched/read-input consumers. The map directories still clone;
+structural batches validate the complete source topology, while attribute batches
+reuse accepted edges and validate changed payloads. Style resolution validates
+selected output without repeating the same graph proof. Candidate clone and
+complete geometry validation occur per accepted batch.
 Changed child lists remain sparse, while topology validation and source scans
 can still be full-tree. External hit maps are immutable complete maps per
 publication. One latest batch payload is retained for equality/replay; resource

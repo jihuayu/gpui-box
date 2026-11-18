@@ -1,5 +1,9 @@
 use super::*;
 
+#[cfg(test)]
+#[path = "planning/tests.rs"]
+mod planning_tests;
+
 #[derive(Clone, Debug, PartialEq)]
 enum Resource {
     Image(ImageResource),
@@ -51,6 +55,7 @@ pub struct UiPublication {
     pub next_sequence: u64,
     pub commit: Commit,
     pub frame: local::LocalFrame,
+    pub planning: UiPlanningStats,
     identities: Arc<BTreeMap<NodeId, UiNodeId>>,
 }
 impl UiPublication {
@@ -70,8 +75,9 @@ pub struct UiDocument {
     revision: u64,
     next_sequence: u64,
     root: UiNodeId,
-    nodes: BTreeMap<UiNodeId, UiNode>,
-    resolved_nodes: BTreeMap<UiNodeId, UiNode>,
+    nodes: NodeMap,
+    resolved_nodes: NodeMap,
+    style_cache: planning::StyleCache,
     style_environment: LayoutEnvironment,
     generations: BTreeMap<u64, u64>,
     mapping: BTreeMap<UiNodeId, NodeId>,
@@ -112,7 +118,7 @@ impl UiDocument {
         }
         for node in snapshot.nodes {
             let id = node.id;
-            if nodes.insert(id, node).is_some() {
+            if nodes.insert(id, Arc::new(node)).is_some() {
                 return Err(UiError::DuplicateSlot(id.slot));
             }
         }
@@ -128,8 +134,9 @@ impl UiDocument {
             }
         }
         validate_graph(snapshot.root, &nodes, limits)?;
-        let resolved_nodes = resolve_styles(&nodes, &snapshot.style_environment, limits)?;
-        validate_graph(snapshot.root, &resolved_nodes, limits)?;
+        let (style_cache, resolved_nodes, mut planning) =
+            planning::StyleCache::initial(&nodes, &snapshot.style_environment, limits)?;
+        planning.topology_validations = 1;
         let pinned = pin_resources(&nodes, resources, &BTreeMap::new())?;
         let root_node = &resolved_nodes[&snapshot.root];
         let mut tree = UiTree::new_layout(root_node.layout.clone(), root_node.properties.color)?;
@@ -157,6 +164,7 @@ impl UiDocument {
             next_sequence: snapshot.next_sequence,
             commit: result,
             frame,
+            planning,
             identities: identities.clone(),
         };
         Ok((
@@ -168,6 +176,7 @@ impl UiDocument {
                 root: snapshot.root,
                 nodes,
                 resolved_nodes,
+                style_cache,
                 style_environment: snapshot.style_environment,
                 generations,
                 mapping,
@@ -189,12 +198,12 @@ impl UiDocument {
         self.next_sequence
     }
     pub fn node(&self, id: UiNodeId) -> Option<&UiNode> {
-        self.nodes.get(&id)
+        self.nodes.get(&id).map(Arc::as_ref)
     }
     /// Selected layout/visual values after ordered style composition. Authored
     /// declarations and state remain available through node()/snapshot().
     pub fn resolved_node(&self, id: UiNodeId) -> Option<&UiNode> {
-        self.resolved_nodes.get(&id)
+        self.resolved_nodes.get(&id).map(Arc::as_ref)
     }
     pub fn style_environment(&self) -> &LayoutEnvironment {
         &self.style_environment
@@ -225,7 +234,11 @@ impl UiDocument {
             revision: self.revision,
             next_sequence: self.next_sequence,
             root: self.root,
-            nodes: self.nodes.values().cloned().collect(),
+            nodes: self
+                .nodes
+                .values()
+                .map(|node| node.as_ref().clone())
+                .collect(),
             generations: self
                 .generations
                 .iter()
@@ -301,6 +314,7 @@ impl UiDocument {
                     ..Commit::default()
                 },
                 frame,
+                planning: UiPlanningStats::default(),
                 identities: self.identities.clone(),
             });
         }
@@ -321,6 +335,15 @@ impl UiDocument {
             return Err(UiError::LimitExceeded);
         }
         let mut nodes = self.nodes.clone();
+        let mut touched = BTreeSet::new();
+        let topology_changed = batch.operations.iter().any(|operation| {
+            matches!(
+                operation,
+                UiOperation::Create(_)
+                    | UiOperation::Children { .. }
+                    | UiOperation::RemoveSubtree(_)
+            )
+        });
         let mut style_environment = self.style_environment.clone();
         let mut generations = self.generations.clone();
         let mut live_slots: BTreeSet<_> = nodes.keys().map(|id| id.slot).collect();
@@ -338,7 +361,8 @@ impl UiDocument {
                         return Err(UiError::InvalidIdentity(node.id));
                     }
                     generations.insert(node.id.slot, node.id.generation);
-                    nodes.insert(node.id, node.clone());
+                    nodes.insert(node.id, Arc::new(node.clone()));
+                    touched.insert(node.id);
                     if nodes.len() > self.limits.max_nodes
                         || generations.len() > self.limits.max_generation_slots
                     {
@@ -348,30 +372,30 @@ impl UiDocument {
                 UiOperation::Layout { node, value } => {
                     validate_style_bounds(value, self.limits)?;
                     value.validate()?;
-                    get_mut(&mut nodes, *node)?.layout = value.clone()
+                    get_mut(&mut nodes, *node, &mut touched)?.layout = value.clone()
                 }
                 UiOperation::Properties { node, value } => {
                     if value.shadows.len() > self.limits.max_shadows_per_node {
                         return Err(UiError::LimitExceeded);
                     }
                     validate_properties(value)?;
-                    get_mut(&mut nodes, *node)?.properties = value.clone()
+                    get_mut(&mut nodes, *node, &mut touched)?.properties = value.clone()
                 }
                 UiOperation::Content { node, value } => {
                     validate_content(value)?;
-                    get_mut(&mut nodes, *node)?.content = value.clone()
+                    get_mut(&mut nodes, *node, &mut touched)?.content = value.clone()
                 }
                 UiOperation::Children { node, value } => {
                     if value.len() > self.limits.max_children_per_node {
                         return Err(UiError::LimitExceeded);
                     }
-                    get_mut(&mut nodes, *node)?.children = value.clone()
+                    get_mut(&mut nodes, *node, &mut touched)?.children = value.clone()
                 }
                 UiOperation::Styles { node, value } => {
-                    get_mut(&mut nodes, *node)?.styles = value.clone()
+                    get_mut(&mut nodes, *node, &mut touched)?.styles = value.clone()
                 }
                 UiOperation::StyleState { node, value } => {
-                    get_mut(&mut nodes, *node)?.style_state = *value
+                    get_mut(&mut nodes, *node, &mut touched)?.style_state = *value
                 }
                 UiOperation::StyleEnvironment(value) => style_environment = value.clone(),
                 UiOperation::RemoveSubtree(id) => {
@@ -393,13 +417,41 @@ impl UiDocument {
         if dead.contains(&self.root) {
             return Err(UiError::InvalidTopology);
         }
-        nodes.retain(|id, _| !dead.contains(id));
-        for node in nodes.values_mut() {
-            node.children.retain(|id| !dead.contains(id));
+        if !dead.is_empty() {
+            touched.extend(dead.iter().copied());
+            nodes.retain(|id, _| !dead.contains(id));
+            for (&id, node) in &mut nodes {
+                if node.children.iter().any(|child| dead.contains(child)) {
+                    Arc::make_mut(node).children.retain(|id| !dead.contains(id));
+                    touched.insert(id);
+                }
+            }
         }
-        validate_graph(self.root, &nodes, self.limits)?;
-        let resolved_nodes = resolve_styles(&nodes, &style_environment, self.limits)?;
-        validate_graph(self.root, &resolved_nodes, self.limits)?;
+        if topology_changed {
+            validate_graph(self.root, &nodes, self.limits)?;
+        } else {
+            // No operation can alter a tree edge/identity. Reuse the accepted
+            // rooted-graph proof, while validating every touched final payload
+            // and content's leaf requirement. Host/layout validation remains.
+            for id in &touched {
+                let node = &nodes[id];
+                validate_payload_bounds(node, self.limits)?;
+                if !node.children.is_empty() && node.content != UiContent::Box {
+                    return Err(Error::MeasuredNodeHasChildren.into());
+                }
+            }
+        }
+        let mut style_cache = self.style_cache.clone();
+        let (resolved_nodes, mut planning) = style_cache.update(
+            (&self.nodes, &self.resolved_nodes, &self.style_environment),
+            &nodes,
+            &style_environment,
+            touched,
+            self.limits,
+        )?;
+        planning.topology_validations = usize::from(topology_changed);
+        // Style resolution changes layout/visual values only and validates
+        // selected payloads; it cannot invalidate the source graph's edges.
         let pinned = pin_resources(&nodes, resources, &self.resources)?;
         let mut mapping = self.mapping.clone();
         let commit = stage(
@@ -413,6 +465,7 @@ impl UiDocument {
         )?;
         self.nodes = nodes;
         self.resolved_nodes = resolved_nodes;
+        self.style_cache = style_cache;
         self.style_environment = style_environment;
         self.generations = generations;
         self.mapping = mapping;
@@ -429,6 +482,7 @@ impl UiDocument {
             next_sequence,
             commit,
             frame: self.published_frame(),
+            planning,
             identities: self.identities.clone(),
         })
     }
@@ -495,8 +549,14 @@ impl UiDocument {
     }
 }
 
-fn get_mut(nodes: &mut BTreeMap<UiNodeId, UiNode>, id: UiNodeId) -> Result<&mut UiNode, UiError> {
-    nodes.get_mut(&id).ok_or(UiError::InvalidIdentity(id))
+fn get_mut<'a>(
+    nodes: &'a mut NodeMap,
+    id: UiNodeId,
+    touched: &mut BTreeSet<UiNodeId>,
+) -> Result<&'a mut UiNode, UiError> {
+    let node = nodes.get_mut(&id).ok_or(UiError::InvalidIdentity(id))?;
+    touched.insert(id);
+    Ok(Arc::make_mut(node))
 }
 
 fn identities(mapping: &BTreeMap<UiNodeId, NodeId>) -> Arc<BTreeMap<NodeId, UiNodeId>> {
@@ -509,7 +569,7 @@ fn identities(mapping: &BTreeMap<UiNodeId, NodeId>) -> Arc<BTreeMap<NodeId, UiNo
 }
 
 fn pin_resources(
-    nodes: &BTreeMap<UiNodeId, UiNode>,
+    nodes: &NodeMap,
     input: &UiResources,
     previous: &BTreeMap<UiResourceId, Resource>,
 ) -> Result<BTreeMap<UiResourceId, Resource>, UiError> {
@@ -544,8 +604,8 @@ fn pin_resources(
 
 fn stage(
     tree: &mut UiTree,
-    previous: &BTreeMap<UiNodeId, UiNode>,
-    nodes: &BTreeMap<UiNodeId, UiNode>,
+    previous: &NodeMap,
+    nodes: &NodeMap,
     mapping: &mut BTreeMap<UiNodeId, NodeId>,
     resources: &BTreeMap<UiResourceId, Resource>,
     capabilities: BackendCapabilities,
@@ -587,6 +647,9 @@ fn stage(
             }
             for (&id, node) in nodes {
                 let old = previous.get(&id);
+                if old.is_some_and(|old| Arc::ptr_eq(old, node)) {
+                    continue;
+                }
                 let internal = mapping[&id];
                 let tx = edit.properties();
                 if old.is_none_or(|old| old.layout != node.layout) {

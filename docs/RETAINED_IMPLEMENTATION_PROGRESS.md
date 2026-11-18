@@ -3,6 +3,26 @@
 The active implementation goal covers the complete runtime requested on
 2026-11-11. Work continues in `codex/rendering-performance-research`.
 
+The [incremental style planning stage](RETAINED_INCREMENTAL_STYLE_PLANNING.md)
+shares immutable authored/effective UI records, caches selected StylePlans and
+tracks only winning-rule state/environment dependencies. StyleRef work bounds
+cache once; shared identities skip equal comparisons. Attribute-only batches
+reuse accepted source topology; structural batches retain complete validation,
+and all publications retain ordinary retained/layout/geometry checks. Seven
+new core cases cover dependency/index/record lifetime, base/metadata changes,
+rollback, replay/recovery and sparse/dense merges. Verified: retained517passed/
+1ignored; text/WGPU550/40; hello55/9; explicit GTX1650Ti/Vulkan style4 and glyph5
+complete-pixel comparisons; framework library Clippy and scoped format/link/diff
+checks pass. Four alternating release pairs on2,177-node ordinary Flex/Grid
+reduce sparse/no-op apply p50 aggregates59.5–71.6%; dense p50 Flex14.482→13.945ms,
+Grid15.436→13.643ms. Flex dense p99 still loses in2/4pairs; initial candidates
+with dense regressions are preserved. See [raw evidence and scope](performance/2026-11-18-ui-style-planning/README.md).
+Map directories/candidates, resource/identity scans, complete geometry and
+plan/index memory remain. This is pure-style planning, not automatic structural
+scheduling or native/CPU/sustained-performance acceptance. The user's99%fluency
+priority now explicitly favors representative common interaction p99 and keeps
+all slow samples; it is not a current measured guarantee.
+
 The [typed style composition stage](RETAINED_TYPED_STYLE_COMPOSITION.md) adds
 owned immutable StyleRef definitions, typed atomic rules, ordered whole-rule
 overrides, Initial, pure state/environment conditions and winner diagnostics.
@@ -14,8 +34,9 @@ core cases and one real-Noto case were added; retained510passed/1ignored,
 text/WGPU543/40, hello55/9 and framework library Clippy pass. Explicit GTX1650Ti/
 Vulkan style4 and glyph5 complete-pixel submissions match direct ordinary full
 trees. See [evidence](performance/2026-11-18-style-composition/README.md).
-Full-graph resolution/copies, winner-map allocation and existing candidate/global
-validation costs remain. Tokens/themes/parts/inheritance, automatic event state,
+At that composition stage full-graph resolution/copies, winner-map allocation and
+candidate/global validation costs remained. The follow-up above reduces planning
+and reuses accepted topology. Tokens/themes/parts/inheritance, automatic event state,
 binding/handler/focus, macros/ABI and automatic builder scheduling remain open;
 no new timing/memory/sustained-performance qualification follows.
 

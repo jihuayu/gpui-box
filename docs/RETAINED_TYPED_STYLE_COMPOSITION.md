@@ -6,6 +6,11 @@ This implements the ordered composition core from
 [owned primitive UI input](RETAINED_OWNED_UI_INPUT.md). It is not a CSS parser,
 StyleX compatibility layer, complete theme system or stable foreign ABI.
 
+Follow-up: [incremental style planning](RETAINED_INCREMENTAL_STYLE_PLANNING.md)
+adds reusable StylePlan/StyleDependencies, immutable shared UI records and
+selected-rule environment indices. The all-node planning costs below describe
+this initial composition stage; global validation/candidate work still remains.
+
 ## Typed definitions and deterministic resolution
 
 `retained::style` provides immutable `StyleRef`, typed `StyleDeclaration`,
@@ -141,16 +146,16 @@ prevents removing a style or returning from hover correctly. Passing raw engine
 styles loses the backend-independent boundary. A CSS cascade/parser introduces
 selectors/specificity/inheritance outside this defined native model.
 
-Costs: normalization clones shorthand rules into atoms; StyleRef creation scans
+Original-stage costs: normalization clones shorthand rules into atoms; StyleRef creation scans
 and validates all values. Each resolution builds a property-winner map and copies
-the base; UiDocument currently resolves **all live nodes per batch** and retains
+the base; that UiDocument stage resolves **all live nodes per batch** and retains
 both authored and effective records. Same-frame suppression does not mean no
 planning work. Limits cover definition name bytes/declarations/cases/value Grid
 entries/shadows and document per-node style/atom/case counts plus possible
 track/shadow value sizes. They do not form byte/time budgets; standalone resolve
-accepts caller-owned style
-lists without a document-wide budget. Cache/indexed condition dispatch and
-compact atom storage are open. No timing/memory/FPS gain is claimed.
+accepts caller-owned style lists without a document-wide budget. The follow-up
+caches composition and indexes input dependencies, while threshold dispatch and
+compact atom storage remain open. No timing/memory/FPS gain is claimed here.
 
 ## Verification and remaining scope
 
