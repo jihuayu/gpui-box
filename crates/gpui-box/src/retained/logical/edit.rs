@@ -579,6 +579,7 @@ impl LogicalUi {
             render,
             None,
             None::<fn(&mut UiTree) -> Result<(), Error>>,
+            None,
         )
     }
 
@@ -612,6 +613,7 @@ impl LogicalUi {
                 frame = Some(candidate);
                 Ok(())
             }),
+            None,
         )?;
         Ok((commit, frame.expect("validated complete frame")))
     }
@@ -639,16 +641,18 @@ impl LogicalUi {
                 frame = Some(candidate);
                 Ok(())
             }),
+            None,
         )?;
         Ok((commit, frame.expect("validated complete local frame")))
     }
 
-    fn edit_validated<S, R>(
+    pub(super) fn edit_validated<S, R>(
         &mut self,
         sources: impl FnOnce(&mut ReactiveTransaction<'_>) -> Result<S, Error>,
         render: impl FnOnce(S, &mut LogicalEdit<'_, '_, '_>) -> Result<R, Error>,
         frame_environment: Option<(LayoutConstraints, [f32; 2])>,
         validate: Option<impl FnOnce(&mut UiTree) -> Result<(), Error>>,
+        input: Option<super::events::ScrollDefaults<'_>>,
     ) -> Result<ReactiveEditCommit<R>, Error> {
         let frame_environment = frame_environment
             .or_else(|| {
@@ -677,7 +681,11 @@ impl LogicalUi {
         let build_observations: std::cell::RefCell<Vec<super::build_plan::BuildObservation>> =
             std::cell::RefCell::new(vec![]);
         let capabilities = self.ui.capabilities();
-        let pending = self.ui.edit_deferred_validated(
+        let identity = self.identity;
+        let input_registry = std::cell::RefCell::new(None);
+        let controlled_scroll = std::cell::RefCell::new(BTreeSet::new());
+        let mut input_commits = vec![];
+        let mut pending = self.ui.edit_deferred_validated(
             sources,
             |value, render_draft| {
                 let mut draft = LogicalEdit {
@@ -866,6 +874,10 @@ impl LogicalUi {
                 draft.validate_producer_sources()?;
                 draft.retire_and_validate_providers(&dead)?;
                 draft.retire_and_validate_events(&dead)?;
+                if input.is_some() {
+                    *input_registry.borrow_mut() = Some(draft.event_registry().clone());
+                    *controlled_scroll.borrow_mut() = draft.render.bound_scroll_nodes();
+                }
                 layout_session = draft.automatic_environment.take().map(|environment| {
                     let (constraints, viewport) = frame_environment.expect("captured frame input");
                     LayoutSession {
@@ -929,6 +941,51 @@ impl LogicalUi {
                         tree.local_frame_in_viewport(constraints, viewport)?
                             .validate_geometry()?;
                     }
+                    if let Some(input) = &input {
+                        let (constraints, viewport) =
+                            frame_environment.ok_or(Error::InvalidFrame)?;
+                        let registry = input_registry.borrow();
+                        let controlled = controlled_scroll.borrow();
+                        let scene = super::events::input_scene(
+                            tree,
+                            identity,
+                            registry.as_ref().expect("final input registry"),
+                            &controlled,
+                        )?;
+                        let input::scroll::WheelPlan { offsets, outcomes } =
+                            input::scroll::plan_wheels(&scene, &input.effects.wheel_scrolls)
+                                .map_err(Error::Input)?;
+                        let targets =
+                            input::scroll::validate_reveals(&scene, &input.effects.focus_reveals)
+                                .map_err(Error::Input)?;
+                        let mapping: BTreeMap<_, _> = scene
+                            .identities
+                            .iter()
+                            .map(|(&node, &id)| (id, node))
+                            .collect();
+                        let mut tx = Transaction::default();
+                        for (id, offset) in offsets {
+                            tx.scroll(mapping[&id], offset);
+                        }
+                        if !tx.patches.is_empty() {
+                            input_commits.push(tree.commit(tx, capabilities)?);
+                        }
+                        let targets: Vec<_> = targets.iter().map(|id| mapping[id]).collect();
+                        input_commits.extend(
+                            input::reveal::apply(
+                                tree,
+                                constraints,
+                                viewport,
+                                &targets,
+                                |node| controlled.contains(&node),
+                                capabilities,
+                            )?
+                            .commits,
+                        );
+                        tree.local_frame_in_viewport(constraints, viewport)?
+                            .validate_geometry()?;
+                        *input.outcomes.borrow_mut() = outcomes;
+                    }
                     for input in constraint_inputs.borrow().iter() {
                         input.validate(tree)?;
                     }
@@ -943,6 +1000,26 @@ impl LogicalUi {
                 }
             }),
         )?;
+        if !input_commits.is_empty() {
+            let commit = &mut pending.output.result.commit;
+            let changed: BTreeSet<_> = commit
+                .routes
+                .iter()
+                .map(|(id, _)| *id)
+                .chain(pending.output.inserted.iter().copied())
+                .chain(
+                    input_commits
+                        .iter()
+                        .flat_map(|c| c.routes.iter().map(|(id, _)| *id)),
+                )
+                .collect();
+            commit.changed_nodes = changed.len();
+            for extra in input_commits {
+                commit.request_frame |= extra.request_frame;
+                commit.routes.extend(extra.routes);
+                commit.decisions.extend(extra.decisions);
+            }
+        }
         let result = &pending.output;
         let dead: BTreeSet<_> = result.removed.iter().copied().collect();
         let owners: BTreeSet<_> = result

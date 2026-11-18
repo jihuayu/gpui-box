@@ -442,6 +442,12 @@ impl ReactiveUi {
     pub fn binding_count(&self) -> usize {
         self.bindings.len()
     }
+    pub(in crate::retained) fn bound_scroll_nodes(&self) -> BTreeSet<NodeId> {
+        self.endpoints
+            .keys()
+            .filter_map(|(node, field)| (*field == Field::Scroll).then_some(*node))
+            .collect()
+    }
     pub fn source_count(&self) -> usize {
         self.sources
             .iter()

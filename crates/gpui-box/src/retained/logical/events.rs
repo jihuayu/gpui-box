@@ -7,6 +7,16 @@ use std::{
 };
 
 type Callback = dyn Fn(&UiInputDispatch, &mut EventContext<'_, '_>) -> Result<(), Error>;
+/// One ordinary logical edit including default scrolling. Outcomes describe
+/// successfully adopted wheel consumption; dispatches/feedback stay explicit.
+pub struct LogicalScrollCommit<R> {
+    pub edit: reactive::ReactiveEditCommit<R>,
+    pub outcomes: Vec<UiScrollOutcome>,
+}
+pub(super) struct ScrollDefaults<'a> {
+    pub effects: &'a UiInputEffects,
+    pub outcomes: &'a std::cell::RefCell<Vec<UiScrollOutcome>>,
+}
 /// Owner-local immutable callback identity. Clone for equal keyed registration;
 /// replacing this handle reserves a fresh UiHandlerId, never rebinds an old ID.
 #[derive(Clone)]
@@ -90,7 +100,7 @@ impl Registry {
     }
 }
 impl LogicalEdit<'_, '_, '_> {
-    fn event_registry(&self) -> &Registry {
+    pub(super) fn event_registry(&self) -> &Registry {
         self.events.as_ref().unwrap_or(self.live_events)
     }
     fn event_registry_mut(&mut self) -> &mut Registry {
@@ -209,97 +219,154 @@ impl LogicalEdit<'_, '_, '_> {
 fn public_id(node: NodeId) -> UiNodeId {
     UiNodeId::new(node.slot as u64, node.generation)
 }
+fn current_input_frame(tree: &UiTree) -> Result<local::LocalFrame, Error> {
+    if tree.layout_dirty || tree.full_extract_required || !tree.geometry_dirty.is_empty() {
+        return Err(Error::InvalidFrame);
+    }
+    if let Some(frame) = tree
+        .local_frame
+        .as_ref()
+        .filter(|frame| frame.revision() == tree.revision)
+    {
+        Ok(frame.clone())
+    } else {
+        if tree.dirty {
+            return Err(Error::InvalidFrame);
+        }
+        let frame = tree
+            .frame
+            .as_ref()
+            .filter(|frame| frame.revision == tree.revision)
+            .ok_or(Error::InvalidFrame)?;
+        Ok(local::LocalFrame::from_frame(frame.clone()))
+    }
+}
+pub(super) fn input_scene(
+    tree: &UiTree,
+    identity: u64,
+    registry: &Registry,
+    controlled: &BTreeSet<NodeId>,
+) -> Result<UiInputScene, Error> {
+    let frame = current_input_frame(tree)?;
+    let mut graph = input::InputGraph::default();
+    let mut identities = BTreeMap::new();
+    let mut scrolls = BTreeMap::new();
+    let mut stack = vec![(tree.root(), None, true, true)];
+    while let Some((id, parent, enabled, visible)) = stack.pop() {
+        let node = tree.node(id)?;
+        let policy = registry.policies.get(&id).copied().unwrap_or_default();
+        let enabled = enabled && !policy.disabled;
+        let visible = visible && node.style.display != taffy::Display::None;
+        let source = public_id(id);
+        identities.insert(id, source);
+        graph.nodes.insert(
+            source,
+            input::InputNode {
+                parent,
+                policy,
+                enabled,
+                visible,
+            },
+        );
+        if enabled && visible && policy.focus == UiFocusPolicy::Tab {
+            graph.tab_order.push(source);
+        }
+        if node.style.overflow.x == taffy::Overflow::Scroll
+            || node.style.overflow.y == taffy::Overflow::Scroll
+        {
+            let maximum = [
+                node.published_layout.scroll_width(),
+                node.published_layout.scroll_height(),
+            ];
+            scrolls.insert(
+                source,
+                UiScrollState {
+                    offset: [
+                        node.scroll[0].min(maximum[0]),
+                        node.scroll[1].min(maximum[1]),
+                    ],
+                    maximum,
+                    wheel_axes: [
+                        !controlled.contains(&id)
+                            && node.style.overflow.x == taffy::Overflow::Scroll,
+                        !controlled.contains(&id)
+                            && node.style.overflow.y == taffy::Overflow::Scroll,
+                    ],
+                },
+            );
+        }
+        stack.extend(
+            node.children
+                .iter()
+                .rev()
+                .map(|&child| (child, Some(source), enabled, visible)),
+        );
+    }
+    let source_revision = frame
+        .revision()
+        .checked_add(registry.revision)
+        .ok_or(Error::RevisionExhausted)?;
+    Ok(UiInputScene {
+        id: UiInputSceneId {
+            runtime: identity,
+            epoch: 1,
+            source_revision,
+            tree: frame.tree(),
+            frame_revision: frame.revision(),
+        },
+        frame,
+        identities: Arc::new(identities),
+        graph: Arc::new(graph),
+        scrolls: Arc::new(scrolls),
+    })
+}
 impl LogicalUi {
+    /// Apply wheel and focus-reveal defaults with no application source edits.
+    /// The caller still dispatches callbacks and installs the returned current
+    /// publication in its host. This does not apply style feedback.
+    pub fn apply_input_scroll(
+        &mut self,
+        effects: &UiInputEffects,
+    ) -> Result<LogicalScrollCommit<()>, Error> {
+        self.edit_input_scroll(effects, |_| Ok(()), |(), _| Ok(()))
+    }
+    /// Sources and producers settle first; wheel uses final clamped offsets and
+    /// reveal uses final layout. Both publish with this same complete candidate.
+    /// A signal-bound scroll is application-controlled and skips default writes.
+    pub fn edit_input_scroll<S, R>(
+        &mut self,
+        effects: &UiInputEffects,
+        sources: impl FnOnce(&mut ReactiveTransaction<'_>) -> Result<S, Error>,
+        render: impl FnOnce(S, &mut LogicalEdit<'_, '_, '_>) -> Result<R, Error>,
+    ) -> Result<LogicalScrollCommit<R>, Error> {
+        // Require an existing complete input publication and reuse its host
+        // environment rather than guessing constraints from window dimensions.
+        let tree = self.ui.tree();
+        current_input_frame(tree)?;
+        let constraints = tree.layout_constraints.ok_or(Error::InvalidFrame)?;
+        let viewport = tree.viewport.ok_or(Error::InvalidFrame)?;
+        let outcomes = std::cell::RefCell::new(vec![]);
+        let edit = self.edit_validated(
+            sources,
+            render,
+            Some((constraints, viewport)),
+            None::<fn(&mut UiTree) -> Result<(), Error>>,
+            Some(ScrollDefaults {
+                effects,
+                outcomes: &outcomes,
+            }),
+        )?;
+        Ok(LogicalScrollCommit {
+            edit,
+            outcomes: outcomes.into_inner(),
+        })
+    }
     /// Reuse the existing pointer/focus/activation router against this complete
     /// LogicalUi publication. Host must adopt it when installing that frame.
     /// Building the graph currently walks the complete render tree.
     pub fn input_scene(&self) -> Result<UiInputScene, Error> {
-        let tree = self.ui.tree();
-        if tree.dirty {
-            return Err(Error::InvalidFrame);
-        }
-        let frame = if let Some(frame) = self
-            .published_local_frame()
-            .filter(|frame| frame.revision() == tree.revision)
-        {
-            frame.clone()
-        } else {
-            let frame = self
-                .ui
-                .published_frame()
-                .filter(|frame| frame.revision == tree.revision)
-                .ok_or(Error::InvalidFrame)?;
-            local::LocalFrame::from_frame(frame.clone())
-        };
-        let mut graph = input::InputGraph::default();
-        let mut identities = BTreeMap::new();
-        let mut scrolls = BTreeMap::new();
-        let mut stack = vec![(tree.root(), None, true, true)];
-        while let Some((id, parent, enabled, visible)) = stack.pop() {
-            let node = tree.node(id)?;
-            let policy = self.events.policies.get(&id).copied().unwrap_or_default();
-            let enabled = enabled && !policy.disabled;
-            let visible = visible && node.style.display != taffy::Display::None;
-            let source = public_id(id);
-            identities.insert(id, source);
-            graph.nodes.insert(
-                source,
-                input::InputNode {
-                    parent,
-                    policy,
-                    enabled,
-                    visible,
-                },
-            );
-            if enabled && visible && policy.focus == UiFocusPolicy::Tab {
-                graph.tab_order.push(source);
-            }
-            if node.style.overflow.x == taffy::Overflow::Scroll
-                || node.style.overflow.y == taffy::Overflow::Scroll
-            {
-                let maximum = [
-                    node.published_layout.scroll_width(),
-                    node.published_layout.scroll_height(),
-                ];
-                scrolls.insert(
-                    source,
-                    UiScrollState {
-                        offset: [
-                            node.scroll[0].min(maximum[0]),
-                            node.scroll[1].min(maximum[1]),
-                        ],
-                        maximum,
-                        wheel_axes: [
-                            node.style.overflow.x == taffy::Overflow::Scroll,
-                            node.style.overflow.y == taffy::Overflow::Scroll,
-                        ],
-                    },
-                );
-            }
-            stack.extend(
-                node.children
-                    .iter()
-                    .rev()
-                    .map(|&child| (child, Some(source), enabled, visible)),
-            );
-        }
-        let source_revision = frame
-            .revision()
-            .checked_add(self.events.revision)
-            .ok_or(Error::RevisionExhausted)?;
-        Ok(UiInputScene {
-            id: UiInputSceneId {
-                runtime: self.identity,
-                epoch: 1,
-                source_revision,
-                tree: frame.tree(),
-                frame_revision: frame.revision(),
-            },
-            frame,
-            identities: Arc::new(identities),
-            graph: Arc::new(graph),
-            scrolls: Arc::new(scrolls),
-        })
+        let controlled = self.ui.bound_scroll_nodes();
+        input_scene(self.ui.tree(), self.identity, &self.events, &controlled)
     }
     /// Deliver one previously routed event after checking current handler/scope,
     /// eligibility and ancestry. Stale dispatch returns None without user code.
@@ -356,5 +423,7 @@ impl LogicalUi {
     }
 }
 
+#[cfg(test)]
+mod scroll_tests;
 #[cfg(test)]
 mod tests;

@@ -76,6 +76,9 @@ The scene uses generation-checked render IDs, a runtime/tree identity and monoto
 combined visual/policy revision. LocalFrame is reused when current; a current
 complete FramePacket can use the existing LocalFrame conversion. Dirty or mismatched
 geometry rejects instead of combining current policy with stale node positions.
+The later [scroll-default stage](RETAINED_LOGICAL_SCROLL_DEFAULTS.md) distinguishes
+a current complete LocalFrame from its older dirty resolved cache, allowing
+sequential local updates while still rejecting unpublished geometry.
 This is explicit host adoption evidence, not proof of presentation/display.
 
 ## Dispatch and post-commit business work
@@ -123,8 +126,10 @@ own IR tree; no automatic import/reconciliation between its writer and LogicalUi
 is inferred.
 
 Router style feedback, wheel-scroll/default focus-reveal effects are returned as
-usual, but their **automatic application to LogicalUi** is not implemented here.
-Existing UiDocument scroll/style planners remain separate. IME, selection, editing,
+usual. The later [LogicalUi scroll-default stage](RETAINED_LOGICAL_SCROLL_DEFAULTS.md)
+implements explicit wheel/reveal application over shared UiDocument algorithms.
+Automatic style feedback and a combined host event pump remain open.
+Existing UiDocument style planners remain separate. IME, selection, editing,
 multi-pointer gestures, semantics/accessibility, automatic OS host binding and
 task/KeepAlive activation policies also remain. Deactivation cleanup events whose
 old target is no longer eligible can be ignored by live validation; handler scope

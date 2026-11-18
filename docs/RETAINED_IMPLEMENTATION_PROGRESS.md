@@ -10,6 +10,27 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [LogicalUi scroll-default stage](RETAINED_LOGICAL_SCROLL_DEFAULTS.md) adds
+apply_input_scroll/edit_input_scroll and LogicalScrollCommit. Ordinary source and
+component/layout edits settle before shared wheel/reveal helpers use the final
+candidate's offsets/ranges/geometry. Nested axis residuals chain; signal-bound
+scroll remains application-controlled, including same-candidate bind/unbind.
+Current local publications remain input-eligible when only the older resolved
+cache is dirty; unpublished layout/geometry still rejects. Source/offset/output
+adopt together before ordinary effects; stale/disabled/reparented defaults reject.
+UiDocument retains its exact-base adapter over the same wheel/reveal algorithms.
+See [verification](performance/2026-11-18-logical-scroll/README.md).
+Full input-map construction, bound-endpoint scans, registry copies and normal
+candidate/layout work remain, with no performance claim. Automatic style feedback,
+combined callback/default host pump, source unification, IME/semantics/native host,
+task scopes, KeepAlive and independent presentation stay active. No solver/GPU/
+source schema change; Error adds Input(UiInputError). Complete RFC stays active.
+Final retained 698 passed/1 ignored, text/WGPU 732/64, hello 79/30; both core
+configurations pass 10 compiler doctests. Explicit wheel/reveal GPU and Noto GPU
+each compare three complete images on GTX1650Ti/Vulkan/571.96. Final library Clippy
+-D warnings, complete retained-gpu harness, scoped format/diff, 315 local links
+and five WIP hashes pass. No native cadence/latency or performance gain inferred.
+
 The [scoped event stage](RETAINED_SCOPED_EVENTS.md) adds EventHandler/EventContext
 and keyed registration/owned-node UiInteraction policy. LogicalUi publishes the
 existing UiInputScene over complete current frame geometry; UiInputRouter retains

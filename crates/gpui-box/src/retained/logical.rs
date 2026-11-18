@@ -30,7 +30,7 @@ mod store;
 pub use store::{StoreApply, StoreInput, StoreSelector};
 mod events;
 mod provider;
-pub use events::{EventContext, EventHandler};
+pub use events::{EventContext, EventHandler, LogicalScrollCommit};
 
 #[derive(Clone)]
 struct LayoutSession {

@@ -87,6 +87,23 @@ pub struct ReactiveEdit<'a, 'tree> {
     next_effect: &'a mut u64,
 }
 impl<'tree> ReactiveEdit<'_, 'tree> {
+    pub(in crate::retained) fn bound_scroll_nodes(&self) -> BTreeSet<NodeId> {
+        self.endpoints
+            .iter()
+            .filter(|((_, field), id)| {
+                *field == Field::Scroll
+                    && !self.unbound.contains(id)
+                    && !self
+                        .removed_sources
+                        .contains(&self.live_bindings[id].source)
+            })
+            .map(|((node, _), _)| *node)
+            .chain(self.bindings.iter().filter_map(|(_, binding)| {
+                (binding.field == Field::Scroll && !self.removed_sources.contains(&binding.source))
+                    .then_some(binding.node)
+            }))
+            .collect()
+    }
     pub(in crate::retained) fn validate_live_dependency(
         &self,
         dependency: Dependency,

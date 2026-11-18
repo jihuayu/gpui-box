@@ -3,6 +3,7 @@
 use super::ui_ir::{UiDocument, UiError, UiNodeId, UiOperation};
 use super::*;
 
+pub(in crate::retained) mod reveal;
 mod router;
 pub(in crate::retained) mod scroll;
 pub use scroll::{UiScrollOutcome, UiScrollPlan, UiScrollState, UiWheelScroll};
@@ -266,7 +267,7 @@ impl InputGraph {
     pub(in crate::retained) fn eligible(&self, id: UiNodeId) -> bool {
         self.nodes.get(&id).is_some_and(|n| n.enabled && n.visible)
     }
-    fn path(&self, id: UiNodeId) -> Vec<UiNodeId> {
+    pub(in crate::retained) fn path(&self, id: UiNodeId) -> Vec<UiNodeId> {
         let mut path = vec![];
         let mut next = Some(id);
         while let Some(id) = next {
@@ -275,7 +276,7 @@ impl InputGraph {
         }
         path
     }
-    fn focusable(&self, id: UiNodeId) -> bool {
+    pub(in crate::retained) fn focusable(&self, id: UiNodeId) -> bool {
         self.eligible(id) && self.nodes[&id].policy.focus != UiFocusPolicy::None
     }
     fn owner(&self, id: UiNodeId) -> UiNodeId {
@@ -299,6 +300,11 @@ pub struct UiInputScene {
     pub(crate) scrolls: Arc<BTreeMap<UiNodeId, UiScrollState>>,
 }
 impl UiInputScene {
+    /// Identity of a render node in this exact immutable input publication.
+    /// Useful for explicit programmatic focus without exposing arena internals.
+    pub fn node_id(&self, node: NodeId) -> Option<UiNodeId> {
+        self.identities.get(&node).copied()
+    }
     pub fn id(&self) -> UiInputSceneId {
         self.id
     }

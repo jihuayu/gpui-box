@@ -982,8 +982,15 @@ candidate采用或回滚／退休。Dispatch先检查退休handler，再复核�
 after_commit在完整采用后才可发Command；dispatch沿当前已发布约束／viewport调用既有
 edit_local_frame，无持久producer时同样先完成geometry验证。失败／panic不发未采用业务动作。Current scene
 构造仍全树扫描，registry查找／copy和正常candidate成本仍在，无性能收益声明。
-LogicalUi自动style／wheel／focus-reveal应用、IME／semantics／native host接入、task／
-KeepAlive activation与完整UiDocument输入模型统一仍开放，source schema6和内核不变。
+后续 [LogicalUi默认滚动](RETAINED_LOGICAL_SCROLL_DEFAULTS.md) 增加apply_input_scroll／
+edit_input_scroll，可把source／component／layout与wheel／focus-reveal合入同一candidate。
+UiDocument与LogicalUi共用滚轮余量和post-layout nearest reveal算法；最终范围／offset按轴
+消费并向外层传递，focus用最终geometry，signal-bound scroll由应用控制，同candidate的
+bind／unbind生效。失败连同source／offset／frame回滚，完整采用后才执行普通effects。
+当前LocalFrame可用于后续输入，即使旧resolved cache仍dirty；未发布geometry依然拒绝。
+仍有全树input maps、bound endpoints扫描、registry复制及普通candidate成本，无性能收益声明。
+LogicalUi自动style反馈、合并callback/default的host pump、IME／semantics／native host接入、
+task／KeepAlive activation与完整UiDocument输入模型统一仍开放，source schema6和内核不变。
 
 ## 6. 样式 API：参考 StyleX，输出原生 Style IR
 
