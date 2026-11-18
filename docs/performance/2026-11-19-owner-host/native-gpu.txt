@@ -1,0 +1,11 @@
+passed=true
+mode=GPU
+input=app-internal GPUI dispatch, not OS injection
+framebuffer=explicit native draw/readback, not displayed cadence
+adapter=Some(AdapterInfo { name: "NVIDIA GeForce GTX 1650 Ti", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: "0000:01:00.0", driver: "32.0.15.7196", driver_info: "", backend: Dx12, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None })
+stage=0,count=0,scroll=0,pixels=512100,native_surface=true,scale=1.5
+stage=1,count=1,scroll=0,pixels=512100,native_surface=true,scale=1.5
+stage=2,count=2,scroll=0,pixels=512100,native_surface=true,scale=1.5
+stage=3,count=12,scroll=188.66666,pixels=512100,native_surface=true,scale=1.5
+stage=4,count=12,scroll=128.66666,pixels=512100,native_surface=true,scale=1.5
+stage=5,count=12,scroll=128.66666,pixels=512100,native_surface=true,scale=1.5

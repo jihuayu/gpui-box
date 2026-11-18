@@ -12,6 +12,8 @@ mod reveal_tests;
 #[cfg(test)]
 mod tests;
 pub use router::UiInputRouter;
+#[cfg(all(feature = "retained-text", not(target_family = "wasm")))]
+pub mod gpui_host;
 
 /// Default keyboard/programmatic focus reveal, targeted in the adopted scene.
 /// Planning rechecks identity/ancestry; actual geometry is read after the

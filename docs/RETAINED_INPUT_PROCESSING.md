@@ -6,6 +6,10 @@ Status: experimental explicit Rust owner API, 2026-11-18. Extends
 [default scrolling](RETAINED_LOGICAL_SCROLL_DEFAULTS.md).
 Complete RFC remains active.
 
+The [GPUI owner host](RETAINED_GPUI_OWNER_HOST.md) now demonstrates explicit native
+event normalization, host focus, complete CPU/GPU image installation and matching
+scene adoption. The owner API itself continues to infer no native presentation.
+
 ## Owner entry and host evidence
 
 `LogicalUi::handle_input(router, input)` routes one physical input against the

@@ -10,6 +10,33 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [GPUI owner host](RETAINED_GPUI_OWNER_HOST.md) stage connects the common owner
+pump to a separate native desktop example. Public GpuiInputAdapter normalizes
+logical coordinates, capture-aware outside release, wheel units/sign and supported
+keys. Host focus/key dispatch, blur/deactivation cleanup, exact image/scene pairing,
+resize clipping without stretching old hit geometry, and explicit ImageInstalled
+adoption use the existing owner transaction and LayoutStyle/Flex. CPU resolution,
+raster and pixel conversion run on the background executor with one active job and
+one replaceable pending picture. GPU uses common capacity/completion and Windows
+native surface import; readback fallback can still block. GPU construction errors
+select CPU with diagnostics; device replacement rebinds completion notifications.
+See [native results and screenshots](performance/2026-11-19-owner-host/README.md).
+Real Windows GPU and CPU checks each compare six complete512,100-pixel canvases
+against full software output at1.5scale, tolerance1, including click, Enter, Tab/
+Space reveal, wheel and outside release. GPU uses DX12/GTX1650Ti/32.0.15.7196 native
+texture import; CPU uses complete background images and GPUI atlas. Diagnostic
+events are app-internal GPUI dispatch with explicit draw/readback, not OS injection
+or displayed cadence/latency. Computer Use kernel initialization failed, including
+reset, so no actual OS input automation claim.
+Full text/WGPU748passed/66ignored with11doctests; hello82/32. Core and example
+library Clippy-Dwarnings, CPU desktop configuration and retained-gpu harness pass.
+Full retained-only713passed/1ignored with11doctests. Scoped format/diff,1080local
+Markdown links and five inherited WIP hashes pass. Final verification2026-11-19.
+Host final presentation remains GPUI UI-callback-driven. Source unification,
+semantics/accessibility, editing/IME/multipointer, task scopes/KeepAlive, hooks/macros,
+themes, resource budgets and independent presentation remain open. No Taffy/GPU/
+source-schema change or performance gain claim. Complete RFC remains active.
+
 The [combined input stage](RETAINED_INPUT_PROCESSING.md) adds handle_input,
 process_input_effects and adopt_input_scene. One router result's callbacks share
 a source transaction with feedback, producer/layout settlement and defaults.

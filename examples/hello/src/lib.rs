@@ -3,6 +3,7 @@ mod input;
 mod retained_demo;
 #[cfg(all(feature = "native-check", target_os = "windows"))]
 mod retained_native_check;
+mod retained_owner_demo;
 #[cfg(all(feature = "native-check", target_os = "windows"))]
 pub use retained_native_check::open as check_retained_native;
 #[cfg(test)]
@@ -101,6 +102,14 @@ pub fn open_retained(cx: &mut App) {
     })
     .expect("open retained UI example");
     cx.activate(true);
+}
+/// Owner-runtime host with common input processing and complete CPU/GPU images.
+pub fn open_retained_owner(cx: &mut App, cpu: bool) {
+    retained_owner_demo::open(cx, cpu || !cfg!(feature = "retained-wgpu"));
+}
+#[cfg(feature = "native-check")]
+pub fn check_retained_owner(cx: &mut App, output: std::path::PathBuf, cpu: bool) {
+    retained_owner_demo::native_check::open(cx, output, cpu);
 }
 
 /// Opens the normal gallery with offscreen WGPU delta consumption enabled.

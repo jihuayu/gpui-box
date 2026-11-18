@@ -1,5 +1,12 @@
 fn main() {
     let retained = std::env::args().any(|argument| argument == "--retained");
+    let owner = std::env::args().any(|argument| argument == "--retained-owner");
+    let cpu = std::env::args().any(|argument| argument == "--cpu");
+    #[cfg(feature = "native-check")]
+    let owner_check = std::env::args()
+        .skip_while(|arg| arg != "--retained-owner-check")
+        .nth(1)
+        .map(std::path::PathBuf::from);
     #[cfg(feature = "retained-wgpu")]
     let delivery_check = std::env::args()
         .skip_while(|argument| argument != "--retained-delivery-check")
@@ -17,6 +24,15 @@ fn main() {
             }
         })
         .detach();
+        #[cfg(feature = "native-check")]
+        if let Some(output) = owner_check {
+            gpui_box_example_hello::check_retained_owner(cx, output, cpu);
+            return;
+        }
+        if owner {
+            gpui_box_example_hello::open_retained_owner(cx, cpu);
+            return;
+        }
         #[cfg(all(feature = "native-check", target_os = "windows"))]
         if let Some(output) = native_check {
             gpui_box_example_hello::check_retained_native(cx, output);

@@ -4,6 +4,8 @@
 
 更新日期：2026-11-18。实现对照取自 `codex/rendering-performance-research`。本文是架构映射与实现状态记录；实验能力与正式承诺仍分别列出。
 
+2026-11-19 补充：[GPUI owner host](RETAINED_GPUI_OWNER_HOST.md) 已将统一输入事务、组件样式反馈、Flex、实际 GPU／后台 CPU 完整图像安装接入独立原生示例。安装画面与命中 scene 成对采用；它仍由 GPUI UI 回调驱动最终呈现，不构成独立呈现或持续帧率验收。
+
 ## 1. 要解决的问题
 
 框架以 GPUI 为基础，提供一套比底层绘制更完整的界面抽象：应用用 Rust 编写时自然、可检查；以后用 JS 或 Go 编写时，复用同一个 UI 语义与渲染内核。
