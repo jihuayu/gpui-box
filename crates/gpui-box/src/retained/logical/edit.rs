@@ -43,6 +43,7 @@ pub struct LogicalEdit<'a, 'draft, 'tree> {
     pub(super) live_producer_index: &'a super::producers::ProducerIndex,
     pub(super) live_producer_session: Option<(LayoutConstraints, [f32; 2])>,
     pub(super) producer_plan_skipped: bool,
+    pub(super) component_failure: Option<std::rc::Rc<std::cell::Cell<bool>>>,
 }
 impl LogicalEdit<'_, '_, '_> {
     pub(super) fn producer_logical_unchanged(&self) -> bool {
@@ -331,6 +332,14 @@ impl LogicalEdit<'_, '_, '_> {
             .unwrap_or(&self.scope(id)?.children))
     }
     pub fn reconcile_keys(&mut self, parent: ScopeId, keys: &[u64]) -> Result<Vec<ScopeId>, Error> {
+        self.reconcile_scopes(parent, keys, None)
+    }
+    pub(super) fn reconcile_scopes(
+        &mut self,
+        parent: ScopeId,
+        keys: &[u64],
+        component: Option<super::component::Identity>,
+    ) -> Result<Vec<ScopeId>, Error> {
         self.scope(parent)?;
         if self.removed_scopes.contains(&parent) {
             return Err(Error::InvalidScope);
@@ -344,13 +353,30 @@ impl LogicalEdit<'_, '_, '_> {
             .iter()
             .map(|id| (self.scope(*id).unwrap().key, *id))
             .collect();
+        let reusable = |id: &ScopeId| {
+            component.as_ref().is_none_or(|expected| {
+                self.scope(*id)
+                    .is_ok_and(|scope| scope.component.as_deref() == Some(expected))
+            })
+        };
         self.next_scope_generation
-            .checked_add(keys.iter().filter(|key| !old.contains_key(key)).count() as u64)
+            .checked_add(
+                keys.iter()
+                    .filter(|key| old.get(key).is_none_or(|id| !reusable(id)))
+                    .count() as u64,
+            )
             .ok_or(Error::RevisionExhausted)?;
         let mut order = vec![];
+        let mut retained = BTreeSet::new();
         for key in keys {
-            if let Some(id) = old.get(key) {
+            if let Some(id) = old.get(key).filter(|id| {
+                component.as_ref().is_none_or(|expected| {
+                    self.scope(**id)
+                        .is_ok_and(|scope| scope.component.as_deref() == Some(expected))
+                })
+            }) {
                 order.push(*id);
+                retained.insert(*id);
                 continue;
             }
             let generation = *self.next_scope_generation;
@@ -379,12 +405,13 @@ impl LogicalEdit<'_, '_, '_> {
                     sources: BTreeMap::new(),
                     effects: BTreeMap::new(),
                     renders: vec![],
+                    component: component.clone().map(Box::new),
                 },
             );
             order.push(id);
         }
-        for (key, id) in old {
-            if !unique.contains(&key) {
+        for (_, id) in old {
+            if !retained.contains(&id) {
                 self.removed_scopes.insert(id);
             }
         }
@@ -690,9 +717,12 @@ impl LogicalUi {
                     live_producer_index: &self.producer_index,
                     live_producer_session: self.producer_session,
                     producer_plan_skipped: false,
+                    component_failure: None,
                 };
                 let value = render(value, &mut draft)?;
+                draft.validate_components()?;
                 draft.settle_layout_producers()?;
+                draft.validate_components()?;
                 if draft.layout_build_failed {
                     return Err(Error::InvalidLayoutBuildPlan);
                 }

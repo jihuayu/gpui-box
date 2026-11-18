@@ -355,6 +355,7 @@ pub enum Error {
     InvalidOpacity,
     InvalidSignal,
     InvalidPropBatch,
+    InvalidComponent,
     ReadonlySignal,
     UndeclaredDependency,
     SignalInUse,

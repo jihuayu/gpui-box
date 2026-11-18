@@ -10,6 +10,27 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [typed component stage](RETAINED_TYPED_COMPONENTS.md) adds Component with
+aggregate ReadProp inputs, explicit ComponentContext and LogicalEdit::components
+keyed declarations. Same key/type/host retains initialization/state/bindings/
+outputs; new key/type/host mounts fresh, with zero/multiple outputs supported.
+The same logical reconciliation/props/producer/source/frame boundary applies;
+errors/unwind poison the outer edit and final failure preserves old instances.
+Scope gains optional boxed type/host identity; source schema6/kernel/renderer
+remain. Error adds InvalidComponent. See
+[verification](performance/2026-11-18-typed-components/README.md).
+Per-site maps/sets/rows, props/derived scans, full logical ordering and ordinary
+candidate/geometry costs remain. Independent/heterogeneous sites, Branch/Match,
+KeepAlive/hooks/macros, Store/Command, source unification, output ownership,
+full RenderBox, budgets and independent presentation stay active. No FPS benefit
+is claimed; the complete RFC is not complete.
+Final retained636passed/1ignored, text/WGPU670/57 and hello72/23 pass, including
+7new core and real-Noto CPU;4compile-fail docs pass in both core configurations.
+Explicit keyed-component GPU compares6complete images and Noto GPU3 on
+GTX1650Ti/Vulkan/571.96. Library Clippy -D warnings, complete retained-gpu harness,
+scoped format/diff,294local links and all5WIP hashes pass. Full suites/hardware
+cover final production code; counts overlap and no visible cadence is inferred.
+
 The [atomic prop batch stage](RETAINED_PROP_BATCHES.md) adds LogicalEdit::props
 with restricted PropBatch::prop declarations. Related heterogeneous final values
 settle once through the same source helper; temporary tuples cannot be read or

@@ -22,6 +22,8 @@ pub use producers::{LayoutProducer, LayoutProducerId, LayoutProducerStats};
 mod read_prop;
 pub use super::reactive::ReadProp;
 pub use read_prop::PropBatch;
+mod component;
+pub use component::{Component, ComponentContext};
 
 #[derive(Clone)]
 struct LayoutSession {
@@ -44,6 +46,7 @@ struct Scope {
     sources: BTreeMap<u64, Box<dyn ScopedSource>>,
     effects: BTreeMap<u64, EffectId>,
     renders: Vec<NodeId>,
+    component: Option<Box<component::Identity>>,
 }
 struct Slot {
     generation: u64,
@@ -167,6 +170,7 @@ impl LogicalUi {
                     sources: BTreeMap::new(),
                     effects: BTreeMap::new(),
                     renders: owned,
+                    component: None,
                 }),
             }],
             free: vec![],
@@ -753,6 +757,7 @@ impl LogicalUi {
                 sources: BTreeMap::new(),
                 effects: BTreeMap::new(),
                 renders: vec![],
+                component: None,
             });
             order.push(id);
             inserted.push(id);

@@ -653,6 +653,17 @@ generation继续消耗。单prop保持显式checkpoint；普通final source／fr
 每批仍clone prepared map／扫描derived，未做增量source scheduler或性能承诺；完整组件
 sites／contexts／宏、Store／Command和component/source统一保持未完成。
 
+后续 [类型化组件](RETAINED_TYPED_COMPONENTS.md) 提供显式Component／ComponentContext和
+LogicalEdit::components keyed入口：aggregate ReadProp先批量替换，再只mount新scope。
+同key／type／host保留初始化、state／bindings／outputs；零输出也有身份，多输出不插入
+多余layout box。换type／host重新挂载，旧scope／descendant producers退休；失败／unwind
+poison外层edit，final source／layout／geometry通过后才运行effects。复用逻辑scope／
+reconciliation，scope新增可选boxed TypeId／host；schema6和内核／renderer不变。
+这是单一homogeneous site的显式初始化API，独立sites／Branch／Match／KeepAlive／宏／
+provider／Store／Command／component-source统一仍未完成。每次声明的maps／sets／props与
+完整排序／candidate成本仍在，无FPS收益声明，见
+[验证](performance/2026-11-18-typed-components/README.md)。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。
@@ -713,7 +724,7 @@ StoreRevision、UiRevision、SceneRevision、StyleEpoch、ResourceEpoch、Device
 
 ### 3.4 Rust 开发入口：use_*、#[component]、view!
 
-公共开发入口采用组件函数、作用域 hooks 和声明式 view。底层显式 Context API 保留，供运行时、测试及其他前端适配使用。完整示例见 [Rust 界面示例](UI_RUNTIME_RUST_EXAMPLE.md)；所有宏和新增 API 都是拟议接口。
+公共开发入口采用组件函数、作用域 hooks 和声明式 view。显式Component／ComponentContext已提供无宏初始化／keyed payload与生命周期接入，供运行时、测试及其他前端适配使用。完整示例见 [Rust 界面示例](UI_RUNTIME_RUST_EXAMPLE.md)；下文宏、hooks和未在实现映射中注明的新增API仍为拟议接口。
 
 | 入口 | 责任 | 不承担的责任 |
 | --- | --- | --- |

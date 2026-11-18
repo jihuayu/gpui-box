@@ -4,6 +4,11 @@ Status: experimental Rust framework contract,2026-11-18. Complete RFC remains
 active. Extends [ReadProp](RETAINED_READ_PROPS.md) using the same scoped source
 graph and ordinary atomic UI publication. Source schema remains6.
 
+Follow-up: [typed components](RETAINED_TYPED_COMPONENTS.md) batches each keyed
+site's aggregate ReadProp payloads before mounting new instances. Explicit
+ComponentContext wires existing scoped state/bindings/effects/producers; same
+key/type/host avoids remounting. Full component frontend remains active.
+
 ## Why a batch is part of the API
 
 A child may require related inputs to be coherent. Updating a valid interval
