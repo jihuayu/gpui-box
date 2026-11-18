@@ -673,6 +673,15 @@ Context只可操作自己的直接site；低层LogicalEdit仍需遵守完整chil
 独立scheduler。Props仍按单site调用结算，跨site异构原子输入未完成；同host仍由一个Content
 producer统一调度。maps／sets／完整排序／candidate与geometry成本仍在，无FPS收益声明。
 
+后续 [组件选择计划](RETAINED_COMPONENT_PLANS.md) 实现显式Rust typed branch／match／list
+运行时入口：ComponentProducer用只读ComponentInputs选择ComponentPlan，复用现有Content
+producer的动态source观察／索引／最终值调度。branch只执行选中arm的fallible payload工厂，
+show支持无else；match使用普通Rust穷尽检查与显式稳定arm key。同arm更新ReadProp保留状态，
+换arm／type重新挂载。整个plan先reconcile全部sites，再共用一个PropBatch结算异构输入，
+最后mount新实例；新mount也看到所有planned最终输入。Context提供apply／producer入口，
+失败保持原scope／state／frame。未新增scheduler／layout box／持久字段／schema，原单host
+writer与DAG仍适用；自动宏arm标识、KeepAlive、hooks／Store／Command等仍开放，无FPS声明。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

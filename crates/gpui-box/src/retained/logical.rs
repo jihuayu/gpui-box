@@ -23,7 +23,9 @@ mod read_prop;
 pub use super::reactive::ReadProp;
 pub use read_prop::PropBatch;
 mod component;
-pub use component::{Component, ComponentContext, ComponentSite};
+pub use component::{
+    Component, ComponentContext, ComponentInputs, ComponentPlan, ComponentProducer, ComponentSite,
+};
 
 #[derive(Clone)]
 struct LayoutSession {

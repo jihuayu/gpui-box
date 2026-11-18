@@ -1,6 +1,8 @@
 //! Typed mount-once components over ordinary logical scopes and ReadProp inputs.
 use super::*;
 use std::{any::TypeId, cell::Cell, rc::Rc};
+mod plan;
+pub use plan::{ComponentInputs, ComponentPlan, ComponentProducer};
 
 /// Component initialization executes once per keyed instance. Subsequent input
 /// declarations replace its live ReadProp; bindings/derived values/producers
@@ -153,6 +155,27 @@ impl ComponentContext<'_, '_, '_, '_> {
         attempt.success = true;
         Ok(scopes)
     }
+
+    /// Batch heterogeneous declarations for this component's direct regions.
+    pub fn apply_components(&mut self, plan: ComponentPlan) -> Result<(), Error> {
+        let mut attempt = self.edit.component_attempt()?;
+        plan.validate_parent(self.scope, self.edit)?;
+        self.edit.apply_components(plan)?;
+        attempt.success = true;
+        Ok(())
+    }
+
+    /// Register source-driven selection over this component's owned render host.
+    pub fn component_producer(
+        &mut self,
+        key: u64,
+        host: NodeId,
+        after: &[LayoutProducerId],
+        producer: ComponentProducer,
+    ) -> Result<LayoutProducerId, Error> {
+        self.edit
+            .component_producer(self.scope, key, host, after, producer)
+    }
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -248,6 +271,21 @@ impl LogicalEdit<'_, '_, '_> {
         items: impl IntoIterator<Item = (u64, C::Props)>,
     ) -> Result<Vec<ScopeId>, Error> {
         let mut attempt = self.component_attempt()?;
+        let mut pending =
+            self.prepare_components::<C>(parent, host, items.into_iter().collect())?;
+        let scopes = pending.scopes.clone();
+        self.props(|batch| pending.stage(batch))?;
+        pending.mount(self)?;
+        self.validate_components()?;
+        attempt.success = true;
+        Ok(scopes)
+    }
+    fn prepare_components<C: Component>(
+        &mut self,
+        parent: ScopeId,
+        host: NodeId,
+        rows: Vec<(u64, C::Props)>,
+    ) -> Result<Prepared<C>, Error> {
         self.scope(parent)?;
         if self.retired_scopes()?.contains(&parent) {
             return Err(Error::InvalidScope);
@@ -257,7 +295,6 @@ impl LogicalEdit<'_, '_, '_> {
         if self.render.tree().removed_ids()?.contains(&host) {
             return Err(Error::InvalidNode);
         }
-        let rows: Vec<_> = items.into_iter().collect();
         let keys: Vec<_> = rows.iter().map(|r| r.0).collect();
         let identity = Identity::Component {
             kind: TypeId::of::<C>(),
@@ -273,31 +310,51 @@ impl LogicalEdit<'_, '_, '_> {
             })
             .collect();
         let scopes = self.reconcile_scopes(parent, &keys, Some(identity))?;
-        // A component payload is one value, so its fields are coherent. All row
-        // payloads settle together before any new mount/derived checkpoint.
-        let inputs = self.props(|batch| {
-            scopes
-                .iter()
-                .copied()
-                .zip(rows)
-                .map(|(scope, (_, props))| Ok((scope, batch.prop(scope, u64::MAX, props)?)))
-                .collect::<Result<Vec<_>, Error>>()
-        })?;
-        for (scope, props) in inputs {
-            if !previous.contains(&scope) {
+        Ok(Prepared {
+            host,
+            previous,
+            scopes,
+            values: rows.into_iter().map(|(_, props)| props).collect(),
+            inputs: vec![],
+        })
+    }
+}
+
+/// Shared by the original single-list path and heterogeneous plans. Preparation
+/// only reconciles scopes; all values stage before any mount or source read.
+struct Prepared<C: Component> {
+    host: NodeId,
+    previous: BTreeSet<ScopeId>,
+    scopes: Vec<ScopeId>,
+    values: Vec<C::Props>,
+    inputs: Vec<ReadProp<C::Props>>,
+}
+impl<C: Component> Prepared<C> {
+    fn stage(&mut self, batch: &mut PropBatch<'_, '_, '_, '_>) -> Result<(), Error> {
+        for (scope, props) in self
+            .scopes
+            .iter()
+            .copied()
+            .zip(std::mem::take(&mut self.values))
+        {
+            self.inputs.push(batch.prop(scope, u64::MAX, props)?);
+        }
+        Ok(())
+    }
+    fn mount(self, edit: &mut LogicalEdit<'_, '_, '_>) -> Result<(), Error> {
+        for (scope, props) in self.scopes.into_iter().zip(self.inputs) {
+            if !self.previous.contains(&scope) {
                 C::mount(
                     props,
                     &mut ComponentContext {
-                        edit: self,
+                        edit,
                         scope,
-                        host,
+                        host: self.host,
                     },
                 )?;
             }
         }
-        self.validate_components()?;
-        attempt.success = true;
-        Ok(scopes)
+        Ok(())
     }
 }
 

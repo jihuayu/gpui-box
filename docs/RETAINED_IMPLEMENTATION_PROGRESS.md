@@ -10,6 +10,27 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [component selection plan stage](RETAINED_COMPONENT_PLANS.md) adds owned
+ComponentPlan plus read-only ComponentInputs and automatic ComponentProducer.
+Explicit Rust branch/show/match/list selection uses ordinary Content source
+observations/final-value scheduling. All declared regions reconcile first, then
+share one heterogeneous props checkpoint, then mount fresh instances; even the
+first new mount sees all planned final inputs. Same arm/type/host keeps state,
+new identity unmounts, hidden show skips its factory, errors preserve old frame.
+Original single-list components share Prepared; no persistent field/schema or
+solver/renderer change. Existing one-host writer/DAG/final validation remains.
+See [verification](performance/2026-11-18-component-plans/README.md).
+View macros/generated arm keys, hooks/KeepAlive, providers/Store/Command,
+source unification, event/semantics integration, general output ownership,
+complete RenderBox, budgets and independent presentation stay active. Per-plan
+dispatch boxes and usual reconciliation/source scans/order/candidate costs remain;
+no FPS/memory claim. The complete RFC remains active.
+Final retained652passed/1ignored, text/WGPU686/59 and hello74/25;5compile-fail
+docs pass in both core configurations. Explicit plan GPU compares8complete
+images and Noto3 on GTX1650Ti/Vulkan/571.96. Library Clippy -D warnings, complete
+retained-gpu harness, scoped format/diff,301local links and5WIP hashes pass.
+All final production code is covered; counts overlap, no native cadence inferred.
+
 The [independent component region stage](RETAINED_COMPONENT_SITES.md) adds
 ComponentSite/component_sites/components_at. Parent declarations own region
 placement, region declarations own their keyed contents; same item keys across

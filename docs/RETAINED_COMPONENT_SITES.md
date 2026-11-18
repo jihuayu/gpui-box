@@ -82,16 +82,19 @@ Payload batching remains **per components_at call**. Independent regions can
 have different Props types, but this does not provide an aggregate heterogeneous
 cross-site input checkpoint: derived calculations must not rely on seeing all
 later site declarations before they run. Related fields should remain one Props
-payload or use the existing explicit input batch contract. Arbitrary external
-mount side effects remain outside rollback.
+payload or use the existing explicit input batch contract. The follow-up
+[ComponentPlan](RETAINED_COMPONENT_PLANS.md) now supplies one shared checkpoint
+for heterogeneous region declarations; separate components_at calls retain their
+individual checkpoints. Arbitrary external mount side effects remain outside rollback.
 
 Sites are not new scheduler hosts. Content registration still requires an owned
 render host and one writer per host, with ancestry/explicit/inferred prerequisites
 and final executed-order validation. A common parent producer can update several
 regions under one physical host; nested component-owned hosts can have their own
 producers. This change does not infer arbitrary callback outputs or install a
-per-region scheduler. General Branch/Match factories and macros remain separate
-work; explicit selection plus stable region identity is their runtime foundation.
+per-region scheduler. The follow-up [component plan](RETAINED_COMPONENT_PLANS.md)
+adds automatic typed selection and heterogeneous input batching through one
+ordinary Content producer. Component/view macros remain separate work.
 
 ## Costs, verification and remaining scope
 
@@ -111,8 +114,9 @@ component reconciliation/props/retirement. Full logical sorting, source/derived
 scans, candidate copying, layout/geometry and producer/DAG work remain. No
 wall-time, FPS, memory reduction or modern-GPU/native fluency claim follows.
 
-Remaining: typed automatic Branch/Match factories, heterogeneous cross-site input
-batches, KeepAlive, hooks/macros, providers/Store/Command, source-model unification,
+The follow-up plan supplies typed automatic Branch/Match/list selection and
+heterogeneous cross-site input batches. Remaining: KeepAlive, hooks/macros,
+providers/Store/Command, source-model unification,
 event/semantics integration, general writer/output ownership, complete RenderBox,
 resource budgets and independent native presentation. The complete RFC remains
 active. "99%" continues to mean ordinary fluid/intuitive interaction, not a

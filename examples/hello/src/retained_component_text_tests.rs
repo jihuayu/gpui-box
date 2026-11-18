@@ -42,6 +42,16 @@ impl Component for Label {
         Ok(())
     }
 }
+struct ErrorLabel;
+impl Component for ErrorLabel {
+    type Props = LabelProps;
+    fn mount(
+        props: ReadProp<LabelProps>,
+        cx: &mut ComponentContext<'_, '_, '_, '_>,
+    ) -> Result<(), Error> {
+        Label::mount(props, cx)
+    }
+}
 fn fixed(w: f32, h: f32) -> LayoutStyle {
     LayoutStyle::column()
         .size(LayoutDimension::Px(w), LayoutDimension::Px(h))
@@ -64,25 +74,35 @@ fn pixels(frame: FramePacket) -> Vec<u8> {
 }
 #[test]
 fn typed_components_noto_payload_and_width_updates_match_complete_reference() {
-    run(false, false);
+    run(false, false, false);
 }
 #[cfg(feature = "retained-wgpu")]
 #[test]
 #[ignore = "requires WGPU adapter; run explicitly"]
 fn hardware_typed_components_noto_match_complete_reference() {
-    run(true, false);
+    run(true, false, false);
 }
 #[test]
 fn component_sites_noto_independent_labels_and_reorder_match_complete_reference() {
-    run(false, true);
+    run(false, true, false);
 }
 #[cfg(feature = "retained-wgpu")]
 #[test]
 #[ignore = "requires WGPU adapter; run explicitly"]
 fn hardware_component_sites_noto_match_complete_reference() {
-    run(true, true);
+    run(true, true, false);
 }
-fn run(hardware: bool, regions: bool) {
+#[test]
+fn component_plans_noto_automatic_selected_payloads_match_complete_reference() {
+    run(false, true, true);
+}
+#[cfg(feature = "retained-wgpu")]
+#[test]
+#[ignore = "requires WGPU adapter; run explicitly"]
+fn hardware_component_plans_noto_match_complete_reference() {
+    run(true, true, true);
+}
+fn run(hardware: bool, regions: bool, planned: bool) {
     let system = text_system();
     let mut raster = GlyphRasterizer::new(system.clone());
     let long_paragraph = shape(&system, "one two three four 中文段落 long text");
@@ -120,6 +140,27 @@ fn run(hardware: bool, regions: bool) {
         [300.0, 200.0],
         |_| Ok(()),
         |(), edit| {
+            if planned {
+                let sites = edit.component_sites(owner, &[1, 2])?;
+                edit.component_producer(
+                    owner,
+                    0,
+                    host,
+                    &[],
+                    ComponentProducer::new(move |i| {
+                        let value = i.read(source)?.clone();
+                        let mut plan = ComponentPlan::new();
+                        if value.width == 80 {
+                            plan.select::<ErrorLabel>(sites[0], host, 1, value);
+                        } else {
+                            plan.select::<Label>(sites[0], host, 0, value);
+                        }
+                        plan.select::<Label>(sites[1], host, 0, footer.clone());
+                        Ok(plan)
+                    }),
+                )?;
+                return Ok(());
+            }
             edit.layout_producer(
                 owner,
                 0,
@@ -164,7 +205,7 @@ fn run(hardware: bool, regions: bool) {
     #[cfg(feature = "retained-wgpu")]
     if let Some(gpu) = &gpu {
         eprintln!(
-            "typed component Noto adapter (sites={regions}): {:?}",
+            "typed component Noto adapter (sites={regions},planned={planned}): {:?}",
             gpu.adapter_info()
         );
     }
@@ -195,14 +236,41 @@ fn run(hardware: bool, regions: bool) {
             })
             .unwrap();
         }
-        assert_eq!(mounts.get(), if regions { 2 } else { 1 });
+        assert_eq!(
+            mounts.get(),
+            if planned && width == 80 {
+                3
+            } else if regions {
+                2
+            } else {
+                1
+            }
+        );
+        let active_scope = if planned {
+            ui.children(site).unwrap()[0]
+        } else {
+            scope
+        };
+        let active_title = if planned {
+            ui.renders(active_scope).unwrap()[0]
+        } else {
+            title
+        };
         if regions {
-            assert_eq!(ui.children(site).unwrap(), [scope]);
-            assert_eq!(ui.children(owner).unwrap()[usize::from(width == 140)], site);
+            if planned && width == 80 {
+                assert_ne!(active_scope, scope);
+                assert!(ui.renders(scope).is_err());
+            } else {
+                assert_eq!(ui.children(site).unwrap(), [scope]);
+            }
+            assert_eq!(
+                ui.children(owner).unwrap()[usize::from(width == 140 && !planned)],
+                site
+            );
         } else {
             assert_eq!(ui.children(owner).unwrap(), [scope]);
         }
-        assert_eq!(ui.renders(scope).unwrap(), [title]);
+        assert_eq!(ui.renders(active_scope).unwrap(), [active_title]);
         let metrics = paragraph.layout(Some(width as f32)).unwrap();
         let footer_height = if regions {
             short_paragraph.layout(Some(50.0)).unwrap().size[1]
@@ -213,7 +281,7 @@ fn run(hardware: bool, regions: bool) {
             UiTree::new_layout(fixed(width as f32, metrics.size[1] + footer_height), 0).unwrap();
         full.set_frame_build_policy(FrameBuildPolicy::Full);
         let mut tx = Transaction::default();
-        if regions && width == 140 {
+        if regions && width == 140 && !planned {
             let footer = full
                 .append_layout(
                     full.root(),
@@ -244,7 +312,7 @@ fn run(hardware: bool, regions: bool) {
                 color,
             }),
         );
-        if regions && width != 140 {
+        if regions && (width != 140 || planned) {
             let footer = full
                 .append_layout(
                     full.root(),
@@ -264,7 +332,7 @@ fn run(hardware: bool, regions: bool) {
         let reference = full.frame_in_viewport(constraints, [300.0, 200.0]).unwrap();
         let frame = ui.published_local_frame().unwrap().clone();
         assert_eq!(
-            ui.layout_result(title).unwrap(),
+            ui.layout_result(active_title).unwrap(),
             full.layout_result(node).unwrap()
         );
         assert_eq!(pixels(frame.resolve()), pixels(reference.clone()));
