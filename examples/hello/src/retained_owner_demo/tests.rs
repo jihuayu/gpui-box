@@ -2,6 +2,136 @@ use super::*;
 use core::prelude::v1::test;
 
 #[gpui::test]
+fn owner_host_virtual_list_native_wheel_installs_complete_cpu_picture(cx: &mut TestAppContext) {
+    use gpui_box::retained::virtual_list::*;
+    #[derive(Clone, PartialEq)]
+    struct RowProps {
+        color: u32,
+    }
+    struct Row;
+    impl Component for Row {
+        type Props = RowProps;
+        fn mount(
+            props: ReadProp<RowProps>,
+            cx: &mut ComponentContext<'_, '_, '_, '_>,
+        ) -> Result<(), Error> {
+            let node = cx.append_layout(
+                LayoutStyle::row()
+                    .size(LayoutDimension::Percent(1.0), LayoutDimension::Px(20.0))
+                    .flex_shrink(0.0),
+                0,
+            )?;
+            let color = cx.computed(0, &[props.dependency()], move |i| {
+                Ok(i.read_prop(props)?.color)
+            })?;
+            cx.bind(color, Property::color(node))?;
+            Ok(())
+        }
+    }
+    let platform = Arc::new(gpui_wgpu::CosmicTextSystem::new_without_system_fonts(
+        "Noto Sans CJK SC",
+    ));
+    let mut real_cx = TestAppContext::build_with_text_system(cx.dispatcher.clone(), None, platform);
+    let cx = &mut real_cx;
+    cx.text_system()
+        .add_fonts(vec![std::borrow::Cow::Borrowed(include_bytes!(
+            "../../assets/NotoSansSC-Regular.otf"
+        ))])
+        .unwrap();
+    let window = cx.open_window(size(px(600.0), px(460.0)), |window, cx| {
+        OwnerDemo::new(window, cx, true)
+    });
+    let view = window.root(cx).unwrap();
+    let cx = VisualTestContext::from_window(*window, cx).into_mut();
+    cx.run_until_parked();
+    let (scroll, host, initial) = view.update(cx, |this, cx| {
+        let root = this.ui.root_scope();
+        let render = this.ui.root_render();
+        let viewport = this.shown.as_ref().unwrap().viewport;
+        let scroll = this.ui.state(root, 100, || [0.0; 2]).unwrap();
+        let rows = VirtualListItems::<Row>::new(
+            VirtualListMetrics::fixed(100_000, 20.0).unwrap(),
+            |index| {
+                Ok((
+                    index as u64,
+                    RowProps {
+                        color: if index % 2 == 0 {
+                            0x117755ff
+                        } else {
+                            0x775511ff
+                        },
+                    },
+                ))
+            },
+        );
+        let scope = this
+            .ui
+            .edit_local_frame(
+                LayoutConstraints::viewport(viewport[0], viewport[1]),
+                viewport,
+                |_| Ok(()),
+                |(), edit| {
+                    edit.components::<VirtualList<Row>>(
+                        root,
+                        render,
+                        [(1, VirtualListProps::new(rows, scroll, [240.0, 80.0]))],
+                    )
+                },
+            )
+            .unwrap()
+            .0
+            .result
+            .value[0];
+        let host = this.ui.renders(scope).unwrap()[0];
+        // Clip the original demo content while testing the new independent
+        // list site in normal flow. Do not change virtual-list internals.
+        let old = this.ui.renders(root).unwrap().to_vec();
+        this.ui
+            .edit(
+                |_| Ok(()),
+                |(), edit| {
+                    for node in old {
+                        edit.properties()
+                            .layout_style(node, LayoutStyle::column().display(LayoutDisplay::None));
+                    }
+                    Ok(())
+                },
+            )
+            .unwrap();
+        let initial = this.installs;
+        cx.notify();
+        (scroll, host, initial)
+    });
+    cx.run_until_parked();
+    let point = view.read_with(cx, |this, _| {
+        let rect = this
+            .shown
+            .as_ref()
+            .unwrap()
+            .frame
+            .resolve_geometry(host)
+            .unwrap()
+            .bounds;
+        this.bounds.unwrap().origin + point(px(rect.x + 5.0), px(rect.y + 5.0))
+    });
+    cx.simulate_event(ScrollEvent {
+        position: point,
+        delta: ScrollDelta::Pixels(gpui::point(px(0.0), px(-45.0))),
+        ..Default::default()
+    });
+    cx.run_until_parked();
+    view.read_with(cx, |this, _| {
+        assert_eq!(*this.ui.read(scroll).unwrap(), [0.0, 45.0]);
+        assert!(this.installs > initial);
+        assert!(this.error.is_none(), "{:?}", this.error);
+        let shown = this.shown.as_ref().unwrap();
+        assert_eq!(this.router.scene_id(), Some(shown.scene.id()));
+        assert!(shown.frame.stats().retained_items < 40);
+        assert!(this.cpu_task.is_none() && this.pending.is_none() && this.ready.is_none());
+    });
+}
+
+#[gpui::test]
 fn owner_host_source_task_effect_replaces_work_and_installs_complete_cpu_result(
     cx: &mut TestAppContext,
 ) {

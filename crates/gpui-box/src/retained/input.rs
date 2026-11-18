@@ -6,7 +6,7 @@ use super::*;
 pub(in crate::retained) mod reveal;
 mod router;
 pub(in crate::retained) mod scroll;
-pub use scroll::{UiScrollOutcome, UiScrollPlan, UiScrollState, UiWheelScroll};
+pub use scroll::{UiScrollOutcome, UiScrollPlan, UiScrollState, UiScrollStep, UiWheelScroll};
 #[cfg(test)]
 mod reveal_tests;
 #[cfg(test)]

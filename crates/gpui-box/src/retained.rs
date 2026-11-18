@@ -20,6 +20,7 @@ pub mod local;
 #[cfg(feature = "retained-wgpu")]
 mod local_ink;
 pub mod logical;
+pub mod virtual_list;
 pub use layout::{
     AlignContent as LayoutAlignContent, AlignItems as LayoutAlignItems,
     AlignSelf as LayoutAlignSelf, Alignment as LayoutAlignment,
@@ -356,6 +357,8 @@ pub enum Error {
     InvalidSignal,
     InvalidPropBatch,
     InvalidComponent,
+    InvalidVirtualList,
+    VirtualListLimit,
     InvalidStore,
     InvalidProvider,
     InvalidEventHandler,

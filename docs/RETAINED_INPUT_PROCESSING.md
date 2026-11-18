@@ -15,6 +15,15 @@ The [GPUI owner host](RETAINED_GPUI_OWNER_HOST.md) now demonstrates explicit nat
 event normalization, host focus, complete CPU/GPU image installation and matching
 scene adoption. The owner API itself continues to infer no native presentation.
 
+Source-owned scroll controls now share `UiScrollState::consume` and
+`EventContext::remaining_wheel_delta`/`scroll_wheel`. Inner handlers consume from
+current transaction values; residual distance continues to ancestor callbacks and
+defaults. A default after controlled consumption resumes at the original handling
+ancestor, allowing a virtual row to retire without losing outer scroll chaining.
+The final anchor/route must still survive eligible. Standalone dispatch_event has
+no remaining delta/defaults. See [virtual lists](RETAINED_VIRTUAL_LIST.md) and
+[decision and limits](ADR_RETAINED_VIRTUAL_LIST.md).
+
 ## Owner entry and host evidence
 
 `LogicalUi::handle_input(router, input)` routes one physical input against the

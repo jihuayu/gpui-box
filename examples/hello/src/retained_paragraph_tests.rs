@@ -37,6 +37,8 @@ mod style_ir_text_tests;
 mod task_text_tests;
 #[path = "retained_ui_ir_text_tests.rs"]
 mod ui_ir_text_tests;
+#[path = "retained_virtual_list_text_tests.rs"]
+mod virtual_list_text_tests;
 #[path = "retained_wheel_text_tests.rs"]
 mod wheel_text_tests;
 

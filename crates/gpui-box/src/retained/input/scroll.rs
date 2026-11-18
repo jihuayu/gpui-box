@@ -14,6 +14,71 @@ pub struct UiScrollState {
     pub wheel_axes: [bool; 2],
 }
 
+/// Pure bounded scroll step shared by native defaults and controlled widgets.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct UiScrollStep {
+    pub offset: [f32; 2],
+    pub consumed: [f32; 2],
+    pub remaining: [f32; 2],
+}
+struct PreciseStep {
+    offset: [f32; 2],
+    consumed: [f64; 2],
+    remaining: [f64; 2],
+}
+impl UiScrollState {
+    pub fn consume(self, delta: [f32; 2]) -> Result<UiScrollStep, UiInputError> {
+        let PreciseStep {
+            offset,
+            consumed,
+            remaining,
+        } = self.consume_precise(delta.map(f64::from))?;
+        Ok(UiScrollStep {
+            offset,
+            consumed: consumed.map(|v| v as f32),
+            remaining: remaining.map(|v| v as f32),
+        })
+    }
+    fn consume_precise(self, delta: [f64; 2]) -> Result<PreciseStep, UiInputError> {
+        if self
+            .offset
+            .iter()
+            .chain(&self.maximum)
+            .any(|v| !v.is_finite() || *v < 0.0)
+            || delta.iter().any(|v| !v.is_finite())
+        {
+            return Err(UiInputError::InvalidScrollDelta);
+        }
+        let before = [
+            self.offset[0].min(self.maximum[0]),
+            self.offset[1].min(self.maximum[1]),
+        ];
+        let mut next = before;
+        let mut remaining = delta;
+        let mut consumed = [0.0; 2];
+        for axis in 0..2 {
+            if !self.wheel_axes[axis] || remaining[axis] == 0.0 {
+                continue;
+            }
+            next[axis] = ((f64::from(before[axis]) + remaining[axis])
+                .clamp(0.0, f64::from(self.maximum[axis]))) as f32;
+            let rounded = f64::from(next[axis]) - f64::from(before[axis]);
+            if remaining[axis] > 0.0 && rounded > remaining[axis] {
+                next[axis] = next[axis].next_down().max(before[axis]);
+            } else if remaining[axis] < 0.0 && rounded < remaining[axis] {
+                next[axis] = next[axis].next_up().min(before[axis]);
+            }
+            consumed[axis] = f64::from(next[axis]) - f64::from(before[axis]);
+            remaining[axis] -= consumed[axis];
+        }
+        Ok(PreciseStep {
+            offset: next,
+            consumed,
+            remaining,
+        })
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct UiWheelScroll {
     pub scene: UiInputSceneId,
@@ -154,27 +219,20 @@ pub(in crate::retained) fn plan_wheels_with_policy(
                 continue;
             }
             let before = offsets.get(&id).copied().unwrap_or(state.offset);
-            let mut next = before;
-            for axis in 0..2 {
-                if !state.wheel_axes[axis] || remaining[axis] == 0.0 {
-                    continue;
-                }
-                // f64 addition avoids finite f32 deltas overflowing before
-                // clamping. Only representable consumed distance is removed.
-                next[axis] = ((before[axis] as f64 + remaining[axis])
-                    .clamp(0.0, state.maximum[axis] as f64)) as f32;
-                // Rounding must not consume beyond the requested distance
-                // and reverse the residual handed to an ancestor.
-                let rounded = f64::from(next[axis]) - f64::from(before[axis]);
-                if remaining[axis] > 0.0 && rounded > remaining[axis] {
-                    next[axis] = next[axis].next_down().max(before[axis]);
-                } else if remaining[axis] < 0.0 && rounded < remaining[axis] {
-                    next[axis] = next[axis].next_up().min(before[axis]);
-                }
-                let used = f64::from(next[axis]) - f64::from(before[axis]);
-                consumed[axis] += used;
-                remaining[axis] -= used;
+            let PreciseStep {
+                offset: next,
+                consumed: used,
+                remaining: residual,
+            } = UiScrollState {
+                offset: before,
+                ..state
             }
+            .consume_precise(remaining)?;
+            for axis in 0..2 {
+                // Keep aggregate accounting in f64 across the whole route.
+                consumed[axis] += used[axis];
+            }
+            remaining = residual;
             if next != before {
                 offsets.insert(id, next);
             }

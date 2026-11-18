@@ -44,8 +44,46 @@ pub struct EventContext<'a, 'ui> {
     cancelable: bool,
     scope: ScopeId,
     tasks: &'a mut super::tasks::EventTasks,
+    wheel_remaining: Option<&'a mut [f32; 2]>,
+    wheel_anchor: Option<&'a mut Option<UiNodeId>>,
+    current_target: UiNodeId,
 }
 impl EventContext<'_, '_> {
+    /// Remaining logical delta after inner controlled handlers. Present only in
+    /// the combined input transaction for Wheel; standalone dispatch owns no default.
+    pub fn remaining_wheel_delta(&self) -> Option<[f32; 2]> {
+        self.wheel_remaining.as_deref().copied()
+    }
+    /// Consume a bounded source-owned scroll and leave residual distance for
+    /// ancestor handlers/defaults. Uses current transaction values, not stale
+    /// installed offsets. Failure rolls back with the entire input candidate.
+    pub fn scroll_wheel(
+        &mut self,
+        offset: Signal<[f32; 2]>,
+        maximum: [f32; 2],
+        axes: [bool; 2],
+    ) -> Result<input::UiScrollStep, Error> {
+        let delta = self.remaining_wheel_delta().ok_or(Error::InvalidScroll)?;
+        let step = UiScrollState {
+            offset: *self.tx.read(offset)?,
+            maximum,
+            wheel_axes: axes,
+        }
+        .consume(delta)
+        .map_err(Error::Input)?;
+        self.tx.set(offset, step.offset)?;
+        *self
+            .wheel_remaining
+            .as_deref_mut()
+            .expect("checked wheel context") = step.remaining;
+        // This handler consumed its source-owned scroll. Defaults resume at
+        // this same surviving route node, even if its virtual row was retired.
+        *self
+            .wheel_anchor
+            .as_deref_mut()
+            .expect("combined wheel anchor") = Some(self.current_target);
+        Ok(step)
+    }
     /// Declare short-lived UI work owned by this handler's scope. Launch only
     /// follows complete transaction adoption; Busy leaves prior work intact.
     pub fn start_task<T: Send + Sync + 'static>(
@@ -611,6 +649,9 @@ impl LogicalUi {
                         cancelable: false, // single-dispatch API owns no defaults
                         scope,
                         tasks: tasks.as_mut().expect("event task draft"),
+                        wheel_remaining: None,
+                        wheel_anchor: None,
+                        current_target: event.current_target,
                     },
                 )
             },

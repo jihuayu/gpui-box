@@ -10,6 +10,27 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [virtual list stage](RETAINED_VIRTUAL_LIST.md) adds an ordinary typed
+VirtualList component with declared fixed/variable row extents, explicit local
+viewport/overscan and selected-row bound. Fixed metrics are O(1); immutable variable
+prefix tables select in O(log N). Only visible/overscan keyed rows mount within
+ordinary clipped Flex boxes and leading/trailing spacers. Overlap/reorder retain
+local state; off-window retirement cleans effects/handlers/sources/tasks normally.
+Shared UiScrollState::consume and EventContext::scroll_wheel preserve residual
+distance for ancestors/defaults, even if the original virtual row retires in the
+same candidate. Complete source/layout/input validation and host adoption remain.
+See [decision](ADR_RETAINED_VIRTUAL_LIST.md) and
+[verification](performance/2026-11-19-virtual-list/README.md).
+Declared heights and mounted-only focus/navigation are explicit; automatic row
+measurement/anchor retention, sticky/horizontal layouts, virtual accessibility,
+KeepAlive and independent presentation remain open. No new FPS/latency claim.
+Complete RFC stays active.
+Final retained-only763passed/1ignored and text/WGPU798/68, each15compiler doctests;
+hello91/36. Explicit core list GPU1passed/five full images and real-Noto list
+GPU1passed/four full images at1.25scale on GTX1650Ti/Vulkan/571.96. Library
+Clippy-Dwarnings, CPU desktop and retained-gpu harness checks pass. Scoped format/
+diff,1,124local links across294docs and five WIP hashes pass. Final2026-11-19.
+
 The [reactive task effect stage](ADR_RETAINED_TASK_EFFECTS.md) adds UiTaskEffect
 with explicit ordinary Signal/ReadProp input on LogicalUi/LogicalEdit/components.
 Final computed/prop/responsive values settle before capture; equal input/cloned

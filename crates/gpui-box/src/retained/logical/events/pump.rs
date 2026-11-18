@@ -13,7 +13,8 @@ pub struct LogicalInputCommit {
     pub ignored: usize,
     pub stopped: usize,
     pub prevented: usize,
-    /// One entry for each requested wheel. Prevented/retired routes consume 0.
+    /// One entry per wheel, including source-controlled consumption. Prevented
+    /// or retired defaults consume no additional distance.
     pub outcomes: Vec<UiScrollOutcome>,
     /// Complete immutable output to install before adopting its input scene.
     pub frame: local::LocalFrame,
@@ -139,6 +140,7 @@ impl LogicalUi {
         let mut stopped = 0;
         let mut prevented = 0;
         let mut prevented_wheels = BTreeSet::new();
+        let mut residual_wheels = BTreeMap::new();
         let adopted = RefCell::new(Some(adopted));
         let on_adopt = || {
             if let Some(adopted) = adopted.borrow_mut().take() {
@@ -164,6 +166,10 @@ impl LogicalUi {
                         continue;
                     }
                     let mut group = EventControl::default();
+                    let mut residual = (event.kind == UiInputEventKind::Wheel)
+                        .then_some(event.wheel_delta)
+                        .flatten();
+                    let mut wheel_anchor = None;
                     for (event, handler) in effects.dispatches[first..index]
                         .iter()
                         .zip(&handlers[first..index])
@@ -185,9 +191,19 @@ impl LogicalUi {
                                 cancelable: event.cancelable(),
                                 scope: *scope,
                                 tasks: tasks.as_mut().expect("event task draft"),
+                                wheel_remaining: residual.as_mut(),
+                                wheel_anchor: Some(&mut wheel_anchor),
+                                current_target: event.current_target,
                             },
                         )?;
                         delivered += 1;
+                    }
+                    if let Some(delta) = residual {
+                        for (i, wheel) in effects.wheel_scrolls.iter().enumerate() {
+                            if wheel_matches(event, wheel) {
+                                residual_wheels.insert(i, (delta, wheel_anchor));
+                            }
+                        }
                     }
                     if group.default_prevented {
                         prevented += 1;
@@ -216,7 +232,22 @@ impl LogicalUi {
                     .iter()
                     .enumerate()
                     .filter(|(i, _)| !prevented_wheels.contains(i))
-                    .map(|(_, event)| event.clone())
+                    .map(|(i, event)| {
+                        let mut event = event.clone();
+                        if let Some((delta, anchor)) = residual_wheels.get(&i) {
+                            event.delta = *delta;
+                            if let Some(anchor) = anchor {
+                                let index = event
+                                    .route
+                                    .iter()
+                                    .position(|id| id == anchor)
+                                    .expect("handler on routed ancestry");
+                                event.target = Some(*anchor);
+                                event.route = event.route[index..].into();
+                            }
+                        }
+                        event
+                    })
                     .collect();
                 Ok(())
             },
@@ -247,11 +278,25 @@ impl LogicalUi {
                     UiScrollOutcome {
                         scene: wheel.scene,
                         target: wheel.target,
-                        consumed: [0.0; 2],
-                        remaining: wheel.delta,
+                        consumed: [0, 1].map(|axis| {
+                            wheel.delta[axis]
+                                - residual_wheels
+                                    .get(&i)
+                                    .map(|(delta, _)| delta)
+                                    .unwrap_or(&wheel.delta)[axis]
+                        }),
+                        remaining: residual_wheels
+                            .get(&i)
+                            .map(|(delta, _)| *delta)
+                            .unwrap_or(wheel.delta),
                     }
                 } else {
-                    consumed.next().expect("one validated wheel outcome")
+                    let mut outcome = consumed.next().expect("one validated wheel outcome");
+                    outcome.scene = wheel.scene;
+                    outcome.target = wheel.target;
+                    outcome.consumed =
+                        [0, 1].map(|axis| wheel.delta[axis] - outcome.remaining[axis]);
+                    outcome
                 }
             })
             .collect();

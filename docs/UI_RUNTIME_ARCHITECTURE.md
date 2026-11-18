@@ -14,6 +14,8 @@
 
 同日后续：[参数驱动任务](ADR_RETAINED_TASK_EFFECTS.md) 增加 UiTaskEffect，以普通 Signal／ReadProp 的最终值驱动短期任务。组件、响应式 source 和退休结算后，同值保留、变化替换一次；容量满时采用最新 UI 状态并取消旧任务，宿主容量通知后显式重试。复用原 scope／admission／apply_task／host executor，没有另一套 source graph。结果回写仍显式，ambient async hooks、KeepAlive 和独立呈现继续开放。
 
+同日后续：[声明行高的虚拟列表](RETAINED_VIRTUAL_LIST.md) 通过普通 Flex、keyed 组件 sites 与 Content producer 实现固定／可变行高窗口，只调用选中行工厂，并用 overscan／max_rows 限制挂载工作。共享受控滚动消费可将余量交给祖先默认滚动，同次卸载旧行不重命中到新行。Off-window 正常退休、取消task；持久草稿提升到parent／Store。自动测高／anchor保持、全数据键盘与虚拟无障碍、KeepAlive和独立呈现仍开放。
+
 ## 1. 要解决的问题
 
 框架以 GPUI 为基础，提供一套比底层绘制更完整的界面抽象：应用用 Rust 编写时自然、可检查；以后用 JS 或 Go 编写时，复用同一个 UI 语义与渲染内核。
@@ -861,7 +863,7 @@ view! {
 
 相同 key 在同一事务内先删除后恢复时，以最终集合判断，可保留原实例；不能把这个规则扩展到已经提交的两个事务之间。key 求值和最终重复检测必须发生在挂载/卸载副作用之前。
 
-筛选恢复不等于排序：排序保留实例，筛掉后恢复默认重置局部状态。跨筛选/虚拟化仍需保留的草稿，应提升到父组件或按业务 id 管理的状态容器，不能靠一个 key 自动永久缓存。通用虚拟列表将来单独定义状态驻留预算。
+筛选恢复不等于排序：排序保留实例，筛掉后恢复默认重置局部状态。跨筛选/虚拟化仍需保留的草稿，应提升到父组件或按业务 id 管理的状态容器，不能靠一个 key 自动永久缓存。[声明行高虚拟列表](RETAINED_VIRTUAL_LIST.md) 已用 viewport／overscan／max_rows 限制活动行数，窗口外直接退休；没有额外状态缓存或任意用户对象的字节驻留承诺。
 
 ### 3.9 分支状态、KeepAlive 与退出动画
 
