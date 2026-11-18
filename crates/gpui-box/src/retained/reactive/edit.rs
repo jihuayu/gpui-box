@@ -1,6 +1,11 @@
 //! Source settlement and render construction share one validation/publication.
 use super::*;
 
+/// Owned values observed by a reusable layout producer. Identities include the
+/// source generation; equality uses the same typed semantics as transactions.
+#[derive(Clone, Default)]
+pub(in crate::retained) struct SourceObservation(BTreeMap<Dependency, Rc<dyn Value>>);
+
 #[derive(Clone)]
 pub(super) struct PreparedUpdate {
     values: BTreeMap<SourceId, Rc<dyn Value>>,
@@ -59,6 +64,47 @@ pub struct ReactiveEdit<'a, 'tree> {
     next_effect: &'a mut u64,
 }
 impl<'tree> ReactiveEdit<'_, 'tree> {
+    pub(in crate::retained) fn record_source<T: 'static>(
+        &self,
+        observation: &mut SourceObservation,
+        signal: Signal<T>,
+    ) -> Result<(), Error> {
+        let source = self.source(signal.id)?;
+        let value = self
+            .prepared
+            .values
+            .get(&signal.id)
+            .unwrap_or(&source.value);
+        if let Some(previous) = observation.0.get(&signal.dependency()) {
+            if !previous.equal(value.as_ref()) {
+                return Err(Error::InvalidLayoutBuildPlan);
+            }
+        } else {
+            observation.0.insert(signal.dependency(), value.clone());
+        }
+        Ok(())
+    }
+    pub(in crate::retained) fn matches_sources(
+        &self,
+        observation: &SourceObservation,
+    ) -> Result<bool, Error> {
+        for (dependency, before) in &observation.0 {
+            if self.removed_sources.contains(&dependency.0) {
+                return Err(Error::InvalidSignal);
+            }
+            let source = self.source(dependency.0)?;
+            let current = self
+                .prepared
+                .values
+                .get(&dependency.0)
+                .unwrap_or(&source.value);
+            if !Rc::ptr_eq(before, current) && !before.equal(current.as_ref()) {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
     pub(in crate::retained) fn responsive_plan<R>(
         &mut self,
         plan: impl FnOnce(&mut Self) -> Result<R, Error>,

@@ -522,7 +522,7 @@ impl LocalFrame {
     pub(in crate::retained) fn follows(&self, old: &Self) -> bool {
         self.0.base.ptr_eq(&Arc::downgrade(&old.0))
     }
-    #[cfg(feature = "retained-wgpu")]
+    #[cfg(any(test, feature = "retained-wgpu"))]
     pub(in crate::retained) fn same(&self, old: &Self) -> bool {
         Arc::ptr_eq(&self.0, &old.0)
     }

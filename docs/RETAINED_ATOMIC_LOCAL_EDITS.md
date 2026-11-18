@@ -9,6 +9,12 @@ Implemented subset, 2026-11-16. The full RFC goal remains active.
 topology, keyed scope/state/effect/binding lifecycle, provisional generation
 handling and final publication boundary of `edit_frame`.
 
+The later [scope-owned layout producers](RETAINED_LAYOUT_PRODUCERS.md) retain
+reusable callbacks/frame inputs and automatically join subsequent ordinary
+transactions and frame requests. They share this publication boundary, including
+registration/cache rollback and post-adoption effect delivery. Source/layout
+equality may reuse content callbacks; final builder proofs/layout still validate.
+
 Both full `constraint_builder` and `inline_constraint_builder` work inside the
 render closure. They retain their existing containment/dependency requirements;
 the final candidate rechecks observed inputs/proofs after layout. Pure custom

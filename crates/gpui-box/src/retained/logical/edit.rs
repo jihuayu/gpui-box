@@ -4,11 +4,11 @@ use crate::retained::reactive::{ReactiveEdit, ReactiveEditCommit};
 mod responsive_rules;
 
 pub struct LogicalEdit<'a, 'draft, 'tree> {
-    render: &'a mut ReactiveEdit<'draft, 'tree>,
-    identity: u64,
+    pub(super) render: &'a mut ReactiveEdit<'draft, 'tree>,
+    pub(super) identity: u64,
     scopes: &'a [Slot],
-    owners: &'a BTreeMap<NodeId, ScopeId>,
-    inserted: BTreeMap<NodeId, ScopeId>,
+    pub(super) owners: &'a BTreeMap<NodeId, ScopeId>,
+    pub(super) inserted: BTreeMap<NodeId, ScopeId>,
     inserted_order: Vec<NodeId>,
     removals: BTreeSet<NodeId>,
     created_scopes: BTreeMap<ScopeId, Scope>,
@@ -21,17 +21,35 @@ pub struct LogicalEdit<'a, 'draft, 'tree> {
     scope_slots: usize,
     next_scope_generation: &'a mut u64,
     capabilities: BackendCapabilities,
-    frame_environment: Option<(LayoutConstraints, [f32; 2])>,
+    pub(super) frame_environment: Option<(LayoutConstraints, [f32; 2])>,
     automatic_environment: Option<responsive::LayoutEnvironment>,
     constraint_inputs: Vec<super::constraint_builder::Observation>,
     responsive_inputs: Vec<responsive::structural::Observation>,
     live_responsive_rules: &'a BTreeMap<(ScopeId, u64), responsive::LayoutBinding>,
     responsive_rules: Option<BTreeMap<(ScopeId, u64), responsive::LayoutBinding>>,
     layout_build_running: bool,
-    layout_build_failed: bool,
+    pub(super) layout_build_failed: bool,
     layout_build_observations: Vec<super::build_plan::BuildObservation>,
+    pub(super) live_layout_producers: &'a BTreeMap<(ScopeId, u64), super::producers::Registration>,
+    pub(super) layout_producers: Option<BTreeMap<(ScopeId, u64), super::producers::Registration>>,
+    pub(super) next_layout_producer: &'a mut u64,
+    pub(super) producer_reads: Option<std::cell::RefCell<reactive::SourceObservation>>,
+    pub(super) producer_active: Option<LayoutProducerId>,
+    pub(super) producer_completed: BTreeSet<LayoutProducerId>,
+    pub(super) producer_scheduling: bool,
+    pub(super) producer_stats: LayoutProducerStats,
+    pub(super) live_producer_revision: Option<u64>,
+    pub(super) producer_render_revision: Option<u64>,
 }
 impl LogicalEdit<'_, '_, '_> {
+    pub(super) fn producer_logical_unchanged(&self) -> bool {
+        self.created_scopes.is_empty()
+            && self.removed_scopes.is_empty()
+            && self.child_lists.iter().all(|(id, children)| {
+                self.scope(*id)
+                    .is_ok_and(|scope| scope.children == *children)
+            })
+    }
     /// Schedule once-only keyed construction from current render ancestry and
     /// explicit non-ancestral prerequisites. Failure poisons this outer edit;
     /// catching it cannot publish a partially executed plan.
@@ -234,7 +252,7 @@ impl LogicalEdit<'_, '_, '_> {
         build(input, self)
     }
 
-    fn retired_scopes(&self) -> Result<BTreeSet<ScopeId>, Error> {
+    pub(super) fn retired_scopes(&self) -> Result<BTreeSet<ScopeId>, Error> {
         let mut dead = BTreeSet::new();
         let mut stack: Vec<_> = self.removed_scopes.iter().copied().collect();
         while let Some(id) = stack.pop() {
@@ -276,7 +294,7 @@ impl LogicalEdit<'_, '_, '_> {
             .collect())
     }
 
-    fn scope(&self, id: ScopeId) -> Result<&Scope, Error> {
+    pub(super) fn scope(&self, id: ScopeId) -> Result<&Scope, Error> {
         if id.owner != self.identity {
             return Err(Error::InvalidScope);
         }
@@ -374,10 +392,12 @@ impl LogicalEdit<'_, '_, '_> {
                 .copied()
                 .ok_or(Error::InvalidSignal)?;
             self.render.validate_scoped_source(signal, None)?;
+            self.read(signal)?;
             return Ok(signal);
         }
         self.scope(scope)?;
         let signal = self.render.signal(init())?;
+        self.read(signal)?;
         self.added_sources.insert((scope, key), Box::new(signal));
         Ok(signal)
     }
@@ -400,10 +420,12 @@ impl LogicalEdit<'_, '_, '_> {
                 .ok_or(Error::InvalidSignal)?;
             self.render
                 .validate_scoped_source(signal, Some(dependencies))?;
+            self.read(signal)?;
             return Ok(signal);
         }
         self.scope(scope)?;
         let signal = self.render.computed(dependencies, evaluate)?;
+        self.read(signal)?;
         self.added_sources.insert((scope, key), Box::new(signal));
         Ok(signal)
     }
@@ -480,7 +502,11 @@ impl LogicalEdit<'_, '_, '_> {
         self.render.tree().pixel_snap(policy)
     }
     pub fn read<T: 'static>(&self, signal: Signal<T>) -> Result<&T, Error> {
-        self.render.read(signal)
+        let value = self.render.read(signal)?;
+        if let Some(reads) = &self.producer_reads {
+            self.render.record_source(&mut reads.borrow_mut(), signal)?;
+        }
+        Ok(value)
     }
     pub fn bind<T: 'static>(
         &mut self,
@@ -577,11 +603,13 @@ impl LogicalUi {
         frame_environment: Option<(LayoutConstraints, [f32; 2])>,
         validate: Option<impl FnOnce(&mut UiTree) -> Result<(), Error>>,
     ) -> Result<ReactiveEditCommit<R>, Error> {
-        let frame_environment = frame_environment.or_else(|| {
-            self.layout_session
-                .as_ref()
-                .map(|s| (s.constraints, s.viewport))
-        });
+        let frame_environment = frame_environment
+            .or_else(|| {
+                self.layout_session
+                    .as_ref()
+                    .map(|s| (s.constraints, s.viewport))
+            })
+            .or(self.producer_session);
         let mut layout_session = self.layout_session.clone();
         let mut inserted = BTreeMap::new();
         let mut inserted_order = vec![];
@@ -591,6 +619,8 @@ impl LogicalUi {
         let mut added_sources = BTreeMap::new();
         let mut added_effects = BTreeMap::new();
         let mut responsive_rules = None;
+        let mut layout_producers = None;
+        let mut producer_stats = LayoutProducerStats::default();
         let constraint_inputs: std::cell::RefCell<Vec<super::constraint_builder::Observation>> =
             std::cell::RefCell::new(vec![]);
         let responsive_inputs: std::cell::RefCell<Vec<responsive::structural::FinalObservation>> =
@@ -631,8 +661,19 @@ impl LogicalUi {
                     layout_build_running: false,
                     layout_build_failed: false,
                     layout_build_observations: vec![],
+                    live_layout_producers: &self.layout_producers,
+                    layout_producers: None,
+                    next_layout_producer: &mut self.next_layout_producer,
+                    producer_reads: None,
+                    producer_active: None,
+                    producer_completed: BTreeSet::new(),
+                    producer_scheduling: false,
+                    producer_stats: LayoutProducerStats::default(),
+                    live_producer_revision: self.producer_revision,
+                    producer_render_revision: None,
                 };
                 let value = render(value, &mut draft)?;
+                draft.settle_layout_producers()?;
                 if draft.layout_build_failed {
                     return Err(Error::InvalidLayoutBuildPlan);
                 }
@@ -763,6 +804,7 @@ impl LogicalUi {
                 }
                 draft.validate_responsive_rules()?;
                 draft.settle_automatic_rules()?;
+                draft.validate_producer_sources()?;
                 layout_session = draft.automatic_environment.take().map(|environment| {
                     let (constraints, viewport) = frame_environment.expect("captured frame input");
                     LayoutSession {
@@ -772,6 +814,8 @@ impl LogicalUi {
                     }
                 });
                 responsive_rules = draft.responsive_rules.take();
+                layout_producers = draft.layout_producers.take();
+                producer_stats = draft.producer_stats;
                 *responsive_inputs.borrow_mut() = draft
                     .responsive_inputs
                     .into_iter()
@@ -885,6 +929,16 @@ impl LogicalUi {
             self.responsive_rules = rules;
         }
         self.layout_session = layout_session;
+        if let Some(producers) = layout_producers {
+            self.layout_producers = producers;
+        }
+        self.producer_session = if self.layout_producers.is_empty() {
+            None
+        } else {
+            Some(frame_environment.expect("producer frame session"))
+        };
+        self.producer_stats = producer_stats;
+        self.producer_revision = self.producer_session.map(|_| self.ui.tree().revision);
         let live_inserted: BTreeSet<_> = result.inserted.iter().copied().collect();
         for node in inserted_order {
             if live_inserted.contains(&node) {

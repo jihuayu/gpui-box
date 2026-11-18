@@ -25,6 +25,11 @@ Dynamic keyed descendants can append tasks in the same atomic frame edit.
 It retains these input/proof/final validation rules and does not replay callbacks;
 persistent automatic subscriptions and general content feedback remain open.
 
+The subsequent [owned layout producers](RETAINED_LAYOUT_PRODUCERS.md) now supply
+persistent scope registration and automatic transaction/frame scheduling for
+these proven protocols. General content feedback and complete RenderBox remain
+open; callbacks reuse tracked inputs, not repeated intrinsic probes.
+
 ## Public contract
 
 `LogicalUi::edit_frame(constraints, viewport, sources, render)` combines source

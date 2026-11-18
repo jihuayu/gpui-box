@@ -43,7 +43,9 @@ impl LogicalEdit<'_, '_, '_> {
         {
             return Err(Error::ScopeInUse);
         }
-        self.read(source)?.validate()?;
+        // Writer validation is not a producer content read. A rule may
+        // legitimately replace this value at the next settlement checkpoint.
+        self.render.read(source)?.validate()?;
         let old = self.rules().get(&(scope, key));
         if let Some(old) = old {
             self.render

@@ -12,6 +12,7 @@ pub use computed::{ComputedInputs, Dependency};
 mod effects;
 pub use effects::{EffectCleanup, EffectId, EffectInputs};
 mod edit;
+pub(in crate::retained) use edit::SourceObservation;
 pub use edit::{ReactiveEdit, ReactiveEditCommit};
 mod delivery;
 pub(in crate::retained) mod responsive;

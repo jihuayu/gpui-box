@@ -1,6 +1,6 @@
 # UI IR、Store、Command 与独立渲染动画架构
 
-状态：设计草案，已开始落地框架层；Rust 优先，预留 JS、Go。当前实现有与 Taffy 解耦的 `LayoutStyle` Flex/Grid/混合长度及测量协议，拥有式 primitive UI 输入快照／批次、类型化样式组合、显式采用完整帧的主指针／焦点／激活路由，以及事务内单次布局构建计划。完整语义 UI IR、主题继承、序列化/跨语言 ABI、Store/Command、组件宏、持久构建订阅、独立呈现仍未完成，总目标继续进行中。
+状态：设计草案，已开始落地框架层；Rust 优先，预留 JS、Go。当前实现有与 Taffy 解耦的 `LayoutStyle` Flex/Grid/混合长度及测量协议，拥有式 primitive UI 输入快照／批次、类型化样式组合、显式采用完整帧的主指针／焦点／激活路由，以及单次构建计划和作用域持久布局 producer。完整语义 UI IR、主题继承、序列化/跨语言 ABI、Store/Command、组件宏、通用反馈与细粒度调度、独立呈现仍未完成，总目标继续进行中。
 
 更新日期：2026-11-18。实现对照取自 `codex/rendering-performance-research`。本文是架构映射与实现状态记录；实验能力与正式承诺仍分别列出。
 
@@ -552,6 +552,29 @@ paint/property storage 身份都未变，保留原 LocalFrame，避免重复局�
 同帧 GPU 提交。不能仅凭 revision 或相对旧 resolved baseline 的空 delta 判断相等；
 最新 sparse-local 属性／材质变化必须先正常同步。该优化不跳过回调或布局，也不新增
 布局语义／dirty hint／公开 API；持续可见 p99 与持久调度仍须另行完成。
+
+后续 [作用域持久布局 producer](RETAINED_LAYOUT_PRODUCERS.md) 增加拥有式
+`LayoutProducer`／`LayoutProducerId`／`LayoutProducerStats`。按 `(scope,key)`
+注册可重复调用的 owner-local `Fn`，host 必须属于该 scope，保留四类既有 builder
+输入／proof。普通 source transaction、background drain、结构 API 和 frame 请求
+自动进入同一计划；父回调可注册新 keyed 后代，退休的 pending 子任务自动移除。
+持久 callback 要求 owned/static captures，借用型单次计划仍保留；两者不在 intrinsic
+probe 中执行。显式 after 处理兄弟 writer 顺序，后写已观察 source 在最终检查中拒绝。
+
+Producer 动态记录 `edit.read` 与 keyed state/computed 访问的 Signal 值／generation，
+比较 typed equality、builder 输入和 callback identity。只有 render revision 与逻辑
+结构也未变时复用内容 callback；任意外部 render 改动保守失效，不以等宽猜输出仍有效。
+换 producer／显式 invalidate 可刷新非 Signal 外部输入；任意 mutable capture／global
+状态读写无法追踪。新 registry、observations、session、stats 与完整 frame 原子采用，
+失败保留旧缓存／source／生命周期；最后一个 producer 移除会结束其隐式 frame session，
+独立 responsive environment session 不受影响。
+
+这使有限 builder 协议具备跨事件持久注册、自动调度和内容回调复用，仍非完整 RenderBox。
+当前每次扫描所有注册、反复 map clone/DAG/preview/proof、最终 tracked layout 与完整
+geometry 检查均保留；观察值持有旧 Rc，未作时延／内存／FPS 收益声明。细粒度输出域／
+反向订阅索引、任意跨 producer writer 发现、通用 intrinsic/full-axis 反馈、UI IR 组件
+宏与 native input/presentation p99 继续开放，详见
+[验证与复现](performance/2026-11-18-layout-producers/README.md)。
 
 UI IR 的最小数据集合：
 

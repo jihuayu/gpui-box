@@ -3,6 +3,28 @@
 The active implementation goal covers the complete runtime requested on
 2026-11-11. Work continues in `codex/rendering-performance-research`.
 
+The [persistent layout producer stage](RETAINED_LAYOUT_PRODUCERS.md) registers
+owner-local reusable callbacks by scope/key, automatically schedules them after
+ordinary source transactions/background drains and frame changes, and retires
+pending child registrations with keyed scopes. Tracked dynamic Signal reads,
+original builder inputs, callback identity and conservative render/logical
+invalidation govern content-callback reuse. Existing builders still run their
+proof/measurement/final observations even when content callbacks reuse. Registry,
+source observations, stats, frame session and complete output adopt atomically;
+late source changes, stale cross-scope dependencies and cycles reject. Nine core
+cases and real-Noto CPU/GPU controls cover automatic changes, conditional reads,
+computed equality, dynamic children, all input kinds and rollback. See
+[verification](performance/2026-11-18-layout-producers/README.md). Full registry
+scans/clones, source-value retention, repeated DAG/preview/proof/final-layout work
+remain. This is framework capability work without timing/FPS improvement claim;
+arbitrary writer discovery, fine output-domain invalidation, full RenderBox and
+native common-interaction p99 remain open. The full RFC is active.
+Verified retained548passed/1ignored, text/WGPU581/43 and hello58/11; persistent
+real-Noto GPU5full-image comparisons use4submits/1skip, prior ephemeral Flex4
+comparisons use3submits/1skip. Final framework library Clippy and scoped
+format/diff/268local-link checks pass. Counts overlap; only explicitly executed
+ignored cases establish hardware evidence.
+
 The [local revalidation follow-up](performance/2026-11-18-local-revalidation/README.md)
 preserves the exact LocalFrame after checked layout when source revision,
 pixel policy and selective paint/property storage identities remain unchanged.

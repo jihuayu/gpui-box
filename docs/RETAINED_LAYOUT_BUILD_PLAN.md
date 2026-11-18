@@ -5,6 +5,11 @@ active. This adds transaction-scoped scheduling to the existing four builder
 protocols; it is not a complete persistent component scheduler or general layout
 feedback solver. Common nested Flex content is the first acceptance target.
 
+The later [scope-owned producer stage](RETAINED_LAYOUT_PRODUCERS.md) adds a
+separate owned reusable callback contract, automatic future transaction/frame
+entry and tracked-source content-callback reuse. It targets this same planner;
+the ephemeral borrowed plan API below remains explicitly requested and once-only.
+
 ## Public API and semantics
 
 `logical::{LayoutBuildPlan, LayoutBuildQueue, LayoutBuildTaskId, LayoutBuildKind,

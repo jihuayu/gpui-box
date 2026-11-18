@@ -56,6 +56,7 @@ struct Task<'tasks> {
     kind: LayoutBuildKind,
     after: BTreeSet<LayoutBuildTaskId>,
     callback: Option<BuildCallback<'tasks>>,
+    producer: Option<(ScopeId, u64)>,
 }
 /// Owns one transaction's pending callbacks. IDs are caller-chosen within this
 /// plan only. Render ancestry supplies automatic parent-before-child edges;
@@ -197,6 +198,7 @@ impl<'tasks> LayoutBuildPlan<'tasks> {
                 kind,
                 after: after.iter().copied().collect(),
                 callback: Some(callback),
+                producer: None,
             },
         );
         Ok(())
@@ -271,8 +273,53 @@ impl LogicalEdit<'_, '_, '_> {
     ) -> Result<LayoutBuildStats, Error> {
         let mut stats = LayoutBuildStats::default();
         let mut completed = BTreeMap::new();
+        let mut producer_issued = BTreeSet::new();
         loop {
+            if self.producer_scheduling {
+                self.retire_layout_producers()?;
+                let registrations = self.producers().clone();
+                plan.tasks.retain(|id, task| {
+                    completed.contains_key(id)
+                        || task.producer.is_none_or(|key| {
+                            registrations.get(&key).is_some_and(|r| r.task() == *id)
+                        })
+                });
+                plan.hosts = plan.tasks.values().map(|task| task.host).collect();
+                // Completed tasks remain observed even if a later callback
+                // retires their scope; pending retired tasks may disappear.
+                for (key, registration) in registrations {
+                    let id = registration.task();
+                    if producer_issued.insert(id) && producer_issued.len() > plan.limits.max_tasks {
+                        return Err(Error::LayoutBuildPlanLimit);
+                    }
+                    if let Some(task) = plan.tasks.get_mut(&id) {
+                        if !completed.contains_key(&id) {
+                            task.host = registration.host;
+                            task.kind = registration.kind;
+                            task.after = registration
+                                .after
+                                .iter()
+                                .map(|id| LayoutBuildTaskId(id.serial))
+                                .collect();
+                        }
+                    } else {
+                        plan.add(
+                            id,
+                            registration.host,
+                            registration.kind,
+                            &registration
+                                .after
+                                .iter()
+                                .map(|id| LayoutBuildTaskId(id.serial))
+                                .collect::<Vec<_>>(),
+                            move |input, edit, _| edit.execute_layout_producer(key, input),
+                        )?;
+                        plan.tasks.get_mut(&id).unwrap().producer = Some(key);
+                    }
+                }
+            }
             let preview = self.build_plan_preview()?;
+            self.producer_render_revision = Some(preview.revision);
             stats.planning_previews += 1;
             let (order, edges) = plan.order(&preview, &completed)?;
             drop(preview);

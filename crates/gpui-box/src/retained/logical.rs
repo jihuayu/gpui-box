@@ -17,6 +17,8 @@ pub use build_plan::{
 mod constraint_builder;
 pub use constraint_builder::{ConstraintBuilderInput, InlineConstraintBuilderInput};
 mod environment;
+mod producers;
+pub use producers::{LayoutProducer, LayoutProducerId, LayoutProducerStats};
 
 #[derive(Clone)]
 struct LayoutSession {
@@ -81,6 +83,11 @@ pub struct LogicalUi {
     next_scope_generation: u64,
     responsive_rules: BTreeMap<(ScopeId, u64), responsive::LayoutBinding>,
     layout_session: Option<LayoutSession>,
+    layout_producers: BTreeMap<(ScopeId, u64), producers::Registration>,
+    next_layout_producer: u64,
+    producer_session: Option<(LayoutConstraints, [f32; 2])>,
+    producer_stats: LayoutProducerStats,
+    producer_revision: Option<u64>,
 }
 
 impl LogicalUi {
@@ -164,11 +171,22 @@ impl LogicalUi {
             next_scope_generation: 1,
             responsive_rules: BTreeMap::new(),
             layout_session: None,
+            layout_producers: BTreeMap::new(),
+            next_layout_producer: 0,
+            producer_session: None,
+            producer_stats: LayoutProducerStats::default(),
+            producer_revision: None,
         })
     }
 
     pub fn root_scope(&self) -> ScopeId {
         self.root
+    }
+    fn has_layout_session(&self) -> bool {
+        self.layout_session.is_some() || self.producer_session.is_some()
+    }
+    pub fn layout_producer_stats(&self) -> LayoutProducerStats {
+        self.producer_stats
     }
     pub fn root_render(&self) -> NodeId {
         self.ui.root()
@@ -203,6 +221,14 @@ impl LogicalUi {
                 LayoutConstraints::viewport(viewport[0], viewport[1]),
                 viewport,
             )
+        } else if self.producer_session.is_some() {
+            self.edit_frame(
+                LayoutConstraints::viewport(viewport[0], viewport[1]),
+                viewport,
+                |_| Ok(()),
+                |(), _| Ok(()),
+            )
+            .map(|(_, frame)| frame)
         } else {
             self.ui.frame(viewport)
         }
@@ -211,15 +237,20 @@ impl LogicalUi {
         &mut self,
         constraints: LayoutConstraints,
     ) -> Result<FramePacket, Error> {
-        if self.layout_session.is_some() {
+        if self.has_layout_session() {
             constraints.validate()?;
             let viewport = [
                 constraints.width.resolve_definite()?,
                 constraints.height.resolve_definite()?,
             ];
-            let mut environment = self.layout_session.as_ref().unwrap().environment.clone();
-            environment.layout_viewport = viewport;
-            self.frame_with_environment(&environment, constraints, viewport)
+            if let Some(session) = &self.layout_session {
+                let mut environment = session.environment.clone();
+                environment.layout_viewport = viewport;
+                self.frame_with_environment(&environment, constraints, viewport)
+            } else {
+                self.edit_frame(constraints, viewport, |_| Ok(()), |(), _| Ok(()))
+                    .map(|(_, frame)| frame)
+            }
         } else {
             self.ui.frame_with_constraints(constraints)
         }
@@ -229,7 +260,7 @@ impl LogicalUi {
         constraints: LayoutConstraints,
         viewport: [f32; 2],
     ) -> Result<FramePacket, Error> {
-        if self.layout_session.is_some() {
+        if self.has_layout_session() {
             self.edit_frame(constraints, viewport, |_| Ok(()), |(), _| Ok(()))
                 .map(|(_, frame)| frame)
         } else {
@@ -241,7 +272,7 @@ impl LogicalUi {
         constraints: LayoutConstraints,
         viewport: [f32; 2],
     ) -> Result<local::LocalFrame, Error> {
-        if self.layout_session.is_some() {
+        if self.has_layout_session() {
             self.edit_local_frame(constraints, viewport, |_| Ok(()), |(), _| Ok(()))
                 .map(|(_, frame)| frame)
         } else {
@@ -403,7 +434,7 @@ impl LogicalUi {
         source: Signal<T>,
         property: Property<T>,
     ) -> Result<(BindingId, Commit), Error> {
-        if self.layout_session.is_some() {
+        if self.has_layout_session() {
             self.edit(|_| Ok(()), |(), edit| edit.bind(source, property))
                 .map(|result| (result.result.value, result.result.commit))
         } else {
@@ -414,7 +445,7 @@ impl LogicalUi {
         &mut self,
         update: impl FnOnce(&mut ReactiveTransaction<'_>) -> Result<R, Error>,
     ) -> Result<ReactiveCommit<R>, Error> {
-        if self.layout_session.is_some() {
+        if self.has_layout_session() {
             self.edit(update, |value, _| Ok(value))
                 .map(|edit| edit.result)
         } else {
@@ -429,7 +460,7 @@ impl LogicalUi {
         style: Style,
         color: u32,
     ) -> Result<NodeId, Error> {
-        if self.layout_session.is_some() {
+        if self.has_layout_session() {
             return self
                 .edit(
                     |_| Ok(()),
@@ -452,7 +483,7 @@ impl LogicalUi {
         style: LayoutStyle,
         color: u32,
     ) -> Result<NodeId, Error> {
-        if self.layout_session.is_some() {
+        if self.has_layout_session() {
             return self
                 .edit(
                     |_| Ok(()),
@@ -488,7 +519,7 @@ impl LogicalUi {
             .iter()
             .map(|id| (self.scope(*id).unwrap().key, *id))
             .collect();
-        if self.layout_session.is_some() {
+        if self.has_layout_session() {
             let mut removed = BTreeSet::new();
             for (key, id) in &old {
                 if !unique.contains(key) {
@@ -750,7 +781,7 @@ impl LogicalUi {
                 return Err(Error::InvalidChildren);
             }
         }
-        if self.layout_session.is_some() {
+        if self.has_layout_session() {
             let root = self.root;
             let root_keys = self
                 .children(root)?
