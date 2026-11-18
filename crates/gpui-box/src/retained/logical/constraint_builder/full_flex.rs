@@ -3,7 +3,10 @@
 use super::*;
 
 #[derive(PartialEq)]
-pub(in crate::retained::logical) struct Dependencies(Vec<Parent>);
+pub(in crate::retained::logical) struct Dependencies {
+    parents: Vec<Parent>,
+    measured_siblings: Vec<ContentInput>,
+}
 #[derive(PartialEq)]
 struct Parent {
     node: NodeId,
@@ -11,11 +14,48 @@ struct Parent {
     children: Vec<(NodeId, Arc<Style>)>,
 }
 
+/// Only layout-relevant inputs. Paint/material changes do not invalidate an
+/// independent measurement. No user code is invoked to compare these records.
+#[derive(PartialEq)]
+struct ContentInput {
+    node: NodeId,
+    order: i32,
+    style: Arc<Style>,
+    children: Vec<NodeId>,
+    measure: Option<MeasureSnapshot>,
+    parent_layout: Option<ParentLayoutSnapshot>,
+    parent_data: Option<ParentData>,
+}
+
+fn capture_content(
+    tree: &UiTree,
+    root: NodeId,
+    records: &mut Vec<ContentInput>,
+) -> Result<(), Error> {
+    let mut pending = vec![root];
+    while let Some(id) = pending.pop() {
+        let node = tree.node(id)?;
+        pending.extend(node.children.iter().rev().copied());
+        records.push(ContentInput {
+            node: id,
+            order: node.layout_order,
+            style: measure::effective_style(&node.style, node.measure.as_ref()),
+            children: node.children.clone(),
+            measure: node.measure.clone(),
+            parent_layout: node.parent_layout.clone(),
+            parent_data: node.parent_data.clone(),
+        });
+    }
+    Ok(())
+}
+
 /// Both parent axes must be externally sized. Numeric main bases plus explicit
-/// main minima eliminate intrinsic/automatic main-size feedback for every item.
+/// main minima eliminate intrinsic/automatic feedback for each path item.
 /// In nowrap, a stretched cross size comes from the parent's fixed line size;
 /// wrapped lines need explicit item cross sizes because their height/width can
-/// otherwise depend on constructed content. All percentages have definite bases.
+/// otherwise depend on constructed content. Siblings may depend on their own
+/// measured content, whose complete layout inputs are observed separately.
+/// All path percentages have definite bases.
 pub(super) fn capture(tree: &UiTree, host: NodeId) -> Result<Option<Dependencies>, Error> {
     let mut path = vec![];
     let mut next = Some(host);
@@ -49,7 +89,10 @@ pub(super) fn capture(tree: &UiTree, host: NodeId) -> Result<Option<Dependencies
         return Ok(None);
     }
     let mut records = vec![];
-    for &parent in path.iter().skip(1).rev() {
+    let mut measured_siblings = vec![];
+    for edge in path.windows(2).rev() {
+        let child_on_path = edge[0];
+        let parent = edge[1];
         let node = tree.node(parent)?;
         let row = matches!(
             node.style.flex_direction,
@@ -63,7 +106,14 @@ pub(super) fn capture(tree: &UiTree, host: NodeId) -> Result<Option<Dependencies
                 && !style.position.is_out_of_flow()
                 && !independent_item(&style, &node.style, row)
             {
-                return Ok(None);
+                if id == child_on_path {
+                    return Ok(None);
+                }
+                // An ordinary sibling may use its own intrinsic/content size.
+                // Its complete immutable layout inputs must settle before this
+                // callback and remain unchanged afterwards. It cannot contain
+                // the path child in the accepted tree.
+                capture_content(tree, id, &mut measured_siblings)?;
             }
             children.push((id, style));
         }
@@ -82,7 +132,10 @@ pub(super) fn capture(tree: &UiTree, host: NodeId) -> Result<Option<Dependencies
             children: vec![],
         });
     }
-    Ok(Some(Dependencies(records)))
+    Ok(Some(Dependencies {
+        parents: records,
+        measured_siblings,
+    }))
 }
 
 fn numeric(value: taffy::Dimension) -> bool {
@@ -157,5 +210,7 @@ fn independent_item(style: &Style, parent: &Style, row: bool) -> bool {
         && (numeric(cross) || parent.flex_wrap == taffy::FlexWrap::NoWrap && stretch)
 }
 
+#[cfg(test)]
+mod sibling_tests;
 #[cfg(test)]
 mod tests;

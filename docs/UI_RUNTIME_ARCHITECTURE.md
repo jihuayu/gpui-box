@@ -330,6 +330,14 @@ minimum排除内容贡献，NoWrap交叉轴可stretch，Wrap要求数值cross si
 在原子采用前复验。通用intrinsic/ratio/自动cross-line反馈、Grid/Block两轴证明与完整
 RenderBox仍开放；private preview/candidate与扫描成本仍在，无FPS收益声明。
 
+后续[内容测量同级项](RETAINED_MEASURED_FLEX_SIBLINGS.md)允许真实文字标题／工具栏／
+sidebar自动尺寸与remaining-space正文组合。普通两轴链只要求path child的尺寸贡献独立；
+其余content-dependent sibling完整子树记录layout style／children／measure／parent
+algorithm／metadata，在最终candidate与真实input一起复验。同数字的后写measurement也
+拒绝；同paragraph换字色、同intrinsic size换image pixels仍走独立paint通道。Sibling
+producer用既有after明确顺序，错误顺序拒绝而不回放。增加子树扫描和临时shared handle／
+child-list记录，未自动推导writer依赖；path自身内容反馈与完整RenderBox仍开放。
+
 后续 [ParentData](RETAINED_PARENT_DATA.md) 把 direct child 的不可变 typed metadata
 独立于 CSS style 纳入父布局输入；独立分配器和测量阶段都可读取，普通 Flex 忽略。
 typed sink、事务合并、缓存失效、reparent/keyed 生命周期沿正常链路；builder proof

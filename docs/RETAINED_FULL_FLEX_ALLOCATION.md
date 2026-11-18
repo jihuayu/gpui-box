@@ -4,6 +4,12 @@ Status: experimental Rust framework capability, 2026-11-18. Full RFC remains
 active. This extends the existing allocation_builder and LayoutBuildKind::Allocation;
 it adds no new public input type, source schema, Flex solver or rendering path.
 
+Follow-up: [measured siblings](RETAINED_MEASURED_FLEX_SIBLINGS.md) allows sibling
+content-dependent sizes while preserving the path child's independent allocation.
+It records complete sibling subtree layout inputs and rejects late changes.
+The every-item numeric requirement below describes this initial stage; current
+path restrictions and actual full input semantics remain unchanged.
+
 ## Purpose and actual input
 
 A component may choose structure from the space actually assigned by its

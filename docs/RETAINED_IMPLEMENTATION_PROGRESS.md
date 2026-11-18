@@ -10,6 +10,29 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [measured Flex sibling stage](RETAINED_MEASURED_FLEX_SIBLINGS.md) lets ordinary
+full-axis allocation builders compose an automatic content-sized title/toolbar/
+sidebar with a remaining-space body. Only the path child's contribution must
+remain independent; content-dependent sibling subtrees record complete layout
+style/structure/measure/algorithm/metadata inputs. Final dependencies plus actual
+full input validate before atomic source/keyed/frame adoption. Late same-number
+measurement changes reject; same-paragraph text color or same-intrinsic image
+pixel changes keep the separate paint channel. Ordered sibling producers work
+through existing explicit prerequisites; wrong order rejects without replay.
+No new public type/schema/vendor algorithm. See
+[verification](performance/2026-11-18-measured-flex-siblings/README.md).
+Sibling subtree scanning/retained observations and ordinary previews/candidates
+remain; automatic output dependency discovery, content feedback on the host
+path, full RenderBox and independent presentation stay open. No FPS/latency gain
+is claimed; the complete RFC continues active.
+Complete retained594passed/1ignored, final text/WGPU628/51 and hello66/17 pass;
+new6core and real-Noto CPU are included. Explicit GPU compares12four-direction
+sibling images and3real-Noto title images on GTX1650Ti/Vulkan/571.96. Final
+library Clippy -D warnings, complete retained-gpu harness, scoped format/diff,
+276local links and all5unrelated WIP hashes pass. Retained full preceded the
+last layout_order observation; final text/WGPU/hello/GPU cover it. Counts overlap.
+Final retained-only sibling filter6passed also covers the final order observation.
+
 The [ordinary full-axis Flex allocation stage](RETAINED_FULL_FLEX_ALLOCATION.md)
 extends the existing allocation_builder/Allocation tasks to content-independent
 Row/Column chains, without inserting containment or replacing Flex layout.

@@ -1,5 +1,10 @@
 # Scope-owned reusable layout producers
 
+Follow-up2026-11-18: [measured sibling inputs](RETAINED_MEASURED_FLEX_SIBLINGS.md)
+allows content-sized title/sidebar producers before a dependent full Allocation
+body. Use explicit after prerequisites; late sibling layout writes reject
+without callback replay. Output dependencies are not inferred automatically.
+
 Follow-up2026-11-18: [ordinary full-axis Flex allocation](RETAINED_FULL_FLEX_ALLOCATION.md)
 extends LayoutBuildKind::Allocation to proven Row/Column chains without a
 containment boundary. Registered producers reuse the same input recording,
