@@ -76,7 +76,8 @@ impl Observation {
 }
 
 /// Independent allocation edges reach either the external root or a full-size
-/// containment cut under ordinary Flex. Numeric equality cannot prove absence of
+/// containment cut, or independently sized ordinary Flex/Grid ancestry.
+/// Numeric equality cannot prove absence of
 /// content -> parent -> builder feedback. Styles and ordered child lists remain
 /// dependencies even when a replacement happens to return equal numbers.
 /// Direct-child metadata/effective styles on independent allocators are inputs; host
@@ -87,7 +88,7 @@ pub(super) enum AllocationDependencies {
         Vec<AllocationParentDependency>,
         Vec<(NodeId, Arc<Style>, Option<ParentData>)>,
     ),
-    Flex(full_flex::Dependencies),
+    Ordinary(full_flex::Dependencies),
 }
 type AllocationParentDependency = (
     NodeId,
@@ -96,7 +97,8 @@ type AllocationParentDependency = (
     Vec<NodeId>,
 );
 impl AllocationDependencies {
-    /// Scheduling observes only the proven ordinary-Flex measurement domain.
+    /// Scheduling observes proven Flex measurement dependencies, including those
+    /// below content-independent Grid assignments.
     /// A not-yet-valid path may be established by an earlier ancestor task;
     /// ordinary builder validation still runs immediately before its callback.
     pub(super) fn measured_task_nodes(
@@ -122,7 +124,9 @@ impl AllocationDependencies {
             if error != Error::UnsafeConstraintBuilder {
                 return Err(error);
             }
-            full_flex::capture(tree, host)?.map(Self::Flex).ok_or(error)
+            full_flex::capture(tree, host)?
+                .map(Self::Ordinary)
+                .ok_or(error)
         })
     }
     fn capture_independent(tree: &UiTree, host: NodeId) -> Result<Self, Error> {
@@ -204,7 +208,7 @@ impl AllocationDependencies {
         Ok(Self::Independent(records, data))
     }
     pub(super) fn tracks_input(&self) -> bool {
-        matches!(self, Self::Flex(_))
+        matches!(self, Self::Ordinary(_))
     }
     pub(super) fn input(
         &self,

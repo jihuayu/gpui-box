@@ -613,6 +613,20 @@ retirement 再复验相关 sources。没有 caller dirty hint 或仅凭等宽判
 尚无 output ownership proof，不能安全声称局部过滤。Index 重建／membership 内存、private
 candidate 和最终检查仍有成本，持续 native p99 与通用反馈仍另行验收。
 
+后续 [Grid／Flex 双轴分配](RETAINED_FULL_GRID_ALLOCATION.md) 让同一个
+allocation_builder／Allocation task／持久 producer 穿过两轴独立的普通 Grid。
+外部确定的根尺寸、数值 minimum 与数值／fr maximum、显式 implicit patterns 保证
+轨道不反向读取构建内容，支持 Count／AutoFit／AutoFill 和嵌套 Grid／Flex。
+路径 item 仍需独立数值尺寸或内核实际支持的 stretch；baseline groups、aspect／
+intrinsic feedback、named placement 继续拒绝。读取真实 Grid area 的 percentage basis、
+known border box、soft space 和独立 hard bounds，不按 viewport 自行分格。
+Grid 同级内容变化不建立虚假测量边；cell 内 Flex 自动标题仍先于正文 full task 结算。
+最终比较完整父样式、direct item styles／order 与 actual inputs，失败保持 source／
+keyed／stats／旧帧。公共 API／schema6／Taffy／renderer 不增加另一套路径。
+祖先／track／children 扫描、private preview／candidate 与完整 geometry 成本仍在，
+没有 FPS／时延收益声明；通用内容反馈／完整 RenderBox、output ownership、组件统一、
+资源预算与独立原生呈现保持未完成，见 [证据](performance/2026-11-18-full-grid-allocation/README.md)。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

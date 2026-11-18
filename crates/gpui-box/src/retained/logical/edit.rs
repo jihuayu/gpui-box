@@ -161,8 +161,9 @@ impl LogicalEdit<'_, '_, '_> {
     /// and allows content-derived size in both axes. Independent parent edges
     /// must reach the external root or a full Size containment boundary under
     /// ordinary Flex. Size-contained ConstraintBox outgoing slots also qualify.
-    /// Ordinary Flex also qualifies along a proven content-independent two-axis
-    /// allocation chain. Intrinsic/automatic feedback edges reject.
+    /// Ordinary Flex/Grid also qualify along a proven content-independent
+    /// two-axis allocation chain. Grid needs definite independent tracks on
+    /// both axes. Intrinsic/automatic feedback edges reject.
     /// Prerequisite child lists/algorithms must precede observation.
     pub fn allocation_builder<R>(
         &mut self,

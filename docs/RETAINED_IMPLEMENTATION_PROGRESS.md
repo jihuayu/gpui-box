@@ -10,6 +10,27 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [full Grid/Flex allocation stage](RETAINED_FULL_GRID_ALLOCATION.md) extends
+the same full builder/Allocation task/persistent producer protocol across mixed
+ordinary Grid and Flex ancestry. Both Grid axes need independent numeric/fr
+tracks and explicit implicit patterns; path items have independent preferred
+sizes or supported stretch. The kernel supplies actual area bases, known border
+boxes, soft space and separate hard bounds; no alternate allocator is added.
+Complete parent styles, ordered child IDs and effective item styles validate
+before atomic adoption. Independent Grid sibling content stays free; measured
+Flex titles inside cells keep inferred title-before-body scheduling. Shared
+inline helpers preserve their earlier scope. Source schema6 is unchanged.
+See [verification](performance/2026-11-18-full-grid-allocation/README.md).
+Track/ancestry/child scans, private previews/candidates and full geometry costs
+remain. Intrinsic/automatic feedback, full RenderBox, callback output ownership,
+component integration, budgets and independent presentation stay open. No FPS,
+latency or memory benefit is claimed; the complete RFC remains active.
+Final retained606passed/1ignored, text/WGPU640/53 and hello68/19 pass, including
+7new core cases and real-Noto CPU. Explicit numeric Grid/Flex GPU passes12complete
+images; real-Noto GPU passes3 on GTX1650Ti/Vulkan/571.96. Library Clippy -D warnings,
+complete retained-gpu harness, scoped format/diff,288local links and all5WIP
+hashes pass. Counts overlap; all full suites cover the final production code.
+
 The [inferred measurement task stage](RETAINED_INFERRED_MEASUREMENT_TASKS.md)
 connects existing measured-sibling proofs to the normal once-only/persistent
 planner. Queued hosts in the measured sibling subtree precede a dependent full

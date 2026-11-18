@@ -11,6 +11,8 @@ mod focus_reveal_text_tests;
 mod full_flex_sibling_text_tests;
 #[path = "retained_full_flex_text_tests.rs"]
 mod full_flex_text_tests;
+#[path = "retained_full_grid_text_tests.rs"]
+mod full_grid_text_tests;
 #[path = "retained_grid_policy_text_tests.rs"]
 mod grid_policy_text_tests;
 #[path = "retained_layout_resource_text_tests.rs"]

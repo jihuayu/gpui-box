@@ -10,6 +10,10 @@ It records complete sibling subtree layout inputs and rejects late changes.
 The every-item numeric requirement below describes this initial stage; current
 path restrictions and actual full input semantics remain unchanged.
 
+Follow-up: [full Grid/Flex allocation](RETAINED_FULL_GRID_ALLOCATION.md) composes
+the same protocol across Grid with two independent definite track axes. The
+Flex-only ancestry restriction below describes this initial stage.
+
 ## Purpose and actual input
 
 A component may choose structure from the space actually assigned by its
@@ -108,7 +112,7 @@ wrap/reverse, RTL, percentage sizing/insets, gutters, rollback and immutable
 frame retirement. Hardware tests compare complete output pixels.
 
 General content/intrinsic/ratio feedback, automatically measured wrapped cross
-sizes, Grid/Block full-axis allocation proofs, mixed custom/ordinary edges
+sizes, general intrinsic Grid/Block full-axis allocation proofs, mixed custom/ordinary edges
 outside the existing containment domain and complete RenderBox remain open.
 Independent presentation, component/source integration and resource budgets
 are separate active work. Finite correctness cases do not prove native fluidity

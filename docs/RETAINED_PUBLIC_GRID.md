@@ -78,6 +78,12 @@ content-independent definite/fractional columns across Grid parent edges, with
 explicit implicit-column patterns, live root anchors, sibling/track observations
 and query DAG dependencies. General content-dependent tracks remain outside it.
 
+Follow-up: [full Grid/Flex allocation](RETAINED_FULL_GRID_ALLOCATION.md) also
+supports actual two-axis item inputs under independent definite tracks, including
+mixed Grid/Flex ancestry, automatic repeat rows and ordinary title/body tasks.
+This reuses the same full builder/producer protocol; general intrinsic feedback
+and default Auto tracks remain outside that proof.
+
 ```mermaid
 flowchart LR
     A[Owned GridStyle and item placements] --> B[Validate typed LayoutStyle]

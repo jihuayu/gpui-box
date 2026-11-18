@@ -364,35 +364,12 @@ fn independent_grid_items(
     parent: NodeId,
     style: &Style,
 ) -> Result<bool, Error> {
-    use taffy::style::{
-        ExpandedMaxTrackSizingFunction as Max, ExpandedMinTrackSizingFunction as Min,
-    };
-    let track = |track: &taffy::TrackSizingFunction| {
-        let min = matches!(track.min.expand(), Min::Length(v) | Min::Percent(v) if v.is_finite() && v >= 0.0)
-            || matches!(track.min.expand(), Min::Affine(px,p) if px.is_finite() && p.is_finite());
-        let max = matches!(track.max.expand(), Max::Length(v) | Max::Percent(v) | Max::Fr(v) if v.is_finite() && v >= 0.0)
-            || matches!(track.max.expand(), Max::Affine(px,p) if px.is_finite() && p.is_finite());
-        min && max
-    };
-    if style.grid_template_columns.is_empty()
-        || style.grid_auto_columns.is_empty()
-        || !style.grid_auto_columns.iter().all(track)
+    if !independent_grid_axis(&style.grid_template_columns, &style.grid_auto_columns)
         || style.grid_template_areas.is_some()
         || !style.grid_template_column_names.is_empty()
         || !style.grid_template_row_names.is_empty()
     {
         return Ok(false);
-    }
-    for component in &style.grid_template_columns {
-        match component {
-            taffy::GridTemplateComponent::Single(t) if track(t) => {}
-            taffy::GridTemplateComponent::Repeat(r)
-                if !r.tracks.is_empty()
-                    && r.tracks.iter().all(track)
-                    && r.line_names.is_empty()
-                    && !matches!(r.count, taffy::RepetitionCount::Count(0)) => {}
-            _ => return Ok(false),
-        }
     }
     for component in &style.grid_template_rows {
         if let taffy::GridTemplateComponent::Repeat(r) = component
@@ -408,29 +385,63 @@ fn independent_grid_items(
             if item.display == taffy::Display::None || item.position.is_out_of_flow() {
                 continue;
             }
-            if !grid_item_inline_size(&item, style) {
-                return Ok(false);
-            }
-            if [
-                &item.grid_column.start,
-                &item.grid_column.end,
-                &item.grid_row.start,
-                &item.grid_row.end,
-            ]
-            .iter()
-            .any(|v| {
-                !matches!(
-                    v,
-                    taffy::GridPlacement::Auto
-                        | taffy::GridPlacement::Line(_)
-                        | taffy::GridPlacement::Span(_)
-                )
-            }) {
+            if !grid_item_inline_size(&item, style) || !numeric_grid_placement(&item) {
                 return Ok(false);
             }
         }
     }
     Ok(true)
+}
+
+/// Content-independent tracks on one externally definite axis. Shared by the
+/// existing inline proof and complete two-axis incoming allocation proof.
+pub(super) fn independent_grid_axis(
+    template: &[taffy::GridTemplateComponent<String>],
+    implicit: &[taffy::TrackSizingFunction],
+) -> bool {
+    use taffy::style::{
+        ExpandedMaxTrackSizingFunction as Max, ExpandedMinTrackSizingFunction as Min,
+    };
+    let track = |track: &taffy::TrackSizingFunction| {
+        let min = matches!(track.min.expand(), Min::Length(v) | Min::Percent(v) if v.is_finite() && v >= 0.0)
+            || matches!(track.min.expand(), Min::Affine(px,p) if px.is_finite() && p.is_finite());
+        let max = matches!(track.max.expand(), Max::Length(v) | Max::Percent(v) | Max::Fr(v) if v.is_finite() && v >= 0.0)
+            || matches!(track.max.expand(), Max::Affine(px,p) if px.is_finite() && p.is_finite());
+        min && max
+    };
+    if template.is_empty() || implicit.is_empty() || !implicit.iter().all(track) {
+        return false;
+    }
+    for component in template {
+        match component {
+            taffy::GridTemplateComponent::Single(t) if track(t) => {}
+            taffy::GridTemplateComponent::Repeat(r)
+                if !r.tracks.is_empty()
+                    && r.tracks.iter().all(track)
+                    && r.line_names.is_empty()
+                    && !matches!(r.count, taffy::RepetitionCount::Count(0)) => {}
+            _ => return false,
+        }
+    }
+    true
+}
+
+pub(super) fn numeric_grid_placement(item: &Style) -> bool {
+    [
+        &item.grid_column.start,
+        &item.grid_column.end,
+        &item.grid_row.start,
+        &item.grid_row.end,
+    ]
+    .iter()
+    .all(|v| {
+        matches!(
+            v,
+            taffy::GridPlacement::Auto
+                | taffy::GridPlacement::Line(_)
+                | taffy::GridPlacement::Span(_)
+        )
+    })
 }
 
 fn grid_item_inline_size(item: &Style, parent: &Style) -> bool {

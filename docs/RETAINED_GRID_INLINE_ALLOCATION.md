@@ -14,6 +14,11 @@ definite inline extent from a live external root anchor. This composes with
 nested Grids, ordinary Column and Row/percentage-basis descendants. No new public
 type, method, trust flag, alternate Grid solver or Taffy pass is introduced.
 
+Follow-up: [full Grid/Flex allocation](RETAINED_FULL_GRID_ALLOCATION.md) extends
+the full builder/task/producer protocol when both track axes are independent.
+Its definite two-axis proof also permits automatic row repeats; the inline-only
+row-count restriction below remains unchanged.
+
 ```rust,ignore
 let track = GridTrack::minmax(GridMinTrack::Px(0.0), GridMaxTrack::Fr(1.0));
 let grid = LayoutStyle::grid(

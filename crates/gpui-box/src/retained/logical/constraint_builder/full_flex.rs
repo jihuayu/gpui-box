@@ -1,6 +1,7 @@
-//! Two-axis incoming Flex assignments whose sizes do not read constructed
+//! Two-axis incoming Flex/Grid assignments whose sizes do not read constructed
 //! content. The kernel remains the only allocator; this is a dependency proof.
 use super::*;
+mod grid;
 
 #[derive(PartialEq)]
 pub(in crate::retained::logical) struct Dependencies {
@@ -55,7 +56,9 @@ fn capture_content(
 /// wrapped lines need explicit item cross sizes because their height/width can
 /// otherwise depend on constructed content. Siblings may depend on their own
 /// measured content, whose complete layout inputs are observed separately.
-/// All path percentages have definite bases.
+/// Grid edges instead need independent tracks on both definite axes and an
+/// independently sized/stretched path item. All path percentages have definite
+/// bases; Grid sibling content cannot alter these tracks.
 pub(super) fn capture(tree: &UiTree, host: NodeId) -> Result<Option<Dependencies>, Error> {
     capture_with_constraints(tree, host, tree.layout_constraints)
 }
@@ -70,7 +73,10 @@ pub(super) fn capture_with_constraints(
     while let Some(id) = next {
         let node = tree.node(id)?;
         if node.parent_layout.is_some()
-            || node.style.display != taffy::Display::Flex
+            || !matches!(
+                node.style.display,
+                taffy::Display::Flex | taffy::Display::Grid
+            )
             || node.style.position.is_out_of_flow()
             || !plain_box(&measure::effective_style(
                 &node.style,
@@ -106,9 +112,19 @@ pub(super) fn capture_with_constraints(
             taffy::FlexDirection::Row | taffy::FlexDirection::RowReverse
         );
         let mut children = vec![];
+        if node.style.display == taffy::Display::Grid && !grid::independent_parent(tree, parent)? {
+            return Ok(None);
+        }
         for id in tree.ordered_children_for(parent, &node.children)? {
             let child = tree.node(id)?;
             let style = measure::effective_style(&child.style, child.measure.as_ref());
+            if node.style.display == taffy::Display::Grid {
+                if id == child_on_path && !grid::independent_item(&style, &node.style) {
+                    return Ok(None);
+                }
+                children.push((id, style));
+                continue;
+            }
             if style.display != taffy::Display::None
                 && !style.position.is_out_of_flow()
                 && !independent_item(&style, &node.style, row)
