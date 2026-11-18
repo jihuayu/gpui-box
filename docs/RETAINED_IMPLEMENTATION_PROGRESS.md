@@ -10,6 +10,30 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [scoped event stage](RETAINED_SCOPED_EVENTS.md) adds EventHandler/EventContext
+and keyed registration/owned-node UiInteraction policy. LogicalUi publishes the
+existing UiInputScene over complete current frame geometry; UiInputRouter retains
+shared pointer/focus/Enter/Space behavior. Dispatch rechecks current generation,
+route/eligibility/handler identity, ignores retired callbacks and uses ordinary
+source/component/layout transactions, explicitly settling a complete local frame
+at the current published constraints even without persistent producers. Event
+after_commit actions run only after successful adoption, bridging Provider
+Command→Store→UI without sending business
+work from a failed candidate. Sparse handler/policy registry adopts/retires with
+scopes/output, in transactional and manual paths. No solver/GPU/schema change;
+Error adds InvalidEventHandler. See
+[verification](performance/2026-11-18-scoped-events/README.md).
+Full-scene map construction/per-event validation, linear handler lookup and normal
+source/producer/candidate costs remain, with no timing/FPS claim. Automatic style/
+wheel/reveal feedback application, task/native host/IME/semantics integration,
+complete source unification, hooks/macros/KeepAlive and budgets stay active.
+Final retained691passed/1ignored, text/WGPU725/63 and hello78/29;
+10compiler doctests pass in both core configurations. No-default16passed/2docs.
+Explicit scoped-events GPU compares3complete images and Noto3 on
+GTX1650Ti/Vulkan/571.96. Final library Clippy -D warnings, complete retained-gpu
+harness, scoped format/diff,308local links and5WIP hashes pass. Final code covered;
+no native displayed latency/cadence or performance improvement inferred.
+
 The [scoped provider stage](RETAINED_SCOPED_PROVIDERS.md) adds explicit StoreKey
 and scope-local Store-input/typed Command declarations with nearest logical-parent
 lookup. Consumers cache the first identity or optional absence; local overrides

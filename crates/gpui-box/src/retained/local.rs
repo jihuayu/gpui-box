@@ -212,7 +212,7 @@ impl LocalFrame {
             stack.push((i, next));
         }
     }
-    fn from_frame(frame: FramePacket) -> Self {
+    pub(in crate::retained) fn from_frame(frame: FramePacket) -> Self {
         let mut indices = HashMap::with_capacity(frame.items.len());
         let mut parents = Vec::with_capacity(frame.items.len());
         let mut depths = Vec::with_capacity(frame.items.len());

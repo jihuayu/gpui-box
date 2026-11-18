@@ -46,6 +46,8 @@ pub struct LogicalEdit<'a, 'draft, 'tree> {
     pub(super) component_failure: Option<std::rc::Rc<std::cell::Cell<bool>>>,
     pub(super) live_providers: &'a super::provider::Registry,
     pub(super) providers: Option<super::provider::Registry>,
+    pub(super) live_events: &'a super::events::Registry,
+    pub(super) events: Option<super::events::Registry>,
 }
 impl LogicalEdit<'_, '_, '_> {
     pub(super) fn producer_logical_unchanged(&self) -> bool {
@@ -667,6 +669,7 @@ impl LogicalUi {
         let mut layout_producers = None;
         let mut producer_stats = LayoutProducerStats::default();
         let mut providers = None;
+        let mut events = None;
         let constraint_inputs: std::cell::RefCell<Vec<super::constraint_builder::Observation>> =
             std::cell::RefCell::new(vec![]);
         let responsive_inputs: std::cell::RefCell<Vec<responsive::structural::FinalObservation>> =
@@ -723,6 +726,8 @@ impl LogicalUi {
                     component_failure: None,
                     live_providers: &self.providers,
                     providers: None,
+                    live_events: &self.events,
+                    events: None,
                 };
                 let value = render(value, &mut draft)?;
                 draft.validate_components()?;
@@ -860,6 +865,7 @@ impl LogicalUi {
                 draft.settle_automatic_rules()?;
                 draft.validate_producer_sources()?;
                 draft.retire_and_validate_providers(&dead)?;
+                draft.retire_and_validate_events(&dead)?;
                 layout_session = draft.automatic_environment.take().map(|environment| {
                     let (constraints, viewport) = frame_environment.expect("captured frame input");
                     LayoutSession {
@@ -871,6 +877,7 @@ impl LogicalUi {
                 responsive_rules = draft.responsive_rules.take();
                 layout_producers = draft.layout_producers.take();
                 providers = draft.providers.take();
+                events = draft.events.take();
                 producer_stats = draft.producer_stats;
                 *responsive_inputs.borrow_mut() = draft
                     .responsive_inputs
@@ -994,6 +1001,9 @@ impl LogicalUi {
         }
         if let Some(providers) = providers {
             self.providers = providers;
+        }
+        if let Some(events) = events {
+            self.events = events;
         }
         self.layout_session = layout_session;
         if let Some(producers) = layout_producers {

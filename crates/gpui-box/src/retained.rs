@@ -358,6 +358,7 @@ pub enum Error {
     InvalidComponent,
     InvalidStore,
     InvalidProvider,
+    InvalidEventHandler,
     MissingProvider {
         path: Vec<u64>,
         dependency: &'static str,

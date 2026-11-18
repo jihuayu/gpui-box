@@ -1,6 +1,6 @@
 # UI IR、Store、Command 与独立渲染动画架构
 
-状态：设计草案，已开始落地框架层；Rust 优先，预留 JS、Go。当前实现有与 Taffy 解耦的 `LayoutStyle` Flex/Grid/混合长度及测量协议，拥有式 primitive UI 输入快照／批次、纯布局资源、类型化样式组合、显式采用完整帧的主指针／焦点／激活／滚动路由，以及单次构建计划和作用域持久布局 producer。完整语义 UI IR、主题继承、序列化/跨语言 ABI、Store/Command、组件宏、通用反馈与细粒度调度、独立呈现仍未完成，总目标继续进行中。
+状态：设计草案，已开始落地框架层；Rust 优先，预留 JS、Go。当前实现有与 Taffy 解耦的 `LayoutStyle` Flex/Grid/混合长度及测量协议，拥有式 primitive UI 输入快照／批次、纯布局资源、类型化样式组合、显式采用完整帧的主指针／焦点／激活／滚动路由，以及单次构建计划和作用域持久布局 producer。显式 Rust 组件计划、业务 Store 快照／选择器、类型化 Command、作用域 Provider 和事件回调也已实验接入；完整语义 UI IR、主题继承、序列化/跨语言 ABI、组件宏、通用反馈与细粒度调度、任务作用域和独立呈现仍未完成，总目标继续进行中。
 
 更新日期：2026-11-18。实现对照取自 `codex/rendering-performance-research`。本文是架构映射与实现状态记录；实验能力与正式承诺仍分别列出。
 
@@ -973,6 +973,17 @@ abandoned／closed分别报告。Ticket销毁不取消已接纳业务，receiver
 请求终结。Result可附StoreRevision，UI采用继续通过StoreInput显式完成；不据此推断显示。
 没有后台runtime或handler callback，锁外执行payload释放与executor唤醒。应用负责同对象串行
 执行／expected revision复验；通用对象调度／provider／任务scope／事件和wire协议仍开放。
+
+后续 [scope事件落地](RETAINED_SCOPED_EVENTS.md) 提供EventHandler／EventContext、
+keyed handler注册与owned-node UiInteraction。LogicalUi把已发布完整local／resolved frame
+接为原UiInputScene，复用UiInputRouter命中／焦点／Enter／Space行为；handler／policy随
+candidate采用或回滚／退休。Dispatch先检查退休handler，再复核当前identity／route／enabled
+与callback ID；旧scope／改parent／disabled不能接收延迟旧事件。回调用原source事务，
+after_commit在完整采用后才可发Command；dispatch沿当前已发布约束／viewport调用既有
+edit_local_frame，无持久producer时同样先完成geometry验证。失败／panic不发未采用业务动作。Current scene
+构造仍全树扫描，registry查找／copy和正常candidate成本仍在，无性能收益声明。
+LogicalUi自动style／wheel／focus-reveal应用、IME／semantics／native host接入、task／
+KeepAlive activation与完整UiDocument输入模型统一仍开放，source schema6和内核不变。
 
 ## 6. 样式 API：参考 StyleX，输出原生 Style IR
 

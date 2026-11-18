@@ -1,6 +1,9 @@
 use super::*;
 use gpui_box::{
     command::{Command, command_channel},
+    retained::input::{
+        UiFocusPolicy, UiInput, UiInputEventKind, UiInputEvidence, UiInputRouter, UiInteraction,
+    },
     retained::logical::*,
     store::StoreWriter,
 };
@@ -47,6 +50,64 @@ impl Component for ProviderLabel {
     }
 }
 struct Label;
+struct EventLabel;
+impl Component for EventLabel {
+    type Props = (u32, TextPaint);
+    fn mount(
+        props: ReadProp<Self::Props>,
+        cx: &mut ComponentContext<'_, '_, '_, '_>,
+    ) -> Result<(), Error> {
+        let input = cx.use_store::<DocumentStore>()?;
+        let sender = cx.use_command::<SaveModel>()?;
+        let style = cx.select_store(0, input, |s| {
+            Ok(LayoutStyle::column()
+                .size(LayoutDimension::Px(s.width as f32), LayoutDimension::Auto))
+        })?;
+        let paint = cx.computed(1, &[props.dependency()], move |i| {
+            Ok(Some(i.read_prop(props)?.1.clone()))
+        })?;
+        let node = cx.append_layout(LayoutStyle::column(), 0x0000ffff)?;
+        cx.bind_selector(style, Property::layout_style(node))?;
+        cx.bind(paint, Property::text(node))?;
+        let id = cx.event_handler(
+            0,
+            EventHandler::new(move |event, context| {
+                assert_eq!(event.kind, UiInputEventKind::Activate);
+                let snapshot = context.read_prop(input)?;
+                let expected = snapshot.revision();
+                let next = if snapshot.state().width == 100 {
+                    Model {
+                        width: 140,
+                        short: true,
+                        color: 0xff00ffff,
+                    }
+                } else {
+                    Model {
+                        width: 80,
+                        short: false,
+                        color: 0xffff00ff,
+                    }
+                };
+                let sender = sender.clone();
+                context.after_commit(move || {
+                    sender
+                        .send(SaveModel { expected, next })
+                        .unwrap_or_else(|_| panic!("event command rejected"));
+                });
+                Ok(())
+            }),
+        )?;
+        cx.interaction(
+            node,
+            Some(UiInteraction {
+                focus: UiFocusPolicy::Tab,
+                activate_handler: Some(id),
+                ..Default::default()
+            }),
+        )?;
+        Ok(())
+    }
+}
 impl Component for Label {
     type Props = (u32, TextPaint);
     fn mount(
@@ -85,35 +146,45 @@ fn pixels(frame: FramePacket) -> Vec<u8> {
 }
 #[test]
 fn business_store_noto_complete_snapshot_updates_match_complete_reference() {
-    run(false, false, false);
+    run(false, false, false, false);
 }
 #[cfg(feature = "retained-wgpu")]
 #[test]
 #[ignore = "requires WGPU adapter; run explicitly"]
 fn hardware_business_store_noto_match_complete_reference() {
-    run(true, false, false);
+    run(true, false, false, false);
 }
 #[test]
 fn typed_commands_noto_store_adoption_matches_complete_reference() {
-    run(false, true, false);
+    run(false, true, false, false);
 }
 #[cfg(feature = "retained-wgpu")]
 #[test]
 #[ignore = "requires WGPU adapter; run explicitly"]
 fn hardware_typed_commands_noto_match_complete_reference() {
-    run(true, true, false);
+    run(true, true, false, false);
 }
 #[test]
 fn scoped_providers_noto_store_command_matches_complete_reference() {
-    run(false, true, true);
+    run(false, true, true, false);
 }
 #[cfg(feature = "retained-wgpu")]
 #[test]
 #[ignore = "requires WGPU adapter; run explicitly"]
 fn hardware_scoped_providers_noto_match_complete_reference() {
-    run(true, true, true);
+    run(true, true, true, false);
 }
-fn run(hardware: bool, commands: bool, providers: bool) {
+#[test]
+fn scoped_events_noto_activation_command_store_matches_complete_reference() {
+    run(false, true, true, true);
+}
+#[cfg(feature = "retained-wgpu")]
+#[test]
+#[ignore = "requires WGPU adapter; run explicitly"]
+fn hardware_scoped_events_noto_match_complete_reference() {
+    run(true, true, true, true);
+}
+fn run(hardware: bool, commands: bool, providers: bool, events: bool) {
     let system = text_system();
     let mut raster = GlyphRasterizer::new(system.clone());
     let long_paragraph = shape(&system, "one two three four 中文段落 long text");
@@ -170,7 +241,9 @@ fn run(hardware: bool, commands: bool, providers: bool) {
                                 color,
                             },
                         );
-                        if providers {
+                        if events {
+                            plan.select::<EventLabel>(site, host, 0, props);
+                        } else if providers {
                             plan.select::<ProviderLabel>(site, host, 0, props);
                         } else {
                             plan.select::<Label>(site, host, 0, props);
@@ -213,49 +286,75 @@ fn run(hardware: bool, commands: bool, providers: bool) {
     .enumerate()
     {
         if index > 0 {
-            let before = writer.read_only().snapshot().unwrap().revision();
-            writer
-                .commit(
-                    before,
-                    Model {
-                        width: 25,
-                        short: !is_short,
-                        color: 0xffffffff,
-                    },
-                )
-                .unwrap();
-            let before = writer.read_only().snapshot().unwrap().revision();
-            let next = Model {
-                width,
-                short: is_short,
-                color,
-            };
-            let revision = if commands {
-                let mut ticket = sender
-                    .send(SaveModel {
-                        expected: before,
-                        next,
-                    })
-                    .unwrap_or_else(|_| panic!("command rejected"));
+            if events {
+                let mut router = UiInputRouter::new();
+                router
+                    .adopt(ui.input_scene().unwrap(), UiInputEvidence::ImageInstalled)
+                    .unwrap();
+                router.route(UiInput::PrimaryDown([5.0, 5.0])).unwrap();
+                let dispatch = router
+                    .route(UiInput::PrimaryUp([5.0, 5.0]))
+                    .unwrap()
+                    .dispatches
+                    .into_iter()
+                    .find(|e| e.kind == UiInputEventKind::Activate)
+                    .unwrap();
+                assert!(receiver.try_recv().is_none());
+                ui.dispatch_event(&dispatch).unwrap().unwrap();
                 let mut request = receiver.try_recv().unwrap();
                 let SaveModel { expected, next } = request.take_command().unwrap();
                 let committed = writer.commit(expected, next).unwrap();
                 request.succeed((), Some(committed.revision));
-                let revision = ticket
-                    .try_result()
-                    .unwrap()
-                    .unwrap()
-                    .committed_revision
-                    .unwrap();
-                assert_ne!(input.applied_revision(), Some(revision));
-                revision
+                assert_ne!(input.applied_revision(), Some(committed.revision));
+                assert_eq!(
+                    ui.apply_store(&mut input).unwrap().unwrap().revision,
+                    committed.revision
+                );
             } else {
-                writer.commit(before, next).unwrap().revision
-            };
-            assert_eq!(
-                ui.apply_store(&mut input).unwrap().unwrap().revision,
-                revision
-            );
+                let before = writer.read_only().snapshot().unwrap().revision();
+                writer
+                    .commit(
+                        before,
+                        Model {
+                            width: 25,
+                            short: !is_short,
+                            color: 0xffffffff,
+                        },
+                    )
+                    .unwrap();
+                let before = writer.read_only().snapshot().unwrap().revision();
+                let next = Model {
+                    width,
+                    short: is_short,
+                    color,
+                };
+                let revision = if commands {
+                    let mut ticket = sender
+                        .send(SaveModel {
+                            expected: before,
+                            next,
+                        })
+                        .unwrap_or_else(|_| panic!("command rejected"));
+                    let mut request = receiver.try_recv().unwrap();
+                    let SaveModel { expected, next } = request.take_command().unwrap();
+                    let committed = writer.commit(expected, next).unwrap();
+                    request.succeed((), Some(committed.revision));
+                    let revision = ticket
+                        .try_result()
+                        .unwrap()
+                        .unwrap()
+                        .committed_revision
+                        .unwrap();
+                    assert_ne!(input.applied_revision(), Some(revision));
+                    revision
+                } else {
+                    writer.commit(before, next).unwrap().revision
+                };
+                assert_eq!(
+                    ui.apply_store(&mut input).unwrap().unwrap().revision,
+                    revision
+                );
+            }
         }
         assert_eq!(calls.get(), index + 1);
         assert_eq!(ui.children(site.scope()).unwrap(), [scope]);

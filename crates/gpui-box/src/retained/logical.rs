@@ -28,7 +28,9 @@ pub use component::{
 };
 mod store;
 pub use store::{StoreApply, StoreInput, StoreSelector};
+mod events;
 mod provider;
+pub use events::{EventContext, EventHandler};
 
 #[derive(Clone)]
 struct LayoutSession {
@@ -101,6 +103,7 @@ pub struct LogicalUi {
     producer_revision: Option<u64>,
     producer_index: producers::ProducerIndex,
     providers: provider::Registry,
+    events: events::Registry,
 }
 
 impl LogicalUi {
@@ -192,6 +195,7 @@ impl LogicalUi {
             producer_revision: None,
             producer_index: producers::ProducerIndex::default(),
             providers: provider::Registry::default(),
+            events: events::Registry::default(),
         })
     }
 
@@ -699,6 +703,13 @@ impl LogicalUi {
             .checked_add(count)
             .ok_or(Error::RevisionExhausted)?;
         let prepared = self.ui.prepare_structure(render_tx)?;
+        let removed_event_nodes = self
+            .render_owners
+            .iter()
+            .filter(|(_, owner)| removed.contains(owner))
+            .map(|(node, _)| *node)
+            .collect();
+        let next_events = self.events.retire_scopes(&removed, &removed_event_nodes)?;
         let retired_rules: Vec<_> = self
             .responsive_rules
             .iter()
@@ -722,6 +733,9 @@ impl LogicalUi {
             self.ui.dispose_effect(*effect)?;
         }
         let request_frame = self.ui.apply_structure(prepared).request_frame;
+        if let Some(events) = next_events {
+            self.events = events;
+        }
         self.providers.retain(|scope, _| !removed.contains(scope));
         self.render_owners
             .retain(|_, owner| !removed.contains(owner));

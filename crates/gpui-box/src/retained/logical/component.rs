@@ -52,6 +52,20 @@ impl ComponentContext<'_, '_, '_, '_> {
     pub fn host(&self) -> NodeId {
         self.host
     }
+    pub fn event_handler(
+        &mut self,
+        key: u64,
+        handler: EventHandler,
+    ) -> Result<input::UiHandlerId, Error> {
+        self.edit.event_handler(self.scope, key, handler)
+    }
+    pub fn interaction(
+        &mut self,
+        node: NodeId,
+        policy: Option<input::UiInteraction>,
+    ) -> Result<(), Error> {
+        self.edit.interaction(self.scope, node, policy)
+    }
     pub fn provide_store<K: crate::store::StoreKey>(
         &mut self,
         input: ReadProp<crate::store::StoreSnapshot<K::State>>,
