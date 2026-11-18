@@ -9,8 +9,36 @@ The [decision and limits](ADR_RETAINED_UI_TASKS.md) describe ownership and costs
 `LogicalEdit::start_task(scope, key, launch)` replace one task in that scope/key.
 `ComponentContext::start_task(key, launch)` uses the component's scope. Mount runs
 once, so keyed reorder or prop changes do not automatically restart its task.
-Applications explicitly replace tasks for changed requests; effect/hooks or
-event-task restart helpers remain future work.
+Applications explicitly replace tasks for changed requests; automatic effect/
+hook task restarts remain future work.
+
+The later [event task stage](ADR_RETAINED_EVENT_TASKS.md) adds these same operations
+to EventContext. They use that handler's registered scope automatically. Start or
+cancel is part of the event's source/producer/default/frame candidate, including
+Busy fallback and retirement. This is explicit task replacement, not automatic
+effect/hook dependency tracking.
+
+```rust,ignore
+EventHandler::new(move |event, cx| {
+    if event.kind == UiInputEventKind::Activate {
+        let executor = executor.clone();
+        match cx.start_task(4, move |context: UiTaskContext<Preview>| {
+            executor.spawn(async move {
+                let _ = context.complete(prepare_preview());
+            }).detach();
+        }) {
+            Ok(_) => { cx.set(loading, true)?; }
+            Err(Error::TaskCapacity) => { cx.set(waiting_for_capacity, true)?; }
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(())
+})
+```
+
+`cx.task::<T>(key)` observes the same event draft; `cx.cancel_task(key)?` cancels
+after successful adoption only. Ancestor handlers own their own scope's tasks,
+even for equal keys. Host readiness/result adoption remains explicit, as below.
 
 The launch closure runs only after the complete candidate and ordinary effects
 succeed. Schedule short-lived work through the existing host executor; do not do

@@ -10,6 +10,8 @@
 
 同日后续：[共享任务接纳](ADR_RETAINED_UI_TASK_ADMISSION.md) 用 UiTaskPool 对待采用声明、worker 和 Ready 结果做数量上限；取消但仍运行的任务继续占位，容量释放唤醒宿主显式重试。默认64，可在任务存在前配置跨窗口共享 pool。这不是线程池／优先级调度或字节预算，不能据此推断 FPS／延迟保证。
 
+同日后续：[事件任务](ADR_RETAINED_EVENT_TASKS.md) 将 EventContext 的 start/task/cancel 与回调 source、producer、defaults、完整帧验证合入同一候选；handler scope 决定任务归属，失败不启动／误取消旧工作。同次 producer 卸载 scope 的新任务不会启动；ready/result 仍由 owner 显式处理。任务表只在实际变更时 COW，普通事件共享映射。KeepAlive／自动 hooks／独立呈现仍开放。
+
 ## 1. 要解决的问题
 
 框架以 GPUI 为基础，提供一套比底层绘制更完整的界面抽象：应用用 Rust 编写时自然、可检查；以后用 JS 或 Go 编写时，复用同一个 UI 语义与渲染内核。

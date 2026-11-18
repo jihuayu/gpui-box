@@ -23,15 +23,25 @@ fn pixels(frame: FramePacket) -> Vec<u8> {
 }
 #[test]
 fn scoped_task_real_noto_results_follow_flex_and_match_full_reference() {
-    run(false);
+    run(false, false);
 }
 #[cfg(feature = "retained-wgpu")]
 #[test]
 #[ignore = "requires WGPU adapter; run explicitly"]
 fn hardware_scoped_task_real_noto_matches_full_reference() {
-    run(true);
+    run(true, false);
 }
-fn run(hardware: bool) {
+#[test]
+fn event_task_real_noto_results_follow_flex_and_match_full_reference() {
+    run(false, true);
+}
+#[cfg(feature = "retained-wgpu")]
+#[test]
+#[ignore = "requires WGPU adapter; run explicitly"]
+fn hardware_event_task_real_noto_matches_full_reference() {
+    run(true, true);
+}
+fn run(hardware: bool, event_driven: bool) {
     let system = text_system();
     let mut raster = GlyphRasterizer::new(system.clone());
     let paragraphs = [
@@ -77,6 +87,41 @@ fn run(hardware: bool) {
     );
     ui.edit_local_frame(constraints, [300.0, 240.0], |_| Ok(()), |(), _| Ok(()))
         .unwrap();
+    let workers = std::rc::Rc::new(std::cell::RefCell::new(
+        None::<UiTaskContext<(TextPaint, f32)>>,
+    ));
+    if event_driven {
+        let workers = workers.clone();
+        ui.edit_local_frame(
+            constraints,
+            [300.0, 240.0],
+            |_| Ok(()),
+            |(), edit| {
+                let handler = edit.event_handler(
+                    scope,
+                    0,
+                    EventHandler::new(move |event, cx| {
+                        if event.kind == gpui_box::retained::input::UiInputEventKind::Activate {
+                            let workers = workers.clone();
+                            cx.start_task(0, move |worker| *workers.borrow_mut() = Some(worker))?;
+                        }
+                        Ok(())
+                    }),
+                )?;
+                edit.interaction(
+                    scope,
+                    title,
+                    Some(gpui_box::retained::input::UiInteraction {
+                        focus: gpui_box::retained::input::UiFocusPolicy::Tab,
+                        activate_handler: Some(handler),
+                        ..Default::default()
+                    }),
+                )?;
+                Ok(())
+            },
+        )
+        .unwrap();
+    }
     #[cfg(feature = "retained-wgpu")]
     let mut gpu = hardware.then(|| wgpu::WgpuFrameRenderer::new(2).unwrap());
     #[cfg(feature = "retained-wgpu")]
@@ -90,14 +135,25 @@ fn run(hardware: bool) {
     for (index, width) in [90.0, 145.0, 65.0].into_iter().enumerate() {
         let text = texts[index].clone();
         let color = [0xffffffff, 0xffaa33ff, 0x88ddffff][index];
-        let worker = std::rc::Rc::new(std::cell::RefCell::new(None));
-        let slot = worker.clone();
-        let task = ui
-            .start_task(scope, 0, move |cx: UiTaskContext<(TextPaint, f32)>| {
+        let task = if event_driven {
+            use gpui_box::retained::input::*;
+            let mut router = UiInputRouter::new();
+            router
+                .adopt(ui.input_scene().unwrap(), UiInputEvidence::ImageInstalled)
+                .unwrap();
+            ui.handle_input(&mut router, UiInput::PrimaryDown([2.0; 2]))
+                .unwrap();
+            ui.handle_input(&mut router, UiInput::PrimaryUp([2.0; 2]))
+                .unwrap();
+            ui.task::<(TextPaint, f32)>(scope, 0).unwrap().unwrap()
+        } else {
+            let slot = workers.clone();
+            ui.start_task(scope, 0, move |cx: UiTaskContext<(TextPaint, f32)>| {
                 *slot.borrow_mut() = Some(cx)
             })
-            .unwrap();
-        let cx = worker.borrow_mut().take().unwrap();
+            .unwrap()
+        };
+        let cx = workers.borrow_mut().take().unwrap();
         std::thread::spawn(move || {
             cx.complete((
                 TextPaint {

@@ -6,6 +6,11 @@ Status: experimental explicit Rust owner API, 2026-11-18. Extends
 [default scrolling](RETAINED_LOGICAL_SCROLL_DEFAULTS.md).
 Complete RFC remains active.
 
+[Event task declarations](ADR_RETAINED_EVENT_TASKS.md) now join callback source
+writes in the same owner transaction. EventContext exposes scoped start/task/
+cancel without render construction; launches wait for complete adoption/effects.
+Failure or same-candidate retirement prevents launch and retains old task state.
+
 The [GPUI owner host](RETAINED_GPUI_OWNER_HOST.md) now demonstrates explicit native
 event normalization, host focus, complete CPU/GPU image installation and matching
 scene adoption. The owner API itself continues to infer no native presentation.

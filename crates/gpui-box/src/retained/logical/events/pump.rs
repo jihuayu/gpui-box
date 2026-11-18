@@ -126,13 +126,14 @@ impl LogicalUi {
                     .handlers
                     .iter()
                     .find(|(_, h)| h.id == event.handler)
-                    .map(|(_, h)| h.callback.clone())
+                    .map(|((scope, _), h)| (*scope, h.callback.clone()))
             })
             .collect();
         let defaults = RefCell::new(effects.clone());
         defaults.borrow_mut().dispatches.clear();
         let outcomes = RefCell::new(vec![]);
         let mut after = vec![];
+        let tasks = RefCell::new(Some(super::super::tasks::EventTasks::new(&self.tasks)));
         let mut delivered = 0;
         let mut ignored = 0;
         let mut stopped = 0;
@@ -146,6 +147,7 @@ impl LogicalUi {
         };
         let commit = self.edit_validated(
             |tx| {
+                let mut tasks = tasks.borrow_mut();
                 let mut index = 0;
                 let mut suppress_activation = false;
                 while index < effects.dispatches.len() {
@@ -170,7 +172,7 @@ impl LogicalUi {
                             stopped += 1;
                             continue;
                         }
-                        let Some(handler) = handler else {
+                        let Some((scope, handler)) = handler else {
                             ignored += 1;
                             continue;
                         };
@@ -181,6 +183,8 @@ impl LogicalUi {
                                 effects: &mut after,
                                 control: &mut group,
                                 cancelable: event.cancelable(),
+                                scope: *scope,
+                                tasks: tasks.as_mut().expect("event task draft"),
                             },
                         )?;
                         delivered += 1;
@@ -216,7 +220,14 @@ impl LogicalUi {
                     .collect();
                 Ok(())
             },
-            |(), draft| draft.stage_style_feedback(&feedback),
+            |(), draft| {
+                tasks
+                    .borrow_mut()
+                    .take()
+                    .expect("event task draft")
+                    .stage(draft);
+                draft.stage_style_feedback(&feedback)
+            },
             Some((constraints, viewport)),
             None::<fn(&mut UiTree) -> Result<(), Error>>,
             Some(ScrollDefaults {

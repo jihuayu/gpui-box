@@ -212,17 +212,21 @@ impl<T> Drop for Entry<T> {
 }
 #[derive(Clone, Default)]
 pub(super) struct Registry {
-    entries: BTreeMap<(ScopeId, u64), Rc<dyn Erased>>,
+    entries: Rc<BTreeMap<(ScopeId, u64), Rc<dyn Erased>>>,
     pool: UiTaskPool,
 }
 impl Registry {
     pub(super) fn clear(&mut self) {
-        self.entries.clear();
+        self.entries = Rc::default();
     }
     pub(super) fn retire(&mut self, dead: &BTreeSet<ScopeId>) {
-        self.entries.retain(|(scope, _), _| !dead.contains(scope));
+        Rc::make_mut(&mut self.entries).retain(|(scope, _), _| !dead.contains(scope));
     }
-    fn get<T: 'static>(&self, scope: ScopeId, key: u64) -> Result<Option<UiTask<T>>, Error> {
+    pub(super) fn get<T: 'static>(
+        &self,
+        scope: ScopeId,
+        key: u64,
+    ) -> Result<Option<UiTask<T>>, Error> {
         self.entries
             .get(&(scope, key))
             .map(|entry| {
@@ -244,6 +248,55 @@ impl Registry {
             .ok()
             .flatten()
             .is_some_and(|current| Arc::ptr_eq(&current.shared, &task.shared))
+    }
+    fn start<T: Send + Sync + 'static>(
+        &mut self,
+        scope: ScopeId,
+        key: u64,
+        launch: impl FnOnce(UiTaskContext<T>) + 'static,
+    ) -> Result<(UiTask<T>, Launch), Error> {
+        let permit = self.pool.reserve()?;
+        let shared = Arc::new(Shared(Mutex::new(State {
+            status: UiTaskStatus::PendingCommit,
+            output: None,
+            waiter: None,
+            cancellation_waiter: None,
+        })));
+        let task = UiTask {
+            scope,
+            key,
+            shared: shared.clone(),
+            owner_local: PhantomData,
+        };
+        Rc::make_mut(&mut self.entries).insert(
+            (scope, key),
+            Rc::new(Entry {
+                shared: shared.clone(),
+            }),
+        );
+        let context = UiTaskContext {
+            shared: shared.clone(),
+            permit: Some(permit),
+        };
+        let launch = Launch(Some(Box::new(move || {
+            {
+                let mut state = lock(&shared.0);
+                if state.status != UiTaskStatus::PendingCommit {
+                    return;
+                }
+                state.status = UiTaskStatus::Running;
+            }
+            launch(context);
+        })));
+        Ok((task, launch))
+    }
+    fn cancel(&mut self, scope: ScopeId, key: u64) -> bool {
+        if !self.entries.contains_key(&(scope, key)) {
+            return false;
+        }
+        Rc::make_mut(&mut self.entries)
+            .remove(&(scope, key))
+            .is_some()
     }
 }
 pub(super) struct Launch(Option<Box<dyn FnOnce()>>);
@@ -275,49 +328,12 @@ impl LogicalEdit<'_, '_, '_> {
         }
         // Busy is recoverable within a candidate: callers may publish a loading
         // state rather than poison the entire component construction.
-        let permit = self
+        self.validate_components()?;
+        let (task, launch) = self
             .tasks
-            .as_ref()
-            .unwrap_or(self.live_tasks)
-            .pool
-            .reserve()?;
-        let mut attempt = self.component_attempt()?;
-        let shared = Arc::new(Shared(Mutex::new(State {
-            status: UiTaskStatus::PendingCommit,
-            output: None,
-            waiter: None,
-            cancellation_waiter: None,
-        })));
-        let task = UiTask {
-            scope,
-            key,
-            shared: shared.clone(),
-            owner_local: PhantomData,
-        };
-        self.tasks
             .get_or_insert_with(|| self.live_tasks.clone())
-            .entries
-            .insert(
-                (scope, key),
-                Rc::new(Entry {
-                    shared: shared.clone(),
-                }),
-            );
-        let context = UiTaskContext {
-            shared: shared.clone(),
-            permit: Some(permit),
-        };
-        self.task_launches.push(Launch(Some(Box::new(move || {
-            {
-                let mut state = lock(&shared.0);
-                if state.status != UiTaskStatus::PendingCommit {
-                    return;
-                }
-                state.status = UiTaskStatus::Running;
-            }
-            launch(context);
-        }))));
-        attempt.success = true;
+            .start(scope, key, launch)?;
+        self.task_launches.push(launch);
         Ok(task)
     }
     pub fn task<T: 'static>(&self, scope: ScopeId, key: u64) -> Result<Option<UiTask<T>>, Error> {
@@ -343,9 +359,7 @@ impl LogicalEdit<'_, '_, '_> {
         Ok(self
             .tasks
             .get_or_insert_with(|| self.live_tasks.clone())
-            .entries
-            .remove(&(scope, key))
-            .is_some())
+            .cancel(scope, key))
     }
     pub(super) fn retire_tasks(&mut self, dead: &BTreeSet<ScopeId>) {
         if dead.is_empty() {
@@ -361,6 +375,51 @@ impl LogicalEdit<'_, '_, '_> {
                 .get_or_insert_with(|| self.live_tasks.clone())
                 .retire(dead);
         }
+    }
+}
+/// One event transaction's task overlay. Immutable entry snapshots share the
+/// sparse map; only actual declarations clone it. No worker starts here.
+pub(super) struct EventTasks {
+    registry: Registry,
+    changed: bool,
+    launches: Vec<Launch>,
+}
+impl EventTasks {
+    pub(super) fn new(registry: &Registry) -> Self {
+        Self {
+            registry: registry.clone(),
+            changed: false,
+            launches: vec![],
+        }
+    }
+    pub(super) fn start<T: Send + Sync + 'static>(
+        &mut self,
+        scope: ScopeId,
+        key: u64,
+        launch: impl FnOnce(UiTaskContext<T>) + 'static,
+    ) -> Result<UiTask<T>, Error> {
+        let (task, launch) = self.registry.start(scope, key, launch)?;
+        self.changed = true;
+        self.launches.push(launch);
+        Ok(task)
+    }
+    pub(super) fn get<T: 'static>(
+        &self,
+        scope: ScopeId,
+        key: u64,
+    ) -> Result<Option<UiTask<T>>, Error> {
+        self.registry.get(scope, key)
+    }
+    pub(super) fn cancel(&mut self, scope: ScopeId, key: u64) -> bool {
+        let changed = self.registry.cancel(scope, key);
+        self.changed |= changed;
+        changed
+    }
+    pub(super) fn stage(self, edit: &mut LogicalEdit<'_, '_, '_>) {
+        if self.changed {
+            edit.tasks = Some(self.registry);
+        }
+        edit.task_launches.extend(self.launches);
     }
 }
 impl LogicalUi {

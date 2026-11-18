@@ -151,3 +151,9 @@ See [controls and reproduction](performance/2026-11-18-scoped-events/README.md).
 No layout solver/GPU format/source schema6 change; Error adds InvalidEventHandler.
 Full RFC stays active. "99%" means common fluid/intuitive behavior, not a numerical
 success ratio or p99 acceptance gate.
+
+Subsequent [event-scoped UI tasks](ADR_RETAINED_EVENT_TASKS.md) add explicit task
+start/read/cancel inside handler scope, using the same complete owner candidate,
+retirement and capacity rules. The [GPUI owner host](RETAINED_GPUI_OWNER_HOST.md)
+also provides a native integration example. KeepAlive activation, full OS input
+acceptance and independent presentation remain separate work.

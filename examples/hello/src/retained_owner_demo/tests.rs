@@ -287,3 +287,127 @@ fn owner_host_capacity_wake_retries_after_cancelled_worker_exits(cx: &mut TestAp
     assert_eq!(pool.stats().in_use, 0);
     drop(waiter);
 }
+
+#[gpui::test]
+fn owner_host_click_starts_scoped_work_and_installs_its_complete_cpu_result(
+    cx: &mut TestAppContext,
+) {
+    let platform = Arc::new(gpui_wgpu::CosmicTextSystem::new_without_system_fonts(
+        "Noto Sans CJK SC",
+    ));
+    let mut real_cx = TestAppContext::build_with_text_system(cx.dispatcher.clone(), None, platform);
+    let cx = &mut real_cx;
+    cx.text_system()
+        .add_fonts(vec![std::borrow::Cow::Borrowed(include_bytes!(
+            "../../assets/NotoSansSC-Regular.otf"
+        ))])
+        .unwrap();
+    let window = cx.open_window(size(px(600.0), px(460.0)), |window, cx| {
+        OwnerDemo::new(window, cx, true)
+    });
+    let view = window.root(cx).unwrap();
+    let cx = VisualTestContext::from_window(*window, cx).into_mut();
+    cx.run_until_parked();
+    let (button, color, initial) = view.update(cx, |this, cx| {
+        let scope = this.ui.root_scope();
+        let button = this.ui.renders(scope).unwrap()[1];
+        let color = this.ui.state(scope, 100, || 0x223149ffu32).unwrap();
+        this.ui
+            .bind(color, Property::color(this.scroll_host))
+            .unwrap();
+        let executor = cx.background_executor().clone();
+        let count = this.count;
+        this.ui
+            .edit(
+                |_| Ok(()),
+                |(), edit| {
+                    let handler = edit.event_handler(
+                        scope,
+                        1,
+                        EventHandler::new(move |event, event_cx| {
+                            if event.kind == UiInputEventKind::Activate {
+                                let executor = executor.clone();
+                                event_cx.start_task(20, move |context: UiTaskContext<u32>| {
+                                    executor
+                                        .spawn(async move {
+                                            context.complete(83).unwrap();
+                                        })
+                                        .detach();
+                                })?;
+                                event_cx.set(count, 1)?;
+                            }
+                            Ok(())
+                        }),
+                    )?;
+                    edit.interaction(
+                        scope,
+                        button,
+                        Some(UiInteraction {
+                            focus: UiFocusPolicy::Tab,
+                            activate_handler: Some(handler),
+                            ..Default::default()
+                        }),
+                    )?;
+                    Ok(())
+                },
+            )
+            .unwrap();
+        cx.notify();
+        (button, color, this.shown.as_ref().unwrap().frame.revision())
+    });
+    cx.run_until_parked();
+    let point = view.read_with(cx, |this, _| {
+        let rect = this
+            .shown
+            .as_ref()
+            .unwrap()
+            .frame
+            .resolve_geometry(button)
+            .unwrap()
+            .bounds;
+        this.bounds.unwrap().origin + point(px(rect.x + 20.0), px(rect.y + 20.0))
+    });
+    cx.simulate_click(point, Modifiers::default());
+    cx.run_until_parked();
+    let waiter = view.update(cx, |this, cx| {
+        assert_eq!(*this.ui.read(this.count).unwrap(), 1);
+        let count = this.count;
+        let mut task = this
+            .ui
+            .task::<u32>(this.ui.root_scope(), 20)
+            .unwrap()
+            .unwrap();
+        cx.spawn(async move |view, cx| {
+            assert_eq!(task.ready().await, UiTaskStatus::Ready);
+            view.update(cx, |this, cx| {
+                this.ui
+                    .apply_task(&task, |value, tx| {
+                        tx.set(count, *value)?;
+                        tx.set(color, 0x775533ff)?;
+                        Ok(())
+                    })
+                    .unwrap();
+                cx.notify();
+            })
+            .unwrap();
+        })
+    });
+    cx.run_until_parked();
+    view.read_with(cx, |this, _| {
+        assert_eq!(*this.ui.read(this.count).unwrap(), 83);
+        let shown = this.shown.as_ref().unwrap();
+        assert!(shown.frame.revision() > initial);
+        assert_eq!(
+            shown
+                .frame
+                .resolve_geometry(this.scroll_host)
+                .unwrap()
+                .fill_color,
+            0x775533ff
+        );
+        assert_eq!(this.router.scene_id(), Some(shown.scene.id()));
+        assert!(this.error.is_none(), "{:?}", this.error);
+        assert_eq!(this.ui.task_pool().stats().in_use, 0);
+    });
+    drop(waiter);
+}

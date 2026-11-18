@@ -42,8 +42,25 @@ pub struct EventContext<'a, 'ui> {
     effects: &'a mut Vec<Box<dyn FnOnce()>>,
     control: &'a mut EventControl,
     cancelable: bool,
+    scope: ScopeId,
+    tasks: &'a mut super::tasks::EventTasks,
 }
 impl EventContext<'_, '_> {
+    /// Declare short-lived UI work owned by this handler's scope. Launch only
+    /// follows complete transaction adoption; Busy leaves prior work intact.
+    pub fn start_task<T: Send + Sync + 'static>(
+        &mut self,
+        key: u64,
+        launch: impl FnOnce(UiTaskContext<T>) + 'static,
+    ) -> Result<UiTask<T>, Error> {
+        self.tasks.start(self.scope, key, launch)
+    }
+    pub fn task<T: 'static>(&self, key: u64) -> Result<Option<UiTask<T>>, Error> {
+        self.tasks.get(self.scope, key)
+    }
+    pub fn cancel_task(&mut self, key: u64) -> Result<bool, Error> {
+        Ok(self.tasks.cancel(self.scope, key))
+    }
     /// Stop the remaining ancestor callbacks for this routed event only.
     pub fn stop_propagation(&mut self) {
         self.control.propagation_stopped = true;
@@ -578,11 +595,13 @@ impl LogicalUi {
         let constraints = tree.layout_constraints.ok_or(Error::InvalidFrame)?;
         let viewport = tree.viewport.ok_or(Error::InvalidFrame)?;
         let mut effects = vec![];
+        let tasks = std::cell::RefCell::new(Some(super::tasks::EventTasks::new(&self.tasks)));
         let mut control = EventControl::default();
         let (commit, _) = self.edit_local_frame(
             constraints,
             viewport,
             |tx| {
+                let mut tasks = tasks.borrow_mut();
                 (handler.0)(
                     event,
                     &mut EventContext {
@@ -590,10 +609,19 @@ impl LogicalUi {
                         effects: &mut effects,
                         control: &mut control,
                         cancelable: false, // single-dispatch API owns no defaults
+                        scope,
+                        tasks: tasks.as_mut().expect("event task draft"),
                     },
                 )
             },
-            |(), _| Ok(()),
+            |(), edit| {
+                tasks
+                    .borrow_mut()
+                    .take()
+                    .expect("event task draft")
+                    .stage(edit);
+                Ok(())
+            },
         )?;
         for effect in effects {
             effect();
@@ -607,6 +635,8 @@ mod feedback_tests;
 mod pump;
 #[cfg(test)]
 mod scroll_tests;
+#[cfg(test)]
+mod task_tests;
 #[cfg(test)]
 mod tests;
 pub use pump::{EventControl, LogicalInputCommit};

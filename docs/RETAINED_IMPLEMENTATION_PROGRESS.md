@@ -10,6 +10,28 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [event task stage](ADR_RETAINED_EVENT_TASKS.md) adds EventContext start_task,
+task and cancel_task using the registered handler's scope. Ordered callbacks share
+one task draft staged before producers, defaults and complete frame validation.
+Existing start/cancel/retirement/admission helpers are shared; callback or final
+candidate failure never launches work or cancels old live tasks. Same-candidate
+producer retirement prevents launch; parent/child equal keys stay scope-local.
+Both combined input and standalone dispatch use this path. The task map is now
+Rc-shared/COW so read-only events share it; actual task changes still clone the
+sparse map. GPU/Taffy/source schema unchanged; no performance claim.
+GPUI click→EventContext start→host background completion→source apply→complete CPU
+image/new fill/new revision/input-scene installation is exercised. Real Noto
+event-task outputs reuse the full numeric Flex/text reference harness. See
+[verification](performance/2026-11-19-event-tasks/README.md).
+Automatic async handlers/hooks, result callbacks, task priority/bytes/KeepAlive
+activation, full source unification, semantics/IME and independent presentation
+remain open. Complete RFC stays active.
+Final retained-only741passed/1ignored, text/WGPU776/67, each13compiler doctests;
+hello87/34. Explicit event-task GPU1passed (one full image) and real-Noto event-task
+GPU1passed (three full images) on GTX1650Ti/Vulkan/571.96. Library Clippy-Dwarnings,
+CPU desktop and retained-gpu harness checks pass. Scoped format/diff,1121local
+links and five inherited WIP hashes pass. Final verification2026-11-19.
+
 The [shared task admission stage](ADR_RETAINED_UI_TASK_ADMISSION.md) adds
 UiTaskPool/UiTaskCapacity/UiTaskPoolStats. Each owner defaults to64 live work slots;
 an explicit pool can span windows/owners before work exists. Provisional declarations,
