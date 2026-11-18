@@ -177,10 +177,9 @@ fn run_nested(hardware: bool) {
     assert_eq!(pixels(old.resolve()), expected);
     #[cfg(feature = "retained-wgpu")]
     if let Some(gpu) = &mut gpu {
-        // Final inline input observation dirties layout and refreshes the
-        // local snapshot even at equal width. Current GPU same-frame reuse
-        // requires the exact snapshot; the planner does not remove this cost.
-        assert_eq!(gpu_submissions, 4);
+        // Final inline input observation still runs layout. Unchanged output
+        // at the same revision preserves the exact local snapshot for reuse.
+        assert_eq!(gpu_submissions, 3);
         gpu.finish().unwrap();
     }
 }

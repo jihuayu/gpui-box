@@ -33,6 +33,75 @@ fn pixels(frame: FramePacket) -> Vec<u8> {
 }
 
 #[test]
+fn repeated_inline_input_validation_retains_snapshot_after_checked_layout() {
+    let mut ui = LogicalUi::new_layout(column(), 0, BackendCapabilities::default()).unwrap();
+    let root = ui.root_render();
+    let scope = ui.root_scope();
+    let host = ui.append_render_layout(scope, root, column(), 0).unwrap();
+    let leaf = ui
+        .append_render_layout(scope, host, fixed(20.0, 20.0), 0xff0000ff)
+        .unwrap();
+    let calls = std::cell::Cell::new(0);
+    let mut first: Option<LocalFrame> = None;
+    for _ in 0..3 {
+        let (commit, frame) = ui
+            .edit_local_frame(
+                constraints(100.0),
+                [180.0; 2],
+                |_| Ok(()),
+                |(), edit| {
+                    edit.inline_allocation_builder(host, |input, _| {
+                        assert_eq!(input.known_width, Some(100.0));
+                        calls.set(calls.get() + 1);
+                        Ok(())
+                    })
+                },
+            )
+            .unwrap();
+        assert_eq!(frame.hit_test(1.0, 1.0), Some(leaf));
+        assert_eq!(ui.reactive().tree().frame.as_ref().unwrap().layout_runs, 1);
+        assert!(
+            ui.reactive()
+                .tree()
+                .layout
+                .tracked_layout_input(ui.reactive().tree().node(host).unwrap().layout)
+                .unwrap()
+                .is_none(),
+            "observation is still retired normally"
+        );
+        if let Some(first) = &first {
+            assert!(Arc::ptr_eq(&frame.0, &first.0));
+            assert!(!commit.result.commit.request_frame);
+        } else {
+            first = Some(frame);
+        }
+    }
+    assert_eq!(calls.get(), 3, "reuse must not skip requested callbacks");
+
+    let first = first.unwrap();
+    let source = ui.state(scope, 99, || 1u32).unwrap();
+    let failed = ui.edit_local_frame(
+        constraints(100.0),
+        [180.0; 2],
+        |tx| tx.set(source, 2),
+        |_, edit| {
+            edit.inline_allocation_builder(host, |_, _| Ok(()))?;
+            edit.properties().layout_style(
+                root,
+                column().size(LayoutDimension::Px(80.0), LayoutDimension::Auto),
+            );
+            Ok(())
+        },
+    );
+    assert!(matches!(failed, Err(Error::UnsafeConstraintBuilder)));
+    assert_eq!(*ui.read(source).unwrap(), 1);
+    assert!(Arc::ptr_eq(
+        &first.0,
+        &ui.published_local_frame().unwrap().0
+    ));
+}
+
+#[test]
 fn atomic_local_property_material_edits_keep_sparse_predecessor_without_resolving() {
     let mut ui = LogicalUi::new_layout(
         column(),

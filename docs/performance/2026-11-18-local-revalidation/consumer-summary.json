@@ -1,0 +1,79 @@
+{
+  "scope": "same-runtime debug WGPU consumer; reconstruction, submit, completion observation, drop; excludes UI/layout/readback/native present",
+  "adapter": "NVIDIA GTX 1650 Ti / Vulkan / driver 571.96",
+  "csv_sha256": "01313a29dc192f42b3e1d9588d0c66d5f36f8c42d383536ab29d567e23b4ea3b",
+  "variants": {
+    "rebuilt": {
+      "processes": [
+        {
+          "round": 1,
+          "p50_us": 1466.0,
+          "p95_us": 1832.0,
+          "p99_us": 2103.1,
+          "max_us": 2334.7
+        },
+        {
+          "round": 2,
+          "p50_us": 1474.8,
+          "p95_us": 1876.3,
+          "p99_us": 2089.2,
+          "max_us": 2133.9
+        },
+        {
+          "round": 3,
+          "p50_us": 1465.0,
+          "p95_us": 1792.0,
+          "p99_us": 1944.4,
+          "max_us": 2035.1
+        },
+        {
+          "round": 4,
+          "p50_us": 1456.4,
+          "p95_us": 1768.2,
+          "p99_us": 2043.6,
+          "max_us": 2083.5
+        }
+      ],
+      "median_p50_us": 1465.5,
+      "median_p95_us": 1812.0,
+      "median_p99_us": 2066.3999999999996,
+      "median_max_us": 2108.7
+    },
+    "retained": {
+      "processes": [
+        {
+          "round": 1,
+          "p50_us": 8.9,
+          "p95_us": 9.0,
+          "p99_us": 10.6,
+          "max_us": 20.5
+        },
+        {
+          "round": 2,
+          "p50_us": 8.6,
+          "p95_us": 12.4,
+          "p99_us": 21.6,
+          "max_us": 55.6
+        },
+        {
+          "round": 3,
+          "p50_us": 8.7,
+          "p95_us": 8.8,
+          "p99_us": 10.3,
+          "max_us": 10.3
+        },
+        {
+          "round": 4,
+          "p50_us": 8.6,
+          "p95_us": 9.0,
+          "p99_us": 11.0,
+          "max_us": 11.9
+        }
+      ],
+      "median_p50_us": 8.649999999999999,
+      "median_p95_us": 9.0,
+      "median_p99_us": 10.8,
+      "median_max_us": 16.2
+    }
+  }
+}

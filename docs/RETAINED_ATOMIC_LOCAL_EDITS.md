@@ -24,6 +24,12 @@ The return value uses the existing local publisher directly:
 - A stable property/material edit creates sparse local placement/material
   changes, retaining topology and exact previous snapshot identity.
 - An equal final edit reuses the exact immutable local snapshot.
+- The later [layout revalidation follow-up](performance/2026-11-18-local-revalidation/README.md)
+  also preserves it after checked layout when revision, pixel policy and the
+  selective publisher's exact paint/property identities remain unchanged. This
+  avoids a second local topology construction and duplicate GPU submit. It does
+  not skip layout, callbacks or final validation, or equate empty old-baseline
+  deltas with the latest sparse local output.
 - Layout, structure, visibility or paint viewport changes use the existing
   complete publisher and establish a new local baseline. Viewport-only edits
   with identical layout constraints still perform zero layout.

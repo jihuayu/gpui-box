@@ -1,0 +1,17 @@
+{
+  "utc": "2026-11-18T05:00:22Z",
+  "platform": "Windows-11-10.0.26100-SP0",
+  "processor": "AMD64 Family 23 Model 96 Stepping 1, AuthenticAMD",
+  "samples": 100,
+  "rounds": 4,
+  "executables": {
+    "baseline": {
+      "path": "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\local-revalidation-ab9vcylq\\baseline\\build\\release\\local-revalidation-bench.exe",
+      "sha256": "ef57be1ba026bdd65ccc7bd527edc8b57d6ec4f6a165cc7601357ab2cea2b4fd"
+    },
+    "candidate": {
+      "path": "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\local-revalidation-ab9vcylq\\candidate\\build\\release\\local-revalidation-bench.exe",
+      "sha256": "7883522238e0033c4e1501659a6bcb21672cb8af799b3c4794186bd756cdf654"
+    }
+  }
+}

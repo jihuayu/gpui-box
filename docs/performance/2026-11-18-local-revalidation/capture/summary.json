@@ -1,0 +1,310 @@
+[
+  {
+    "tree": "flex64",
+    "operation": "unchanged_plan",
+    "baseline": {
+      "processes": [
+        {
+          "round": 1,
+          "p50_us": 576.0,
+          "p95_us": 854.9,
+          "p99_us": 1220.3,
+          "max_us": 1221.1
+        },
+        {
+          "round": 2,
+          "p50_us": 589.6,
+          "p95_us": 832.1,
+          "p99_us": 1118.4,
+          "max_us": 1183.7
+        },
+        {
+          "round": 3,
+          "p50_us": 617.4,
+          "p95_us": 802.3,
+          "p99_us": 872.2,
+          "max_us": 1222.4
+        },
+        {
+          "round": 4,
+          "p50_us": 621.8,
+          "p95_us": 769.2,
+          "p99_us": 893.6,
+          "max_us": 1101.1
+        }
+      ],
+      "median_p50_us": 603.5,
+      "median_p95_us": 817.2,
+      "median_p99_us": 1006.0,
+      "median_max_us": 1202.4
+    },
+    "candidate": {
+      "processes": [
+        {
+          "round": 1,
+          "p50_us": 615.5,
+          "p95_us": 793.2,
+          "p99_us": 1014.8,
+          "max_us": 1282.7
+        },
+        {
+          "round": 2,
+          "p50_us": 610.8,
+          "p95_us": 880.3,
+          "p99_us": 1247.0,
+          "max_us": 1329.4
+        },
+        {
+          "round": 3,
+          "p50_us": 597.9,
+          "p95_us": 935.5,
+          "p99_us": 1196.3,
+          "max_us": 1401.4
+        },
+        {
+          "round": 4,
+          "p50_us": 604.3,
+          "p95_us": 800.7,
+          "p99_us": 831.0,
+          "max_us": 1067.3
+        }
+      ],
+      "median_p50_us": 607.55,
+      "median_p95_us": 840.5,
+      "median_p99_us": 1105.55,
+      "median_max_us": 1306.0500000000002
+    },
+    "p50_reduction_percent": -0.6710853355426538
+  },
+  {
+    "tree": "flex64",
+    "operation": "leaf_color",
+    "baseline": {
+      "processes": [
+        {
+          "round": 1,
+          "p50_us": 510.8,
+          "p95_us": 644.0,
+          "p99_us": 694.2,
+          "max_us": 774.5
+        },
+        {
+          "round": 2,
+          "p50_us": 598.5,
+          "p95_us": 782.5,
+          "p99_us": 922.4,
+          "max_us": 937.7
+        },
+        {
+          "round": 3,
+          "p50_us": 663.8,
+          "p95_us": 855.5,
+          "p99_us": 1116.1,
+          "max_us": 1328.2
+        },
+        {
+          "round": 4,
+          "p50_us": 477.1,
+          "p95_us": 599.3,
+          "p99_us": 799.9,
+          "max_us": 858.9
+        }
+      ],
+      "median_p50_us": 554.65,
+      "median_p95_us": 713.25,
+      "median_p99_us": 861.15,
+      "median_max_us": 898.3
+    },
+    "candidate": {
+      "processes": [
+        {
+          "round": 1,
+          "p50_us": 482.8,
+          "p95_us": 638.6,
+          "p99_us": 734.0,
+          "max_us": 802.4
+        },
+        {
+          "round": 2,
+          "p50_us": 522.4,
+          "p95_us": 808.4,
+          "p99_us": 1098.1,
+          "max_us": 1153.8
+        },
+        {
+          "round": 3,
+          "p50_us": 526.8,
+          "p95_us": 745.6,
+          "p99_us": 845.0,
+          "max_us": 906.3
+        },
+        {
+          "round": 4,
+          "p50_us": 510.0,
+          "p95_us": 673.1,
+          "p99_us": 732.4,
+          "max_us": 740.4
+        }
+      ],
+      "median_p50_us": 516.2,
+      "median_p95_us": 709.35,
+      "median_p99_us": 789.5,
+      "median_max_us": 854.3499999999999
+    },
+    "p50_reduction_percent": 6.932299648426921
+  },
+  {
+    "tree": "flex512",
+    "operation": "unchanged_plan",
+    "baseline": {
+      "processes": [
+        {
+          "round": 1,
+          "p50_us": 4030.4,
+          "p95_us": 4864.3,
+          "p99_us": 6277.9,
+          "max_us": 7078.9
+        },
+        {
+          "round": 2,
+          "p50_us": 3776.6,
+          "p95_us": 4617.9,
+          "p99_us": 7161.4,
+          "max_us": 7984.3
+        },
+        {
+          "round": 3,
+          "p50_us": 4601.1,
+          "p95_us": 6049.0,
+          "p99_us": 6616.7,
+          "max_us": 8289.1
+        },
+        {
+          "round": 4,
+          "p50_us": 3982.6,
+          "p95_us": 5216.6,
+          "p99_us": 5817.7,
+          "max_us": 6232.4
+        }
+      ],
+      "median_p50_us": 4006.5,
+      "median_p95_us": 5040.450000000001,
+      "median_p99_us": 6447.299999999999,
+      "median_max_us": 7531.6
+    },
+    "candidate": {
+      "processes": [
+        {
+          "round": 1,
+          "p50_us": 4180.6,
+          "p95_us": 6638.1,
+          "p99_us": 7108.0,
+          "max_us": 8945.1
+        },
+        {
+          "round": 2,
+          "p50_us": 4109.7,
+          "p95_us": 5226.0,
+          "p99_us": 5781.9,
+          "max_us": 5895.4
+        },
+        {
+          "round": 3,
+          "p50_us": 3981.8,
+          "p95_us": 5566.4,
+          "p99_us": 8183.2,
+          "max_us": 9558.0
+        },
+        {
+          "round": 4,
+          "p50_us": 3982.9,
+          "p95_us": 4927.1,
+          "p99_us": 5487.7,
+          "max_us": 7138.8
+        }
+      ],
+      "median_p50_us": 4046.3,
+      "median_p95_us": 5396.2,
+      "median_p99_us": 6444.95,
+      "median_max_us": 8041.950000000001
+    },
+    "p50_reduction_percent": -0.9933857481592367
+  },
+  {
+    "tree": "flex512",
+    "operation": "leaf_color",
+    "baseline": {
+      "processes": [
+        {
+          "round": 1,
+          "p50_us": 3710.0,
+          "p95_us": 5121.8,
+          "p99_us": 5563.9,
+          "max_us": 5687.1
+        },
+        {
+          "round": 2,
+          "p50_us": 3556.9,
+          "p95_us": 4570.9,
+          "p99_us": 5257.5,
+          "max_us": 5697.1
+        },
+        {
+          "round": 3,
+          "p50_us": 3715.6,
+          "p95_us": 4520.8,
+          "p99_us": 5175.6,
+          "max_us": 5605.5
+        },
+        {
+          "round": 4,
+          "p50_us": 4221.8,
+          "p95_us": 6178.7,
+          "p99_us": 8711.9,
+          "max_us": 9221.8
+        }
+      ],
+      "median_p50_us": 3712.8,
+      "median_p95_us": 4846.35,
+      "median_p99_us": 5410.7,
+      "median_max_us": 5692.1
+    },
+    "candidate": {
+      "processes": [
+        {
+          "round": 1,
+          "p50_us": 3651.6,
+          "p95_us": 4485.7,
+          "p99_us": 4759.5,
+          "max_us": 5301.7
+        },
+        {
+          "round": 2,
+          "p50_us": 3696.4,
+          "p95_us": 4369.3,
+          "p99_us": 4797.2,
+          "max_us": 4847.6
+        },
+        {
+          "round": 3,
+          "p50_us": 3884.3,
+          "p95_us": 5343.2,
+          "p99_us": 5905.6,
+          "max_us": 6278.3
+        },
+        {
+          "round": 4,
+          "p50_us": 3750.5,
+          "p95_us": 4815.7,
+          "p99_us": 5308.3,
+          "max_us": 5478.1
+        }
+      ],
+      "median_p50_us": 3723.45,
+      "median_p95_us": 4650.7,
+      "median_p99_us": 5052.75,
+      "median_max_us": 5389.9
+    },
+    "p50_reduction_percent": -0.2868455074337417
+  }
+]

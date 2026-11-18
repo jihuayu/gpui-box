@@ -546,6 +546,13 @@ FPS 改善声明。任意闭包读写依赖发现、持久 producer 注册／失
 intrinsic/full-axis feedback、完整 RenderBox 和 native 常见交互 p99 仍开放，详见
 [验证范围与复现](performance/2026-11-18-layout-build-plan/README.md)。
 
+后续 [局部帧复验复用](performance/2026-11-18-local-revalidation/README.md) 在实际布局和
+最终校验照常运行后，仅当 source revision、pixel policy 和 selective publisher 的
+paint/property storage 身份都未变，保留原 LocalFrame，避免重复局部 topology 构造和
+同帧 GPU 提交。不能仅凭 revision 或相对旧 resolved baseline 的空 delta 判断相等；
+最新 sparse-local 属性／材质变化必须先正常同步。该优化不跳过回调或布局，也不新增
+布局语义／dirty hint／公开 API；持续可见 p99 与持久调度仍须另行完成。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

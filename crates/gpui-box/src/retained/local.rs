@@ -617,7 +617,23 @@ impl UiTree {
             .can_reuse_local_frame()
             .then(|| self.local_frame.as_ref().unwrap().clone());
         let Some(old) = reusable else {
-            let frame = LocalFrame::from_frame(self.frame_in_viewport(constraints, viewport)?);
+            let complete = self.frame_in_viewport(constraints, viewport)?;
+            // Final builder-input observation may dirty layout without changing
+            // the source revision or any published output. The selective owner
+            // publisher certifies unchanged paint/property storage by identity.
+            // Keep the exact local snapshot in that case: GPU/queue consumers
+            // can reuse it without rebuilding topology or submitting again.
+            // Never infer equality from revision alone (measurement may change
+            // output), or from empty deltas against an older resolved baseline.
+            let same = self.local_frame.as_ref().filter(|old| {
+                old.revision() == complete.revision
+                    && old.pixel_snap() == complete.pixel_snap
+                    && old.0.owner_items.ptr_eq(&Arc::downgrade(&complete.items))
+                    && Arc::ptr_eq(&old.0.template.properties, &complete.properties)
+            });
+            let frame = same
+                .cloned()
+                .unwrap_or_else(|| LocalFrame::from_frame(complete));
             self.local_frame = Some(frame.clone());
             self.local_dirty.clear();
             self.local_material_dirty.clear();

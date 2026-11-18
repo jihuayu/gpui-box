@@ -13,6 +13,13 @@ and [persistent property maps](RETAINED_PERSISTENT_PROPERTIES.md). It is not a
 replacement layout algorithm, independent layout islands, or proof of
 constant-time complete UI updates.
 
+The [local revalidation follow-up](performance/2026-11-18-local-revalidation/README.md)
+uses the selective publisher's unchanged paint/property storage as a certificate
+to retain an exact same-revision LocalFrame after layout. Builder-input tracking
+still runs its final checked layout; consumers can skip duplicate submissions
+without comparing every item or rebuilding local topology. New revisions or
+changed storage keep ordinary complete local publication.
+
 ## Layout output to paint dependency contract
 
 - A relative location change dirties the complete visible subtree: descendants

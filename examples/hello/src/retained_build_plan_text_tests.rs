@@ -54,12 +54,14 @@ fn run(hardware: bool) {
     #[cfg(feature = "retained-wgpu")]
     let mut gpu = hardware.then(|| wgpu::WgpuFrameRenderer::new(2).unwrap());
     #[cfg(feature = "retained-wgpu")]
+    let mut submissions = 0;
+    #[cfg(feature = "retained-wgpu")]
     if let Some(gpu) = &gpu {
         eprintln!("build plan glyph adapter: {:?}", gpu.adapter_info());
     }
     #[cfg(not(feature = "retained-wgpu"))]
     assert!(!hardware);
-    for width in [80.0, 180.0, 120.0, 180.0] {
+    for width in [80.0, 180.0, 120.0, 180.0, 180.0] {
         let (_, frame) = ui
             .edit_local_frame(
                 constraints(width),
@@ -166,7 +168,8 @@ fn run(hardware: bool) {
         assert_eq!(pixels(frame.resolve()), pixels(full.clone()));
         #[cfg(feature = "retained-wgpu")]
         if let Some(gpu) = &mut gpu {
-            assert!(gpu.submit_local(&frame, [300, 400], 1.0).unwrap().is_some());
+            submissions +=
+                usize::from(gpu.submit_local(&frame, [300, 400], 1.0).unwrap().is_some());
             assert_eq!(
                 gpu.image().unwrap().as_raw(),
                 gpu.reference_image(&full, [300, 400], 1.0)
@@ -182,6 +185,10 @@ fn run(hardware: bool) {
     assert_eq!(pixels(first.resolve()), expected);
     #[cfg(feature = "retained-wgpu")]
     if let Some(gpu) = &mut gpu {
+        assert_eq!(
+            submissions, 4,
+            "equal-width glyph output reuses its submission"
+        );
         gpu.finish().unwrap();
     }
 }

@@ -52,6 +52,155 @@ fn equivalent(a: &FramePacket, b: &FramePacket) {
     assert_eq!(a.properties, b.properties);
 }
 
+#[test]
+fn layout_revalidation_preserves_only_certified_same_revision_output() {
+    let (mut tree, nodes) = fixture();
+    let first = tree.local_frame([300.0, 200.0]).unwrap();
+    tree.layout_dirty = true;
+    tree.dirty = true;
+    let checked = tree.local_frame([300.0, 200.0]).unwrap();
+    assert!(Arc::ptr_eq(&first.0, &checked.0));
+    assert_eq!(tree.frame.as_ref().unwrap().layout_runs, 1);
+    assert!(!tree.layout_dirty);
+
+    // A new source revision still needs its own packet even when changed
+    // max-width leaves the actual fixed-width geometry identical.
+    let mut style = tree.style(nodes[1]).unwrap().clone();
+    style.max_size.width = length(100.0);
+    let mut tx = Transaction::default();
+    tx.style(nodes[1], style);
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    let next = tree.local_frame([300.0, 200.0]).unwrap();
+    assert_ne!(first.revision(), next.revision());
+    assert!(!Arc::ptr_eq(&first.0, &next.0));
+    equivalent(&next.resolve(), &first.resolve());
+
+    // Revision equality alone cannot certify even internal recomputation. A
+    // changed kernel output with the same source revision must be published.
+    let mut style = tree.style(nodes[1]).unwrap().clone();
+    style.size.width = length(55.0);
+    tree.layout
+        .set_style(tree.node(nodes[1]).unwrap().layout, style)
+        .unwrap();
+    tree.layout_dirty = true;
+    tree.dirty = true;
+    let changed = tree.local_frame([300.0, 200.0]).unwrap();
+    assert_eq!(next.revision(), changed.revision());
+    assert!(!Arc::ptr_eq(&next.0, &changed.0));
+    assert_eq!(
+        changed.resolve_geometry(nodes[1]).unwrap().bounds.width,
+        55.0
+    );
+    assert_eq!(next.resolve_geometry(nodes[1]).unwrap().bounds.width, 40.0);
+}
+
+#[test]
+fn layout_revalidation_cannot_restore_a_stale_resolved_baseline_over_local_changes() {
+    let (mut tree, nodes) = fixture();
+    let original = tree.local_frame([300.0, 200.0]).unwrap();
+    let mut tx = Transaction::default();
+    tx.translation(nodes[1], [7.0, 3.0]);
+    tx.opacity(nodes[1], 0.5);
+    tx.clip(
+        nodes[1],
+        Some(Rect {
+            x: 0.0,
+            y: 0.0,
+            width: 35.0,
+            height: 20.0,
+        }),
+    );
+    tx.color(nodes[2], 0x33aaffff);
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    let sparse = tree.local_frame([300.0, 200.0]).unwrap();
+    assert!(sparse.follows(&original));
+    assert!(sparse.0.resolved.get().is_none());
+    assert!(Arc::ptr_eq(
+        &original.0.template.items,
+        &tree.frame.as_ref().unwrap().items
+    ));
+    let expected = sparse.resolve();
+    tree.layout_dirty = true;
+    tree.dirty = true;
+    let checked = tree.local_frame([300.0, 200.0]).unwrap();
+    assert_eq!(sparse.revision(), checked.revision());
+    assert!(!Arc::ptr_eq(&sparse.0, &checked.0));
+    equivalent(&checked.resolve(), &expected);
+    assert_eq!(
+        checked
+            .resolve_geometry(nodes[1])
+            .unwrap()
+            .spatial
+            .translation,
+        [7.0, 3.0]
+    );
+    let idle = tree.local_frame([300.0, 200.0]).unwrap();
+    assert!(Arc::ptr_eq(&checked.0, &idle.0));
+    equivalent(&original.resolve(), &original.0.template);
+}
+
+#[cfg(feature = "retained-wgpu")]
+#[test]
+#[ignore = "requires WGPU adapter; measures duplicate output consumer cost"]
+fn hardware_identical_local_output_consumer_control() {
+    use std::time::Instant;
+    let (mut tree, _) = fixture();
+    let packet = tree.frame([300.0, 200.0]).unwrap();
+    let shared = LocalFrame::from_frame(packet.clone());
+    let mut gpu = wgpu::WgpuFrameRenderer::new(2).unwrap();
+    eprintln!("identical local output adapter: {:?}", gpu.adapter_info());
+    let output = std::env::var_os("GPUI_LOCAL_REVALIDATION_CSV").map(std::path::PathBuf::from);
+    let mut csv = String::from("round,variant,sample,nanoseconds,submitted\n");
+    for round in 0..4 {
+        for variant in if round % 2 == 0 {
+            [false, true]
+        } else {
+            [true, false]
+        } {
+            // Baseline reconstructs an identical full local snapshot per call,
+            // exactly the prior fallback. Candidate retains the certified
+            // snapshot. This measures only reconstruction/submit/completion;
+            // common owner previews/layout/validation are deliberately absent.
+            gpu.submit_local(&shared, [300, 200], 1.0).unwrap();
+            gpu.finish().unwrap();
+            for sample in 0..116 {
+                let started = Instant::now();
+                let frame = if variant {
+                    shared.clone()
+                } else {
+                    LocalFrame::from_frame(packet.clone())
+                };
+                let submission = gpu.submit_local(&frame, [300, 200], 1.0).unwrap();
+                gpu.finish().unwrap();
+                assert_eq!(submission.is_some(), !variant);
+                drop(frame);
+                let elapsed = started.elapsed().as_nanos();
+                if sample >= 16 {
+                    csv.push_str(&format!(
+                        "{},{},{},{},{}\n",
+                        round + 1,
+                        if variant { "retained" } else { "rebuilt" },
+                        sample - 16,
+                        elapsed,
+                        u8::from(submission.is_some())
+                    ));
+                }
+            }
+            assert_eq!(
+                gpu.image().unwrap().as_raw(),
+                gpu.reference_image(&packet, [300, 200], 1.0)
+                    .unwrap()
+                    .as_raw()
+            );
+        }
+    }
+    if let Some(output) = output {
+        std::fs::write(output, csv).unwrap();
+    } else {
+        eprintln!("set GPUI_LOCAL_REVALIDATION_CSV to retain timing samples");
+    }
+}
+
 #[cfg(feature = "retained-wgpu")]
 #[test]
 fn geometry_ranges_reopen_actual_ancestors_after_leaving_start_subtree() {

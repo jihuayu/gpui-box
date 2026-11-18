@@ -3,6 +3,25 @@
 The active implementation goal covers the complete runtime requested on
 2026-11-11. Work continues in `codex/rendering-performance-research`.
 
+The [local revalidation follow-up](performance/2026-11-18-local-revalidation/README.md)
+preserves the exact LocalFrame after checked layout when source revision,
+pixel policy and selective paint/property storage identities remain unchanged.
+This removes duplicate local topology construction/submission for equal output;
+requested builders, previews, layout and final input/proof/geometry checks still
+run. New revisions, real kernel geometry changes and sparse-local changes over
+an older resolved baseline retain ordinary publication. Three new regular cases
+check these boundaries and atomic source/frame rollback. The once-only-plan GPU
+control now expects3submits/1skip across4complete-image comparisons. The full RFC
+and native common-interaction p99 remain active acceptance work.
+Complete retained539/1ignored, text/WGPU572/42 and hello57/10 pass; final real-Noto
+extension passes5full-image comparisons with4submits/1skip. Library Clippy and
+scoped checks pass. Four alternating release pairs show no stable owner CPU
+gain (unchanged-plan p50 regresses0.7%/1.0% at67/515nodes); all3,200samples remain.
+An isolated debug GPU consumer control avoids duplicate work: median of four
+round p50s1.4655→0.00865ms, p99s2.0664→0.0108ms,400submits→400skips with8full-image
+comparisons. Its800samples are distinct from release owner and native display
+timing, and cannot establish whole-application speedup or fluency acceptance.
+
 The [once-only layout build plan](RETAINED_LAYOUT_BUILD_PLAN.md) adds a
 transaction-scoped scheduler for all four existing builder kinds. Current render
 ancestry orders parents before descendants, explicit prerequisites order sibling
@@ -18,8 +37,9 @@ Complete text/WGPU569passed/42ignored and hello57/10 pass; retained-only535/1
 preceded the final ninth test-only addition, then all9focused cases passed.
 Both explicit GTX1650Ti/Vulkan GPU controls pass4complete-image submissions,
 along with final framework library Clippy and scoped format/diff/link checks.
-Repeated inline input tracking still refreshes layout/local snapshots, including
-the equal-width GPU case; unchanged-plan skipping is not claimed.
+At that stage repeated inline input tracking refreshed layout/local snapshots,
+including equal-width GPU submissions; the follow-up above now reuses certified
+unchanged output. Unchanged callback/plan skipping is still not implemented.
 Repeated draft previews and full graph checks remain substantial costs; this is
 capability work with no timing or FPS gain claim. Persistent registrations,
 automatic source read/write dependency discovery, unchanged-callback skipping,

@@ -130,9 +130,12 @@ Nested Flex geometry and all CPU/GPU pixels compare with ordinary forced-full
 trees. Actual Noto wrapping/baselines and owner-retired packets use that same
 layout protocol. Equal-key repeated edits retain existing state/handles; ordinary
 unchanged frames retain their existing P0/layout caches. Re-executing an inline
-allocation task still opts into final input tracking, dirties layout and refreshes
-the local snapshot. The equal-width GPU fixture currently submits again despite
-equal pixels; unchanged-plan skipping is not implemented or claimed.
+allocation task still opts into final input tracking and runs checked layout.
+The [output-identity follow-up](performance/2026-11-18-local-revalidation/README.md)
+retains the exact local snapshot after that work when the source revision,
+pixel-snap policy and certified paint/property storage remain unchanged. The
+equal-width GPU fixture can then skip its duplicate submit. This does not skip
+requested callbacks, previews, layout or final dependency/geometry validation.
 
 This schedules one requested transaction, not future signal/environment events.
 Cross-task reactive/source-write dependency discovery, persistent registration/
