@@ -1,0 +1,464 @@
+[
+  {
+    "tree": "producers8",
+    "operation": "unread_source",
+    "baseline": {
+      "processes": [
+        {
+          "round": 1,
+          "p50_us": 733.8,
+          "p95_us": 946.3,
+          "p99_us": 1031.8,
+          "max_us": 1178.7
+        },
+        {
+          "round": 2,
+          "p50_us": 601.2,
+          "p95_us": 963.4,
+          "p99_us": 1307.7,
+          "max_us": 1344.6
+        },
+        {
+          "round": 3,
+          "p50_us": 710.8,
+          "p95_us": 886.4,
+          "p99_us": 945.9,
+          "max_us": 1060.3
+        },
+        {
+          "round": 4,
+          "p50_us": 608.8,
+          "p95_us": 828.5,
+          "p99_us": 1330.2,
+          "max_us": 1846.2
+        }
+      ],
+      "median_p50_us": 659.8,
+      "median_p95_us": 916.3499999999999,
+      "median_p99_us": 1169.75,
+      "median_max_us": 1261.65
+    },
+    "candidate": {
+      "processes": [
+        {
+          "round": 1,
+          "p50_us": 31.4,
+          "p95_us": 41.6,
+          "p99_us": 55.7,
+          "max_us": 71.7
+        },
+        {
+          "round": 2,
+          "p50_us": 33.2,
+          "p95_us": 43.5,
+          "p99_us": 48.3,
+          "max_us": 58.9
+        },
+        {
+          "round": 3,
+          "p50_us": 31.4,
+          "p95_us": 42.6,
+          "p99_us": 46.6,
+          "max_us": 46.6
+        },
+        {
+          "round": 4,
+          "p50_us": 31.2,
+          "p95_us": 42.2,
+          "p99_us": 56.1,
+          "max_us": 59.9
+        }
+      ],
+      "median_p50_us": 31.4,
+      "median_p95_us": 42.400000000000006,
+      "median_p99_us": 52.0,
+      "median_max_us": 59.4
+    },
+    "p50_reduction_percent": 95.24098211579266
+  },
+  {
+    "tree": "producers8",
+    "operation": "equal_source",
+    "baseline": {
+      "processes": [
+        {
+          "round": 1,
+          "p50_us": 455.4,
+          "p95_us": 834.2,
+          "p99_us": 1162.6,
+          "max_us": 1199.2
+        },
+        {
+          "round": 2,
+          "p50_us": 451.0,
+          "p95_us": 532.3,
+          "p99_us": 601.4,
+          "max_us": 793.4
+        },
+        {
+          "round": 3,
+          "p50_us": 443.8,
+          "p95_us": 510.6,
+          "p99_us": 624.2,
+          "max_us": 683.2
+        },
+        {
+          "round": 4,
+          "p50_us": 470.3,
+          "p95_us": 715.3,
+          "p99_us": 958.2,
+          "max_us": 977.6
+        }
+      ],
+      "median_p50_us": 453.2,
+      "median_p95_us": 623.8,
+      "median_p99_us": 791.2,
+      "median_max_us": 885.5
+    },
+    "candidate": {
+      "processes": [
+        {
+          "round": 1,
+          "p50_us": 36.1,
+          "p95_us": 45.2,
+          "p99_us": 51.5,
+          "max_us": 74.0
+        },
+        {
+          "round": 2,
+          "p50_us": 31.7,
+          "p95_us": 44.4,
+          "p99_us": 48.6,
+          "max_us": 58.1
+        },
+        {
+          "round": 3,
+          "p50_us": 31.7,
+          "p95_us": 69.8,
+          "p99_us": 99.4,
+          "max_us": 163.6
+        },
+        {
+          "round": 4,
+          "p50_us": 30.3,
+          "p95_us": 33.5,
+          "p99_us": 38.7,
+          "max_us": 39.1
+        }
+      ],
+      "median_p50_us": 31.7,
+      "median_p95_us": 44.8,
+      "median_p99_us": 50.05,
+      "median_max_us": 66.05
+    },
+    "p50_reduction_percent": 93.00529567519858
+  },
+  {
+    "tree": "producers8",
+    "operation": "observed_source",
+    "baseline": {
+      "processes": [
+        {
+          "round": 1,
+          "p50_us": 433.6,
+          "p95_us": 502.3,
+          "p99_us": 597.8,
+          "max_us": 665.8
+        },
+        {
+          "round": 2,
+          "p50_us": 437.9,
+          "p95_us": 518.3,
+          "p99_us": 561.8,
+          "max_us": 881.0
+        },
+        {
+          "round": 3,
+          "p50_us": 432.1,
+          "p95_us": 499.4,
+          "p99_us": 1035.5,
+          "max_us": 1117.4
+        },
+        {
+          "round": 4,
+          "p50_us": 476.2,
+          "p95_us": 735.4,
+          "p99_us": 837.1,
+          "max_us": 1216.2
+        }
+      ],
+      "median_p50_us": 435.75,
+      "median_p95_us": 510.29999999999995,
+      "median_p99_us": 717.45,
+      "median_max_us": 999.2
+    },
+    "candidate": {
+      "processes": [
+        {
+          "round": 1,
+          "p50_us": 539.6,
+          "p95_us": 857.7,
+          "p99_us": 900.3,
+          "max_us": 902.3
+        },
+        {
+          "round": 2,
+          "p50_us": 561.8,
+          "p95_us": 847.1,
+          "p99_us": 1147.5,
+          "max_us": 1166.5
+        },
+        {
+          "round": 3,
+          "p50_us": 574.7,
+          "p95_us": 695.0,
+          "p99_us": 766.2,
+          "max_us": 804.1
+        },
+        {
+          "round": 4,
+          "p50_us": 562.2,
+          "p95_us": 842.1,
+          "p99_us": 935.4,
+          "max_us": 1243.3
+        }
+      ],
+      "median_p50_us": 562.0,
+      "median_p95_us": 844.6,
+      "median_p99_us": 917.8499999999999,
+      "median_max_us": 1034.4
+    },
+    "p50_reduction_percent": -28.973034997131375
+  },
+  {
+    "tree": "producers32",
+    "operation": "unread_source",
+    "baseline": {
+      "processes": [
+        {
+          "round": 1,
+          "p50_us": 4917.9,
+          "p95_us": 5700.1,
+          "p99_us": 6648.2,
+          "max_us": 7253.8
+        },
+        {
+          "round": 2,
+          "p50_us": 4810.8,
+          "p95_us": 5522.8,
+          "p99_us": 6051.4,
+          "max_us": 6131.7
+        },
+        {
+          "round": 3,
+          "p50_us": 4931.9,
+          "p95_us": 5758.5,
+          "p99_us": 6574.7,
+          "max_us": 6710.2
+        },
+        {
+          "round": 4,
+          "p50_us": 4789.8,
+          "p95_us": 6408.7,
+          "p99_us": 7308.5,
+          "max_us": 7334.4
+        }
+      ],
+      "median_p50_us": 4864.35,
+      "median_p95_us": 5729.3,
+      "median_p99_us": 6611.45,
+      "median_max_us": 6982.0
+    },
+    "candidate": {
+      "processes": [
+        {
+          "round": 1,
+          "p50_us": 47.9,
+          "p95_us": 100.1,
+          "p99_us": 110.0,
+          "max_us": 121.0
+        },
+        {
+          "round": 2,
+          "p50_us": 94.4,
+          "p95_us": 145.2,
+          "p99_us": 220.1,
+          "max_us": 248.6
+        },
+        {
+          "round": 3,
+          "p50_us": 65.1,
+          "p95_us": 93.3,
+          "p99_us": 109.6,
+          "max_us": 116.1
+        },
+        {
+          "round": 4,
+          "p50_us": 63.6,
+          "p95_us": 101.4,
+          "p99_us": 104.2,
+          "max_us": 109.6
+        }
+      ],
+      "median_p50_us": 64.35,
+      "median_p95_us": 100.75,
+      "median_p99_us": 109.8,
+      "median_max_us": 118.55
+    },
+    "p50_reduction_percent": 98.67710999414105
+  },
+  {
+    "tree": "producers32",
+    "operation": "equal_source",
+    "baseline": {
+      "processes": [
+        {
+          "round": 1,
+          "p50_us": 4882.4,
+          "p95_us": 6020.5,
+          "p99_us": 7462.1,
+          "max_us": 8295.4
+        },
+        {
+          "round": 2,
+          "p50_us": 4749.5,
+          "p95_us": 5570.7,
+          "p99_us": 6058.6,
+          "max_us": 6302.0
+        },
+        {
+          "round": 3,
+          "p50_us": 4720.1,
+          "p95_us": 5719.6,
+          "p99_us": 6447.5,
+          "max_us": 6662.8
+        },
+        {
+          "round": 4,
+          "p50_us": 4627.3,
+          "p95_us": 5404.6,
+          "p99_us": 5732.1,
+          "max_us": 5735.5
+        }
+      ],
+      "median_p50_us": 4734.8,
+      "median_p95_us": 5645.15,
+      "median_p99_us": 6253.05,
+      "median_max_us": 6482.4
+    },
+    "candidate": {
+      "processes": [
+        {
+          "round": 1,
+          "p50_us": 45.3,
+          "p95_us": 93.0,
+          "p99_us": 103.3,
+          "max_us": 108.9
+        },
+        {
+          "round": 2,
+          "p50_us": 62.6,
+          "p95_us": 97.2,
+          "p99_us": 105.5,
+          "max_us": 156.2
+        },
+        {
+          "round": 3,
+          "p50_us": 44.3,
+          "p95_us": 84.3,
+          "p99_us": 93.5,
+          "max_us": 97.1
+        },
+        {
+          "round": 4,
+          "p50_us": 44.6,
+          "p95_us": 92.2,
+          "p99_us": 107.0,
+          "max_us": 113.0
+        }
+      ],
+      "median_p50_us": 44.95,
+      "median_p95_us": 92.6,
+      "median_p99_us": 104.4,
+      "median_max_us": 110.95
+    },
+    "p50_reduction_percent": 99.05064627861789
+  },
+  {
+    "tree": "producers32",
+    "operation": "observed_source",
+    "baseline": {
+      "processes": [
+        {
+          "round": 1,
+          "p50_us": 4618.9,
+          "p95_us": 5455.3,
+          "p99_us": 5933.5,
+          "max_us": 6534.1
+        },
+        {
+          "round": 2,
+          "p50_us": 4688.6,
+          "p95_us": 5690.0,
+          "p99_us": 6429.9,
+          "max_us": 6521.3
+        },
+        {
+          "round": 3,
+          "p50_us": 4598.2,
+          "p95_us": 5350.9,
+          "p99_us": 5883.0,
+          "max_us": 6394.4
+        },
+        {
+          "round": 4,
+          "p50_us": 4591.3,
+          "p95_us": 5282.7,
+          "p99_us": 5590.0,
+          "max_us": 5633.7
+        }
+      ],
+      "median_p50_us": 4608.549999999999,
+      "median_p95_us": 5403.1,
+      "median_p99_us": 5908.25,
+      "median_max_us": 6457.85
+    },
+    "candidate": {
+      "processes": [
+        {
+          "round": 1,
+          "p50_us": 4726.0,
+          "p95_us": 5402.1,
+          "p99_us": 5810.8,
+          "max_us": 5920.5
+        },
+        {
+          "round": 2,
+          "p50_us": 4739.9,
+          "p95_us": 5446.6,
+          "p99_us": 5797.9,
+          "max_us": 6307.4
+        },
+        {
+          "round": 3,
+          "p50_us": 4613.5,
+          "p95_us": 5349.1,
+          "p99_us": 5737.8,
+          "max_us": 5763.9
+        },
+        {
+          "round": 4,
+          "p50_us": 4626.5,
+          "p95_us": 5507.9,
+          "p99_us": 5864.9,
+          "max_us": 5906.6
+        }
+      ],
+      "median_p50_us": 4676.25,
+      "median_p95_us": 5424.35,
+      "median_p99_us": 5804.35,
+      "median_max_us": 5913.55
+    },
+    "p50_reduction_percent": -1.4690086903690114
+  }
+]

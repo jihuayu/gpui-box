@@ -1,0 +1,209 @@
+diff --git a/crates/gpui-box/src/retained/edit.rs b/crates/gpui-box/src/retained/edit.rs
+index e38b34b..975830f 100644
+--- a/crates/gpui-box/src/retained/edit.rs
++++ b/crates/gpui-box/src/retained/edit.rs
+@@ -26,0 +27,10 @@ impl TreeEdit<'_> {
++    pub(in crate::retained) fn producer_render_unchanged(&self, revision: u64) -> bool {
++        self.tree.revision == revision
++            && !self.tree.layout_dirty
++            && !self.tree.full_extract_required
++            && self.pixel_snap.is_none()
++            && self.nodes.is_empty()
++            && self.created.is_empty()
++            && self.removed.is_empty()
++            && self.properties.patches.is_empty()
++    }
+diff --git a/crates/gpui-box/src/retained/logical.rs b/crates/gpui-box/src/retained/logical.rs
+index 98b39ea..9c1f5df 100644
+--- a/crates/gpui-box/src/retained/logical.rs
++++ b/crates/gpui-box/src/retained/logical.rs
+@@ -90,0 +91 @@ pub struct LogicalUi {
++    producer_index: producers::ProducerIndex,
+@@ -178,0 +180 @@ impl LogicalUi {
++            producer_index: producers::ProducerIndex::default(),
+@@ -197,0 +200,4 @@ impl LogicalUi {
++        // Internal standalone resolvers can adopt sources/render state without
++        // passing through producer settlement. Their next logical edit must
++        // re-establish observations, even if final paint revision stayed equal.
++        self.producer_revision = None;
+@@ -331,0 +338,8 @@ impl LogicalUi {
++        } else if self.producer_session.is_some() {
++            self.edit_local_frame(
++                LayoutConstraints::viewport(viewport[0], viewport[1]),
++                viewport,
++                |_| Ok(()),
++                |(), _| Ok(()),
++            )
++            .map(|(_, frame)| frame)
+diff --git a/crates/gpui-box/src/retained/logical/edit.rs b/crates/gpui-box/src/retained/logical/edit.rs
+index 407163c..40f5419 100644
+--- a/crates/gpui-box/src/retained/logical/edit.rs
++++ b/crates/gpui-box/src/retained/logical/edit.rs
+@@ -42,0 +43,3 @@ pub struct LogicalEdit<'a, 'draft, 'tree> {
++    pub(super) live_producer_index: &'a super::producers::ProducerIndex,
++    pub(super) live_producer_session: Option<(LayoutConstraints, [f32; 2])>,
++    pub(super) producer_plan_skipped: bool,
+@@ -52,0 +56,6 @@ impl LogicalEdit<'_, '_, '_> {
++    pub(super) fn has_retired_producer_scopes(&self) -> bool {
++        !self.removed_scopes.is_empty()
++    }
++    pub(super) fn producer_rules_unchanged(&self) -> bool {
++        self.responsive_rules.is_none()
++    }
+@@ -673,0 +683,3 @@ impl LogicalUi {
++                    live_producer_index: &self.producer_index,
++                    live_producer_session: self.producer_session,
++                    producer_plan_skipped: false,
+@@ -933,0 +946 @@ impl LogicalUi {
++            self.producer_index = super::producers::ProducerIndex::new(&self.layout_producers);
+diff --git a/crates/gpui-box/src/retained/logical/edit/responsive_rules.rs b/crates/gpui-box/src/retained/logical/edit/responsive_rules.rs
+index be816c6..c1d9a76 100644
+--- a/crates/gpui-box/src/retained/logical/edit/responsive_rules.rs
++++ b/crates/gpui-box/src/retained/logical/edit/responsive_rules.rs
+@@ -130 +130 @@ impl LogicalEdit<'_, '_, '_> {
+-    pub(super) fn settle_automatic_rules(&mut self) -> Result<(), Error> {
++    pub(in crate::retained::logical) fn settle_automatic_rules(&mut self) -> Result<(), Error> {
+diff --git a/crates/gpui-box/src/retained/logical/producers.rs b/crates/gpui-box/src/retained/logical/producers.rs
+index 2c00784..b71605a 100644
+--- a/crates/gpui-box/src/retained/logical/producers.rs
++++ b/crates/gpui-box/src/retained/logical/producers.rs
+@@ -4,0 +5,2 @@ use std::{cell::RefCell, rc::Rc};
++#[cfg(test)]
++mod invalidation_tests;
+@@ -39,0 +42,31 @@ pub struct LayoutProducerStats {
++    /// Whole accepted plans reused without callback/input/proof previews.
++    pub plans_skipped: usize,
++    /// Indexed producer candidates selected by final changed source identities.
++    pub source_candidates: usize,
++    /// Scheduler previews only; excludes builder/responsive/final layout work.
++    pub planning_previews: usize,
++}
++
++/// Rebuilt only on successful registry/observation adoption. Generation-safe
++/// source identities select candidates without scanning all observed values.
++#[derive(Default)]
++pub(super) struct ProducerIndex(BTreeMap<Dependency, BTreeSet<(ScopeId, u64)>>);
++impl ProducerIndex {
++    pub(super) fn new(registrations: &BTreeMap<(ScopeId, u64), Registration>) -> Self {
++        let mut index: BTreeMap<_, BTreeSet<_>> = BTreeMap::new();
++        for (&key, registration) in registrations {
++            if let Some((_, sources)) = &registration.observed {
++                for dependency in sources.dependencies() {
++                    index.entry(dependency).or_default().insert(key);
++                }
++            }
++        }
++        Self(index)
++    }
++    fn candidates(&self, changed: impl Iterator<Item = Dependency>) -> BTreeSet<(ScopeId, u64)> {
++        changed
++            .filter_map(|id| self.0.get(&id))
++            .flatten()
++            .copied()
++            .collect()
++    }
+@@ -190 +223 @@ impl LogicalEdit<'_, '_, '_> {
+-        if self.producers().is_empty() {
++        if self.producers().is_empty() || !self.has_retired_producer_scopes() {
+@@ -259,0 +293,36 @@ impl LogicalEdit<'_, '_, '_> {
++        self.settle_automatic_rules()?;
++        // Every registration and proof was accepted together in the previous
++        // complete frame. Reuse that acceptance only if the draft has no way
++        // to change their topology/inputs/output and indexed source values
++        // still match. Any uncertainty keeps the ordinary complete plan.
++        if self.layout_producers.is_none()
++            && self.producer_rules_unchanged()
++            && self.producer_logical_unchanged()
++            && self.frame_environment == self.live_producer_session
++            && self
++                .live_producer_revision
++                .is_some_and(|revision| self.render.producer_render_unchanged(revision))
++        {
++            let candidates = self
++                .live_producer_index
++                .candidates(self.render.changed_dependencies());
++            self.producer_stats.source_candidates = candidates.len();
++            let mut equal = true;
++            for key in candidates {
++                let registration = &self.producers()[&key];
++                if let Some((_, sources)) = &registration.observed {
++                    equal = self.render.matches_sources(sources)?;
++                } else {
++                    equal = false;
++                }
++                if !equal {
++                    break;
++                }
++            }
++            if equal {
++                self.producer_plan_skipped = true;
++                self.producer_stats.plans_skipped = 1;
++                self.producer_stats.callbacks_reused = self.producers().len();
++                return Ok(());
++            }
++        }
+@@ -263 +332 @@ impl LogicalEdit<'_, '_, '_> {
+-        result?;
++        self.producer_stats.planning_previews = result?.planning_previews;
+@@ -266,0 +336,18 @@ impl LogicalEdit<'_, '_, '_> {
++        if self.producer_plan_skipped {
++            // No callbacks ran. Recheck only sources that can differ from the
++            // previously adopted observations, including later retirements or
++            // responsive settlement. Failed final adoption cannot alter index.
++            for key in self
++                .live_producer_index
++                .candidates(self.render.changed_dependencies())
++            {
++                let (_, sources) = self.producers()[&key]
++                    .observed
++                    .as_ref()
++                    .ok_or(Error::InvalidLayoutBuildPlan)?;
++                if !self.render.matches_sources(sources)? {
++                    return Err(Error::InvalidLayoutBuildPlan);
++                }
++            }
++            return Ok(());
++        }
+diff --git a/crates/gpui-box/src/retained/reactive/edit.rs b/crates/gpui-box/src/retained/reactive/edit.rs
+index 2d0d60e..d10448f 100644
+--- a/crates/gpui-box/src/retained/reactive/edit.rs
++++ b/crates/gpui-box/src/retained/reactive/edit.rs
+@@ -7 +7,6 @@ use super::*;
+-pub(in crate::retained) struct SourceObservation(BTreeMap<Dependency, Rc<dyn Value>>);
++pub(in crate::retained) struct SourceObservation(Rc<BTreeMap<Dependency, Rc<dyn Value>>>);
++impl SourceObservation {
++    pub(in crate::retained) fn dependencies(&self) -> impl Iterator<Item = Dependency> + '_ {
++        self.0.keys().copied()
++    }
++}
+@@ -66,0 +72,24 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
++    /// Final source differences already settled by the transaction/computed
++    /// machinery, plus retirements. No source-value equality scan is required.
++    pub(in crate::retained) fn changed_dependencies(
++        &self,
++    ) -> impl Iterator<Item = Dependency> + '_ {
++        self.prepared
++            .values
++            .keys()
++            .chain(self.removed_sources.iter())
++            .copied()
++            .map(Dependency)
++    }
++    /// Strict negative certificate, not a caller-provided dirty hint. New or
++    /// changed bindings may synchronize output even without explicit TreeEdit
++    /// patches, so they must retain the normal complete producer path.
++    pub(in crate::retained) fn producer_render_unchanged(&self, revision: u64) -> bool {
++        self.tree.producer_render_unchanged(revision)
++            && self.bindings.is_empty()
++            && self.unbound.is_empty()
++            && self.prepared.values.keys().all(|id| {
++                self.source(*id)
++                    .is_ok_and(|source| source.bindings.is_empty())
++            })
++    }
+@@ -83 +112 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
+-            observation.0.insert(signal.dependency(), value.clone());
++            Rc::make_mut(&mut observation.0).insert(signal.dependency(), value.clone());
+@@ -91 +120 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
+-        for (dependency, before) in &observation.0 {
++        for (dependency, before) in observation.0.iter() {

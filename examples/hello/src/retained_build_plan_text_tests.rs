@@ -125,6 +125,10 @@ fn run_persistent(hardware: bool) {
         ui.local_frame_in_viewport(constraints(width), [300.0, 400.0])
             .unwrap();
         ui.transaction(|tx| tx.set(color, value)).unwrap();
+        if value == 0x00ffffff || width == 120.0 {
+            assert_eq!(ui.layout_producer_stats().plans_skipped, 1);
+            assert_eq!(ui.layout_producer_stats().planning_previews, 0);
+        }
         let frame = ui.published_local_frame().unwrap().clone();
         let leaf = ui.renders(ui.children(scope).unwrap()[0]).unwrap()[0];
         let mut reference = UiTree::new_layout(root_style(), 0).unwrap();

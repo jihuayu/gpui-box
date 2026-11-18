@@ -3,6 +3,33 @@
 The active implementation goal covers the complete runtime requested on
 2026-11-11. Work continues in `codex/rendering-performance-research`.
 
+The [indexed producer invalidation stage](RETAINED_PRODUCER_INVALIDATION.md)
+adds generation-safe source-to-producer reverse reads, atomically rebuilt with
+accepted observations. Final changed source identities select equality-check
+candidates. With unchanged registry/rules/logical tree/constraints/viewport and
+a strict internal no-render-write/no-binding-sync certificate, the entire prior
+accepted plan reuses without builder previews/input tracking. Complete final
+frame geometry/source/lifecycle publication remains. Any related/uncertain
+change retains the full producer plan because output writes are not host-local.
+Six new core cases and real-Noto controls cover skips, computed/restored values,
+conditional index rollback, bindings, responsive output, explicit edits, resize
+retirement/generation and convenience/internal entry invalidation. See
+[evidence](performance/2026-11-18-producer-invalidation/README.md).
+Index rebuild/membership memory, full candidates/geometry and related-update
+complete-plan costs remain; full RenderBox and native common-interaction p99
+acceptance remain open. The complete RFC is active.
+Four final alternating release pairs on41/161-node ordinary Flex with8/32producers
+reduce unread/equal transaction p50 by93.0–98.8%, with p50/p99 wins in all4pairs.
+Related8producer p50/p99 regress26.9%/27.5%; related32p50 slightly improves but
+p99 worsens8.9%. First/final candidates retain9,600samples and exact patches/hashes;
+this does not qualify related tails/native120Hz. Shared immutable source-read maps
+reduce observation clone work; full-plan and index-rebuild costs remain explicit.
+Final15producer cases, retained554/1ignored and library Clippy pass; text/WGPU
+586/43 and hello58/11 passed before final convenience/internal entry fixes.
+Those fixes are covered by final focused/retained regressions. Explicit Noto
+GPU5images(4submits/1skip) and ephemeral Flex4images(3submits/1skip) pass; scoped
+format/diff/259local links and sample/hash checks pass.
+
 The [persistent layout producer stage](RETAINED_LAYOUT_PRODUCERS.md) registers
 owner-local reusable callbacks by scope/key, automatically schedules them after
 ordinary source transactions/background drains and frame changes, and retires

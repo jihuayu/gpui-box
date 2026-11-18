@@ -1,0 +1,17 @@
+{
+  "utc": "2026-11-18T05:59:14Z",
+  "platform": "Windows-11-10.0.26100-SP0",
+  "processor": "AMD64 Family 23 Model 96 Stepping 1, AuthenticAMD",
+  "samples": 100,
+  "rounds": 4,
+  "executables": {
+    "baseline": {
+      "path": "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\producer-invalidation-mlyz7ven\\baseline\\build\\release\\producer-invalidation-bench.exe",
+      "sha256": "da62e91d69bb82d1ca437e7f49ab49156210c14d91be802e16e632933d549842"
+    },
+    "candidate": {
+      "path": "D:\\oss\\ggpui-worktrees\\rendering-performance-research\\target\\producer-invalidation-mlyz7ven\\candidate\\build\\release\\producer-invalidation-bench.exe",
+      "sha256": "dab8c7e9e90021a7fd507008ad9e8fb8894015adad8f5ed7a3697f5adbcd25d6"
+    }
+  }
+}

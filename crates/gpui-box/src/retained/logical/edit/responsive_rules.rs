@@ -127,7 +127,7 @@ impl LogicalEdit<'_, '_, '_> {
         self.responsive(&rules, environment)
     }
 
-    pub(super) fn settle_automatic_rules(&mut self) -> Result<(), Error> {
+    pub(in crate::retained::logical) fn settle_automatic_rules(&mut self) -> Result<(), Error> {
         if !self.rules().is_empty()
             && let Some(environment) = self.automatic_environment.clone()
         {

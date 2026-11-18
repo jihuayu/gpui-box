@@ -3,6 +3,8 @@ use super::*;
 use std::{cell::RefCell, rc::Rc};
 
 #[cfg(test)]
+mod invalidation_tests;
+#[cfg(test)]
 mod tests;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -37,6 +39,37 @@ pub struct LayoutProducerStats {
     pub considered: usize,
     pub callbacks_executed: usize,
     pub callbacks_reused: usize,
+    /// Whole accepted plans reused without callback/input/proof previews.
+    pub plans_skipped: usize,
+    /// Indexed producer candidates selected by final changed source identities.
+    pub source_candidates: usize,
+    /// Scheduler previews only; excludes builder/responsive/final layout work.
+    pub planning_previews: usize,
+}
+
+/// Rebuilt only on successful registry/observation adoption. Generation-safe
+/// source identities select candidates without scanning all observed values.
+#[derive(Default)]
+pub(super) struct ProducerIndex(BTreeMap<Dependency, BTreeSet<(ScopeId, u64)>>);
+impl ProducerIndex {
+    pub(super) fn new(registrations: &BTreeMap<(ScopeId, u64), Registration>) -> Self {
+        let mut index: BTreeMap<_, BTreeSet<_>> = BTreeMap::new();
+        for (&key, registration) in registrations {
+            if let Some((_, sources)) = &registration.observed {
+                for dependency in sources.dependencies() {
+                    index.entry(dependency).or_default().insert(key);
+                }
+            }
+        }
+        Self(index)
+    }
+    fn candidates(&self, changed: impl Iterator<Item = Dependency>) -> BTreeSet<(ScopeId, u64)> {
+        changed
+            .filter_map(|id| self.0.get(&id))
+            .flatten()
+            .copied()
+            .collect()
+    }
 }
 
 #[derive(Clone)]
@@ -187,7 +220,7 @@ impl LogicalEdit<'_, '_, '_> {
         result
     }
     pub(super) fn retire_layout_producers(&mut self) -> Result<(), Error> {
-        if self.producers().is_empty() {
+        if self.producers().is_empty() || !self.has_retired_producer_scopes() {
             return Ok(());
         }
         let dead = self.retired_scopes()?;
@@ -257,13 +290,67 @@ impl LogicalEdit<'_, '_, '_> {
         if self.frame_environment.is_none() {
             return Err(Error::InvalidLayoutBuildPlan);
         }
+        self.settle_automatic_rules()?;
+        // Every registration and proof was accepted together in the previous
+        // complete frame. Reuse that acceptance only if the draft has no way
+        // to change their topology/inputs/output and indexed source values
+        // still match. Any uncertainty keeps the ordinary complete plan.
+        if self.layout_producers.is_none()
+            && self.producer_rules_unchanged()
+            && self.producer_logical_unchanged()
+            && self.frame_environment == self.live_producer_session
+            && self
+                .live_producer_revision
+                .is_some_and(|revision| self.render.producer_render_unchanged(revision))
+        {
+            let candidates = self
+                .live_producer_index
+                .candidates(self.render.changed_dependencies());
+            self.producer_stats.source_candidates = candidates.len();
+            let mut equal = true;
+            for key in candidates {
+                let registration = &self.producers()[&key];
+                if let Some((_, sources)) = &registration.observed {
+                    equal = self.render.matches_sources(sources)?;
+                } else {
+                    equal = false;
+                }
+                if !equal {
+                    break;
+                }
+            }
+            if equal {
+                self.producer_plan_skipped = true;
+                self.producer_stats.plans_skipped = 1;
+                self.producer_stats.callbacks_reused = self.producers().len();
+                return Ok(());
+            }
+        }
         self.producer_scheduling = true;
         let result = self.build_layout_plan(LayoutBuildPlan::new());
         self.producer_scheduling = false;
-        result?;
+        self.producer_stats.planning_previews = result?.planning_previews;
         self.validate_producer_sources()
     }
     pub(super) fn validate_producer_sources(&self) -> Result<(), Error> {
+        if self.producer_plan_skipped {
+            // No callbacks ran. Recheck only sources that can differ from the
+            // previously adopted observations, including later retirements or
+            // responsive settlement. Failed final adoption cannot alter index.
+            for key in self
+                .live_producer_index
+                .candidates(self.render.changed_dependencies())
+            {
+                let (_, sources) = self.producers()[&key]
+                    .observed
+                    .as_ref()
+                    .ok_or(Error::InvalidLayoutBuildPlan)?;
+                if !self.render.matches_sources(sources)? {
+                    return Err(Error::InvalidLayoutBuildPlan);
+                }
+            }
+            return Ok(());
+        }
         for registration in self.producers().values() {
             if let Some((_, sources)) = &registration.observed
                 && !self.render.matches_sources(sources)?

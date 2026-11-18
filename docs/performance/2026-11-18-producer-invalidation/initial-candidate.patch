@@ -1,0 +1,272 @@
+diff --git a/crates/gpui-box/src/retained/edit.rs b/crates/gpui-box/src/retained/edit.rs
+index e38b34b..975830f 100644
+--- a/crates/gpui-box/src/retained/edit.rs
++++ b/crates/gpui-box/src/retained/edit.rs
+@@ -24,6 +24,16 @@ pub struct TreeEdit<'a> {
+     slots: usize,
+ }
+ impl TreeEdit<'_> {
++    pub(in crate::retained) fn producer_render_unchanged(&self, revision: u64) -> bool {
++        self.tree.revision == revision
++            && !self.tree.layout_dirty
++            && !self.tree.full_extract_required
++            && self.pixel_snap.is_none()
++            && self.nodes.is_empty()
++            && self.created.is_empty()
++            && self.removed.is_empty()
++            && self.properties.patches.is_empty()
++    }
+     /// Disposable projection of the current draft, including final properties.
+     /// It must never escape as another writable owner with the same identity.
+     pub(in crate::retained) fn preview(
+diff --git a/crates/gpui-box/src/retained/logical.rs b/crates/gpui-box/src/retained/logical.rs
+index 98b39ea..6a4e7aa 100644
+--- a/crates/gpui-box/src/retained/logical.rs
++++ b/crates/gpui-box/src/retained/logical.rs
+@@ -88,6 +88,7 @@ pub struct LogicalUi {
+     producer_session: Option<(LayoutConstraints, [f32; 2])>,
+     producer_stats: LayoutProducerStats,
+     producer_revision: Option<u64>,
++    producer_index: producers::ProducerIndex,
+ }
+
+ impl LogicalUi {
+@@ -176,6 +177,7 @@ impl LogicalUi {
+             producer_session: None,
+             producer_stats: LayoutProducerStats::default(),
+             producer_revision: None,
++            producer_index: producers::ProducerIndex::default(),
+         })
+     }
+
+diff --git a/crates/gpui-box/src/retained/logical/edit.rs b/crates/gpui-box/src/retained/logical/edit.rs
+index 407163c..40f5419 100644
+--- a/crates/gpui-box/src/retained/logical/edit.rs
++++ b/crates/gpui-box/src/retained/logical/edit.rs
+@@ -40,6 +40,9 @@ pub struct LogicalEdit<'a, 'draft, 'tree> {
+     pub(super) producer_stats: LayoutProducerStats,
+     pub(super) live_producer_revision: Option<u64>,
+     pub(super) producer_render_revision: Option<u64>,
++    pub(super) live_producer_index: &'a super::producers::ProducerIndex,
++    pub(super) live_producer_session: Option<(LayoutConstraints, [f32; 2])>,
++    pub(super) producer_plan_skipped: bool,
+ }
+ impl LogicalEdit<'_, '_, '_> {
+     pub(super) fn producer_logical_unchanged(&self) -> bool {
+@@ -50,6 +53,12 @@ impl LogicalEdit<'_, '_, '_> {
+                     .is_ok_and(|scope| scope.children == *children)
+             })
+     }
++    pub(super) fn has_retired_producer_scopes(&self) -> bool {
++        !self.removed_scopes.is_empty()
++    }
++    pub(super) fn producer_rules_unchanged(&self) -> bool {
++        self.responsive_rules.is_none()
++    }
+     /// Schedule once-only keyed construction from current render ancestry and
+     /// explicit non-ancestral prerequisites. Failure poisons this outer edit;
+     /// catching it cannot publish a partially executed plan.
+@@ -671,6 +680,9 @@ impl LogicalUi {
+                     producer_stats: LayoutProducerStats::default(),
+                     live_producer_revision: self.producer_revision,
+                     producer_render_revision: None,
++                    live_producer_index: &self.producer_index,
++                    live_producer_session: self.producer_session,
++                    producer_plan_skipped: false,
+                 };
+                 let value = render(value, &mut draft)?;
+                 draft.settle_layout_producers()?;
+@@ -931,6 +943,7 @@ impl LogicalUi {
+         self.layout_session = layout_session;
+         if let Some(producers) = layout_producers {
+             self.layout_producers = producers;
++            self.producer_index = super::producers::ProducerIndex::new(&self.layout_producers);
+         }
+         self.producer_session = if self.layout_producers.is_empty() {
+             None
+diff --git a/crates/gpui-box/src/retained/logical/edit/responsive_rules.rs b/crates/gpui-box/src/retained/logical/edit/responsive_rules.rs
+index be816c6..c1d9a76 100644
+--- a/crates/gpui-box/src/retained/logical/edit/responsive_rules.rs
++++ b/crates/gpui-box/src/retained/logical/edit/responsive_rules.rs
+@@ -127,7 +127,7 @@ impl LogicalEdit<'_, '_, '_> {
+         self.responsive(&rules, environment)
+     }
+
+-    pub(super) fn settle_automatic_rules(&mut self) -> Result<(), Error> {
++    pub(in crate::retained::logical) fn settle_automatic_rules(&mut self) -> Result<(), Error> {
+         if !self.rules().is_empty()
+             && let Some(environment) = self.automatic_environment.clone()
+         {
+diff --git a/crates/gpui-box/src/retained/logical/producers.rs b/crates/gpui-box/src/retained/logical/producers.rs
+index 2c00784..716255c 100644
+--- a/crates/gpui-box/src/retained/logical/producers.rs
++++ b/crates/gpui-box/src/retained/logical/producers.rs
+@@ -2,6 +2,8 @@
+ use super::*;
+ use std::{cell::RefCell, rc::Rc};
+
++#[cfg(test)]
++mod invalidation_tests;
+ #[cfg(test)]
+ mod tests;
+
+@@ -37,6 +39,37 @@ pub struct LayoutProducerStats {
+     pub considered: usize,
+     pub callbacks_executed: usize,
+     pub callbacks_reused: usize,
++    /// Whole accepted plans reused without callback/input/proof previews.
++    pub plans_skipped: usize,
++    /// Indexed producer candidates selected by final changed source identities.
++    pub source_candidates: usize,
++    /// Scheduler previews only; excludes builder/responsive/final layout work.
++    pub planning_previews: usize,
++}
++
++/// Rebuilt only on successful registry/observation adoption. Generation-safe
++/// source identities select candidates without scanning all observed values.
++#[derive(Default)]
++pub(super) struct ProducerIndex(BTreeMap<Dependency, BTreeSet<(ScopeId, u64)>>);
++impl ProducerIndex {
++    pub(super) fn new(registrations: &BTreeMap<(ScopeId, u64), Registration>) -> Self {
++        let mut index: BTreeMap<_, BTreeSet<_>> = BTreeMap::new();
++        for (&key, registration) in registrations {
++            if let Some((_, sources)) = &registration.observed {
++                for dependency in sources.dependencies() {
++                    index.entry(dependency).or_default().insert(key);
++                }
++            }
++        }
++        Self(index)
++    }
++    fn candidates(&self, changed: impl Iterator<Item = Dependency>) -> BTreeSet<(ScopeId, u64)> {
++        changed
++            .filter_map(|id| self.0.get(&id))
++            .flatten()
++            .copied()
++            .collect()
++    }
+ }
+
+ #[derive(Clone)]
+@@ -187,7 +220,7 @@ impl LogicalEdit<'_, '_, '_> {
+         result
+     }
+     pub(super) fn retire_layout_producers(&mut self) -> Result<(), Error> {
+-        if self.producers().is_empty() {
++        if self.producers().is_empty() || !self.has_retired_producer_scopes() {
+             return Ok(());
+         }
+         let dead = self.retired_scopes()?;
+@@ -257,13 +290,64 @@ impl LogicalEdit<'_, '_, '_> {
+         if self.frame_environment.is_none() {
+             return Err(Error::InvalidLayoutBuildPlan);
+         }
++        self.settle_automatic_rules()?;
++        // Every registration and proof was accepted together in the previous
++        // complete frame. Reuse that acceptance only if the draft has no way
++        // to change their topology/inputs/output and indexed source values
++        // still match. Any uncertainty keeps the ordinary complete plan.
++        if self.layout_producers.is_none()
++            && self.producer_rules_unchanged()
++            && self.producer_logical_unchanged()
++            && self.frame_environment == self.live_producer_session
++            && self
++                .live_producer_revision
++                .is_some_and(|revision| self.render.producer_render_unchanged(revision))
++        {
++            let candidates = self
++                .live_producer_index
++                .candidates(self.render.changed_dependencies());
++            self.producer_stats.source_candidates = candidates.len();
++            let mut equal = true;
++            for key in candidates {
++                let registration = &self.producers()[&key];
++                if let Some((_, sources)) = &registration.observed {
++                    equal &= self.render.matches_sources(sources)?;
++                } else {
++                    equal = false;
++                }
++            }
++            if equal {
++                self.producer_plan_skipped = true;
++                self.producer_stats.plans_skipped = 1;
++                self.producer_stats.callbacks_reused = self.producers().len();
++                return Ok(());
++            }
++        }
+         self.producer_scheduling = true;
+         let result = self.build_layout_plan(LayoutBuildPlan::new());
+         self.producer_scheduling = false;
+-        result?;
++        self.producer_stats.planning_previews = result?.planning_previews;
+         self.validate_producer_sources()
+     }
+     pub(super) fn validate_producer_sources(&self) -> Result<(), Error> {
++        if self.producer_plan_skipped {
++            // No callbacks ran. Recheck only sources that can differ from the
++            // previously adopted observations, including later retirements or
++            // responsive settlement. Failed final adoption cannot alter index.
++            for key in self
++                .live_producer_index
++                .candidates(self.render.changed_dependencies())
++            {
++                let (_, sources) = self.producers()[&key]
++                    .observed
++                    .as_ref()
++                    .ok_or(Error::InvalidLayoutBuildPlan)?;
++                if !self.render.matches_sources(sources)? {
++                    return Err(Error::InvalidLayoutBuildPlan);
++                }
++            }
++            return Ok(());
++        }
+         for registration in self.producers().values() {
+             if let Some((_, sources)) = &registration.observed
+                 && !self.render.matches_sources(sources)?
+diff --git a/crates/gpui-box/src/retained/reactive/edit.rs b/crates/gpui-box/src/retained/reactive/edit.rs
+index 2d0d60e..96012ec 100644
+--- a/crates/gpui-box/src/retained/reactive/edit.rs
++++ b/crates/gpui-box/src/retained/reactive/edit.rs
+@@ -5,6 +5,11 @@ use super::*;
+ /// source generation; equality uses the same typed semantics as transactions.
+ #[derive(Clone, Default)]
+ pub(in crate::retained) struct SourceObservation(BTreeMap<Dependency, Rc<dyn Value>>);
++impl SourceObservation {
++    pub(in crate::retained) fn dependencies(&self) -> impl Iterator<Item = Dependency> + '_ {
++        self.0.keys().copied()
++    }
++}
+
+ #[derive(Clone)]
+ pub(super) struct PreparedUpdate {
+@@ -64,6 +69,30 @@ pub struct ReactiveEdit<'a, 'tree> {
+     next_effect: &'a mut u64,
+ }
+ impl<'tree> ReactiveEdit<'_, 'tree> {
++    /// Final source differences already settled by the transaction/computed
++    /// machinery, plus retirements. No source-value equality scan is required.
++    pub(in crate::retained) fn changed_dependencies(
++        &self,
++    ) -> impl Iterator<Item = Dependency> + '_ {
++        self.prepared
++            .values
++            .keys()
++            .chain(self.removed_sources.iter())
++            .copied()
++            .map(Dependency)
++    }
++    /// Strict negative certificate, not a caller-provided dirty hint. New or
++    /// changed bindings may synchronize output even without explicit TreeEdit
++    /// patches, so they must retain the normal complete producer path.
++    pub(in crate::retained) fn producer_render_unchanged(&self, revision: u64) -> bool {
++        self.tree.producer_render_unchanged(revision)
++            && self.bindings.is_empty()
++            && self.unbound.is_empty()
++            && self.prepared.values.keys().all(|id| {
++                self.source(*id)
++                    .is_ok_and(|source| source.bindings.is_empty())
++            })
++    }
+     pub(in crate::retained) fn record_source<T: 'static>(
+         &self,
+         observation: &mut SourceObservation,

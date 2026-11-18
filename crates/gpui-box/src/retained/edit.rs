@@ -24,6 +24,16 @@ pub struct TreeEdit<'a> {
     slots: usize,
 }
 impl TreeEdit<'_> {
+    pub(in crate::retained) fn producer_render_unchanged(&self, revision: u64) -> bool {
+        self.tree.revision == revision
+            && !self.tree.layout_dirty
+            && !self.tree.full_extract_required
+            && self.pixel_snap.is_none()
+            && self.nodes.is_empty()
+            && self.created.is_empty()
+            && self.removed.is_empty()
+            && self.properties.patches.is_empty()
+    }
     /// Disposable projection of the current draft, including final properties.
     /// It must never escape as another writable owner with the same identity.
     pub(in crate::retained) fn preview(

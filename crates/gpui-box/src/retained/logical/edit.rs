@@ -40,6 +40,9 @@ pub struct LogicalEdit<'a, 'draft, 'tree> {
     pub(super) producer_stats: LayoutProducerStats,
     pub(super) live_producer_revision: Option<u64>,
     pub(super) producer_render_revision: Option<u64>,
+    pub(super) live_producer_index: &'a super::producers::ProducerIndex,
+    pub(super) live_producer_session: Option<(LayoutConstraints, [f32; 2])>,
+    pub(super) producer_plan_skipped: bool,
 }
 impl LogicalEdit<'_, '_, '_> {
     pub(super) fn producer_logical_unchanged(&self) -> bool {
@@ -49,6 +52,12 @@ impl LogicalEdit<'_, '_, '_> {
                 self.scope(*id)
                     .is_ok_and(|scope| scope.children == *children)
             })
+    }
+    pub(super) fn has_retired_producer_scopes(&self) -> bool {
+        !self.removed_scopes.is_empty()
+    }
+    pub(super) fn producer_rules_unchanged(&self) -> bool {
+        self.responsive_rules.is_none()
     }
     /// Schedule once-only keyed construction from current render ancestry and
     /// explicit non-ancestral prerequisites. Failure poisons this outer edit;
@@ -671,6 +680,9 @@ impl LogicalUi {
                     producer_stats: LayoutProducerStats::default(),
                     live_producer_revision: self.producer_revision,
                     producer_render_revision: None,
+                    live_producer_index: &self.producer_index,
+                    live_producer_session: self.producer_session,
+                    producer_plan_skipped: false,
                 };
                 let value = render(value, &mut draft)?;
                 draft.settle_layout_producers()?;
@@ -931,6 +943,7 @@ impl LogicalUi {
         self.layout_session = layout_session;
         if let Some(producers) = layout_producers {
             self.layout_producers = producers;
+            self.producer_index = super::producers::ProducerIndex::new(&self.layout_producers);
         }
         self.producer_session = if self.layout_producers.is_empty() {
             None

@@ -576,6 +576,18 @@ geometry 检查均保留；观察值持有旧 Rc，未作时延／内存／FPS �
 宏与 native input/presentation p99 继续开放，详见
 [验证与复现](performance/2026-11-18-layout-producers/README.md)。
 
+后续 [producer 反向失效索引](RETAINED_PRODUCER_INVALIDATION.md) 将 accepted Signal
+read generation 映射到注册身份，随 registry/observation 成功采用时重建。事务结算后的
+变化 source／retirement 只挑选相关 observation 做 equality 复验。仅当 registry／rules／
+logical structure／constraints／viewport 未变，内部 TreeEdit 无 staged render/pixel 写入、
+无 pending layout/full extraction，且变化 source 无 property binding 同步时，可复用
+整份 accepted plan，省去 DAG、builder preview/proof 和 final tracked input layout。
+最后完整 frame geometry 与 source/lifecycle 采用仍保留，之后 responsive/source
+retirement 再复验相关 sources。没有 caller dirty hint 或仅凭等宽判断；显式 equal patch
+也保守走完整路径。相关 source 改变仍调度全部 producers，任意 callback 的跨 host 写入
+尚无 output ownership proof，不能安全声称局部过滤。Index 重建／membership 内存、private
+candidate 和最终检查仍有成本，持续 native p99 与通用反馈仍另行验收。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。

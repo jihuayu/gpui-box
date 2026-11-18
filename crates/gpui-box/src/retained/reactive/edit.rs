@@ -4,7 +4,12 @@ use super::*;
 /// Owned values observed by a reusable layout producer. Identities include the
 /// source generation; equality uses the same typed semantics as transactions.
 #[derive(Clone, Default)]
-pub(in crate::retained) struct SourceObservation(BTreeMap<Dependency, Rc<dyn Value>>);
+pub(in crate::retained) struct SourceObservation(Rc<BTreeMap<Dependency, Rc<dyn Value>>>);
+impl SourceObservation {
+    pub(in crate::retained) fn dependencies(&self) -> impl Iterator<Item = Dependency> + '_ {
+        self.0.keys().copied()
+    }
+}
 
 #[derive(Clone)]
 pub(super) struct PreparedUpdate {
@@ -64,6 +69,30 @@ pub struct ReactiveEdit<'a, 'tree> {
     next_effect: &'a mut u64,
 }
 impl<'tree> ReactiveEdit<'_, 'tree> {
+    /// Final source differences already settled by the transaction/computed
+    /// machinery, plus retirements. No source-value equality scan is required.
+    pub(in crate::retained) fn changed_dependencies(
+        &self,
+    ) -> impl Iterator<Item = Dependency> + '_ {
+        self.prepared
+            .values
+            .keys()
+            .chain(self.removed_sources.iter())
+            .copied()
+            .map(Dependency)
+    }
+    /// Strict negative certificate, not a caller-provided dirty hint. New or
+    /// changed bindings may synchronize output even without explicit TreeEdit
+    /// patches, so they must retain the normal complete producer path.
+    pub(in crate::retained) fn producer_render_unchanged(&self, revision: u64) -> bool {
+        self.tree.producer_render_unchanged(revision)
+            && self.bindings.is_empty()
+            && self.unbound.is_empty()
+            && self.prepared.values.keys().all(|id| {
+                self.source(*id)
+                    .is_ok_and(|source| source.bindings.is_empty())
+            })
+    }
     pub(in crate::retained) fn record_source<T: 'static>(
         &self,
         observation: &mut SourceObservation,
@@ -80,7 +109,7 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
                 return Err(Error::InvalidLayoutBuildPlan);
             }
         } else {
-            observation.0.insert(signal.dependency(), value.clone());
+            Rc::make_mut(&mut observation.0).insert(signal.dependency(), value.clone());
         }
         Ok(())
     }
@@ -88,7 +117,7 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
         &self,
         observation: &SourceObservation,
     ) -> Result<bool, Error> {
-        for (dependency, before) in &observation.0 {
+        for (dependency, before) in observation.0.iter() {
             if self.removed_sources.contains(&dependency.0) {
                 return Err(Error::InvalidSignal);
             }

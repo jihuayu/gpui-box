@@ -88,6 +88,7 @@ pub struct LogicalUi {
     producer_session: Option<(LayoutConstraints, [f32; 2])>,
     producer_stats: LayoutProducerStats,
     producer_revision: Option<u64>,
+    producer_index: producers::ProducerIndex,
 }
 
 impl LogicalUi {
@@ -176,6 +177,7 @@ impl LogicalUi {
             producer_session: None,
             producer_stats: LayoutProducerStats::default(),
             producer_revision: None,
+            producer_index: producers::ProducerIndex::default(),
         })
     }
 
@@ -195,6 +197,10 @@ impl LogicalUi {
         &self.ui
     }
     pub(in crate::retained) fn reactive_mut(&mut self) -> &mut ReactiveUi {
+        // Internal standalone resolvers can adopt sources/render state without
+        // passing through producer settlement. Their next logical edit must
+        // re-establish observations, even if final paint revision stayed equal.
+        self.producer_revision = None;
         &mut self.ui
     }
     pub fn published_frame(&self) -> Option<&FramePacket> {
@@ -329,6 +335,14 @@ impl LogicalUi {
                 LayoutConstraints::viewport(viewport[0], viewport[1]),
                 viewport,
             )
+        } else if self.producer_session.is_some() {
+            self.edit_local_frame(
+                LayoutConstraints::viewport(viewport[0], viewport[1]),
+                viewport,
+                |_| Ok(()),
+                |(), _| Ok(()),
+            )
+            .map(|(_, frame)| frame)
         } else {
             self.ui.local_frame(viewport)
         }

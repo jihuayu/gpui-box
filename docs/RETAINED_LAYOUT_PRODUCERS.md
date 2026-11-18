@@ -5,6 +5,12 @@ active. This builds on [once-only plans](RETAINED_LAYOUT_BUILD_PLAN.md) and
 [atomic local edits](RETAINED_ATOMIC_LOCAL_EDITS.md), using their existing four
 builder input/proof protocols and final source/lifecycle/frame adoption.
 
+The [indexed invalidation follow-up](RETAINED_PRODUCER_INVALIDATION.md) now
+reuses entire accepted plans for internally certified unchanged drafts. It uses
+generation-safe reverse source reads and retains the complete planner whenever
+there is a possible output/layout/registration change. The original per-callback
+reuse contract below still applies on that complete path.
+
 ## Public API
 
 `logical::LayoutProducer` owns an owner-local immutable `Rc<dyn Fn>` callback.
@@ -119,13 +125,17 @@ through registration instead.
 
 `LayoutProducerStats` exposes considered/callbacks_executed/callbacks_reused.
 These are per successful edit callback decisions, not total source visits,
-layout/preview work, bytes or time. All registered producers currently enter
-the planner even when callbacks reuse: full DAG validation, repeated draft
-preview, existing builder measurement/proof, final tracked layout and O(N)
-geometry validation still run. Registry maps/observations clone on modification;
+layout/preview work, bytes or time. The indexed follow-up adds plans_skipped,
+source_candidates and planning_previews. Certified whole-plan reuse counts all
+callbacks_reused and zero considered/previews; no builder inputs were evaluated.
+Any related/uncertain update still enters the complete planner for all registered
+producers: full DAG validation, repeated draft preview, existing builder
+measurement/proof, final tracked layout and O(N) geometry validation still run.
+Registry maps/observations clone on modification;
 old Signal values and callback captures remain retained by registrations. There
-is no reverse source index, global memory/time budget or guaranteed sublinear
-owner update. No latency/FPS/heap improvement is claimed without measurement.
+is now a reverse source index, rebuilt on successful registry/observation
+adoption. There is no global memory/time budget or guaranteed sublinear whole
+owner update. See the follow-up's measured costs and limited timing scope.
 
 ## ADR and remaining scope
 
