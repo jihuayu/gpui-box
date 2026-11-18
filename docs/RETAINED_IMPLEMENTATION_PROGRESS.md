@@ -10,6 +10,26 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [ReadProp stage](RETAINED_READ_PROPS.md) adds owner-local live read-only
+component inputs. Keyed LogicalEdit::prop replacements reuse the ordinary
+responsive source staging/derived graph; read_prop/bind_prop integrate producer
+observations, computed/effect inputs and typed sinks. Same-key payload changes
+retain mount/state/outputs; scope/generation/namespace checks and final atomic
+source/layout/frame adoption remain. No Signal setter/thread capability or new
+source schema/kernel/renderer algorithm is added.
+See [verification](performance/2026-11-18-read-props/README.md).
+Prepared-map copying, repeated complete derived scans and ordinary plan/candidate/
+geometry costs remain. Component sites/contexts/macros, batch input replacement,
+Store/Command, source integration, output ownership, full RenderBox, budgets and
+independent presentation stay open; no timing/FPS benefit is claimed.
+Final retained622passed/1ignored, text/WGPU656/55 and hello70/21 pass, including
+8new core and real-Noto CPU;2ReadProp compile-fail docs pass in both core feature
+configurations. Explicit keyed-payload GPU passes6complete images and Noto GPU3
+on GTX1650Ti/Vulkan/571.96. All suites/hardware cover final production behavior;
+counts overlap and no visible-cadence qualification is inferred.
+Library Clippy -D warnings, complete retained-gpu harness, scoped format/diff,
+286local links and all5unrelated WIP hashes pass.
+
 The [source-driven Content stage](RETAINED_CONTENT_PRODUCERS.md) adds Content
 kind/input to the existing build plan and persistent producer protocol. Ordinary
 data-dependent keyed structure/text can construct without first observing a

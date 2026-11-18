@@ -152,32 +152,51 @@ impl<'tree> ReactiveEdit<'_, 'tree> {
         &mut self,
         values: Vec<(Signal<LayoutStyle>, LayoutStyle)>,
     ) -> Result<(), Error> {
+        self.stage_source_values(
+            values
+                .into_iter()
+                .map(|(signal, value)| (signal.id, Rc::new(value) as Rc<dyn Value>)),
+        )
+    }
+
+    pub(in crate::retained) fn prop_value<T: PartialEq + 'static>(
+        &mut self,
+        signal: Signal<T>,
+        value: T,
+    ) -> Result<(), Error> {
+        self.read(signal)?;
+        self.stage_source_values([(signal.id, Rc::new(value) as Rc<dyn Value>)])
+    }
+
+    fn stage_source_values(
+        &mut self,
+        values: impl IntoIterator<Item = (SourceId, Rc<dyn Value>)>,
+    ) -> Result<(), Error> {
         let mut next = self.prepared.clone();
         let mut changed = BTreeSet::new();
-        for (signal, value) in values {
-            let source = self.source(signal.id)?;
-            if self.removed_sources.contains(&signal.id) {
+        for (id, value) in values {
+            let source = self.source(id)?;
+            if self.removed_sources.contains(&id) {
                 return Err(Error::InvalidSignal);
             }
             if source.computation.is_some() {
                 return Err(Error::ReadonlySignal);
             }
             next.writes += 1;
-            let value: Rc<dyn Value> = Rc::new(value);
             if next
                 .values
-                .get(&signal.id)
+                .get(&id)
                 .unwrap_or(&source.value)
                 .equal(value.as_ref())
             {
                 next.equal += 1;
                 continue;
             }
-            changed.insert(signal.id);
+            changed.insert(id);
             if source.value.equal(value.as_ref()) {
-                next.values.remove(&signal.id);
+                next.values.remove(&id);
             } else {
-                next.values.insert(signal.id, value);
+                next.values.insert(id, value);
             }
         }
         // Draft-created computations have no live reverse edges until commit.

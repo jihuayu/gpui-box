@@ -17,6 +17,8 @@ pub use edit::{ReactiveEdit, ReactiveEditCommit};
 mod delivery;
 pub(in crate::retained) mod responsive;
 pub use delivery::{UpdateBatch, UpdateQueueStats, UpdateReceiver, UpdateSender};
+mod read_prop;
+pub use read_prop::ReadProp;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct SourceId {

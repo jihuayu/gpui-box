@@ -6,6 +6,11 @@ active. Extends [once-only plans](RETAINED_LAYOUT_BUILD_PLAN.md) and
 content kind. This is a runtime primitive for frontend components, not completed
 component macros, ReadProp, Store/Command or a new UI source model.
 
+Follow-up: [ReadProp](RETAINED_READ_PROPS.md) adds live read-only payload handles,
+keyed draft replacement and ordinary computed/binding/effect integration. It
+keeps mount-created state/outputs while same-key inputs change. Full component
+contexts/sites/macros and shared source integration remain open.
+
 ## The missing direction
 
 Ordinary component structure often depends on data, not on its allocated width

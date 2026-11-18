@@ -19,6 +19,8 @@ pub use constraint_builder::{ConstraintBuilderInput, InlineConstraintBuilderInpu
 mod environment;
 mod producers;
 pub use producers::{LayoutProducer, LayoutProducerId, LayoutProducerStats};
+mod read_prop;
+pub use super::reactive::ReadProp;
 
 #[derive(Clone)]
 struct LayoutSession {

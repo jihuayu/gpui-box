@@ -637,6 +637,14 @@ FPS收益；这是组件前端可用的显式 runtime primitive，ReadProp／Bra
 宏、Store／Command与component/source统一仍未完成，见
 [验证](performance/2026-11-18-content-producers/README.md)。
 
+后续 [ReadProp 输入](RETAINED_READ_PROPS.md) 为同key组件增加持续只读payload句柄。
+`LogicalEdit::prop(scope,key,value)`通过既有source staging替换输入并结算derived，
+`read_prop`／`bind_prop`复用producer动态依赖、ComputedInputs／EffectInputs和typed sinks。
+mount一次建立的state、bindings和输出保留，闭包捕获句柄后读取当前payload；旧scope／
+generation不能访问新实例。无公开Signal转换／setter，句柄owner-local；schema6和内核／
+renderer不变。每次写仍clone prepared map并扫描／排序derived，未做batched props或性能
+收益承诺。组件Context／Branch／Match／KeepAlive／宏和component/source统一保持未完成。
+
 UI IR 的最小数据集合：
 
 - `RuntimeId + Epoch + NodeId(generation)`，区分运行时、重建和节点复用；组件 `ScopeId` 与渲染父子关系分开。
@@ -840,6 +848,9 @@ inactive 期间 Command 仍可更新应用 Store；恢复时读取最新完整 r
 宏生成的条件求值器、模式投影和事件闭包留在 Rust UI 前端；共同 UI IR 接收作用域身份、节点批次和 handler/binding 引用，不携带 Rust AST/闭包。JS/Go 将来在各自前端实现相同选择、key 和生命周期契约。宏不能替代运行时，也不能保证任意 Rust 条件在 UI 阻塞时继续求值。
 
 实现映射：现有 LogicalUi 的 ScopeId/key/清理逻辑作为身份基础，ReactiveUi 的依赖与事务作为控制区域基础；ReadProp、分支激活、KeepAlive 和宏属于新增能力。先做无宏原语的生命周期验收，再做宏展开和编译诊断，避免宏语法完成就认为运行时已完成。
+
+后续ReadProp已实现显式context读取／绑定和keyed payload替换。这里的TLS get、自动宏参数
+连接、typed Branch／Match site与KeepAlive仍是设计，不由一个输入句柄推定完成。
 
 当前无宏 Content task／producer 已能按动态 source 构建自然尺寸的 keyed 内容，并复用
 已有状态、effect和producer退休。它接通了不读取布局尺寸的构建方向；没有把组件初始化、

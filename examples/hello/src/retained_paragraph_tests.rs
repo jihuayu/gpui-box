@@ -23,6 +23,8 @@ mod layout_resource_text_tests;
 mod measurement_plan_text_tests;
 #[path = "retained_overflow_text_tests.rs"]
 mod overflow_text_tests;
+#[path = "retained_read_prop_text_tests.rs"]
+mod read_prop_text_tests;
 #[path = "retained_style_ir_text_tests.rs"]
 mod style_ir_text_tests;
 #[path = "retained_ui_ir_text_tests.rs"]

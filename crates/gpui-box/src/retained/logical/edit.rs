@@ -14,7 +14,7 @@ pub struct LogicalEdit<'a, 'draft, 'tree> {
     created_scopes: BTreeMap<ScopeId, Scope>,
     child_lists: BTreeMap<ScopeId, Vec<ScopeId>>,
     removed_scopes: BTreeSet<ScopeId>,
-    added_sources: BTreeMap<(ScopeId, u64), Box<dyn ScopedSource>>,
+    pub(super) added_sources: BTreeMap<(ScopeId, u64), Box<dyn ScopedSource>>,
     added_effects: BTreeMap<(ScopeId, u64), EffectId>,
     free_scopes: Option<Vec<usize>>,
     available_scopes: &'a [usize],
