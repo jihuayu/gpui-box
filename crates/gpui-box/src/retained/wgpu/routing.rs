@@ -35,7 +35,7 @@ pub(super) struct Plan<'a> {
 }
 impl Snapshot {
     pub fn equivalent_scene(&self, frame: &FramePacket) -> bool {
-        self.tree == frame.tree
+        self.tree == frame.stream()
             && self.revision == frame.revision
             && self.properties == frame.properties
             && self.items.len() == frame.items.len()
@@ -149,7 +149,7 @@ impl Snapshot {
             depths.into()
         };
         Ok(Self {
-            tree: frame.tree,
+            tree: frame.stream(),
             revision: frame.revision,
             items: frame.items.clone(),
             properties: frame.properties.clone(),

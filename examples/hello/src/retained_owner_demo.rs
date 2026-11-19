@@ -1,6 +1,7 @@
 //! Real GPUI window events and image installation over the common owner runtime.
 use gpui::*;
 use gpui_box::retained::{
+    animation::*,
     input::{gpui_host::GpuiInputAdapter, *},
     local::LocalFrame,
     logical::*,
@@ -44,6 +45,11 @@ pub(super) struct OwnerDemo {
     router: UiInputRouter,
     count: Signal<u32>,
     scroll_host: NodeId,
+    animated_button: NodeId,
+    animation: Option<AnimationRuntime>,
+    animation_count: u32,
+    next_animation_id: u64,
+    animate: bool,
     #[cfg(feature = "native-check")]
     buttons: [NodeId; 2],
     focus: FocusHandle,
@@ -215,6 +221,11 @@ impl OwnerDemo {
             router: UiInputRouter::new(),
             count,
             scroll_host,
+            animated_button: _buttons[0],
+            animation: None,
+            animation_count: 0,
+            next_animation_id: 1,
+            animate: std::env::args().any(|arg| arg == "--animate"),
             #[cfg(feature = "native-check")]
             buttons: _buttons,
             focus,
@@ -441,7 +452,66 @@ impl OwnerDemo {
                 return self.shown.clone();
             }
         };
-        let scene = self.ui.input_scene().unwrap();
+        let mut scene = self.ui.input_scene().unwrap();
+        let frame = if self.animate {
+            let now = std::time::Instant::now();
+            let result = (|| -> Result<_, AnimationError> {
+                if self.animation.is_none() {
+                    self.animation = Some(AnimationRuntime::new(
+                        frame.clone(),
+                        AnimationLimits::default(),
+                    )?);
+                }
+                let animation = self.animation.as_mut().unwrap();
+                animation.set_scene(frame.clone(), now)?;
+                let count = *self.ui.read(self.count).unwrap();
+                if count != self.animation_count {
+                    animation.apply(
+                        AnimationBatch {
+                            scene: animation.scene(),
+                            sequence: animation.next_sequence(),
+                            controls: vec![AnimationControl::Animate(AnimationSpec {
+                                id: self.next_animation_id,
+                                node: self.animated_button,
+                                destination: AnimationValue::Translation([
+                                    if count % 2 == 0 { 0.0 } else { 120.0 },
+                                    0.0,
+                                ]),
+                                curve: AnimationCurve::Spring(Spring {
+                                    mass: 1.0,
+                                    stiffness: 180.0,
+                                    damping: 24.0,
+                                }),
+                                duration: std::time::Duration::from_millis(700),
+                                start: AnimationStart::Now,
+                                velocity: RetargetVelocity::Preserve,
+                            })],
+                        },
+                        now,
+                    )?;
+                    self.next_animation_id += 1;
+                    self.animation_count = count;
+                }
+                let output = animation.sample(now)?;
+                scene = output.input_scene(&scene)?;
+                if animation.is_animating() {
+                    window.request_animation_frame();
+                }
+                // This example has no completion handler; explicit draining
+                // releases the bounded reliable outcome reservations.
+                animation.drain_notices().for_each(drop);
+                Ok(output.frame().clone())
+            })();
+            match result {
+                Ok(frame) => frame,
+                Err(error) => {
+                    self.error = Some(error.to_string());
+                    return self.shown.clone();
+                }
+            }
+        } else {
+            frame
+        };
         let request = (scene.id(), size, scale.to_bits());
         if self.cpu {
             if self.last_requested != Some(request) {
@@ -626,6 +696,11 @@ impl Render for OwnerDemo {
                 div()
                     .p_4()
                     .child("Owner runtime · 鼠标 / Tab / Enter / Space / 滚轮")
+                    .child(if self.animate {
+                        "点击计数按钮：渲染时间线平移，可连续重定向"
+                    } else {
+                        ""
+                    })
                     .child(div().text_sm().child(caption)),
             )
             .child(

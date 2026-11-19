@@ -1,0 +1,11 @@
+passed=true
+mode=CPU
+input=app-internal GPUI dispatch, not OS injection
+framebuffer=explicit native draw/readback, not displayed cadence
+adapter=None
+stage=0,count=0,scroll=0,pixels=477000,native_surface=false,scale=1.5,animate=true
+stage=1,count=1,scroll=0,pixels=477000,native_surface=false,scale=1.5,animate=true
+stage=2,count=2,scroll=0,pixels=477000,native_surface=false,scale=1.5,animate=true
+stage=3,count=12,scroll=214.66666,pixels=477000,native_surface=false,scale=1.5,animate=true
+stage=4,count=12,scroll=154.66666,pixels=477000,native_surface=false,scale=1.5,animate=true
+stage=5,count=12,scroll=154.66666,pixels=477000,native_surface=false,scale=1.5,animate=true

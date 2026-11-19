@@ -35,16 +35,21 @@ pub(crate) fn open(cx: &mut App, output: PathBuf, cpu: bool) {
                 for _ in 0..200 {
                     AnyWindowHandle::from(window).update(cx, |_, window, cx| window.draw(cx).clear(cx)).map_err(|e|e.to_string())?;
                     cx.background_executor().timer(Duration::from_millis(25)).await;
-                    if view.read_with(cx, |view, _| view.cpu_task.is_none() && view.pending.is_none() && view.ready.is_none() && view.shown.is_some()) { break; }
+                    if view.read_with(cx, |view, _| view.cpu_task.is_none() && view.pending.is_none() && view.ready.is_none() && view.shown.is_some() && !view.animation.as_ref().is_some_and(AnimationRuntime::is_animating)) { break; }
                 }
                 let (pixels, count, scroll, native, scale) = AnyWindowHandle::from(window).update(cx, |_, window, cx| {
                     window.draw(cx).clear(cx);
                     window.present_if_needed();
                     let this = view.read(cx);
                     if let Some(error) = &this.error { return Err(error.clone()); }
-                    if this.cpu_task.is_some() || this.pending.is_some() || this.ready.is_some() { return Err("CPU work not settled".into()); }
+                    if this.cpu_task.is_some() || this.pending.is_some() || this.ready.is_some() || this.animation.as_ref().is_some_and(AnimationRuntime::is_animating) { return Err("render work not settled".into()); }
                     let shown = this.shown.as_ref().ok_or("no installed image")?;
                     if this.router.scene_id() != Some(shown.scene.id()) { return Err("installed input identity differs".into()); }
+                    if this.animate {
+                        if shown.scene.id().presentation.is_none() {return Err("animation image has no sampled input identity".into());}
+                        let expected=if *this.ui.read(this.count).unwrap()%2==0 {0.0} else {120.0};
+                        if shown.frame.resolve_geometry(this.animated_button).unwrap().spatial.translation!=[expected,0.0] {return Err("animation final placement differs".into());}
+                    }
                     let mut job = SoftwareJob::new(shown.frame.resolve(), SoftwareOptions {
                         size: shown.size, scale: shown.scale, background: 0,
                         effects: pacing::SoftwareEffects::Exact, max_bytes: 128*1024*1024,
@@ -75,7 +80,7 @@ pub(crate) fn open(cx: &mut App, output: PathBuf, cpu: bool) {
                 let expected = [0,1,2,12,12,12][stage];
                 if count != expected { return Err(format!("stage {stage}: count {count}, expected {expected}")); }
                 if stage==3 && scroll<=0.0 { return Err("focus did not reveal bottom button".into()); }
-                evidence.push_str(&format!("stage={stage},count={count},scroll={scroll},pixels={pixels},native_surface={native},scale={scale}\n"));
+                evidence.push_str(&format!("stage={stage},count={count},scroll={scroll},pixels={pixels},native_surface={native},scale={scale},animate={}\n",std::env::args().any(|arg|arg=="--animate")));
                 AnyWindowHandle::from(window).update(cx, |_, window, cx| {
                     let click = {
                         let this=view.read(cx);

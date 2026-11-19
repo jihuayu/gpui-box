@@ -74,6 +74,12 @@ struct Snapshot {
 #[derive(Clone, Debug)]
 pub struct LocalFrame(Arc<Snapshot>);
 
+pub(in crate::retained) struct PresentationOverride {
+    pub node: NodeId,
+    pub translation: Option<[f32; 2]>,
+    pub opacity: Option<f32>,
+}
+
 /// Internal spatial transport carries no material/resource references. Only
 /// anchors need resolved world coordinates; ordinary entries remain local.
 #[cfg(any(test, feature = "retained-wgpu"))]
@@ -111,6 +117,93 @@ impl properties::PropertyOutput for IgnoreProperties {
 }
 
 impl LocalFrame {
+    pub(in crate::retained) fn presentation_value(&self, node: NodeId) -> Option<([f32; 2], f32)> {
+        let p = self.placement(*self.0.topology.indices.get(&node)?);
+        Some((p.spatial.translation, p.opacity))
+    }
+    /// Reuse the authored topology/resources and immutable placement pages.
+    /// Only this trusted render-domain producer assigns the separate stream.
+    pub(in crate::retained) fn sample_placements(
+        &self,
+        previous: Option<&Self>,
+        stream: u64,
+        revision: u64,
+        values: &[PresentationOverride],
+    ) -> Result<Self, Error> {
+        if self.pixel_snap() != PixelSnap::None {
+            return Err(Error::UnsupportedLayout);
+        }
+        let mut placements = self.0.placements.clone();
+        let mut changed = vec![];
+        for value in values {
+            let (node, translation, opacity) = (value.node, value.translation, value.opacity);
+            let index = *self
+                .0
+                .topology
+                .indices
+                .get(&node)
+                .ok_or(Error::InvalidNode)?;
+            let mut value = self.placement(index);
+            if let Some(t) = translation {
+                if t.iter().any(|n| !n.is_finite()) {
+                    return Err(Error::InvalidTranslation);
+                }
+                value.spatial.translation = t;
+            }
+            if let Some(o) = opacity {
+                if !o.is_finite() || !(0.0..=1.0).contains(&o) {
+                    return Err(Error::InvalidOpacity);
+                }
+                value.opacity = o;
+            }
+            placements.set(index, value);
+        }
+        let stable = previous.filter(|old| {
+            Arc::ptr_eq(&self.0.topology, &old.0.topology)
+                && Arc::ptr_eq(&self.0.template.items, &old.0.template.items)
+                && Arc::ptr_eq(&self.0.template.properties, &old.0.template.properties)
+                && self.0.placements.pages.len() == old.0.placements.pages.len()
+        });
+        // Union pages with authored or previous overrides. Do not scan unrelated
+        // paint payloads; the page directory is still O(scene / 64).
+        if let Some(old) = stable {
+            for page in 0..placements.pages.len() {
+                if placements.pages[page].is_none() && old.0.placements.pages[page].is_none() {
+                    continue;
+                }
+                for index in
+                    page * PLACEMENTS_PER_PAGE..((page + 1) * PLACEMENTS_PER_PAGE).min(self.len())
+                {
+                    let current = placements
+                        .get(index)
+                        .cloned()
+                        .unwrap_or_else(|| self.placement(index));
+                    if current != old.placement(index) {
+                        changed.push(index);
+                    }
+                }
+            }
+            if changed.is_empty() {
+                return Ok(old.clone());
+            }
+        }
+        let mut template = self.0.template.clone();
+        template.stream = Some(stream);
+        let frame = Self(Arc::new(Snapshot {
+            template,
+            owner_items: Weak::new(),
+            topology: self.0.topology.clone(),
+            placements,
+            revision,
+            base: stable.map_or_else(Weak::new, |old| Arc::downgrade(&old.0)),
+            changed,
+            material_changed: vec![],
+            full_publication: stable.is_none(),
+            resolved: std::sync::OnceLock::new(),
+        }));
+        frame.validate_geometry()?;
+        Ok(frame)
+    }
     /// Private predecessor provenance plus a single root-only translation. No
     /// descendant edit may be hidden behind an aggregate placement change.
     #[cfg(feature = "retained-wgpu")]
@@ -278,6 +371,9 @@ impl LocalFrame {
     }
     pub fn tree(&self) -> u64 {
         self.0.template.tree
+    }
+    pub fn stream(&self) -> u64 {
+        self.0.template.stream()
     }
     pub fn revision(&self) -> u64 {
         self.0.revision
@@ -527,7 +623,6 @@ impl LocalFrame {
     pub(in crate::retained) fn follows(&self, old: &Self) -> bool {
         self.0.base.ptr_eq(&Arc::downgrade(&old.0))
     }
-    #[cfg(any(test, feature = "retained-wgpu"))]
     pub(in crate::retained) fn same(&self, old: &Self) -> bool {
         Arc::ptr_eq(&self.0, &old.0)
     }

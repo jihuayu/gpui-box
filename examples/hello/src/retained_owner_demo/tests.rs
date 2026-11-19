@@ -4,6 +4,169 @@ use core::prelude::v1::test;
 mod text_inheritance_test;
 
 #[gpui::test]
+fn owner_host_animation_installs_sampled_cpu_image_and_clicks_its_moved_geometry(
+    cx: &mut TestAppContext,
+) {
+    let platform = Arc::new(gpui_wgpu::CosmicTextSystem::new_without_system_fonts(
+        "Noto Sans CJK SC",
+    ));
+    let mut real_cx = TestAppContext::build_with_text_system(cx.dispatcher.clone(), None, platform);
+    let cx = &mut real_cx;
+    cx.text_system()
+        .add_fonts(vec![std::borrow::Cow::Borrowed(include_bytes!(
+            "../../assets/NotoSansSC-Regular.otf"
+        ))])
+        .unwrap();
+    let window = cx.open_window(size(px(600.0), px(460.0)), |w, cx| {
+        OwnerDemo::new(w, cx, true)
+    });
+    let view = window.root(cx).unwrap();
+    let cx = VisualTestContext::from_window(*window, cx).into_mut();
+    cx.run_until_parked();
+    let (node, before) = view.update(cx, |this, cx| {
+        let node = this.animated_button;
+        let now = std::time::Instant::now();
+        let source = this.shown.as_ref().unwrap().frame.clone();
+        let before = source.resolve_geometry(node).unwrap().bounds;
+        let mut r = AnimationRuntime::new(source, AnimationLimits::default()).unwrap();
+        r.apply(
+            AnimationBatch {
+                scene: r.scene(),
+                sequence: 1,
+                controls: vec![
+                    AnimationControl::Animate(AnimationSpec {
+                        id: 1,
+                        node,
+                        destination: AnimationValue::Translation([80.0, 0.0]),
+                        curve: AnimationCurve::Linear,
+                        duration: std::time::Duration::from_secs(1),
+                        start: AnimationStart::Now,
+                        velocity: RetargetVelocity::Reset,
+                    }),
+                    AnimationControl::Finish { id: 1 },
+                ],
+            },
+            now,
+        )
+        .unwrap();
+        this.animate = true;
+        this.animation = Some(r);
+        this.next_animation_id = 2;
+        cx.notify();
+        (node, before)
+    });
+    cx.run_until_parked();
+    let click = view.read_with(cx, |this, _| {
+        assert!(this.error.is_none(), "{:?}", this.error);
+        let shown = this.shown.as_ref().unwrap();
+        assert_eq!(this.router.scene_id(), Some(shown.scene.id()));
+        assert!(shown.scene.id().presentation.is_some());
+        let moved = shown.frame.resolve_geometry(node).unwrap().bounds;
+        assert_eq!(moved.x, before.x + 80.0);
+        assert_eq!(
+            this.ui.layout_result(node).unwrap().location,
+            [before.x, before.y]
+        );
+        let mut job = SoftwareJob::new(
+            shown.frame.resolve(),
+            SoftwareOptions {
+                size: shown.size,
+                scale: shown.scale,
+                background: 0,
+                effects: pacing::SoftwareEffects::Exact,
+                max_bytes: 128 * 1024 * 1024,
+            },
+        )
+        .unwrap();
+        while !job.step(8192).unwrap() {}
+        let mut bytes = job.into_frame().unwrap().pixels().to_vec();
+        for p in bytes.as_chunks_mut::<4>().0 {
+            p.swap(0, 2);
+        }
+        let Raster::Image(image) = &shown.raster else {
+            panic!("CPU picture expected")
+        };
+        assert!(image.as_bytes(0).unwrap() == bytes.as_slice());
+        // Far right lies outside the old button but inside the installed sample.
+        this.bounds.unwrap().origin
+            + point(
+                px((moved.x + moved.width).min(shown.viewport[0]) - 8.0),
+                px(moved.y + 20.0),
+            )
+    });
+    // Route the observed outside-old-box point through the ordinary owner pump.
+    // Hold the controller while processing both edges, then notify once. Real
+    // native OS pointer injection is separate from this host-image control.
+    view.update(cx, |this, cx| {
+        let position = [
+            f32::from(click.x - this.bounds.unwrap().origin.x),
+            f32::from(click.y - this.bounds.unwrap().origin.y),
+        ];
+        assert_eq!(
+            this.shown.as_ref().unwrap().scene.hit_test(position),
+            this.shown.as_ref().unwrap().scene.node_id(node),
+            "position={position:?}, viewport={:?}, moved={:?}",
+            this.shown.as_ref().unwrap().viewport,
+            this.shown
+                .as_ref()
+                .unwrap()
+                .frame
+                .resolve_geometry(node)
+                .unwrap()
+                .bounds
+        );
+        let down = this
+            .ui
+            .handle_input(&mut this.router, UiInput::PrimaryDown(position))
+            .unwrap();
+        assert_eq!(
+            this.router.captured(),
+            this.shown.as_ref().unwrap().scene.node_id(node),
+            "down delivered={}, ignored={}",
+            down.delivered,
+            down.ignored
+        );
+        let up = this
+            .ui
+            .handle_input(&mut this.router, UiInput::PrimaryUp(position))
+            .unwrap();
+        assert_eq!(
+            *this.ui.read(this.count).unwrap(),
+            1,
+            "up delivered={}, ignored={}, hover={:?}, source={:?}, installed={:?}",
+            up.delivered,
+            up.ignored,
+            this.router.hovered(),
+            this.ui.input_scene().unwrap().id(),
+            this.router.scene_id()
+        );
+        this.animation_count = 1;
+        cx.notify();
+    });
+    cx.run_until_parked();
+    view.read_with(cx, |this, _| {
+        assert_eq!(*this.ui.read(this.count).unwrap(), 1);
+        assert!(this.error.is_none(), "{:?}", this.error);
+        assert_eq!(
+            this.router.scene_id(),
+            Some(this.shown.as_ref().unwrap().scene.id())
+        );
+        assert_eq!(
+            this.shown
+                .as_ref()
+                .unwrap()
+                .frame
+                .resolve_geometry(node)
+                .unwrap()
+                .spatial
+                .translation,
+            [80.0, 0.0]
+        );
+        assert!(this.cpu_task.is_none() && this.pending.is_none() && this.ready.is_none());
+    });
+}
+
+#[gpui::test]
 fn owner_host_theme_click_installs_complete_cpu_picture_with_same_component(
     cx: &mut TestAppContext,
 ) {

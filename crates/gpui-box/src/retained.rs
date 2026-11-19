@@ -33,6 +33,7 @@ pub use layout::{
     LayoutDirection, LayoutDisplay, LayoutPosition, LayoutResult, LayoutSize, LayoutStyle,
     Length as LayoutLength, Overflow as LayoutOverflow,
 };
+pub mod animation;
 pub mod pacing;
 pub mod software;
 pub use image::ImageResource;
@@ -147,6 +148,7 @@ pub struct PaintItem {
 #[derive(Clone, Debug)]
 pub struct FramePacket {
     pixel_snap: PixelSnap,
+    stream: Option<u64>,
     pub tree: u64,
     pub base_revision: Option<u64>,
     pub revision: u64,
@@ -163,6 +165,11 @@ pub struct FramePacket {
 }
 
 impl FramePacket {
+    /// Submission ordering domain. Node/tree identity is independent of this
+    /// stream when a render-owned animation samples one authored UI scene.
+    pub fn stream(&self) -> u64 {
+        self.stream.unwrap_or(self.tree)
+    }
     /// Presentation policy used by the producer. Device-pixel output must be
     /// consumed at that exact logical-to-physical scale.
     pub fn pixel_snap(&self) -> PixelSnap {
@@ -543,10 +550,7 @@ impl UiTree {
         Ok(tree)
     }
     pub fn new(style: Style, rgba: u32) -> Result<Self, Error> {
-        static NEXT: AtomicU64 = AtomicU64::new(1);
-        let identity = NEXT
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| n.checked_add(1))
-            .map_err(|_| Error::RevisionExhausted)?;
+        let identity = next_frame_stream()?;
         let mut layout = TaffyTree::new();
         layout.disable_rounding();
         let style = share_style(style);
@@ -1602,6 +1606,7 @@ impl UiTree {
         };
         let mut frame = FramePacket {
             pixel_snap: self.pixel_snap,
+            stream: None,
             tree: self.identity,
             base_revision: self.frame.as_ref().map(|frame| frame.revision),
             revision: self.revision,
@@ -1635,6 +1640,12 @@ impl UiTree {
         self.frame = Some(frame.clone());
         Ok(frame)
     }
+}
+
+fn next_frame_stream() -> Result<u64, Error> {
+    static NEXT: AtomicU64 = AtomicU64::new(1);
+    NEXT.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| n.checked_add(1))
+        .map_err(|_| Error::RevisionExhausted)
 }
 
 fn validate_constraint_box(style: &Style, children: usize, measured: bool) -> Result<(), Error> {

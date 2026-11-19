@@ -99,10 +99,10 @@ impl WgpuFrameRenderer {
         if self.failed {
             return Err(Error::Gpu("reset after failed frame submission".into()));
         }
-        if self.retired_sources.contains(&frame.tree())
-            || self
-                .latest
-                .is_some_and(|(tree, revision)| tree == frame.tree() && revision > frame.revision())
+        if self.retired_sources.contains(&frame.stream())
+            || self.latest.is_some_and(|(tree, revision)| {
+                tree == frame.stream() && revision > frame.revision()
+            })
         {
             return Err(Error::StaleFrame);
         }
@@ -111,7 +111,7 @@ impl WgpuFrameRenderer {
         if previous.as_ref().is_some_and(|old| old.same(frame))
             && self.scale == scale
             && self.surface == surface
-            && self.source == Some((frame.tree(), frame.revision()))
+            && self.source == Some((frame.stream(), frame.revision()))
         {
             return Ok(None);
         }
@@ -122,7 +122,7 @@ impl WgpuFrameRenderer {
                     && self.shared_content
                     && self.scale == scale
                     && self.surface == surface
-                    && self.source == Some((old.tree(), old.revision()))
+                    && self.source == Some((old.stream(), old.revision()))
                     && self.local_spatial_slots.len() == old.len()
                     && self.local_instance_ranges.len() == old.len()
                     && frame.follows(old)
@@ -135,7 +135,7 @@ impl WgpuFrameRenderer {
             .and_then(|old| frame.spatial_updates(old));
         let Some(updates) = updates else {
             let resolved = frame.resolve();
-            if self.latest == Some((frame.tree(), frame.revision()))
+            if self.latest == Some((frame.stream(), frame.revision()))
                 && self
                     .routing_snapshot
                     .as_ref()
@@ -361,7 +361,7 @@ impl WgpuFrameRenderer {
         self.spatial_arena.acknowledge();
         self.arena.acknowledge();
         self.shadow_arena.acknowledge();
-        self.source = Some((frame.tree(), frame.revision()));
+        self.source = Some((frame.stream(), frame.revision()));
         self.latest = self.source;
         self.routing_snapshot = None;
         self.validation_cache = validation::ValidationCache::default();

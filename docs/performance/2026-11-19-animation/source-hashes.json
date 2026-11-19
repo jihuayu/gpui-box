@@ -1,0 +1,26 @@
+{
+  "base_commit": "612f11b2c3e97f9b5448c4123e00d74b895761e0",
+  "changed_rust_sha256": {
+    "crates/gpui-box/src/retained.rs": "5ffa4cec9421af3d4fda60a8efe63f096f11c4b878f351b64740a6bf20d30fed",
+    "crates/gpui-box/src/retained/animation.rs": "cffb83cfcf412100ce0e1f4b9780a2a8db81848f0985629da78430b2fdf67b46",
+    "crates/gpui-box/src/retained/animation/curve.rs": "a823dc3365da1e94f89b57dadf8c44c08ec9be4c447abb013f620597b63a8e8b",
+    "crates/gpui-box/src/retained/animation/tests.rs": "a8d8d08954ce26ba4c88b6e523eca3b43eb8322183131b8fd7b8c6d102d1f1e9",
+    "crates/gpui-box/src/retained/frame_queue.rs": "a113903db9c02f92edcec47613c926102c68b17f1ec5cc3e0f12e509c8f05cd9",
+    "crates/gpui-box/src/retained/input.rs": "0b293cb00e0c2fe97d334ccf4c0331d0772286bbfb4f28fcce590faf96ba1cf9",
+    "crates/gpui-box/src/retained/input/router.rs": "8c20c542ae354c2ba95198cec956e2d2472aae9ba7f0d05bae9bf1739fd334c1",
+    "crates/gpui-box/src/retained/input/scroll.rs": "0fc0c31714c33e367eac809a5e3f7def8407efa5df5f714c441a4cc0b80d6abe",
+    "crates/gpui-box/src/retained/local.rs": "cdb45946bb6160a99785ee575fc75115d24607f6eff96b9e5ae837cf3c14d187",
+    "crates/gpui-box/src/retained/logical/events.rs": "785de3341a3be19e34f4880a159195205858ce683491b4dd2c6084e4f9886cd5",
+    "crates/gpui-box/src/retained/paint_store.rs": "3c732d7d9d259c73ea575a16507ea522df7a863352379f788069b21e9504931f",
+    "crates/gpui-box/src/retained/paint_store/updates.rs": "5bf90172bf13c4569ce8fd4202a24b03be60c1f013403fb99dc5fa8adfbd1916",
+    "crates/gpui-box/src/retained/ui_ir/runtime.rs": "c61b2f6f1d03fc8dfc340bbfd4269912dc04c15ed4a24c018bfcd9de60564c05",
+    "crates/gpui-box/src/retained/wgpu.rs": "235b31fb116f3b36fe2eeff02cab43593cce0aa6478b72ef5fca8b2abaaf7b5a",
+    "crates/gpui-box/src/retained/wgpu/local.rs": "f56c0a0ba5d53fa48766a50758dbdf0145f58624286e285192847928d46c7859",
+    "crates/gpui-box/src/retained/wgpu/routing.rs": "3c0281b864b26f2666df21f64cb8740da4e724661bc4911dea622ff0f473f6fe",
+    "examples/hello/src/retained_animation_text_tests.rs": "65164f6f9943d8ac7addadbe84128e5ac6070baf16f3f504dd3c861a2c7e5f3d",
+    "examples/hello/src/retained_owner_demo.rs": "d2e055562dddfecaa13bcb96abd8cd8e89384c053315c11b700f93118d9ea1b6",
+    "examples/hello/src/retained_owner_demo/native_check.rs": "bf8b98ec667bdc520f2e580b6a925a9c0a98760c98bf890f880e576372cd017c",
+    "examples/hello/src/retained_owner_demo/tests.rs": "a3df98f0455313a4c372de8e5c37b6bb665666ca38ccead57021f17dc227acf9",
+    "examples/hello/src/retained_paragraph_tests.rs": "64bb5422b4fb4987dca706f5259f706b9f1f5f101bbeceada1ee6b764d754217"
+  }
+}

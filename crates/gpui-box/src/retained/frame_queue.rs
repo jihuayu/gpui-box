@@ -21,7 +21,7 @@ impl LocalFrameQueue {
     }
     pub fn publish(&self, frame: local::LocalFrame) -> Result<bool, Error> {
         let mut state = self.state.lock().map_err(|_| Error::FrameQueuePoisoned)?;
-        if state.source.is_some_and(|tree| tree != frame.tree()) {
+        if state.source.is_some_and(|tree| tree != frame.stream()) {
             return Err(Error::InvalidFrame);
         }
         if state
@@ -35,7 +35,7 @@ impl LocalFrameQueue {
             return Ok(false);
         }
         let wake = state.pending.is_none();
-        state.source = Some(frame.tree());
+        state.source = Some(frame.stream());
         state.revision = Some(frame.revision());
         state.pending = Some(frame);
         state.stats.published += 1;
@@ -102,7 +102,7 @@ impl FrameQueue {
             return Err(Error::InvalidFrame);
         }
         let mut state = self.state.lock().map_err(|_| Error::FrameQueuePoisoned)?;
-        if state.source.is_some_and(|source| source != frame.tree) {
+        if state.source.is_some_and(|source| source != frame.stream()) {
             return Err(Error::InvalidFrame);
         }
         if state
@@ -116,7 +116,7 @@ impl FrameQueue {
             return Ok(false);
         }
         let wake = state.pending.is_none();
-        state.source = Some(frame.tree);
+        state.source = Some(frame.stream());
         state.latest_revision = Some(frame.revision);
         state.stats.published += 1;
         state.stats.coalesced += u64::from(!wake);

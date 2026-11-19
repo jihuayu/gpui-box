@@ -727,6 +727,7 @@ fn input_scene(
             source_revision,
             tree: frame.tree(),
             frame_revision: frame.revision(),
+            presentation: None,
         },
         frame: frame.clone(),
         identities: identities.clone(),

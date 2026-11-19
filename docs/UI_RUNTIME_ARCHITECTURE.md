@@ -1207,6 +1207,15 @@ v1 条件包括 hover、pressed、focus-visible、disabled、selected，以及�
 
 ## 7. 动画：目标值、时间线和呈现值分开
 
+2026-11-19 实现补充：[Render-owned AnimationRuntime](RETAINED_ANIMATION_RUNTIME.md)
+已用纯数据translation／opacity controller、有限曲线、当前值重定向／spring速度、
+hold／finish／cancel／release和有界终态通知，按单调时间采样既有LocalFrame。
+独立stream／sample序号与UI tree／revision分离；input scene仅允许从精确source投影，
+沿实际安装sample几何命中。--retained-owner --animate共用GPU／CPU输出。
+此实现仍有全场景geometry校验、opacity／source变化full recovery成本；PixelSnap
+DevicePixels拒绝。没有独立native呈现、预算PendingScene、direct scroll／drag或
+跨语言animation ABI。下述设计目标不因这一阶段全部完成。
+
 Render Runtime 持有三类状态：
 
 | 状态 | 内容 |

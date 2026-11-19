@@ -6,6 +6,12 @@ Status: experimental Rust contract,2026-11-18. Full RFC remains active. Extends
 interaction contract is backend-independent; this is not complete event/IME/
 accessibility support or native input-to-presentation qualification.
 
+2026-11-19 follow-up: [render-owned sampled input](RETAINED_ANIMATION_RUNTIME.md)
+adds optional UiInputSceneId.presentation stream/sample identity. Source versions
+retain their authored meanings; ordered samples of the same exact source can
+adopt matching geometry without manufacturing UI source edits. Complete public
+UiInputSceneId literals require the optional field. UI source schema stays7.
+
 The later [wheel scrolling stage](RETAINED_WHEEL_SCROLLING.md) adds default
 logical-pixel wheel deltas and ancestor chaining through current exact-base UI
 batches while retaining adopted target geometry. Source schema now4 adds a

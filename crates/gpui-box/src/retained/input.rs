@@ -81,12 +81,19 @@ impl UiInteraction {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct UiPresentationId {
+    pub stream: u64,
+    pub revision: u64,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct UiInputSceneId {
     pub runtime: u64,
     pub epoch: u64,
     pub source_revision: u64,
     pub tree: u64,
     pub frame_revision: u64,
+    /// Render-owned sample identity; the authored scene revision stays intact.
+    pub presentation: Option<UiPresentationId>,
 }
 /// The host names what it actually knows when adopting geometry. No tool or
 /// renderer completion is inferred from these caller-supplied evidence labels.

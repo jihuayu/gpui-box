@@ -10,6 +10,31 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [render-owned timeline stage](RETAINED_ANIMATION_RUNTIME.md) separates
+authored scene values from translation/opacity controllers and sampled output.
+Data-only bounded curves, ordered scene/sequence admission, current-value retarget
+and spring velocity, held finish/cancel/release, exact-generation removal and
+reserved terminal outcomes reuse existing immutable LocalFrame placements and
+normal CPU/GPU composition. Separate stream/sample identity preserves authored
+tree/node versions. Exact-source projected input follows installed sampled
+geometry. The owner demo accepts --animate on GPU/CPU, but final presentation is
+still GPUI callback-driven. Complete geometry validation remains O(scene), opacity
+and source changes may use full recovery, and PixelSnap::DevicePixels rejects.
+Independent native presentation, budgeted PendingScene, control transport/ABI,
+direct scroll/drag and sustained qualification remain open. Full goal stays active.
+See [decision](ADR_RETAINED_ANIMATION_RUNTIME.md) and
+[verification](performance/2026-11-19-animation/README.md).
+
+Final retained-only812passed/1ignored, text/WGPU847/70, each17compiler doctests;
+hello106/43.
+Explicit translation GPU and real Noto GPU each1passed; spatial reuse/skipped
+base/material recovery and five full text/effect images plus reset verified.
+Native --animate GPU/CPU each pass six stages and2,862,000 framebuffer pixels at
+1.5scale, including Tab/Space reveal/wheel/capture and matching input adoption.
+Library Clippy, CPU-without-WGPU and perf harness checks pass. Host CPU installed
+image plus moved-geometry activation passes. No displayed-cadence/input-to-photon
+or speedup claim; full RFC active.
+
 The [typed token / expression stage](RETAINED_TOKENS.md) connects symbolic
 group/name/kind keys, complete default schemas, explicit replacement definitions
 and immutable resolved tables to ordinary StyleRule/StylePlan. Flat data-only

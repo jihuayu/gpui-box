@@ -1,0 +1,18 @@
+{
+  "gpu": {
+    "launch": {
+      "started": "2026-11-19T08:54:00.3803978+08:00",
+      "binary_sha256": "516C3AFF63EABF0397C82C94A3A3374993FB5DC64C49CE96951E772CB629543B",
+      "pid": 52796
+    },
+    "result_sha256": "a78921ead20f0657af3649b371b655939a2d696e31196f56cafd7bb44fa0c832"
+  },
+  "cpu": {
+    "launch": {
+      "started": "2026-11-19T08:54:40.9284041+08:00",
+      "pid": 47764,
+      "binary_sha256": "516C3AFF63EABF0397C82C94A3A3374993FB5DC64C49CE96951E772CB629543B"
+    },
+    "result_sha256": "e60a71e9b4c7a5af8c8902fbcb1a69c1e1f04faab06a4ce732c091b4f18fdc75"
+  }
+}

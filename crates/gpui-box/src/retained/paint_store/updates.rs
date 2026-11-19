@@ -94,7 +94,7 @@ impl PaintUpdates {
         let Some(base) = &p.base else {
             return false;
         };
-        p.tree == frame.tree
+        p.tree == frame.stream()
             && p.revision == frame.revision
             && base.tree == tree
             && base.revision == revision
@@ -166,10 +166,10 @@ impl FramePacket {
         #[cfg(all(feature = "retained-wgpu", not(target_family = "wasm")))]
         {
             let provenance = Provenance {
-                tree: self.tree,
+                tree: self.stream(),
                 revision: self.revision,
                 base: base.map(|base| Base {
-                    tree: base.tree,
+                    tree: base.stream(),
                     revision: base.revision,
                     items: Arc::downgrade(&base.items),
                     properties: Arc::downgrade(&base.properties),

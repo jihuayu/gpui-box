@@ -186,7 +186,7 @@ pub(in crate::retained) fn plan_wheels_with_policy(
         if event.scene.tree != current.id.tree
             || event.scene.source_revision > current.id.source_revision
             || event.scene.source_revision == current.id.source_revision
-                && event.scene != current.id
+                && event.scene.frame_revision != current.id.frame_revision
         {
             return Err(UiInputError::StaleScrollRoute);
         }
@@ -269,7 +269,7 @@ pub(in crate::retained) fn validate_reveals_with_policy(
         if request.scene.tree != current.id.tree
             || request.scene.source_revision > current.id.source_revision
             || request.scene.source_revision == current.id.source_revision
-                && request.scene != current.id
+                && request.scene.frame_revision != current.id.frame_revision
         {
             return Err(UiInputError::StaleScrollRoute);
         }

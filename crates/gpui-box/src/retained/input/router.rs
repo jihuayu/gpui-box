@@ -49,8 +49,20 @@ impl UiInputRouter {
             if scene.id.epoch != old.id.epoch {
                 return Err(UiInputError::WrongEpoch);
             }
-            if scene.id.source_revision < old.id.source_revision
-                || scene.id.source_revision == old.id.source_revision && scene.id != old.id
+            let ordered_sample = match (old.id.presentation, scene.id.presentation) {
+                (None, Some(_)) => true,
+                (Some(a), Some(b)) => a.stream == b.stream && a.revision <= b.revision,
+                (None, None) => true,
+                (Some(_), None) => false,
+            };
+            let stale_presentation = matches!((old.id.presentation, scene.id.presentation),
+                (Some(a), Some(b)) if a.stream != b.stream || a.revision > b.revision);
+            if stale_presentation
+                || scene.id.source_revision < old.id.source_revision
+                || scene.id.source_revision == old.id.source_revision
+                    && (scene.id.tree != old.id.tree
+                        || scene.id.frame_revision != old.id.frame_revision
+                        || !ordered_sample)
             {
                 return Err(UiInputError::StaleScene);
             }

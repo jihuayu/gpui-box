@@ -5,6 +5,12 @@ active. Uses the existing [owner input transaction](RETAINED_INPUT_PROCESSING.md
 LayoutStyle/Flex, scoped callbacks and ordinary interaction-state style bindings.
 No second hit-test, scrolling or layout solver is introduced.
 
+Follow-up: `--animate` connects the [render-owned timeline](RETAINED_ANIMATION_RUNTIME.md)
+to the ordinary count button. Each count change submits one spring translation
+target; prepaint samples current time and installs the same complete GPU/CPU frame
+with projected input geometry. Repeated clicks redirect current presentation.
+This host remains GPUI callback-driven; its UI-stall presentation is not independent.
+
 ## Public normalization and host responsibilities
 
 `input::gpui_host::GpuiInputAdapter` is available with retained-text on native

@@ -705,7 +705,7 @@ impl WgpuFrameRenderer {
             return Err(Error::InvalidFrame);
         }
         if let Some(local) = &self.local_snapshot
-            && self.latest == Some((frame.tree, frame.revision))
+            && self.latest == Some((frame.stream(), frame.revision))
         {
             let expected = local.resolve();
             if frame.properties != expected.properties
@@ -741,14 +741,14 @@ impl WgpuFrameRenderer {
         let validation =
             self.validation_cache
                 .check(frame, surface, scale, self.cache_validation)?;
-        if self.retired_sources.contains(&frame.tree)
+        if self.retired_sources.contains(&frame.stream())
             || self
                 .latest
-                .is_some_and(|(tree, revision)| tree == frame.tree && revision > frame.revision)
+                .is_some_and(|(tree, revision)| tree == frame.stream() && revision > frame.revision)
         {
             return Err(Error::StaleFrame);
         }
-        if self.latest == Some((frame.tree, frame.revision))
+        if self.latest == Some((frame.stream(), frame.revision))
             && self
                 .routing_snapshot
                 .as_ref()
@@ -759,7 +759,7 @@ impl WgpuFrameRenderer {
         // Completion collection must also run on equal frames: no new visual
         // submission is required to retire the previous immutable frame leases.
         self.collect()?;
-        if self.source == Some((frame.tree, frame.revision))
+        if self.source == Some((frame.stream(), frame.revision))
             && self.scale == scale
             && self.surface == surface
         {
@@ -777,14 +777,20 @@ impl WgpuFrameRenderer {
             return Ok(None);
         }
         let untrusted_full_resync = self.source.is_some()
-            && self.source == frame.base_revision.map(|revision| (frame.tree, revision))
+            && self.source
+                == frame
+                    .base_revision
+                    .map(|revision| (frame.stream(), revision))
             && !self
                 .routing_snapshot
                 .as_ref()
                 .is_some_and(|snapshot| snapshot.follows(frame));
         let full_resync = untrusted_full_resync
             || self.source.is_none()
-            || self.source != frame.base_revision.map(|revision| (frame.tree, revision))
+            || self.source
+                != frame
+                    .base_revision
+                    .map(|revision| (frame.stream(), revision))
             || self.scale != scale;
         self.failed = true;
         let retire: Vec<_> = if full_resync {
@@ -992,11 +998,11 @@ impl WgpuFrameRenderer {
         if self.shared_spatial {
             self.spatial_arena.acknowledge();
         }
-        if let Some((tree, _)) = self.latest.filter(|(tree, _)| *tree != frame.tree) {
+        if let Some((tree, _)) = self.latest.filter(|(tree, _)| *tree != frame.stream()) {
             self.retired_sources.insert(tree);
         }
         self.routing_snapshot = Some(next_snapshot);
-        self.source = Some((frame.tree, frame.revision));
+        self.source = Some((frame.stream(), frame.revision));
         self.latest = self.source;
         self.scale = scale;
         self.surface = surface;

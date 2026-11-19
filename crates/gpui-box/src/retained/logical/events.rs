@@ -506,6 +506,7 @@ pub(super) fn input_scene(
             source_revision,
             tree: frame.tree(),
             frame_revision: frame.revision(),
+            presentation: None,
         },
         frame,
         identities: Arc::new(identities),
