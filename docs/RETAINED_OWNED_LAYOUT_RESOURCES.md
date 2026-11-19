@@ -4,6 +4,10 @@ Status: experimental Rust protocol, 2026-11-18. Full RFC remains active.
 The user's "99%" means common UI should feel fluid and intuitive; it is not a
 numeric success ratio or required p99 gate. Timings diagnose and compare work.
 
+Follow-up: [typed token input](RETAINED_TOKENS.md) advances source schema6→7.
+The schema6 migration below records this layout-resource stage; only the current
+version is accepted. Layout-resource ownership and solver protocols are unchanged.
+
 ## Why this boundary exists
 
 The retained kernel already supports pure custom parents, direct-parent metadata

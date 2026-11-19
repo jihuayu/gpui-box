@@ -3,12 +3,34 @@
 The active implementation goal covers the complete runtime requested on
 2026-11-11. Work continues in `codex/rendering-performance-research`.
 
-Current user direction (2026-11-18): "99%" means common UI should feel fluid and
+Current user direction (2026-11-19): "99%" means common UI should feel fluid and
 intuitive; it is not a numeric success ratio or a required p99 gate. Timings,
 tail samples and cadence runs remain diagnostic evidence for comparisons and
 regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
+
+The [typed token / expression stage](RETAINED_TOKENS.md) connects symbolic
+group/name/kind keys, complete default schemas, explicit replacement definitions
+and immutable resolved tables to ordinary StyleRule/StylePlan. Flat data-only
+programs provide number/linear-length/color/projection operations, typed operand
+validation and missing/actual-cycle diagnostics. Existing logical ThemeScope
+and source sinks adopt values; owned UI schema7 adds explicit per-node token
+snapshots/updates with replay/recovery/rollback. Unread token changes skip style
+evaluation using conservative winning-rule references. Normal property/Flex and
+complete-frame validation remain authoritative. This is not a stable wire ABI,
+token compiler, parts/patch or render-domain budgeted preparation; those and
+independent presentation remain open. No new FPS/timing claim; RFC stays active.
+See [decision](ADR_RETAINED_TOKENS.md) and
+[verification](performance/2026-11-19-tokens/README.md).
+
+Final retained-only805passed/1ignored, text/WGPU840/69, each17compiler doctests;
+hello104/42. Explicit real Noto GPU1passed/four complete1.25scale images on
+GTX1650Ti/Vulkan/571.96. Library Clippy-Dwarnings, CPU desktop without WGPU and
+retained-gpu harness checks pass. Scoped format/diff,313-document/1,214-link
+traversal and five inherited WIP baseline hashes pass. Schema6 rejection, FlexBasis Content versus Width
+validation, constructed style limits, unread-token invalidation and failed
+candidate preservation are covered. No new FPS/latency claim.
 
 The [bounded owner text cache](ADR_RETAINED_TEXT_PREPARATION_CACHE.md) reuses
 immutable prepared resources across ordinary Text consumers and recent typography

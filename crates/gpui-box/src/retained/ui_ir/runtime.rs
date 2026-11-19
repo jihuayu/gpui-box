@@ -509,6 +509,9 @@ impl UiDocument {
                 UiOperation::StyleState { node, value } => {
                     get_mut(&mut nodes, *node, &mut touched)?.style_state = *value
                 }
+                UiOperation::Tokens { node, value } => {
+                    get_mut(&mut nodes, *node, &mut touched)?.tokens = value.clone();
+                }
                 UiOperation::StyleEnvironment(value) => style_environment = value.clone(),
                 UiOperation::Interaction { node, value } => {
                     value.validate()?;

@@ -89,6 +89,10 @@ impl StyleCache {
                 style_changed
                     || old.layout != node.layout
                     || old.properties != node.properties
+                    || self
+                        .plans
+                        .get(&id)
+                        .is_some_and(|plan| plan.token_inputs_changed(&old.tokens, &node.tokens))
                     || self.plans.get(&id).is_some_and(|plan| {
                         plan.dependencies()
                             .state_changed(old.style_state, node.style_state)
@@ -162,11 +166,12 @@ impl StyleCache {
         };
         stats.styles_evaluated += 1;
         let output = plan
-            .resolve_values(
+            .resolve_token_values(
                 &node.layout,
                 &node.properties,
                 environment,
                 node.style_state,
+                &node.tokens,
             )
             .map_err(UiError::Style)?;
         let mut resolved = node.as_ref().clone();

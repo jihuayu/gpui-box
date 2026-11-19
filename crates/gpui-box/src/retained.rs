@@ -80,6 +80,7 @@ pub mod responsive;
 pub mod style;
 pub mod text_style;
 pub mod theme;
+pub mod tokens;
 pub mod ui_ir;
 pub use edit::{TreeEdit, TreeEditCommit};
 mod structure;
@@ -364,6 +365,7 @@ pub enum Error {
     InvalidStore,
     InvalidProvider,
     InvalidTheme,
+    InvalidTokens(tokens::TokenError),
     InvalidTextStyle,
     InvalidEventHandler,
     InvalidTask,

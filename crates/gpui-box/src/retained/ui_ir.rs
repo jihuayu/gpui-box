@@ -16,7 +16,7 @@ mod layout_resource_tests;
 #[cfg(test)]
 mod tests;
 
-pub const UI_SCHEMA_VERSION: u32 = 6;
+pub const UI_SCHEMA_VERSION: u32 = 7;
 
 pub(super) type NodeMap = BTreeMap<UiNodeId, Arc<UiNode>>;
 
@@ -98,6 +98,9 @@ pub struct UiNode {
     /// Applied after the authored base, in order. An empty list keeps the base.
     pub styles: Vec<StyleRef>,
     pub style_state: StyleState,
+    /// Explicit complete token environment for this node's Style IR. Logical
+    /// frontends resolve providers before emitting this owned source record.
+    pub tokens: tokens::TokenSnapshot,
     pub interaction: UiInteraction,
 }
 impl UiNode {
@@ -112,6 +115,7 @@ impl UiNode {
             parent_data: None,
             styles: vec![],
             style_state: StyleState::default(),
+            tokens: tokens::TokenSnapshot::default(),
             interaction: UiInteraction::default(),
         }
     }
@@ -119,7 +123,7 @@ impl UiNode {
 
 /// Full recoverable source state, including tombstones for retired slots.
 /// Resource bytes/handlers remain outside this record and must be installed by
-/// the receiving host before accepting it. Schema 6 is experimental Rust data.
+/// the receiving host before accepting it. Schema 7 is experimental Rust data.
 #[derive(Clone, Debug, PartialEq)]
 pub struct UiSnapshot {
     pub schema: u32,
@@ -198,6 +202,10 @@ pub enum UiOperation {
     StyleState {
         node: UiNodeId,
         value: StyleState,
+    },
+    Tokens {
+        node: UiNodeId,
+        value: tokens::TokenSnapshot,
     },
     StyleEnvironment(LayoutEnvironment),
     Interaction {
@@ -421,6 +429,9 @@ fn validate_content(content: &UiContent) -> Result<(), UiError> {
     Ok(())
 }
 fn validate_payload_bounds(node: &UiNode, limits: UiLimits) -> Result<(), UiError> {
+    if node.tokens.values().len() > tokens::TokenLimits::default().max_tokens {
+        return Err(UiError::LimitExceeded);
+    }
     node.interaction.validate()?;
     if node.children.len() > limits.max_children_per_node
         || node.properties.shadows.len() > limits.max_shadows_per_node
@@ -447,9 +458,13 @@ fn validate_style_refs(styles: &[StyleRef], limits: UiLimits) -> Result<(), UiEr
     if styles.len() > limits.max_styles_per_node {
         return Err(UiError::LimitExceeded);
     }
-    let (mut declarations, mut cases) = (0usize, 0usize);
+    let (mut declarations, mut cases, mut expressions) = (0usize, 0usize, 0usize);
     for style in styles {
         let work = style.work();
+        expressions = expressions.saturating_add(style.expression_work());
+        if expressions > tokens::TokenLimits::default().max_operations {
+            return Err(UiError::LimitExceeded);
+        }
         declarations = declarations
             .checked_add(work.0)
             .ok_or(UiError::LimitExceeded)?;

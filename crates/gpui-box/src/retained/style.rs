@@ -1,5 +1,6 @@
 //! Owned, typed style composition. Select a complete rule per atomic property
 //! first, then evaluate its ordered conditions. No callbacks or CSS parser.
+use super::tokens::{TokenExpr, TokenLimits, TokenProjection, TokenSnapshot, TokenType};
 use super::*;
 use super::{responsive::LayoutEnvironment, ui_ir::UiProperties};
 #[cfg(test)]
@@ -141,6 +142,7 @@ impl StyleDependencies {
 pub enum StyleValue<T> {
     Value(T),
     Initial,
+    Expression(TokenExpr<T>),
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct StyleCase<T> {
@@ -192,23 +194,47 @@ impl<T> StyleRule<T> {
             .map_or((&self.default, None), |(i, case)| (&case.value, Some(i)))
     }
 }
-impl<T: Clone> StyleRule<T> {
-    fn map<U>(&self, map: impl Fn(T) -> U) -> StyleRule<U> {
-        let value = |v: &StyleValue<T>| match v {
-            StyleValue::Value(v) => StyleValue::Value(map(v.clone())),
-            StyleValue::Initial => StyleValue::Initial,
+impl<T: TokenType> StyleRule<T> {
+    pub fn expression(expression: TokenExpr<T>) -> Self {
+        Self {
+            default: StyleValue::Expression(expression),
+            cases: vec![],
+        }
+    }
+    pub fn when_expression(mut self, condition: StyleCondition, expression: TokenExpr<T>) -> Self {
+        self.cases.push(StyleCase {
+            condition,
+            value: StyleValue::Expression(expression),
+        });
+        self
+    }
+    fn map<U: TokenType>(
+        &self,
+        map: impl Fn(T) -> U,
+        field: TokenProjection,
+    ) -> Result<StyleRule<U>, StyleError> {
+        let value = |v: &StyleValue<T>| -> Result<StyleValue<U>, StyleError> {
+            match v {
+                StyleValue::Value(v) => Ok(StyleValue::Value(map(v.clone()))),
+                StyleValue::Initial => Ok(StyleValue::Initial),
+                StyleValue::Expression(v) => Ok(StyleValue::Expression(TokenExpr::from_program(
+                    tokens::TokenProgram::projected(v.program(), field)?,
+                )?)),
+            }
         };
-        StyleRule {
-            default: value(&self.default),
+        Ok(StyleRule {
+            default: value(&self.default)?,
             cases: self
                 .cases
                 .iter()
-                .map(|c| StyleCase {
-                    condition: c.condition.clone(),
-                    value: value(&c.value),
+                .map(|c| {
+                    Ok(StyleCase {
+                        condition: c.condition.clone(),
+                        value: value(&c.value)?,
+                    })
                 })
-                .collect(),
-        }
+                .collect::<Result<_, StyleError>>()?,
+        })
     }
 }
 
@@ -239,6 +265,12 @@ pub enum StyleError {
     LimitExceeded,
     NonReflexiveValue,
     InvalidValue(Error),
+    Token(tokens::TokenError),
+}
+impl From<tokens::TokenError> for StyleError {
+    fn from(e: tokens::TokenError) -> Self {
+        Self::Token(e)
+    }
 }
 impl From<Error> for StyleError {
     fn from(e: Error) -> Self {
@@ -269,6 +301,22 @@ macro_rules! properties {
             Gap(StyleRule<LayoutSize<LayoutLength>>),
         }
         impl StyleDeclaration {
+            fn token_dependencies(&self) -> std::collections::BTreeSet<tokens::TokenId> {
+                match self {$(Self::$name(rule)=>std::iter::once(&rule.default).chain(rule.cases.iter().map(|c|&c.value))
+                    .filter_map(|v|if let StyleValue::Expression(e)=v {Some(e.program().references())}else {None}).flatten().collect()),+,_=>unreachable!("expanded shorthand")}
+            }
+            fn expression_work(&self)->usize {
+                match self {$(Self::$name(rule)=>std::iter::once(&rule.default).chain(rule.cases.iter().map(|c|&c.value))
+                    .map(|v|if let StyleValue::Expression(e)=v {e.program().operations().len()}else {0}).sum()),+,_=>unreachable!("expanded shorthand")}
+            }
+            fn validate_resolved_bounds(&self,output:&StyleResolution,limits:StyleLimits)->Result<(),StyleError> {
+                match self {
+                    Self::Grid(_) if output.layout.grid.as_ref().is_some_and(|g|grid_entries(g)>limits.max_grid_track_entries_per_value)=>return Err(StyleError::LimitExceeded),
+                    Self::Shadows(_) if output.properties.shadows.len()>limits.max_shadows_per_value=>return Err(StyleError::LimitExceeded),
+                    _=>{},
+                }
+                Ok(())
+            }
             fn dependencies(&self) -> StyleDependencies {
                 match self { $(Self::$name(rule) => {
                     let mut dependencies = StyleDependencies::default();
@@ -299,21 +347,23 @@ macro_rules! properties {
                     for value in std::iter::once(&rule.default).chain(rule.cases.iter().map(|c| &c.value)) {
                         let mut output = StyleResolution::default();
                         if let StyleValue::Value(value) = value { output.$target.$($field).+ = value.clone(); }
+                        if let StyleValue::Expression(expression)=value {expression.program().validate(TokenLimits::default())?;}
                         validate_output(&output)?;
                     }
                     for case in &rule.cases { case.condition.validate()?; }
                 }),+, _ => unreachable!("expanded shorthand") }
                 Ok(())
             }
-            fn apply(&self, output: &mut StyleResolution, environment: &LayoutEnvironment, state: StyleState) -> (Option<usize>, bool) {
+            fn apply(&self, output: &mut StyleResolution, environment: &LayoutEnvironment, state: StyleState, tokens:&TokenSnapshot) -> Result<(Option<usize>, bool),StyleError> {
                 match self { $(Self::$name(rule) => {
                     let (value, case) = rule.selected(environment, state);
                     let initial = matches!(value, StyleValue::Initial);
                     output.$target.$($field).+ = match value {
                         StyleValue::Value(value) => value.clone(),
                         StyleValue::Initial => StyleResolution::default().$target.$($field).+,
+                        StyleValue::Expression(expression) => expression.evaluate(tokens)?,
                     };
-                    (case, initial)
+                    Ok((case, initial))
                 }),+, _ => unreachable!("expanded shorthand") }
             }
         }
@@ -362,39 +412,51 @@ properties! {
 }
 
 impl StyleDeclaration {
-    fn expand(&self) -> Vec<Self> {
+    fn expand(&self) -> Result<Vec<Self>, StyleError> {
         use StyleDeclaration::*;
-        match self {
+        Ok(match self {
             Padding(r) => vec![
-                PaddingLeft(r.map(|v| v.left)),
-                PaddingRight(r.map(|v| v.right)),
-                PaddingTop(r.map(|v| v.top)),
-                PaddingBottom(r.map(|v| v.bottom)),
+                PaddingLeft(r.map(|v| v.left, TokenProjection::Left)?),
+                PaddingRight(r.map(|v| v.right, TokenProjection::Right)?),
+                PaddingTop(r.map(|v| v.top, TokenProjection::Top)?),
+                PaddingBottom(r.map(|v| v.bottom, TokenProjection::Bottom)?),
             ],
             Margin(r) => vec![
-                MarginLeft(r.map(|v| v.left)),
-                MarginRight(r.map(|v| v.right)),
-                MarginTop(r.map(|v| v.top)),
-                MarginBottom(r.map(|v| v.bottom)),
+                MarginLeft(r.map(|v| v.left, TokenProjection::Left)?),
+                MarginRight(r.map(|v| v.right, TokenProjection::Right)?),
+                MarginTop(r.map(|v| v.top, TokenProjection::Top)?),
+                MarginBottom(r.map(|v| v.bottom, TokenProjection::Bottom)?),
             ],
             Border(r) => vec![
-                BorderLeft(r.map(|v| v.left)),
-                BorderRight(r.map(|v| v.right)),
-                BorderTop(r.map(|v| v.top)),
-                BorderBottom(r.map(|v| v.bottom)),
+                BorderLeft(r.map(|v| v.left, TokenProjection::Left)?),
+                BorderRight(r.map(|v| v.right, TokenProjection::Right)?),
+                BorderTop(r.map(|v| v.top, TokenProjection::Top)?),
+                BorderBottom(r.map(|v| v.bottom, TokenProjection::Bottom)?),
             ],
             Inset(r) => vec![
-                InsetLeft(r.map(|v| v.left)),
-                InsetRight(r.map(|v| v.right)),
-                InsetTop(r.map(|v| v.top)),
-                InsetBottom(r.map(|v| v.bottom)),
+                InsetLeft(r.map(|v| v.left, TokenProjection::Left)?),
+                InsetRight(r.map(|v| v.right, TokenProjection::Right)?),
+                InsetTop(r.map(|v| v.top, TokenProjection::Top)?),
+                InsetBottom(r.map(|v| v.bottom, TokenProjection::Bottom)?),
             ],
-            Size(r) => vec![Width(r.map(|v| v.width)), Height(r.map(|v| v.height))],
-            MinSize(r) => vec![MinWidth(r.map(|v| v.width)), MinHeight(r.map(|v| v.height))],
-            MaxSize(r) => vec![MaxWidth(r.map(|v| v.width)), MaxHeight(r.map(|v| v.height))],
-            Gap(r) => vec![ColumnGap(r.map(|v| v.width)), RowGap(r.map(|v| v.height))],
+            Size(r) => vec![
+                Width(r.map(|v| v.width, TokenProjection::Width)?),
+                Height(r.map(|v| v.height, TokenProjection::Height)?),
+            ],
+            MinSize(r) => vec![
+                MinWidth(r.map(|v| v.width, TokenProjection::Width)?),
+                MinHeight(r.map(|v| v.height, TokenProjection::Height)?),
+            ],
+            MaxSize(r) => vec![
+                MaxWidth(r.map(|v| v.width, TokenProjection::Width)?),
+                MaxHeight(r.map(|v| v.height, TokenProjection::Height)?),
+            ],
+            Gap(r) => vec![
+                ColumnGap(r.map(|v| v.width, TokenProjection::Width)?),
+                RowGap(r.map(|v| v.height, TokenProjection::Height)?),
+            ],
             atom => vec![atom.clone()],
-        }
+        })
     }
 }
 
@@ -403,6 +465,8 @@ struct Sheet {
     name: String,
     declarations: Vec<StyleDeclaration>,
     work: (usize, usize, usize, usize),
+    expression_work: usize,
+    limits: StyleLimits,
 }
 /// Owned validated immutable definition. Clone shares declarations; equal new
 /// definitions compare by value. No global registry, callback or lifetime leak.
@@ -444,7 +508,7 @@ impl StyleRef {
             {
                 return Err(StyleError::LimitExceeded);
             }
-            for atom in declaration.expand() {
+            for atom in declaration.expand()? {
                 if expanded.len() >= limits.max_declarations {
                     return Err(StyleError::LimitExceeded);
                 }
@@ -456,7 +520,12 @@ impl StyleRef {
             }
         }
         let mut work = (expanded.len(), 0usize, 0usize, 0usize);
+        let mut expression_work = 0usize;
         for atom in &expanded {
+            expression_work = expression_work.saturating_add(atom.expression_work());
+            if expression_work > TokenLimits::default().max_operations {
+                return Err(StyleError::LimitExceeded);
+            }
             work.1 += atom.case_count();
             let values = atom.value_work();
             work.2 = work.2.max(values.0);
@@ -466,6 +535,8 @@ impl StyleRef {
             name,
             declarations: expanded,
             work,
+            expression_work,
+            limits,
         })))
     }
     pub fn name(&self) -> &str {
@@ -478,6 +549,9 @@ impl StyleRef {
     }
     pub(crate) fn work(&self) -> (usize, usize, usize, usize) {
         self.0.work
+    }
+    pub(crate) fn expression_work(&self) -> usize {
+        self.0.expression_work
     }
 }
 
@@ -540,6 +614,7 @@ pub struct StylePlan {
     styles: Vec<StyleRef>,
     selected: Vec<(StyleProperty, usize, usize)>,
     dependencies: StyleDependencies,
+    token_dependencies: std::collections::BTreeSet<tokens::TokenId>,
 }
 impl StylePlan {
     pub fn new(styles: &[StyleRef]) -> Self {
@@ -550,10 +625,12 @@ impl StylePlan {
             }
         }
         let mut dependencies = StyleDependencies::default();
+        let mut token_dependencies = std::collections::BTreeSet::new();
         let selected = selected
             .into_iter()
             .map(|(key, (s, d))| {
                 dependencies.include(styles[s].0.declarations[d].dependencies());
+                token_dependencies.extend(styles[s].0.declarations[d].token_dependencies());
                 (key, s, d)
             })
             .collect();
@@ -561,10 +638,25 @@ impl StylePlan {
             styles: styles.to_vec(),
             selected,
             dependencies,
+            token_dependencies,
         }
     }
     pub fn dependencies(&self) -> StyleDependencies {
         self.dependencies
+    }
+    /// References from winning complete property rules, including inactive cases.
+    /// This is a conservative invalidation set, not the active condition trace.
+    pub fn token_dependencies(&self) -> &std::collections::BTreeSet<tokens::TokenId> {
+        &self.token_dependencies
+    }
+    pub(crate) fn token_inputs_changed(
+        &self,
+        before: &TokenSnapshot,
+        after: &TokenSnapshot,
+    ) -> bool {
+        self.token_dependencies
+            .iter()
+            .any(|id| before.values().get(id) != after.values().get(id))
     }
     pub fn resolve(
         &self,
@@ -573,7 +665,14 @@ impl StylePlan {
         environment: &LayoutEnvironment,
         state: StyleState,
     ) -> Result<StyleResolution, StyleError> {
-        self.evaluate(base_layout, base_properties, environment, state, true)
+        self.evaluate(
+            base_layout,
+            base_properties,
+            environment,
+            state,
+            true,
+            &TokenSnapshot::default(),
+        )
     }
     /// Resolve effective values without allocating winner diagnostics. Suitable
     /// for ordinary computed bindings that only need visual equality.
@@ -584,7 +683,48 @@ impl StylePlan {
         environment: &LayoutEnvironment,
         state: StyleState,
     ) -> Result<StyleResolution, StyleError> {
-        self.evaluate(base_layout, base_properties, environment, state, false)
+        self.evaluate(
+            base_layout,
+            base_properties,
+            environment,
+            state,
+            false,
+            &TokenSnapshot::default(),
+        )
+    }
+    pub fn resolve_tokens(
+        &self,
+        base_layout: &LayoutStyle,
+        base_properties: &UiProperties,
+        environment: &LayoutEnvironment,
+        state: StyleState,
+        tokens: &TokenSnapshot,
+    ) -> Result<StyleResolution, StyleError> {
+        self.evaluate(
+            base_layout,
+            base_properties,
+            environment,
+            state,
+            true,
+            tokens,
+        )
+    }
+    pub fn resolve_token_values(
+        &self,
+        base_layout: &LayoutStyle,
+        base_properties: &UiProperties,
+        environment: &LayoutEnvironment,
+        state: StyleState,
+        tokens: &TokenSnapshot,
+    ) -> Result<StyleResolution, StyleError> {
+        self.evaluate(
+            base_layout,
+            base_properties,
+            environment,
+            state,
+            false,
+            tokens,
+        )
     }
     fn evaluate(
         &self,
@@ -593,6 +733,7 @@ impl StylePlan {
         environment: &LayoutEnvironment,
         state: StyleState,
         diagnostics: bool,
+        tokens: &TokenSnapshot,
     ) -> Result<StyleResolution, StyleError> {
         environment.validate()?;
         let mut output = StyleResolution {
@@ -602,7 +743,9 @@ impl StylePlan {
         };
         for &(key, style_index, declaration_index) in &self.selected {
             let declaration = &self.styles[style_index].0.declarations[declaration_index];
-            let (case_index, initial) = declaration.apply(&mut output, environment, state);
+            let (case_index, initial) =
+                declaration.apply(&mut output, environment, state, tokens)?;
+            declaration.validate_resolved_bounds(&output, self.styles[style_index].0.limits)?;
             if diagnostics {
                 output.winners.insert(
                     key,

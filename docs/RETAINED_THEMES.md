@@ -92,6 +92,11 @@ StyleEpoch/PendingScene preparation remain open. Layout/paint values do not
 implicitly inherit. Large theme fanout still runs normal owner work; selector
 equality avoids unchanged sinks but does not promise O(1) switches or 120 Hz.
 
+Follow-up: [typed symbolic tokens and Style IR expressions](RETAINED_TOKENS.md)
+now supply complete schema/default resolution, finite owned programs and missing/
+cycle diagnostics through TokenThemeKey and explicit node tables. Serialization/
+ABI, parts/ThemePatch and budgeted render-domain theme preparation remain open.
+
 Follow-up: [ordinary Text inheritance](RETAINED_TEXT_COMPONENTS.md) now provides
 the enumerated uniform text properties through TextStyleScope/TextStyleKey and
 an automatic Text component. Low-level prepared TextPaint/UiContent remain

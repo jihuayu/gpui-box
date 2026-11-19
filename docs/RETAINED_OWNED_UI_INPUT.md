@@ -25,12 +25,18 @@ The [focus reveal stage](RETAINED_FOCUS_REVEAL.md) advances4→5 with post-layou
 ScrollIntoView intents; schemas1/2/3/4 now reject. Resulting narrow ancestor
 offsets adopt atomically with final styles/layout/frame and persist in snapshot.
 
-Current schema is6: [owned layout resources](RETAINED_OWNED_LAYOUT_RESOURCES.md)
+Schema6: [owned layout resources](RETAINED_OWNED_LAYOUT_RESOURCES.md)
 adds Measure content, optional parent_layout/parent_data IDs, matching field
 operations and isolated document dry queries. Schemas1–5 reject. These are
 host-installed immutable Rust protocols using the existing resource table and
 ordinary layout solver; source messages carry IDs. Earlier schema notes above
 describe their respective stages, not additional supported versions.
+
+Current schema is7: [typed token expressions](RETAINED_TOKENS.md) adds
+UiNode.tokens (a shared empty snapshot by default) and UiOperation::Tokens.
+Frontends supply each node's resolved logical token environment; ordinary style
+planning, replay, recovery and rollback include it. Schemas1–6 reject. Complete
+UiNode literals, exhaustive operation matches and stored snapshots need migration.
 
 ## Public inputs and owner adapter
 

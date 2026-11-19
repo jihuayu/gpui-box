@@ -41,6 +41,8 @@ mod text_cache_tests;
 mod text_component_tests;
 #[path = "retained_theme_text_tests.rs"]
 mod theme_text_tests;
+#[path = "retained_token_text_tests.rs"]
+mod token_text_tests;
 #[path = "retained_ui_ir_text_tests.rs"]
 mod ui_ir_text_tests;
 #[path = "retained_virtual_list_text_tests.rs"]

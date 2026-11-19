@@ -58,6 +58,13 @@ GpuiTextPreparer内按完整内容／字体／size／line-height／scale／revis
 共享缓存与allocator，不作为进程memory上限。旧frame在驱逐后仍可消费，普通source／
 Flex／完整采用契约不变；预算化准备、rich text和独立呈现仍开放。
 
+同日后续：[类型化token与表达式](RETAINED_TOKENS.md) 用group/name/kind稳定符号、
+完整default schema及显式override构建不可变table；flat数据指令支持有限number／length／
+color／projection求值，验证类型／missing／actual cycle与工作上限。StyleRule直接引用，
+沿既有winner／condition／property validation与普通Flex采用；逻辑端复用TokenThemeKey，
+owned UI schema升7，显式node token snapshot更新／replay／recovery同事务。未读取token
+变化跳过style求值。尚无稳定序列化／ABI、完整token宏／parts／patch、预算准备或独立呈现。
+
 ## 1. 要解决的问题
 
 框架以 GPUI 为基础，提供一套比底层绘制更完整的界面抽象：应用用 Rust 编写时自然、可检查；以后用 JS 或 Go 编写时，复用同一个 UI 语义与渲染内核。
@@ -1089,6 +1096,10 @@ UI schema2接入source/effective原子发布，Flex／Grid／Calc、P1／P2及�
 [TextStyleScope／Text](RETAINED_TEXT_COMPONENTS.md)。后者对列明的uniform文字属性
 提供逻辑继承与owner资源准备；它们复用普通source，不代表以下token表达式、StyleRef
 inherit语法、宏、parts、跨语言Style IR或完整富文本均已实现。
+
+再后续 [TokenKey／TokenSchema／TokenProgram](RETAINED_TOKENS.md) 已补有限数据化
+derived-token与StyleValue::Expression。它实现下述方向的一部分，不含宏、parts、wire ABI
+或独立渲染域采样／PendingScene预算。
 
 ### 6.1 借鉴范围
 

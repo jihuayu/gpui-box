@@ -1,5 +1,11 @@
 # Typed style composition and pure conditions
 
+2026-11-19 follow-up: [typed tokens and owned expressions](RETAINED_TOKENS.md)
+adds StyleValue::Expression/StyleRule::expression and explicit token-aware plan
+evaluation. UI schema7 carries per-node complete token snapshots and updates;
+literal rule composition/order remains the contract below. Stable serialization,
+parts/ThemePatch and render-domain budgeted preparation remain open.
+
 Status: experimental Rust Style IR,2026-11-18. Full RFC goal remains active.
 This implements the ordered composition core from
 [runtime architecture section6](UI_RUNTIME_ARCHITECTURE.md), joined to the
