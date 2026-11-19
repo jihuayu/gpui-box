@@ -1,0 +1,16 @@
+passed=true
+mode=GPU
+UI=dedicated LogicalUi/Flex owner thread
+presentation=normal GPUI callbacks while owner stalled
+evidence=native Present acceptance, not compositor/display completion
+input=app-internal GPUI dispatch, not OS injection
+window_visible=true
+adapter=Some(AdapterInfo { name: "NVIDIA GeForce GTX 1650 Ti", vendor: 4318, device: 8085, device_type: DiscreteGpu, device_pci_bus_id: "0000:01:00.0", driver: "32.0.15.7196", driver_info: "", backend: Dx12, subgroup_min_size: 32, subgroup_max_size: 32, transient_saves_memory: Some(false), limit_bucket: None })
+stall_ms=100,owner_turn=3,installed_samples=6,translations=6,queued_present_attempts=5
+phase=0,native_surface=true
+phase=0,native_pixels=437400
+stall_ms=500,owner_turn=7,installed_samples=30,translations=30,queued_present_attempts=30
+phase=1,native_surface=true
+phase=1,native_pixels=437400
+keyboard_count=3
+capture_released=true

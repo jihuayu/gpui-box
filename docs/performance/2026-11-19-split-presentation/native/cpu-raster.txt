@@ -1,0 +1,14 @@
+split_cpu_raster: revision=1,size=900x486,elapsed_us=494293,work_units=2060755,raster_samples=1056802
+split_cpu_raster: revision=2,size=900x486,elapsed_us=511085,work_units=2060831,raster_samples=1056874
+split_cpu_raster: revision=3,size=900x486,elapsed_us=496813,work_units=2060831,raster_samples=1056874
+split_cpu_raster: revision=4,size=900x486,elapsed_us=488771,work_units=2060831,raster_samples=1056874
+split_cpu_raster: revision=5,size=900x486,elapsed_us=514184,work_units=2060759,raster_samples=1056802
+split_cpu_raster: revision=6,size=900x486,elapsed_us=505519,work_units=2060831,raster_samples=1056874
+split_cpu_raster: revision=7,size=900x486,elapsed_us=510940,work_units=2060827,raster_samples=1056874
+split_cpu_raster: revision=8,size=900x486,elapsed_us=506955,work_units=2060827,raster_samples=1056874
+split_cpu_raster: revision=9,size=900x486,elapsed_us=508071,work_units=2060755,raster_samples=1056802
+split_cpu_raster: revision=10,size=900x486,elapsed_us=502546,work_units=2060827,raster_samples=1056874
+split_cpu_raster: revision=11,size=900x486,elapsed_us=526452,work_units=2060831,raster_samples=1056874
+split_cpu_raster: revision=12,size=900x486,elapsed_us=502595,work_units=2060831,raster_samples=1056874
+split_cpu_raster: revision=13,size=900x486,elapsed_us=504950,work_units=2060759,raster_samples=1056802
+split_cpu_raster: revision=14,size=900x486,elapsed_us=538699,work_units=2060759,raster_samples=1056802

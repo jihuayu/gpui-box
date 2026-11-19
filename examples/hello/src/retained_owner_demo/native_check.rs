@@ -47,7 +47,7 @@ pub(crate) fn open(cx: &mut App, output: PathBuf, cpu: bool) {
                     if this.router.scene_id() != Some(shown.scene.id()) { return Err("installed input identity differs".into()); }
                     if this.animate {
                         if shown.scene.id().presentation.is_none() {return Err("animation image has no sampled input identity".into());}
-                        let expected=if *this.ui.read(this.count).unwrap()%2==0 {0.0} else {120.0};
+                        let expected=if (*this.ui.read(this.count).unwrap()).is_multiple_of(2) {0.0} else {120.0};
                         if shown.frame.resolve_geometry(this.animated_button).unwrap().spatial.translation!=[expected,0.0] {return Err("animation final placement differs".into());}
                     }
                     let mut job = SoftwareJob::new(shown.frame.resolve(), SoftwareOptions {

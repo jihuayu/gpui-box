@@ -1,0 +1,19 @@
+passed=true
+mode=CPU
+UI=dedicated LogicalUi/Flex owner thread
+presentation=normal GPUI callbacks while owner stalled
+evidence=native Present acceptance, not compositor/display completion
+input=app-internal GPUI dispatch, not OS injection
+window_visible=true
+adapter=None
+stall_ms=100,owner_turn=3,installed_samples=0,translations=0,queued_present_attempts=0
+phase=0,native_surface=false
+phase=0,native_pixels=437400
+stall_ms=500,owner_turn=7,installed_samples=0,translations=0,queued_present_attempts=0
+phase=1,native_surface=false
+phase=1,native_pixels=437400
+stall_ms=2000,owner_turn=10,installed_samples=3,translations=3,queued_present_attempts=6
+phase=2,native_surface=false
+phase=2,native_pixels=437400
+keyboard_count=4
+capture_released=true

@@ -16,6 +16,61 @@ fn fixture() -> (UiTree, NodeId, NodeId) {
         .unwrap();
     (tree, parent, child)
 }
+#[test]
+fn source_and_ordered_controls_activate_atomically_and_keep_old_input_geometry() {
+    let (mut tree, node, _) = fixture();
+    let now = Instant::now();
+    let old = tree.local_frame([160.0, 100.0]).unwrap();
+    let mut runtime = AnimationRuntime::new(old.clone(), AnimationLimits::default()).unwrap();
+    let before = runtime.sample(now).unwrap();
+    let mut tx = Transaction::default();
+    tx.color(node, 0x55cc88ff);
+    tree.commit(tx, BackendCapabilities::default()).unwrap();
+    let next = tree.local_frame([160.0, 100.0]).unwrap();
+    let invalid = AnimationBatch {
+        scene: AnimationScene::of(&next),
+        sequence: runtime.next_sequence(),
+        controls: vec![AnimationControl::Animate(spec(
+            1,
+            node,
+            AnimationValue::Opacity(2.0),
+        ))],
+    };
+    assert_eq!(
+        runtime.activate(next.clone(), invalid, now),
+        Err(AnimationError::InvalidSpec)
+    );
+    assert_eq!(runtime.scene(), AnimationScene::of(&old));
+    assert_eq!(runtime.next_sequence(), 1);
+    assert!(before.frame.same(&runtime.sample(now).unwrap().frame));
+    runtime
+        .activate(
+            next.clone(),
+            AnimationBatch {
+                scene: AnimationScene::of(&next),
+                sequence: 1,
+                controls: vec![AnimationControl::Animate(spec(
+                    1,
+                    node,
+                    AnimationValue::Translation([40.0, 0.0]),
+                ))],
+            },
+            now,
+        )
+        .unwrap();
+    assert_eq!(runtime.scene(), AnimationScene::of(&next));
+    assert_eq!(
+        translation(
+            &runtime.sample(now + Duration::from_millis(500)).unwrap(),
+            node
+        ),
+        [20.0, 0.0]
+    );
+    assert_eq!(
+        before.frame.resolve_geometry(node).unwrap().fill_color,
+        0x225588ff
+    );
+}
 fn spec(id: u64, node: NodeId, value: AnimationValue) -> AnimationSpec {
     AnimationSpec {
         id,

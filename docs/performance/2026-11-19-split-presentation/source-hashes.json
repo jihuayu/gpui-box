@@ -1,0 +1,15 @@
+{
+  "Cargo.lock": "6c7beac10731ef161c6dacbc182ec1b2cd49198fb87c2aa4a58c19eb3ac0e64b",
+  "examples/hello/Cargo.toml": "e7223e9aceafbc057dd269966091af7b3367bf7bf79d4f1f6145b87181c673a8",
+  "examples/desktop/src/main.rs": "cd87d828df55ecec0125dd26f1f77462c367dafe91a299c7f9d4c003eaed0fb2",
+  "examples/hello/src/lib.rs": "93a69f7fa674149d276bdab75c14c30d37ea13c16bcf3a60735ea4b18d1dd73b",
+  "examples/hello/src/retained_owner_demo.rs": "be675dc020d34c97a3f4a1c1343a29dcee9612a74d8745ab278b2d4a604eb1f0",
+  "examples/hello/src/retained_owner_demo/native_check.rs": "4e05cc7d897993678f44b0eb1ea8356a0a9ee8e304fc33b07aa2bbf20f247080",
+  "examples/hello/src/retained_split_demo.rs": "eb7f909c0d07d5b8b18fc9d0422d5d9d68048e0628981ea162b984f52a02976b",
+  "examples/hello/src/retained_split_demo/owner.rs": "011d03be13015611191cc8d48276662d576027819643c501a43d7902681664a5",
+  "examples/hello/src/retained_split_demo/tests.rs": "25446bdb993c171450a78d9d507c7ae2d68dacb5986eb0ce68a177c3f1105980",
+  "examples/hello/src/retained_split_demo/native_check.rs": "3bf0e4a8f14e51771b367ea3072a6f562b896542253faf0ebc0bab7cea7ed9f6",
+  "crates/gpui-box/src/retained/animation.rs": "11d1a1ba3e07e440737ea2b014af4569b2dddc06bc63e5c73ab73ec1b5714104",
+  "crates/gpui-box/src/retained/animation/tests.rs": "36eb285fa84d2cb723c0b1307ffa0515f8a8110d6ee786f51e1ce0e6f4e5c205",
+  "crates/gpui-box/src/retained/input.rs": "424e2196be0a9c3fc35caf8f84380198d35faeea8b04390bdd269ab21dcfa81e"
+}

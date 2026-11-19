@@ -1,0 +1,15 @@
+{
+  "base_commit": "e842f0aeb160cf593a7e48af037117a9453396c1",
+  "branch": "codex/rendering-performance-research",
+  "binary": "target/debug/gpui-box-example-desktop.exe",
+  "binary_sha256": "7acd0421a96a0d471b12ef8257183f66e453312ec42d38bbee60fdaf86b634b1",
+  "build": "Rust/Cargo 1.98.1 Windows MSVC locked offline dev",
+  "captured_at": "2026-11-19T10:44:04.0864055+08:00",
+  "scale": 1.5,
+  "retained_pixels_per_phase": 437400,
+  "GPU": "DX12 NVIDIA GeForce GTX 1650 Ti; driver 32.0.15.7196; native shared surface",
+  "CPU": "SoftwareJob retained raster; normal GPUI image upload/presentation",
+  "input": "app-internal GPUI dispatch, not OS injection",
+  "presentation": "ordinary callbacks during owner stall; queued Present acceptance, not display completion",
+  "CPU_acceptance": "short intervals observational, 2s requires sample/Present progress; no fluidity claim"
+}

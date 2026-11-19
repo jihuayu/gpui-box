@@ -402,6 +402,20 @@ impl AnimationRuntime {
         *self = next;
         Ok(())
     }
+    /// Adopt a complete authored source and its causally associated controls
+    /// together. A rejected control cannot leave a half-adopted source behind.
+    pub fn activate(
+        &mut self,
+        source: LocalFrame,
+        batch: AnimationBatch,
+        now: Instant,
+    ) -> Result<(), AnimationError> {
+        let mut candidate = self.candidate();
+        candidate.set_scene(source, now)?;
+        candidate.apply(batch, now)?;
+        *self = candidate;
+        Ok(())
+    }
     fn control(&mut self, control: AnimationControl, now: Instant) -> Result<(), AnimationError> {
         match control {
             AnimationControl::Animate(spec) => {

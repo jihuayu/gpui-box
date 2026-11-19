@@ -15,6 +15,7 @@ gpui_platform = { workspace = true, optional = true }
 gpui-box = { workspace = true, features = ["retained", "retained-text"] }
 unicode-segmentation = "1.12"
 image = { version = "0.25.10", default-features = false }
+futures = "0.3.34"
 
 [lints]
 workspace = true

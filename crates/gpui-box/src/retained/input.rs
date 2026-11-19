@@ -331,6 +331,11 @@ pub struct UiInputScene {
     pub(crate) scrolls: Arc<BTreeMap<UiNodeId, UiScrollState>>,
 }
 impl UiInputScene {
+    /// Exact complete geometry associated with this immutable policy publication.
+    /// A presentation service can sample it without accessing the UI owner.
+    pub fn frame(&self) -> &local::LocalFrame {
+        &self.frame
+    }
     /// Identity of a render node in this exact immutable input publication.
     /// Useful for explicit programmatic focus without exposing arena internals.
     pub fn node_id(&self, node: NodeId) -> Option<UiNodeId> {

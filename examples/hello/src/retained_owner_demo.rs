@@ -474,7 +474,7 @@ impl OwnerDemo {
                                 id: self.next_animation_id,
                                 node: self.animated_button,
                                 destination: AnimationValue::Translation([
-                                    if count % 2 == 0 { 0.0 } else { 120.0 },
+                                    if count.is_multiple_of(2) { 0.0 } else { 120.0 },
                                     0.0,
                                 ]),
                                 curve: AnimationCurve::Spring(Spring {

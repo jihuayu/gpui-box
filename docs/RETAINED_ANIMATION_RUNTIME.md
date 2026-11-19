@@ -133,6 +133,11 @@ Use the default continuous logical geometry. Supporting snap-aware render sampli
 requires a separate explicit projection contract; silent double projection is
 not allowed. This does not change the existing ordinary pixel-snap UI path.
 
+Follow-up: [split-owner host](RETAINED_SPLIT_PRESENTATION.md) uses
+`activate(source, batch, now)` to stage source adoption plus its ordered animation
+controls atomically. UiInputScene::frame exposes the exact immutable geometry to
+that presentation owner; no mutable UI crosses threads.
+
 ## Runnable host and evidence boundaries
 
 The ordinary owner example accepts `--animate`. Clicking the count button submits

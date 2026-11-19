@@ -1,10 +1,16 @@
 fn main() {
     let retained = std::env::args().any(|argument| argument == "--retained");
     let owner = std::env::args().any(|argument| argument == "--retained-owner");
+    let split = std::env::args().any(|argument| argument == "--retained-split");
     let cpu = std::env::args().any(|argument| argument == "--cpu");
     #[cfg(feature = "native-check")]
     let owner_check = std::env::args()
         .skip_while(|arg| arg != "--retained-owner-check")
+        .nth(1)
+        .map(std::path::PathBuf::from);
+    #[cfg(feature = "native-check")]
+    let split_check = std::env::args()
+        .skip_while(|arg| arg != "--retained-split-check")
         .nth(1)
         .map(std::path::PathBuf::from);
     #[cfg(feature = "retained-wgpu")]
@@ -24,6 +30,15 @@ fn main() {
             }
         })
         .detach();
+        #[cfg(feature = "native-check")]
+        if let Some(output) = split_check {
+            gpui_box_example_hello::check_retained_split(cx, output, cpu);
+            return;
+        }
+        if split {
+            gpui_box_example_hello::open_retained_split(cx, cpu);
+            return;
+        }
         #[cfg(feature = "native-check")]
         if let Some(output) = owner_check {
             gpui_box_example_hello::check_retained_owner(cx, output, cpu);

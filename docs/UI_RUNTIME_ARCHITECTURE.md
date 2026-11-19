@@ -82,6 +82,11 @@ owned UI schema升7，显式node token snapshot更新／replay／recovery同事�
 
 ## 2. 总体架构与线程所有权
 
+2026-11-19 后续：[split-owner host](RETAINED_SPLIT_PRESENTATION.md) 已开始把
+LogicalUi／callbacks／Flex放入专用线程，平台线程只消费完整source／control并采样、
+安装图像与路由input，仍由同一GPUI renderer持有swapchain。原owner/gallery不自动迁移。
+这是桌面显式集成，跨平台host／预算资源／direct interaction和完整呈现验收仍开放。
+
 ```mermaid
 flowchart TB
     Rust[Rust 前端] --> UI[UI Runtime]

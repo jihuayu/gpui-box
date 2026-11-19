@@ -10,6 +10,21 @@ regressions. Earlier p99/percentage acceptance wording below is historical.
 Prioritize missing public UI/Layout capabilities and ordinary Flex behavior;
 rare combinations and scene-specific tuning do not take priority over them.
 
+The [split-owner presentation host](RETAINED_SPLIT_PRESENTATION.md) moves
+LogicalUi/Rc sources/callbacks/Flex to a dedicated thread and keeps one lightweight
+GPUI window/presentation service. Existing bounded Commands carry routed input
+and ordered complete source/control replies; atomic AnimationRuntime::activate
+keeps source and timeline adoption together. Input follows installed samples,
+and source viewport/scale remain explicit while resize/DPI waits. CPU finishes
+one complete job before sampling its successor. The --retained-split example is
+an explicit desktop integration; portable host/factory/lifecycle, budgeted
+resources/direct interaction and five-platform qualification remain open.
+Native GPU advances during100ms/500ms owner pauses; CPU debug raster takes around
+500ms and only demonstrates complete-image progress in a separate2s
+control. CPU animation fluidity and sustained60/120Hz remain unqualified.
+See [decision](ADR_RETAINED_SPLIT_PRESENTATION.md) and
+[verification](performance/2026-11-19-split-presentation/README.md).
+
 The [render-owned timeline stage](RETAINED_ANIMATION_RUNTIME.md) separates
 authored scene values from translation/opacity controllers and sampled output.
 Data-only bounded curves, ordered scene/sequence admission, current-value retarget

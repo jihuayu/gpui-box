@@ -2076,6 +2076,7 @@ dependencies = [
 name = "gpui-box-example-hello"
 version = "0.1.0-dev"
 dependencies = [
+ "futures",
  "gpui",
  "gpui-box",
  "gpui_platform",
